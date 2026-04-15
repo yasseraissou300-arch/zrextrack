@@ -36,22 +36,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // Check if user is blocked
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('status, role')
-    .eq('id', user.id)
-    .single();
-
-  if (profile?.status === 'blocked') {
-    return NextResponse.redirect(new URL('/login?blocked=1', request.url));
-  }
-
-  // Admin-only routes
-  if (pathname.startsWith('/admin') && profile?.role !== 'admin') {
-    return NextResponse.redirect(new URL('/admin-dashboard', request.url));
-  }
-
   return supabaseResponse;
 }
 
