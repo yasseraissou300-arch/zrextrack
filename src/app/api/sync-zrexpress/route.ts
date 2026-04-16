@@ -3,10 +3,11 @@ import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 const ZREXPRESS_API = 'https://api.zrexpress.app/api/v1.0';
 
+// Map ZREXpress parcel status → our internal status
 function mapStatus(state: string): string {
   const s = (state || '').toLowerCase().replace(/\s+/g, '_');
   if (s.includes('livr') && !s.includes('en_')) return 'livre';
-  if (s.includes('en_pr') || s.includes('preparation') || s.includes('recue') || s.includes('recu') || s.includes('dispatch') || s.includes('confirm')) return 'en_preparation';
+  if (s.includes('en_pr') || s.includes('preparation')) return 'en_preparation';
   if (s.includes('transit')) return 'en_transit';
   if (s.includes('en_livr') || s.includes('sorti') || s.includes('distribution')) return 'en_livraison';
   if (s.includes('retour')) return 'retourne';
@@ -14,6 +15,7 @@ function mapStatus(state: string): string {
   return 'en_preparation';
 }
 
+// Fetch all pages from ZREXpress parcels/search
 async function fetchAllParcels(token: string, tenantId: string): Promise<any[]> {
   const all: any[] = [];
   let pageNumber = 1;
@@ -43,7 +45,7 @@ async function fetchAllParcels(token: string, tenantId: string): Promise<any[]> 
       break;
     }
 
-    const items = data.items || data.content || data.data || data.parcels || [];
+    const items = data.content || data.items || data.data || data.parcels || [];
     all.push(...items);
 
     totalPages = data.totalPages ?? data.total_pages ?? 1;
@@ -55,38 +57,52 @@ async function fetchAllParcels(token: string, tenantId: string): Promise<any[]> 
   return all;
 }
 
+// Map a ZREXpress parcel to our orders table row
 function mapParcel(p: any, syncedAt: string) {
-  // Use real tracking number (e.g. "25-CAABE9MIS5-ZR"), fallback to id
-  const tracking = p.trackingNumber || p.trackingCode || p.tracking_code || p.barcode || p.id || '';
+  const tracking =
+    p.trackingNumber || p.trackingCode || p.tracking_code || p.tracking || p.barcode || p.id || '';
 
-  const client = p.customer?.name || p.recipientName || p.recipient_name || '';
+  const client =
+    p.customer?.name || p.recipientName || p.recipient_name || p.clientName || p.client_name || '';
 
-  // customer.phone is { number1, number2, number3 }
   const phoneObj = (p.customer?.phone && typeof p.customer.phone === 'object') ? p.customer.phone : {};
   const whatsapp =
     phoneObj.number1 || phoneObj.number2 || phoneObj.number3 ||
     (typeof p.customer?.phone === 'string' ? p.customer.phone : '') ||
-    p.recipientPhone || p.recipient_phone || '';
+    p.recipientPhone || p.recipient_phone || p.phone || '';
 
-  // City from delivery address
-  const wilaya = p.deliveryAddress?.city || p.deliveryAddress?.district || '';
+  const wilaya =
+    p.deliveryAddress?.city || p.wilaya?.name || p.wilayaName || p.wilaya_name || p.wilaya || p.city || '';
 
-  // Product: use productsDescription (more detailed), fallback to description
+  const district =
+    p.deliveryAddress?.district || p.deliveryAddress?.commune || p.district || '';
+
   const product =
-    p.productsDescription ||
-    p.description ||
+    p.productsDescription || p.description ||
     (p.orderedProducts && p.orderedProducts.length > 0 ? p.orderedProducts[0].productName : '') ||
-    '';
+    p.productName || p.product_name || p.product?.name || '';
 
-  const cod = p.amount ?? p.price ?? p.cod ?? 0;
+  const cod =
+    p.amount ?? p.price ?? p.cod ?? p.codAmount ?? p.cod_amount ?? 0;
 
-  const rawStatus = p.state?.name || p.status?.name || p.state || p.status || '';
+  const rawStatus =
+    p.state?.name || p.stateName || p.status?.name || p.statusName || p.state || p.status || '';
   const status = mapStatus(rawStatus);
 
-  const attempts = p.deliveryAttempts ?? p.delivery_attempts ?? p.attempts ?? 0;
+  const situation =
+    p.situation?.name || p.situationName || p.situation || '';
 
-  const created_at = p.createdAt || p.created_at || syncedAt;
-  // Use sync time so latest sync rows appear at top
+  const delivery_type =
+    p.deliveryType || p.delivery_type || p.type || '';
+
+  const delivery_fees =
+    p.deliveryPrice ?? p.delivery_price ?? p.deliveryFees ?? p.delivery_fees ?? p.fees ?? 0;
+
+  const attempts =
+    p.deliveryAttempts ?? p.delivery_attempts ?? p.attempts ?? 0;
+
+  const created_at =
+    p.createdAt || p.created_at || syncedAt;
   const last_update = syncedAt;
 
   return {
@@ -94,9 +110,13 @@ function mapParcel(p: any, syncedAt: string) {
     client: String(client),
     whatsapp: String(whatsapp),
     wilaya: String(wilaya),
+    district: String(district),
     product: String(product),
     cod: Number(cod),
     status,
+    situation: String(situation),
+    delivery_type: String(delivery_type),
+    delivery_fees: Number(delivery_fees),
     attempts: Number(attempts),
     created_at,
     last_update,
@@ -106,8 +126,12 @@ function mapParcel(p: any, syncedAt: string) {
 export async function POST(request: NextRequest) {
   try {
     const { token, tenantId } = await request.json();
-    if (!token) return NextResponse.json({ error: 'Clé API (secretKey) manquante' }, { status: 400 });
-    if (!tenantId) return NextResponse.json({ error: 'Tenant ID manquant' }, { status: 400 });
+    if (!token) {
+      return NextResponse.json({ error: 'Clé API (secretKey) manquante' }, { status: 400 });
+    }
+    if (!tenantId) {
+      return NextResponse.json({ error: 'Tenant ID manquant' }, { status: 400 });
+    }
 
     const supabaseAuth = await createClient();
     const { data: { user } } = await supabaseAuth.auth.getUser();
@@ -119,6 +143,7 @@ export async function POST(request: NextRequest) {
     }
 
     const syncedAt = new Date().toISOString();
+
     const allRows = parcels
       .map(p => mapParcel(p, syncedAt))
       .filter(r => r.tracking)
@@ -136,7 +161,9 @@ export async function POST(request: NextRequest) {
       .from('orders')
       .upsert(rows, { onConflict: 'tracking', count: 'exact' });
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 
     return NextResponse.json({
       synced: count ?? rows.length,
