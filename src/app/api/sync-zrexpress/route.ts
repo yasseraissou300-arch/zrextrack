@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServiceClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 const ZREXPRESS_API = 'https://api.zrexpress.app/api/v1.0';
 
@@ -112,13 +112,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Tenant ID manquant' }, { status: 400 });
     }
 
+    // Get current user ID from session cookies
+    const supabaseAuth = await createClient();
+    const { data: { user } } = await supabaseAuth.auth.getUser();
+    const userId = user?.id ?? null;
+
     const parcels = await fetchAllParcels(token, tenantId);
     if (parcels.length === 0) {
       return NextResponse.json({ synced: 0, message: 'Aucune commande trouvée sur ZREXpress' });
     }
 
-    // Map and deduplicate by tracking number
-    const allRows = parcels.map(mapParcel).filter(r => r.tracking);
+    // Map, add user_id, and deduplicate by tracking number
+    const allRows = parcels.map(mapParcel).filter(r => r.tracking).map(r => ({ ...r, user_id: userId }));
     const seen = new Set<string>();
     const rows = allRows.filter(r => {
       if (seen.has(r.tracking)) return false;
