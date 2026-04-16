@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, ChevronLeft, ChevronRight, RefreshCw, Copy, CheckCheck } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 
 type Status = 'en_preparation' | 'en_transit' | 'en_livraison' | 'livre' | 'echec' | 'retourne';
@@ -40,34 +41,26 @@ export default function OrdersTable() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-
-  const fetchOrders = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        page: String(page),
-        pageSize: String(PAGE_SIZE),
-        status: statusFilter,
-        search,
-      });
-      const res = await fetch('/api/orders?' + params);
-      const json = await res.json();
-      if (json.error) {
-        toast.error(json.error);
-      } else {
-        setOrders(json.data || []);
-        setTotal(json.count || 0);
-      }
-    } catch (err: any) {
-      toast.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [page, statusFilter, search]);
+  const supabase = createClient();
 
   useEffect(() => {
     fetchOrders();
-  }, [fetchOrders]);
+  }, [page, statusFilter, search]);
+
+  const fetchOrders = async () => {
+    setLoading(true);
+    let query = supabase.from('orders').select('*', { count: 'exact' });
+    if (statusFilter !== 'all') query = query.eq('status', statusFilter);
+    if (search) query = query.or('tracking.ilike.%' + search + '%,client.ilike.%' + search + '%');
+    query = query.order('last_update', { ascending: false })
+      .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
+    const { data, count, error } = await query;
+    if (!error) {
+      setOrders(data || []);
+      setTotal(count || 0);
+    }
+    setLoading(false);
+  };
 
   const copyTracking = (tracking: string) => {
     navigator.clipboard.writeText(tracking);
