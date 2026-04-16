@@ -3,7 +3,6 @@ import { createServiceClient } from '@/lib/supabase/server';
 
 const ZREXPRESS_API = 'https://api.zrexpress.app/api/v1.0';
 
-// Map ZREXpress parcel status → our internal status
 function mapStatus(state: string): string {
   const s = (state || '').toLowerCase().replace(/\s+/g, '_');
   if (s.includes('livr') && !s.includes('en_')) return 'livre';
@@ -15,7 +14,6 @@ function mapStatus(state: string): string {
   return 'en_preparation';
 }
 
-// Fetch all pages from ZREXpress parcels/search
 async function fetchAllParcels(token: string, tenantId: string): Promise<any[]> {
   const all: any[] = [];
   let page = 0;
@@ -57,7 +55,6 @@ async function fetchAllParcels(token: string, tenantId: string): Promise<any[]> 
   return all;
 }
 
-// Map a ZREXpress parcel to our orders table row
 function mapParcel(p: any) {
   const tracking =
     p.trackingCode || p.tracking_code || p.tracking || p.barcode || p.id || '';
@@ -120,7 +117,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ synced: 0, message: 'Aucune commande trouvée sur ZREXpress' });
     }
 
-    const rows = parcels.map(mapParcel).filter(r => r.tracking);
+    // Map and deduplicate by tracking number
+    const allRows = parcels.map(mapParcel).filter(r => r.tracking);
+    const seen = new Set<string>();
+    const rows = allRows.filter(r => {
+      if (seen.has(r.tracking)) return false;
+      seen.add(r.tracking);
+      return true;
+    });
 
     const supabase = createServiceClient();
     const { error, count } = await supabase
