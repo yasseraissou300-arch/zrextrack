@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Search, ChevronLeft, ChevronRight, RefreshCw, Copy, CheckCheck } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 
 type Status = 'en_preparation' | 'en_transit' | 'en_livraison' | 'livre' | 'echec' | 'retourne';
@@ -23,12 +22,12 @@ interface Order {
 }
 
 const statusConfig: Record<Status, { label: string; badge: string }> = {
-  en_preparation: { label: 'En preparation', badge: 'bg-purple-100 text-purple-700' },
+  en_preparation: { label: 'En préparation', badge: 'bg-purple-100 text-purple-700' },
   en_transit: { label: 'En transit', badge: 'bg-blue-100 text-blue-700' },
   en_livraison: { label: 'En livraison', badge: 'bg-amber-100 text-amber-700' },
-  livre: { label: 'Livre', badge: 'bg-green-100 text-green-700' },
-  echec: { label: 'Echec', badge: 'bg-red-100 text-red-700' },
-  retourne: { label: 'Retourne', badge: 'bg-gray-100 text-gray-600' },
+  livre: { label: 'Livré', badge: 'bg-green-100 text-green-700' },
+  echec: { label: 'Échec', badge: 'bg-red-100 text-red-700' },
+  retourne: { label: 'Retourné', badge: 'bg-gray-100 text-gray-600' },
 };
 
 const PAGE_SIZE = 10;
@@ -41,32 +40,40 @@ export default function OrdersTable() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const supabase = createClient();
+
+  const fetchOrders = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: String(PAGE_SIZE),
+        status: statusFilter,
+        search,
+      });
+      const res = await fetch(`/api/orders?${params}`);
+      const json = await res.json();
+      if (json.error) {
+        toast.error(json.error);
+      } else {
+        setOrders(json.data || []);
+        setTotal(json.count || 0);
+      }
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, statusFilter, search]);
 
   useEffect(() => {
     fetchOrders();
-  }, [page, statusFilter, search]);
-
-  const fetchOrders = async () => {
-    setLoading(true);
-    let query = supabase.from('orders').select('*', { count: 'exact' });
-    if (statusFilter !== 'all') query = query.eq('status', statusFilter);
-    if (search) query = query.or('tracking.ilike.%' + search + '%,client.ilike.%' + search + '%');
-    query = query.order('last_update', { ascending: false })
-      .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
-    const { data, count, error } = await query;
-    if (!error) {
-      setOrders(data || []);
-      setTotal(count || 0);
-    }
-    setLoading(false);
-  };
+  }, [fetchOrders]);
 
   const copyTracking = (tracking: string) => {
     navigator.clipboard.writeText(tracking);
     setCopiedId(tracking);
     setTimeout(() => setCopiedId(null), 2000);
-    toast.success('Tracking copie !');
+    toast.success('Tracking copié !');
   };
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
@@ -91,12 +98,12 @@ export default function OrdersTable() {
             className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none"
           >
             <option value="all">Tous les statuts</option>
-            <option value="en_preparation">En preparation</option>
+            <option value="en_preparation">En préparation</option>
             <option value="en_transit">En transit</option>
             <option value="en_livraison">En livraison</option>
-            <option value="livre">Livres</option>
-            <option value="echec">Echecs</option>
-            <option value="retourne">Retournes</option>
+            <option value="livre">Livrés</option>
+            <option value="echec">Échecs</option>
+            <option value="retourne">Retournés</option>
           </select>
           <button onClick={fetchOrders} className="p-1.5 border border-gray-200 rounded-lg hover:bg-gray-50">
             <RefreshCw size={14} className="text-gray-500" />
@@ -121,7 +128,7 @@ export default function OrdersTable() {
             {loading ? (
               <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Chargement...</td></tr>
             ) : orders.length === 0 ? (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Aucune commande trouvee</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Aucune commande trouvée</td></tr>
             ) : orders.map(order => (
               <tr key={order.id} className="hover:bg-gray-50 transition-colors">
                 <td className="px-4 py-3">
@@ -138,14 +145,14 @@ export default function OrdersTable() {
                     <p className="text-xs text-gray-400">{order.whatsapp}</p>
                   </div>
                 </td>
-                <td className="px-4 py-3 text-gray-600">{order.product || '-'}</td>
-                <td className="px-4 py-3 text-gray-600">{order.wilaya || '-'}</td>
+                <td className="px-4 py-3 text-gray-600">{order.product || '—'}</td>
+                <td className="px-4 py-3 text-gray-600">{order.wilaya || '—'}</td>
                 <td className="px-4 py-3">
-                  <span className={'text-xs font-medium px-2.5 py-1 rounded-full ' + (statusConfig[order.status]?.badge || 'bg-gray-100 text-gray-600')}>
+                  <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${statusConfig[order.status]?.badge || 'bg-gray-100 text-gray-600'}`}>
                     {statusConfig[order.status]?.label || order.status}
                   </span>
                 </td>
-                <td className="px-4 py-3 font-medium text-gray-900">{order.cod || '-'}</td>
+                <td className="px-4 py-3 font-medium text-gray-900">{order.cod || '—'}</td>
                 <td className="px-4 py-3 text-center">{order.attempts ?? 0}</td>
               </tr>
             ))}
