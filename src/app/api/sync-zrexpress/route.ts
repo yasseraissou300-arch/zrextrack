@@ -3,10 +3,11 @@ import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 const ZREXPRESS_API = 'https://api.zrexpress.app/api/v1.0';
 
+// Map ZREXpress parcel status → our internal status
 function mapStatus(state: string): string {
   const s = (state || '').toLowerCase().replace(/\s+/g, '_');
   if (s.includes('livr') && !s.includes('en_')) return 'livre';
-  if (s.includes('en_pr') || s.includes('preparation')) return 'en_preparation';
+  if (s.includes('en_pr') || s.includes('preparation') || s.includes('recue') || s.includes('recu')) return 'en_preparation';
   if (s.includes('transit')) return 'en_transit';
   if (s.includes('en_livr') || s.includes('sorti') || s.includes('distribution')) return 'en_livraison';
   if (s.includes('retour')) return 'retourne';
@@ -14,13 +15,14 @@ function mapStatus(state: string): string {
   return 'en_preparation';
 }
 
+// Fetch all pages from ZREXpress parcels/search
 async function fetchAllParcels(token: string, tenantId: string): Promise<any[]> {
   const all: any[] = [];
-  let page = 0;
-  const size = 100;
+  let pageNumber = 1;
+  const pageSize = 100;
   let totalPages = 1;
 
-  while (page < totalPages) {
+  while (pageNumber <= totalPages) {
     const res = await fetch(`${ZREXPRESS_API}/parcels/search`, {
       method: 'POST',
       headers: {
@@ -28,7 +30,7 @@ async function fetchAllParcels(token: string, tenantId: string): Promise<any[]> 
         'X-Tenant': tenantId,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ page, size }),
+      body: JSON.stringify({ pageNumber, pageSize }),
     });
 
     if (!res.ok) {
@@ -38,55 +40,70 @@ async function fetchAllParcels(token: string, tenantId: string): Promise<any[]> 
 
     const data = await res.json();
 
+    // Handle both array response and paginated response
     if (Array.isArray(data)) {
       all.push(...data);
       break;
     }
 
-    const items = data.content || data.items || data.data || data.parcels || [];
+    const items = data.items || data.content || data.data || data.parcels || [];
     all.push(...items);
 
     totalPages = data.totalPages ?? data.total_pages ?? 1;
-    page++;
+    pageNumber++;
 
-    if (page >= 50) break;
+    // Safety cap at 50 pages
+    if (pageNumber > 50) break;
   }
 
   return all;
 }
 
+// Map a ZREXpress parcel to our orders table row
 function mapParcel(p: any) {
+  // Tracking number
   const tracking =
-    p.trackingCode || p.tracking_code || p.tracking || p.barcode || p.id || '';
+    p.trackingNumber || p.trackingCode || p.tracking_code || p.tracking || p.barcode || p.id || '';
 
+  // Customer name
   const client =
-    p.recipientName || p.recipient_name || p.clientName || p.client_name ||
-    p.customer?.name || p.recipient?.name || '';
+    p.customer?.name || p.recipientName || p.recipient_name || p.clientName || p.client_name || '';
 
+  // Phone: customer.phone is an object { number1, number2, number3 }
+  const phoneObj = p.customer?.phone || {};
   const whatsapp =
-    p.recipientPhone || p.recipient_phone || p.phone || p.clientPhone ||
-    p.customer?.phone || p.recipient?.phone || '';
+    phoneObj.number1 || phoneObj.number2 || phoneObj.number3 ||
+    p.recipientPhone || p.recipient_phone || p.clientPhone || p.phone || '';
 
+  // Delivery city (wilaya)
   const wilaya =
-    p.wilaya?.name || p.wilayaName || p.wilaya_name || p.wilaya || p.city || '';
+    p.deliveryAddress?.city || p.deliveryAddress?.district ||
+    p.wilaya?.name || p.wilayaName || p.wilaya_name ||
+    (typeof p.wilaya === 'string' ? p.wilaya : '') || p.city || '';
 
+  // Product: use description or first ordered product name
   const product =
-    p.productName || p.product_name || p.product?.name || p.description || '';
+    p.description || p.productsDescription ||
+    (p.orderedProducts && p.orderedProducts.length > 0 ? p.orderedProducts[0].productName : '') ||
+    p.productName || p.product_name || p.product?.name || '';
 
+  // COD amount
   const cod =
-    p.price ?? p.cod ?? p.codAmount ?? p.cod_amount ?? p.amount ?? 0;
+    p.amount ?? p.price ?? p.cod ?? p.codAmount ?? p.cod_amount ?? 0;
 
+  // Status
   const rawStatus =
     p.state?.name || p.stateName || p.status?.name || p.statusName || p.state || p.status || '';
   const status = mapStatus(rawStatus);
 
+  // Attempts
   const attempts =
     p.deliveryAttempts ?? p.delivery_attempts ?? p.attempts ?? 0;
 
   const created_at =
     p.createdAt || p.created_at || new Date().toISOString();
   const last_update =
-    p.updatedAt || p.updated_at || p.lastUpdate || p.last_update || new Date().toISOString();
+    p.lastStateUpdateAt || p.updatedAt || p.updated_at || p.lastUpdate || p.last_update || new Date().toISOString();
 
   return {
     tracking: String(tracking),
@@ -117,12 +134,13 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabaseAuth.auth.getUser();
     const userId = user?.id ?? null;
 
+    // Fetch parcels from ZREXpress
     const parcels = await fetchAllParcels(token, tenantId);
     if (parcels.length === 0) {
       return NextResponse.json({ synced: 0, message: 'Aucune commande trouvée sur ZREXpress' });
     }
 
-    // Map, add user_id, and deduplicate by tracking number
+    // Map to our schema and deduplicate by tracking number
     const allRows = parcels.map(mapParcel).filter(r => r.tracking).map(r => ({ ...r, user_id: userId }));
     const seen = new Set<string>();
     const rows = allRows.filter(r => {
@@ -131,6 +149,7 @@ export async function POST(request: NextRequest) {
       return true;
     });
 
+    // Upsert into Supabase (service role bypasses RLS)
     const supabase = createServiceClient();
     const { error, count } = await supabase
       .from('orders')
