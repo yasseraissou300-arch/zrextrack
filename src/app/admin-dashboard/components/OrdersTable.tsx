@@ -13,12 +13,14 @@ interface Order {
   whatsapp: string;
   product: string;
   wilaya: string;
-  wilaya_code: string;
+  district: string;
   status: Status;
+  situation: string;
+  delivery_type: string;
+  delivery_fees: number;
   last_update: string;
   attempts: number;
-  weight: string;
-  cod: string;
+  cod: number;
 }
 
 const statusConfig: Record<Status, { label: string; badge: string }> = {
@@ -29,6 +31,15 @@ const statusConfig: Record<Status, { label: string; badge: string }> = {
   echec: { label: 'Échec', badge: 'bg-red-100 text-red-700' },
   retourne: { label: 'Retourné', badge: 'bg-gray-100 text-gray-600' },
 };
+
+function formatDeliveryType(type: string): string {
+  if (!type) return '—';
+  const t = type.toLowerCase();
+  if (t.includes('pickup') || t.includes('point')) return 'Point relais';
+  if (t.includes('home') || t.includes('domicile')) return 'Domicile';
+  if (t.includes('bureau') || t.includes('desk')) return 'Bureau';
+  return type;
+}
 
 const PAGE_SIZE = 10;
 
@@ -118,17 +129,19 @@ export default function OrdersTable() {
               <th className="px-4 py-3 text-left">Tracking</th>
               <th className="px-4 py-3 text-left">Client</th>
               <th className="px-4 py-3 text-left">Produit</th>
-              <th className="px-4 py-3 text-left">Wilaya</th>
-              <th className="px-4 py-3 text-left">Statut</th>
-              <th className="px-4 py-3 text-left">COD</th>
-              <th className="px-4 py-3 text-left">Tentatives</th>
+              <th className="px-4 py-3 text-left">Destination</th>
+              <th className="px-4 py-3 text-left">Situation</th>
+              <th className="px-4 py-3 text-left">Type livraison</th>
+              <th className="px-4 py-3 text-right">Montant</th>
+              <th className="px-4 py-3 text-right">Frais</th>
+              <th className="px-4 py-3 text-center">Tentatives</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
             {loading ? (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Chargement...</td></tr>
+              <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">Chargement...</td></tr>
             ) : orders.length === 0 ? (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Aucune commande trouvée</td></tr>
+              <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">Aucune commande trouvée</td></tr>
             ) : orders.map(order => (
               <tr key={order.id} className="hover:bg-gray-50 transition-colors">
                 <td className="px-4 py-3">
@@ -145,15 +158,34 @@ export default function OrdersTable() {
                     <p className="text-xs text-gray-400">{order.whatsapp}</p>
                   </div>
                 </td>
-                <td className="px-4 py-3 text-gray-600">{order.product || '—'}</td>
-                <td className="px-4 py-3 text-gray-600">{order.wilaya || '—'}</td>
-                <td className="px-4 py-3">
-                  <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${statusConfig[order.status]?.badge || 'bg-gray-100 text-gray-600'}`}>
-                    {statusConfig[order.status]?.label || order.status}
-                  </span>
+                <td className="px-4 py-3 text-gray-600 max-w-[160px] truncate">{order.product || '—'}</td>
+                <td className="px-4 py-3 text-gray-600">
+                  <div>
+                    <p className="font-medium">{order.wilaya || '—'}</p>
+                    {order.district && order.district !== order.wilaya && (
+                      <p className="text-xs text-gray-400">{order.district}</p>
+                    )}
+                  </div>
                 </td>
-                <td className="px-4 py-3 font-medium text-gray-900">{order.cod || '—'}</td>
-                <td className="px-4 py-3 text-center">{order.attempts ?? 0}</td>
+                <td className="px-4 py-3">
+                  {order.situation ? (
+                    <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${statusConfig[order.status]?.badge || 'bg-gray-100 text-gray-600'}`}>
+                      {order.situation}
+                    </span>
+                  ) : (
+                    <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${statusConfig[order.status]?.badge || 'bg-gray-100 text-gray-600'}`}>
+                      {statusConfig[order.status]?.label || order.status}
+                    </span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-gray-600">{formatDeliveryType(order.delivery_type)}</td>
+                <td className="px-4 py-3 text-right font-medium text-gray-900">
+                  {order.cod ? `${Number(order.cod).toLocaleString('fr-DZ')} DA` : '—'}
+                </td>
+                <td className="px-4 py-3 text-right text-gray-600">
+                  {order.delivery_fees ? `${Number(order.delivery_fees).toLocaleString('fr-DZ')} DA` : '—'}
+                </td>
+                <td className="px-4 py-3 text-center text-gray-600">{order.attempts ?? 0}</td>
               </tr>
             ))}
           </tbody>
