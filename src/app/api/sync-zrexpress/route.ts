@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase/server';
 
 const ZREXPRESS_API = 'https://api.zrexpress.app/api/v1.0';
 
+// Map ZREXpress parcel status → our internal status
 function mapStatus(state: string): string {
   const s = (state || '').toLowerCase().replace(/\s+/g, '_');
   if (s.includes('livr') && !s.includes('en_')) return 'livre';
@@ -14,7 +15,8 @@ function mapStatus(state: string): string {
   return 'en_preparation';
 }
 
-async function fetchAllParcels(token: string): Promise<any[]> {
+// Fetch all pages from ZREXpress parcels/search
+async function fetchAllParcels(token: string, tenantId: string): Promise<any[]> {
   const all: any[] = [];
   let page = 0;
   const size = 100;
@@ -25,6 +27,7 @@ async function fetchAllParcels(token: string): Promise<any[]> {
       method: 'POST',
       headers: {
         'X-Api-Key': token,
+        'X-Tenant': tenantId,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ page, size }),
@@ -32,7 +35,7 @@ async function fetchAllParcels(token: string): Promise<any[]> {
 
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`ZREXpress API error ${res.status}: ${text.slice(0, 300)}`);
+      throw new Error(`ZREXpress API error ${res.status}: ${text.slice(0, 200)}`);
     }
 
     const data = await res.json();
@@ -44,26 +47,49 @@ async function fetchAllParcels(token: string): Promise<any[]> {
 
     const items = data.content || data.items || data.data || data.parcels || [];
     all.push(...items);
+
     totalPages = data.totalPages ?? data.total_pages ?? 1;
     page++;
+
     if (page >= 50) break;
   }
 
   return all;
 }
 
+// Map a ZREXpress parcel to our orders table row
 function mapParcel(p: any) {
-  const tracking = p.trackingCode || p.tracking_code || p.tracking || p.barcode || p.id || '';
-  const client = p.recipientName || p.recipient_name || p.clientName || p.client_name || p.customer?.name || p.recipient?.name || '';
-  const whatsapp = p.recipientPhone || p.recipient_phone || p.phone || p.clientPhone || p.customer?.phone || p.recipient?.phone || '';
-  const wilaya = p.wilaya?.name || p.wilayaName || p.wilaya_name || p.wilaya || p.city || '';
-  const product = p.productName || p.product_name || p.product?.name || p.description || '';
-  const cod = p.price ?? p.cod ?? p.codAmount ?? p.cod_amount ?? p.amount ?? 0;
-  const rawStatus = p.state?.name || p.stateName || p.status?.name || p.statusName || p.state || p.status || '';
+  const tracking =
+    p.trackingCode || p.tracking_code || p.tracking || p.barcode || p.id || '';
+
+  const client =
+    p.recipientName || p.recipient_name || p.clientName || p.client_name ||
+    p.customer?.name || p.recipient?.name || '';
+
+  const whatsapp =
+    p.recipientPhone || p.recipient_phone || p.phone || p.clientPhone ||
+    p.customer?.phone || p.recipient?.phone || '';
+
+  const wilaya =
+    p.wilaya?.name || p.wilayaName || p.wilaya_name || p.wilaya || p.city || '';
+
+  const product =
+    p.productName || p.product_name || p.product?.name || p.description || '';
+
+  const cod =
+    p.price ?? p.cod ?? p.codAmount ?? p.cod_amount ?? p.amount ?? 0;
+
+  const rawStatus =
+    p.state?.name || p.stateName || p.status?.name || p.statusName || p.state || p.status || '';
   const status = mapStatus(rawStatus);
-  const attempts = p.deliveryAttempts ?? p.delivery_attempts ?? p.attempts ?? 0;
-  const created_at = p.createdAt || p.created_at || new Date().toISOString();
-  const last_update = p.updatedAt || p.updated_at || p.lastUpdate || p.last_update || new Date().toISOString();
+
+  const attempts =
+    p.deliveryAttempts ?? p.delivery_attempts ?? p.attempts ?? 0;
+
+  const created_at =
+    p.createdAt || p.created_at || new Date().toISOString();
+  const last_update =
+    p.updatedAt || p.updated_at || p.lastUpdate || p.last_update || new Date().toISOString();
 
   return {
     tracking: String(tracking),
@@ -81,17 +107,21 @@ function mapParcel(p: any) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { token } = await request.json();
+    const { token, tenantId } = await request.json();
     if (!token) {
-      return NextResponse.json({ error: 'Token manquant' }, { status: 400 });
+      return NextResponse.json({ error: 'Clé API (secretKey) manquante' }, { status: 400 });
+    }
+    if (!tenantId) {
+      return NextResponse.json({ error: 'Tenant ID manquant' }, { status: 400 });
     }
 
-    const parcels = await fetchAllParcels(token);
+    const parcels = await fetchAllParcels(token, tenantId);
     if (parcels.length === 0) {
-      return NextResponse.json({ synced: 0, total: 0, message: 'Aucune commande trouvée sur ZREXpress' });
+      return NextResponse.json({ synced: 0, message: 'Aucune commande trouvée sur ZREXpress' });
     }
 
     const rows = parcels.map(mapParcel).filter(r => r.tracking);
+
     const supabase = createServiceClient();
     const { error, count } = await supabase
       .from('orders')
@@ -109,4 +139,4 @@ export async function POST(request: NextRequest) {
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
-      }
+}
