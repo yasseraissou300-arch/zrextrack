@@ -24,7 +24,7 @@ async function fetchAllParcels(token: string): Promise<any[]> {
     const res = await fetch(`${ZREXPRESS_API}/parcels/search`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${token}`,
+        'X-Api-Key': token,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ page, size }),
@@ -32,7 +32,7 @@ async function fetchAllParcels(token: string): Promise<any[]> {
 
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`ZREXpress API error ${res.status}: ${text.slice(0, 200)}`);
+      throw new Error(`ZREXpress API error ${res.status}: ${text.slice(0, 300)}`);
     }
 
     const data = await res.json();
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
 
     const parcels = await fetchAllParcels(token);
     if (parcels.length === 0) {
-      return NextResponse.json({ synced: 0, message: 'Aucune commande trouvée sur ZREXpress' });
+      return NextResponse.json({ synced: 0, total: 0, message: 'Aucune commande trouvée sur ZREXpress' });
     }
 
     const rows = parcels.map(mapParcel).filter(r => r.tracking);
@@ -109,4 +109,4 @@ export async function POST(request: NextRequest) {
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
-}
+      }
