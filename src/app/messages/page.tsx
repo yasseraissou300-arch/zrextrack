@@ -202,6 +202,18 @@ function ConnexionTab() {
   );
 }
 
+function statusToLabel(status: string): string {
+  const map: Record<string, string> = {
+    'en_preparation': 'En preparation',
+    'en_livraison': 'En cours de livraison',
+    'livre': 'Livre',
+    'retourne': 'Retourne',
+    'en_transit': 'En transit',
+    'echec': 'Echec',
+  };
+  return map[status] || status || '—';
+}
+
 function EnvoyerTab() {
   const [connected, setConnected] = useState<boolean | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -339,8 +351,7 @@ function EnvoyerTab() {
                   </tr>
                 );
               })}
-            </tbody>
-          </table>
+   {order.situation || statusToLabel(order.status)}    </table>
         </div>
         {totalPages > 1 && (
           <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
