@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
-import { MessageSquare, Wifi, WifiOff, QrCode, Send, History, CheckCircle, RefreshCw, ChevronLeft, ChevronRight, Settings, AlertCircle, Users, Loader2, Smartphone, Filter } from 'lucide-react';
+import { MessageSquare, Wifi, WifiOff, QrCode, Send, History, CheckCircle, RefreshCw, ChevronLeft, ChevronRight, Settings, AlertCircle, Users, Loader2, Smartphone, Filter, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface WASettings { instance_id: string; api_token: string; connected: boolean; phone: string; }
@@ -333,6 +333,30 @@ function EnvoyerTab() {
             {sendingTest ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
             Envoyer test
           </button>
+        </div>
+      </div>
+
+      {/* Bot IA */}
+      <div className="border border-purple-200 rounded-2xl bg-purple-50 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="flex items-center gap-3 flex-1">
+          <div className="w-9 h-9 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0">
+            <Zap size={18} className="text-purple-600" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-purple-900 text-sm">Bot IA — Réponses automatiques</span>
+              <span className="flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse inline-block" />
+                Actif
+              </span>
+            </div>
+            <p className="text-xs text-purple-600 mt-0.5">
+              Webhook à configurer dans Green API :
+              <code className="ml-1 bg-purple-100 px-1.5 py-0.5 rounded text-purple-800 select-all">
+                https://zrextrack.vercel.app/api/whatsapp/webhook
+              </code>
+            </p>
+          </div>
         </div>
       </div>
 
