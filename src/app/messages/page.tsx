@@ -180,7 +180,7 @@ function EnvoyerTab() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [situationFilter, setSituationFilter] = useState('');
-  const [wilayaFilter, setWilayaFilter] = useState('');
+  const [subSituationFilter, setSubSituationFilter] = useState('');
   const [testPhone, setTestPhone] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
   const PAGE_SIZE = 15;
@@ -199,17 +199,17 @@ function EnvoyerTab() {
   useEffect(() => { fetch('/api/whatsapp/status').then(r => r.json()).then(j => setConnected(j.connected)); }, []);
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
   useEffect(() => {
-    setWilayaFilter('');
+    setSubSituationFilter('');
     if (!situationFilter) return;
     const match = TEMPLATES.find(t => t.situation && situationFilter.includes(t.situation.split(' ')[0].toLowerCase()));
     if (match) setTemplateId(match.id);
   }, [situationFilter]);
 
   // Unique wilayas from loaded orders for sub-filter
-  const availableWilayas = Array.from(new Set(orders.map(o => o.wilaya).filter(Boolean))).sort();
+  const SUB_SITUATIONS = ['Reporté à une date ultérieure', 'Ne répond pas 3', 'Ne répond pas 2', 'Ne répond pas 1'];
 
   // Apply wilaya sub-filter client-side
-  const displayedOrders = wilayaFilter ? orders.filter(o => o.wilaya === wilayaFilter) : orders;
+  const displayedOrders = subSituationFilter ? orders.filter(o => o.situation === subSituationFilter) : orders;
   const totalPages = Math.ceil(total / PAGE_SIZE);
   const template = TEMPLATES.find(t => t.id === templateId) || TEMPLATES[0];
   const previewOrder = orders[0] || MOCK_ORDER;
@@ -272,19 +272,19 @@ function EnvoyerTab() {
           </div>
         </div>
         {/* Sous-filtre wilaya */}
-        {situationFilter && availableWilayas.length > 0 && (
+        {situationFilter === 'en cours de livraison' && (
           <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100">
             <div className="flex items-center gap-1 text-xs font-medium text-gray-500">
               <Filter size={11} /> Wilaya :
             </div>
             <div className="flex flex-wrap gap-1.5">
-              <button onClick={() => setWilayaFilter('')}
-                className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${wilayaFilter === '' ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 text-gray-500 hover:border-blue-400 hover:text-blue-600'}`}>
+              <button onClick={() => setSubSituationFilter('')}
+                className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${subSituationFilter === '' ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 text-gray-500 hover:border-blue-400 hover:text-blue-600'}`}>
                 Toutes
               </button>
               {availableWilayas.map(w => (
-                <button key={w} onClick={() => setWilayaFilter(w)}
-                  className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${wilayaFilter === w ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 text-gray-500 hover:border-blue-400 hover:text-blue-600'}`}>
+                <button key={w} onClick={() => setSubSituationFilter(w)}
+                  className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${subSituationFilter === w ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 text-gray-500 hover:border-blue-400 hover:text-blue-600'}`}>
                   {w}
                 </button>
               ))}
@@ -345,7 +345,7 @@ function EnvoyerTab() {
           <div className="flex items-center gap-2 flex-wrap">
             <Users size={16} className="text-gray-500" />
             <h3 className="font-semibold text-gray-900">Destinataires</h3>
-            <span className="text-xs text-gray-400">({wilayaFilter ? displayedOrders.length : total} commandes{wilayaFilter ? ` — ${wilayaFilter}` : ''})</span>
+            <span className="text-xs text-gray-400">({subSituationFilter ? displayedOrders.length : total} commandes{subSituationFilter ? ` — ${subSituationFilter}` : ''})</span>
             {selected.size > 0 && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">{selected.size} selectionne(s)</span>}
           </div>
           <button onClick={sendMessages} disabled={sending || selected.size === 0 || !connected}
@@ -387,7 +387,7 @@ function EnvoyerTab() {
             </tbody>
           </table>
         </div>
-        {totalPages > 1 && !wilayaFilter && (
+        {totalPages > 1 && !subSituationFilter && (
           <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
             <span className="text-sm text-gray-500">Page {page} / {totalPages}</span>
             <div className="flex gap-2">
