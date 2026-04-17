@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
-import { MessageSquare, Wifi, WifiOff, QrCode, Send, History, CheckCircle, RefreshCw, ChevronLeft, ChevronRight, Settings, AlertCircle, Users, Loader2 } from 'lucide-react';
+import { MessageSquare, Wifi, WifiOff, QrCode, Send, History, CheckCircle, RefreshCw, ChevronLeft, ChevronRight, Settings, AlertCircle, Users, Loader2, Smartphone, Filter } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface WASettings { instance_id: string; api_token: string; connected: boolean; phone: string; }
@@ -9,14 +9,8 @@ interface Order { id: string; tracking: string; client: string; whatsapp: string
 interface MsgLog { id: string; tracking: string; client: string; whatsapp: string; message: string; status: 'envoye' | 'echec' | 'en_attente'; sent_at: string; }
 
 const MOCK_ORDER: Order = {
-  id: 'preview',
-  tracking: 'ZR-000000',
-  client: 'محمد',
-  whatsapp: '',
-  situation: '',
-  wilaya: 'الجزائر',
-  status: '',
-  cod: 2500,
+  id: 'preview', tracking: 'ZR-000000', client: 'محمد',
+  whatsapp: '', situation: '', wilaya: 'الجزائر', status: '', cod: 2500,
 };
 
 const SITUATION_FILTERS = [
@@ -34,74 +28,49 @@ const SITUATION_FILTERS = [
 ];
 
 const TEMPLATES = [
-  {
-    id: 'ne_repond_pas',
-    label: 'Ma jawabch',
-    situation: 'ne repond pas',
+  { id: 'ne_repond_pas', label: 'Ma jawabch', situation: 'ne repond pas',
     text: (o: Order) => `السلام عليكم ${o.client} 👋
 عندك طرد برقم *${o.tracking}* ولقيناك ما جاوبتناش.
 ارجاء تواصل معنا باش نوصلو ليك طردك.
-شكرا 🙏`,
-  },
-  {
-    id: 'annule',
-    label: 'Commande lghya',
-    situation: 'commande annul',
+شكرا 🙏` },
+  { id: 'annule', label: 'Commande lghya', situation: 'commande annul',
     text: (o: Order) => `السلام عليكم ${o.client} 👋
 طردك رقم *${o.tracking}* تلغى.
 إذا عندك أي سؤال ولا تبغي تعاود تطلب، تواصل معنا.
-شكرا 🙏`,
-  },
-  {
-    id: 'commune_erronee',
-    label: 'Adresse khata',
-    situation: 'commune erron',
+شكرا 🙏` },
+  { id: 'commune_erronee', label: 'Adresse khata', situation: 'commune erron',
     text: (o: Order) => `السلام عليكم ${o.client} 👋
 طردك رقم *${o.tracking}* فيه مشكل في عنوان التسليم.
 ارجاء راسلنا وعطينا عنوانك الصحيح باش نوصلو ليك طردك.
-شكرا 🙏`,
-  },
-  {
-    id: 'en_livraison',
-    label: 'F tariq',
-    situation: 'en cours de livraison',
+شكرا 🙏` },
+  { id: 'en_livraison', label: 'F tariq', situation: 'en cours de livraison',
     text: (o: Order) => `السلام عليكم ${o.client} 👋
 طردك رقم *${o.tracking}* مع الليفروار دروك في *${o.wilaya}*.
 المبلغ لي يتسلم : *${o.cod} دج*
-كون في الدار ويصلك. شكرا 🚚`,
-  },
-  {
-    id: 'livre',
-    label: 'Twassal',
-    situation: 'livr',
+كون في الدار ويصلك. شكرا 🚚` },
+  { id: 'livre', label: 'Twassal', situation: 'livr',
     text: (o: Order) => `السلام عليكم ${o.client} 👋
 طردك رقم *${o.tracking}* وصل.
-شكرا على ثقتك فينا وانشاء الله راك راضي على الطلبية. نتمنالك يوم مليح 🙏`,
-  },
-  {
-    id: 'retourne',
-    label: 'Rjae',
-    situation: 'retour',
+شكرا على ثقتك فينا وانشاء الله راك راضي على الطلبية. نتمنالك يوم مليح 🙏` },
+  { id: 'retourne', label: 'Rjae', situation: 'retour',
     text: (o: Order) => `السلام عليكم ${o.client} 👋
 طردك رقم *${o.tracking}* رجع لينا.
 إذا تبغي تعاود تطلب ولا عندك سؤال، تواصل معنا.
-شكرا 🙏`,
-  },
-  {
-    id: 'transit',
-    label: 'F route',
-    situation: 'en transit',
+شكرا 🙏` },
+  { id: 'transit', label: 'F route', situation: 'en transit',
     text: (o: Order) => `السلام عليكم ${o.client} 👋
 طردك رقم *${o.tracking}* في الطريق لـ *${o.wilaya}*.
-غادي يوصلك قريب انشاء الله. شكرا 🙏`,
-  },
-  {
-    id: 'custom',
-    label: 'Personnalise',
-    situation: '',
-    text: () => '',
-  },
+غادي يوصلك قريب انشاء الله. شكرا 🙏` },
+  { id: 'custom', label: 'Personnalise', situation: '', text: () => '' },
 ];
+
+function statusToLabel(status: string): string {
+  const map: Record<string, string> = {
+    'en_preparation': 'En preparation', 'en_livraison': 'En cours de livraison',
+    'livre': 'Livre', 'retourne': 'Retourne', 'en_transit': 'En transit', 'echec': 'Echec',
+  };
+  return map[status] || status || '—';
+}
 
 function StatusBadge({ connected }: { connected: boolean }) {
   return (
@@ -124,18 +93,16 @@ function ConnexionTab() {
     setLoading(true);
     const res = await fetch('/api/whatsapp/settings');
     const json = await res.json();
-    setSettings(json);
-    setForm({ instance_id: json.instance_id || '', api_token: json.api_token || '' });
+    setSettings(json); setForm({ instance_id: json.instance_id || '', api_token: json.api_token || '' });
     setLoading(false);
   }, []);
   useEffect(() => { fetchSettings(); }, [fetchSettings]);
   const saveSettings = async () => {
     if (!form.instance_id || !form.api_token) { toast.error('Remplis les deux champs'); return; }
     setSaving(true);
-    const res = await fetch('/api/whatsapp/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ instance_id: form.instance_id, api_token: form.api_token }) });
+    const res = await fetch('/api/whatsapp/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
     const json = await res.json();
-    if (json.error) toast.error(json.error);
-    else { toast.success('Credentials sauvegardes !'); setSettings(s => ({ ...s, ...form })); }
+    if (json.error) toast.error(json.error); else { toast.success('Credentials sauvegardes !'); setSettings(s => ({ ...s, ...form })); }
     setSaving(false);
   };
   const checkStatus = useCallback(async () => {
@@ -144,7 +111,7 @@ function ConnexionTab() {
     const json = await res.json();
     setSettings(s => ({ ...s, connected: json.connected }));
     if (json.connected) { toast.success('WhatsApp connecte !'); setQrData(null); }
-    else toast.error('Pas encore connecte — scanne le QR');
+    else toast.error('Pas encore connecte');
     setStatusChecking(false);
   }, []);
   const getQR = async () => {
@@ -172,7 +139,7 @@ function ConnexionTab() {
       </div>
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
         <div className="flex items-center gap-2"><Settings size={16} className="text-gray-500" /><h3 className="font-semibold text-gray-900">Credentials Green API</h3></div>
-        <p className="text-sm text-gray-500">Cree un compte sur <a href="https://console.green-api.com" target="_blank" rel="noreferrer" className="text-green-600 underline font-medium">console.green-api.com</a>, cree une instance, copie le <strong>Instance ID</strong> et le <strong>API Token</strong>.</p>
+        <p className="text-sm text-gray-500">Cree un compte sur <a href="https://console.green-api.com" target="_blank" rel="noreferrer" className="text-green-600 underline font-medium">console.green-api.com</a>, cree une instance.</p>
         <div className="space-y-3">
           <div><label className="block text-xs font-medium text-gray-600 mb-1">Instance ID</label><input value={form.instance_id} onChange={e => setForm(f => ({ ...f, instance_id: e.target.value }))} placeholder="ex: 1234567890" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" /></div>
           <div><label className="block text-xs font-medium text-gray-600 mb-1">API Token</label><input value={form.api_token} onChange={e => setForm(f => ({ ...f, api_token: e.target.value }))} placeholder="ex: abc123xyz..." type="password" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" /></div>
@@ -202,18 +169,6 @@ function ConnexionTab() {
   );
 }
 
-function statusToLabel(status: string): string {
-  const map: Record<string, string> = {
-    'en_preparation': 'En preparation',
-    'en_livraison': 'En cours de livraison',
-    'livre': 'Livre',
-    'retourne': 'Retourne',
-    'en_transit': 'En transit',
-    'echec': 'Echec',
-  };
-  return map[status] || status || '—';
-}
-
 function EnvoyerTab() {
   const [connected, setConnected] = useState<boolean | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -225,6 +180,9 @@ function EnvoyerTab() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [situationFilter, setSituationFilter] = useState('');
+  const [wilayaFilter, setWilayaFilter] = useState('');
+  const [testPhone, setTestPhone] = useState('');
+  const [sendingTest, setSendingTest] = useState(false);
   const PAGE_SIZE = 15;
 
   const fetchOrders = useCallback(async () => {
@@ -241,28 +199,54 @@ function EnvoyerTab() {
   useEffect(() => { fetch('/api/whatsapp/status').then(r => r.json()).then(j => setConnected(j.connected)); }, []);
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
   useEffect(() => {
+    setWilayaFilter('');
     if (!situationFilter) return;
     const match = TEMPLATES.find(t => t.situation && situationFilter.includes(t.situation.split(' ')[0].toLowerCase()));
     if (match) setTemplateId(match.id);
   }, [situationFilter]);
 
+  // Unique wilayas from loaded orders for sub-filter
+  const availableWilayas = Array.from(new Set(orders.map(o => o.wilaya).filter(Boolean))).sort();
+
+  // Apply wilaya sub-filter client-side
+  const displayedOrders = wilayaFilter ? orders.filter(o => o.wilaya === wilayaFilter) : orders;
   const totalPages = Math.ceil(total / PAGE_SIZE);
   const template = TEMPLATES.find(t => t.id === templateId) || TEMPLATES[0];
   const previewOrder = orders[0] || MOCK_ORDER;
-  const ordersWithPhone = orders.filter(o => o.whatsapp && o.whatsapp.length > 5);
+  const ordersWithPhone = displayedOrders.filter(o => o.whatsapp && o.whatsapp.length > 5);
+
   const toggleAll = () => {
     if (ordersWithPhone.every(o => selected.has(o.id))) setSelected(new Set());
     else setSelected(new Set(ordersWithPhone.map(o => o.id)));
   };
+
   const sendMessages = async () => {
     if (selected.size === 0) { toast.error('Selectionne au moins un client'); return; }
-    const recipients = orders.filter(o => selected.has(o.id)).map(o => ({ tracking: o.tracking, client: o.client, whatsapp: o.whatsapp, message: templateId === 'custom' ? customText : template.text(o) }));
+    const recipients = displayedOrders.filter(o => selected.has(o.id)).map(o => ({
+      tracking: o.tracking, client: o.client, whatsapp: o.whatsapp,
+      message: templateId === 'custom' ? customText : template.text(o),
+    }));
     setSending(true);
     const res = await fetch('/api/whatsapp/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ recipients }) });
     const json = await res.json();
     if (json.error) toast.error(json.error);
     else { toast.success(`${json.sent} message(s) envoye(s)`); setSelected(new Set()); }
     setSending(false);
+  };
+
+  const sendTest = async () => {
+    if (!testPhone) { toast.error('Entre un numero de telephone'); return; }
+    const mockO = { ...MOCK_ORDER, whatsapp: testPhone };
+    const message = templateId === 'custom' ? (customText || 'هذا رسالة تجريبية') : template.text(mockO);
+    setSendingTest(true);
+    const res = await fetch('/api/whatsapp/send', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ recipients: [{ tracking: 'TEST', client: 'Test', whatsapp: testPhone, message }] }),
+    });
+    const json = await res.json();
+    if (json.error) toast.error(json.error);
+    else toast.success('Message de test envoye !');
+    setSendingTest(false);
   };
 
   return (
@@ -273,7 +257,9 @@ function EnvoyerTab() {
           <p className="text-sm text-amber-700">WhatsApp non connecte — va dans <strong>Connexion</strong> pour scanner le QR avant d'envoyer.</p>
         </div>
       )}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+
+      {/* Filtre situation */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-medium text-gray-700">Situation :</span>
           <div className="flex flex-wrap gap-2">
@@ -285,7 +271,29 @@ function EnvoyerTab() {
             ))}
           </div>
         </div>
+        {/* Sous-filtre wilaya */}
+        {situationFilter && availableWilayas.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100">
+            <div className="flex items-center gap-1 text-xs font-medium text-gray-500">
+              <Filter size={11} /> Wilaya :
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              <button onClick={() => setWilayaFilter('')}
+                className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${wilayaFilter === '' ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 text-gray-500 hover:border-blue-400 hover:text-blue-600'}`}>
+                Toutes
+              </button>
+              {availableWilayas.map(w => (
+                <button key={w} onClick={() => setWilayaFilter(w)}
+                  className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${wilayaFilter === w ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 text-gray-500 hover:border-blue-400 hover:text-blue-600'}`}>
+                  {w}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Templates */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
         <div className="flex items-center gap-2"><MessageSquare size={16} className="text-green-500" /><h3 className="font-semibold text-gray-900">Template (Darija)</h3></div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -307,12 +315,37 @@ function EnvoyerTab() {
           </div>
         )}
       </div>
+
+      {/* Test de message */}
+      <div className="bg-white rounded-2xl border border-blue-100 shadow-sm p-5 space-y-3">
+        <div className="flex items-center gap-2">
+          <Smartphone size={16} className="text-blue-500" />
+          <h3 className="font-semibold text-gray-900">Tester la reception</h3>
+          <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-medium">Test</span>
+        </div>
+        <p className="text-xs text-gray-500">Entre un numero pour verifier que le message arrive bien avant d'envoyer en masse.</p>
+        <div className="flex gap-2">
+          <input
+            value={testPhone}
+            onChange={e => setTestPhone(e.target.value)}
+            placeholder="ex: 0770 12 34 56"
+            className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button onClick={sendTest} disabled={!testPhone || sendingTest || !connected}
+            className="flex items-center gap-1.5 text-sm px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 font-medium shrink-0">
+            {sendingTest ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+            Envoyer test
+          </button>
+        </div>
+      </div>
+
+      {/* Table des destinataires */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="p-4 border-b border-gray-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Users size={16} className="text-gray-500" />
             <h3 className="font-semibold text-gray-900">Destinataires</h3>
-            <span className="text-xs text-gray-400">({total} commandes)</span>
+            <span className="text-xs text-gray-400">({wilayaFilter ? displayedOrders.length : total} commandes{wilayaFilter ? ` — ${wilayaFilter}` : ''})</span>
             {selected.size > 0 && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">{selected.size} selectionne(s)</span>}
           </div>
           <button onClick={sendMessages} disabled={sending || selected.size === 0 || !connected}
@@ -335,9 +368,9 @@ function EnvoyerTab() {
             <tbody className="divide-y divide-gray-50">
               {loadingOrders ? (
                 <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Chargement...</td></tr>
-              ) : orders.length === 0 ? (
+              ) : displayedOrders.length === 0 ? (
                 <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Aucune commande</td></tr>
-              ) : orders.map(order => {
+              ) : displayedOrders.map(order => {
                 const hasPhone = !!(order.whatsapp && order.whatsapp.length > 5);
                 return (
                   <tr key={order.id} className={`transition-colors ${hasPhone ? 'hover:bg-gray-50 cursor-pointer' : 'opacity-40'}`}
@@ -345,15 +378,16 @@ function EnvoyerTab() {
                     <td className="px-4 py-3"><input type="checkbox" checked={selected.has(order.id)} disabled={!hasPhone} readOnly className="rounded" /></td>
                     <td className="px-4 py-3 font-medium text-gray-900">{order.client || '—'}</td>
                     <td className="px-4 py-3 font-mono text-xs text-gray-600">{order.tracking}</td>
-                    <td className="px-4 py-3 text-xs"><span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{order.situation || '—'}</span></td>
+                    <td className="px-4 py-3 text-xs"><span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{order.situation || statusToLabel(order.status)}</span></td>
                     <td className="px-4 py-3 text-gray-500">{order.wilaya || '—'}</td>
                     <td className="px-4 py-3 text-gray-500">{order.whatsapp || <span className="text-red-400 text-xs">Aucun</span>}</td>
                   </tr>
                 );
               })}
-   {order.situation || statusToLabel(order.status)}    </table>
+            </tbody>
+          </table>
         </div>
-        {totalPages > 1 && (
+        {totalPages > 1 && !wilayaFilter && (
           <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
             <span className="text-sm text-gray-500">Page {page} / {totalPages}</span>
             <div className="flex gap-2">
