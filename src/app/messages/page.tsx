@@ -15,9 +15,6 @@ const MOCK_ORDER: Order = {
 
 const SITUATION_FILTERS = [
   { value: '', label: 'Toutes les situations' },
-  { value: 'ne repond pas 1', label: 'Ne repond pas 1' },
-  { value: 'ne repond pas 2', label: 'Ne repond pas 2' },
-  { value: 'ne repond pas 3', label: 'Ne repond pas 3' },
   { value: 'commande annul', label: 'Commande annulee' },
   { value: 'commune erron', label: 'Commune erronee' },
   { value: 'en cours de livraison', label: 'En cours de livraison' },
