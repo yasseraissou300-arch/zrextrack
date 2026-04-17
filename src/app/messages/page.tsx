@@ -9,65 +9,87 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-interface WASettings {
-  instance_id: string;
-  api_token: string;
-  connected: boolean;
-  phone: string;
-}
+interface WASettings { instance_id: string; api_token: string; connected: boolean; phone: string; }
+interface Order { id: string; tracking: string; client: string; whatsapp: string; situation: string; wilaya: string; status: string; cod: number; }
+interface MsgLog { id: string; tracking: string; client: string; whatsapp: string; message: string; status: 'envoye' | 'echec' | 'en_attente'; sent_at: string; }
 
-interface Order {
-  id: string;
-  tracking: string;
-  client: string;
-  whatsapp: string;
-  situation: string;
-  wilaya: string;
-  status: string;
-  cod: number;
-}
+// ─── Situations filter options ───────────────────────────────────────────────
+const SITUATION_FILTERS = [
+  { value: '', label: 'Toutes les situations' },
+  { value: 'ne repond pas 1', label: 'Ne repond pas 1' },
+  { value: 'ne repond pas 2', label: 'Ne repond pas 2' },
+  { value: 'ne repond pas 3', label: 'Ne repond pas 3' },
+  { value: 'commande annul', label: 'Commande annulee' },
+  { value: 'commune erron', label: 'Commune erronee' },
+  { value: 'en cours de livraison', label: 'En cours de livraison' },
+  { value: 'livr', label: 'Livre' },
+  { value: 'retour', label: 'Retourne' },
+  { value: 'en transit', label: 'En transit' },
+  { value: 'en preparation', label: 'En preparation' },
+];
 
-interface MsgLog {
-  id: string;
-  tracking: string;
-  client: string;
-  whatsapp: string;
-  message: string;
-  status: 'envoye' | 'echec' | 'en_attente';
-  sent_at: string;
-}
-
+// ─── Templates en Darija ─────────────────────────────────────────────────────
 const TEMPLATES = [
   {
-    id: 'situation',
-    label: 'Situation du colis',
+    id: 'ne_repond_pas',
+    label: 'Ma jawabch',
+    situation: 'ne repond pas',
     text: (o: Order) =>
-      `Bonjour ${o.client}\n\nVotre colis *${o.tracking}* est actuellement :\n*${o.situation || o.status}*\n\nMerci pour votre confiance !`,
+      `السلام عليكم ${o.client} 👋\nعندك طرد برقم *${o.tracking}* ولقيناك ما جاوبتناش.\nارجاء تواصل معنا باش نوصلو ليك طردك.\nشكرا 🙏`,
   },
   {
-    id: 'livraison',
-    label: 'En cours de livraison',
+    id: 'annule',
+    label: 'Commande lghya',
+    situation: 'commande annul',
     text: (o: Order) =>
-      `Bonjour ${o.client}\n\nVotre colis *${o.tracking}* est en cours de livraison aujourd'hui a *${o.wilaya}*.\n\nMontant a payer : *${o.cod} DA*\n\nMerci !`,
+      `السلام عليكم ${o.client} 👋\nطردك رقم *${o.tracking}* تلغى.\nإذا عندك أي سؤال ولا تبغي تعاود تطلب، تواصل معنا.\nشكرا 🙏`,
   },
   {
-    id: 'echec',
-    label: 'Tentative echouee',
+    id: 'commune_erronee',
+    label: 'Adresse khata',
+    situation: 'commune erron',
     text: (o: Order) =>
-      `Bonjour ${o.client}\n\nNous n'avons pas pu livrer votre colis *${o.tracking}* aujourd'hui.\n\nMerci de nous contacter pour reprogrammer la livraison.`,
+      `السلام عليكم ${o.client} 👋\nطردك رقم *${o.tracking}* فيه مشكل في عنوان التسليم.\nارجاء راسلنا وعطينا عنوانك الصحيح باش نوصلو ليك طردك.\nشكرا 🙏`,
+  },
+  {
+    id: 'en_livraison',
+    label: 'F tariq',
+    situation: 'en cours de livraison',
+    text: (o: Order) =>
+      `السلام عليكم ${o.client} 👋\nطردك رقم *${o.tracking}* مع الليفروار دروك في *${o.wilaya}*.\nالمبلغ لي يتسلم : *${o.cod} دج*\nكون في الدار ويصلك. شكرا 🚚`,
+  },
+  {
+    id: 'livre',
+    label: 'Twassal',
+    situation: 'livr',
+    text: (o: Order) =>
+      `السلام عليكم ${o.client} 👋\nطردك رقم *${o.tracking}* وصل.\nشكرا على ثقتك فينا وانشاء الله راك راضي على الطلبية. نتمنالك يوم مليح 🙏`,
+  },
+  {
+    id: 'retourne',
+    label: 'Rjae',
+    situation: 'retour',
+    text: (o: Order) =>
+      `السلام عليكم ${o.client} 👋\nطردك رقم *${o.tracking}* رجع لينا.\nإذا تبغي تعاود تطلب ولا عندك سؤال، تواصل معنا.\nشكرا 🙏`,
+  },
+  {
+    id: 'transit',
+    label: 'F route',
+    situation: 'en transit',
+    text: (o: Order) =>
+      `السلام عليكم ${o.client} 👋\nطردك رقم *${o.tracking}* في الطريق لـ *${o.wilaya}*.\nغادي يوصلك قريب انشاء الله. شكرا 🙏`,
   },
   {
     id: 'custom',
     label: 'Personnalise',
+    situation: '',
     text: () => '',
   },
 ];
 
 function StatusBadge({ connected }: { connected: boolean }) {
   return (
-    <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${
-      connected ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'
-    }`}>
+    <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${connected ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
       {connected ? <Wifi size={12} /> : <WifiOff size={12} />}
       {connected ? 'Connecte' : 'Deconnecte'}
     </span>
@@ -156,9 +178,8 @@ function ConnexionTab() {
           <h3 className="font-semibold text-gray-900">Credentials Green API</h3>
         </div>
         <p className="text-sm text-gray-500">
-          Cree un compte gratuit sur{' '}
-          <a href="https://console.green-api.com" target="_blank" rel="noreferrer"
-            className="text-green-600 underline font-medium">console.green-api.com</a>,
+          Cree un compte sur{' '}
+          <a href="https://console.green-api.com" target="_blank" rel="noreferrer" className="text-green-600 underline font-medium">console.green-api.com</a>,
           cree une instance, copie le <strong>Instance ID</strong> et le <strong>API Token</strong>.
         </p>
         <div className="space-y-3">
@@ -188,7 +209,7 @@ function ConnexionTab() {
           <h3 className="font-semibold text-gray-900">Scanner le QR Code</h3>
         </div>
         <p className="text-sm text-gray-500">
-          Ouvre <strong>WhatsApp</strong> sur ton telephone, va dans <strong>Appareils lies</strong> puis scanne ce QR.
+          Ouvre <strong>WhatsApp</strong> sur ton telephone, <strong>Appareils lies</strong>, scanne ce QR.
         </p>
         {qrData ? (
           <div className="flex flex-col items-center gap-3">
@@ -202,7 +223,7 @@ function ConnexionTab() {
               <button onClick={checkStatus} disabled={statusChecking}
                 className="flex items-center gap-1.5 text-sm px-4 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700">
                 {statusChecking ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
-                Scanne
+                J'ai scanne
               </button>
             </div>
           </div>
@@ -223,32 +244,40 @@ function EnvoyerTab() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [templateId, setTemplateId] = useState('situation');
+  const [templateId, setTemplateId] = useState('ne_repond_pas');
   const [customText, setCustomText] = useState('');
   const [sending, setSending] = useState(false);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const [statusFilter, setStatusFilter] = useState('all');
-  const PAGE_SIZE = 10;
+  const [situationFilter, setSituationFilter] = useState('');
+  const PAGE_SIZE = 15;
 
   const fetchOrders = useCallback(async () => {
     setLoadingOrders(true);
-    const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE), status: statusFilter });
+    const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) });
+    if (situationFilter) params.set('situation', situationFilter);
     const res = await fetch(`/api/orders?${params}`);
     const json = await res.json();
     setOrders(json.data || []);
     setTotal(json.count || 0);
     setLoadingOrders(false);
-  }, [page, statusFilter]);
+  }, [page, situationFilter]);
 
   useEffect(() => {
-    fetch('/api/whatsapp/status').then(r=>r.json()).then(j=>setConnected(j.connected));
+    fetch('/api/whatsapp/status').then(r => r.json()).then(j => setConnected(j.connected));
   }, []);
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
+  // Auto-select matching template when situation filter changes
+  useEffect(() => {
+    if (!situationFilter) return;
+    const match = TEMPLATES.find(t => t.situation && situationFilter.includes(t.situation.split(' ')[0].toLowerCase()));
+    if (match) setTemplateId(match.id);
+  }, [situationFilter]);
+
   const totalPages = Math.ceil(total / PAGE_SIZE);
-  const template = TEMPLATES.find(t => t.id === templateId)!;
+  const template = TEMPLATES.find(t => t.id === templateId) || TEMPLATES[0];
   const ordersWithPhone = orders.filter(o => o.whatsapp && o.whatsapp.length > 5);
 
   const toggleAll = () => {
@@ -289,10 +318,30 @@ function EnvoyerTab() {
 
   return (
     <div className="space-y-5">
+      {/* Filtre situation */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-medium text-gray-700">Situation :</span>
+          <div className="flex flex-wrap gap-2">
+            {SITUATION_FILTERS.map(f => (
+              <button key={f.value} onClick={() => { setSituationFilter(f.value); setPage(1); setSelected(new Set()); }}
+                className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${
+                  situationFilter === f.value
+                    ? 'bg-green-600 text-white border-green-600'
+                    : 'border-gray-200 text-gray-600 hover:border-green-400 hover:text-green-600'
+                }`}>
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Templates */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
         <div className="flex items-center gap-2">
           <MessageSquare size={16} className="text-green-500" />
-          <h3 className="font-semibold text-gray-900">Template de message</h3>
+          <h3 className="font-semibold text-gray-900">Template (Darija)</h3>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {TEMPLATES.map(t => (
@@ -306,38 +355,29 @@ function EnvoyerTab() {
         </div>
         {templateId === 'custom' ? (
           <textarea value={customText} onChange={e => setCustomText(e.target.value)}
-            placeholder="Ecris ton message..." rows={4}
+            placeholder="Kteb risaltk..." rows={4} dir="rtl"
             className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
         ) : (
-          <div className="bg-gray-50 rounded-xl p-3 text-sm text-gray-600 whitespace-pre-line border border-gray-100">
-            {orders.length > 0 ? template.text(orders[0]) : 'Charge les commandes pour voir apercu'}
+          <div className="bg-green-50 rounded-xl p-4 text-sm text-gray-700 whitespace-pre-line border border-green-100 text-right" dir="rtl">
+            {orders.length > 0 ? template.text(orders[0]) : 'Filtre les commandes pour voir un apercu'}
           </div>
         )}
       </div>
 
+      {/* Table des destinataires */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="p-4 border-b border-gray-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Users size={16} className="text-gray-500" />
             <h3 className="font-semibold text-gray-900">Destinataires</h3>
+            <span className="text-xs text-gray-400">({total} commandes)</span>
             {selected.size > 0 && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">{selected.size} selectionne(s)</span>}
           </div>
-          <div className="flex gap-2 flex-wrap">
-            <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
-              className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none">
-              <option value="all">Tous</option>
-              <option value="en_preparation">En preparation</option>
-              <option value="en_transit">En transit</option>
-              <option value="en_livraison">En livraison</option>
-              <option value="echec">Echecs</option>
-              <option value="retourne">Retournes</option>
-            </select>
-            <button onClick={sendMessages} disabled={sending || selected.size === 0}
-              className="flex items-center gap-1.5 text-sm px-4 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium">
-              {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-              Envoyer ({selected.size})
-            </button>
-          </div>
+          <button onClick={sendMessages} disabled={sending || selected.size === 0}
+            className="flex items-center gap-1.5 text-sm px-5 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 disabled:opacity-50 font-medium">
+            {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+            Envoyer ({selected.size})
+          </button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -366,12 +406,12 @@ function EnvoyerTab() {
                   <tr key={order.id}
                     className={`transition-colors ${hasPhone ? 'hover:bg-gray-50 cursor-pointer' : 'opacity-40'}`}
                     onClick={() => { if (!hasPhone) return; setSelected(s => { const n = new Set(s); n.has(order.id) ? n.delete(order.id) : n.add(order.id); return n; }); }}>
-                    <td className="px-4 py-3">
-                      <input type="checkbox" checked={selected.has(order.id)} disabled={!hasPhone} readOnly className="rounded" />
-                    </td>
+                    <td className="px-4 py-3"><input type="checkbox" checked={selected.has(order.id)} disabled={!hasPhone} readOnly className="rounded" /></td>
                     <td className="px-4 py-3 font-medium text-gray-900">{order.client || '—'}</td>
                     <td className="px-4 py-3 font-mono text-xs text-gray-600">{order.tracking}</td>
-                    <td className="px-4 py-3 text-gray-500 text-xs">{order.situation || order.status || '—'}</td>
+                    <td className="px-4 py-3 text-xs">
+                      <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{order.situation || '—'}</span>
+                    </td>
                     <td className="px-4 py-3 text-gray-500">{order.wilaya || '—'}</td>
                     <td className="px-4 py-3 text-gray-500">{order.whatsapp || <span className="text-red-400 text-xs">Aucun</span>}</td>
                   </tr>
@@ -421,15 +461,11 @@ function HistoriqueTab() {
           <History size={16} className="text-gray-500" />
           <h3 className="font-semibold text-gray-900">Historique des messages</h3>
         </div>
-        <button onClick={fetchMessages} className="p-1.5 hover:bg-gray-100 rounded-lg">
-          <RefreshCw size={14} className="text-gray-400" />
-        </button>
+        <button onClick={fetchMessages} className="p-1.5 hover:bg-gray-100 rounded-lg"><RefreshCw size={14} className="text-gray-400" /></button>
       </div>
       <div className="divide-y divide-gray-50">
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 size={20} className="animate-spin text-gray-400" />
-          </div>
+          <div className="flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-gray-400" /></div>
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-gray-400">
             <MessageSquare size={32} className="mb-2 opacity-30" />
@@ -444,12 +480,10 @@ function HistoriqueTab() {
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span className="font-medium text-gray-900 text-sm">{msg.client}</span>
                     <span className="text-xs text-gray-400">{msg.whatsapp}</span>
-                    {msg.tracking && (
-                      <span className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">{msg.tracking}</span>
-                    )}
+                    {msg.tracking && <span className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">{msg.tracking}</span>}
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg.bg}`}>{cfg.label}</span>
                   </div>
-                  <p className="text-xs text-gray-500 line-clamp-2 whitespace-pre-line">{msg.message}</p>
+                  <p className="text-xs text-gray-500 line-clamp-2 whitespace-pre-line text-right" dir="rtl">{msg.message}</p>
                 </div>
                 <span className="text-[10px] text-gray-400 shrink-0">
                   {new Date(msg.sent_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
@@ -470,7 +504,7 @@ const TABS = [
 ];
 
 export default function MessagesPage() {
-  const [tab, setTab] = useState('connexion');
+  const [tab, setTab] = useState('envoyer');
   return (
     <AppLayout>
       <div className="max-w-screen-xl mx-auto px-6 py-6 space-y-6">
@@ -480,7 +514,7 @@ export default function MessagesPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-gray-900">Messages WhatsApp</h1>
-            <p className="text-sm text-gray-500">Connecte ton numero et envoie des notifications a tes clients</p>
+            <p className="text-sm text-gray-500">Envoyer des notifications en darija a tes clients</p>
           </div>
         </div>
         <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
