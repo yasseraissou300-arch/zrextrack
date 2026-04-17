@@ -282,7 +282,7 @@ function EnvoyerTab() {
                 className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${subSituationFilter === '' ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 text-gray-500 hover:border-blue-400 hover:text-blue-600'}`}>
                 Toutes
               </button>
-              {availableWilayas.map(w => (
+              {SUB_SITUATIONS.map(w => (
                 <button key={w} onClick={() => setSubSituationFilter(w)}
                   className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${subSituationFilter === w ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 text-gray-500 hover:border-blue-400 hover:text-blue-600'}`}>
                   {w}
