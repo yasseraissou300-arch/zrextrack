@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { X, MapPin, Phone, Package, Truck, Clock, Hash, CreditCard, RotateCcw, ExternalLink } from 'lucide-react';
+import { X, MapPin, Phone, Package, Truck, Clock, CreditCard, RotateCcw, ExternalLink, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 type Status = 'en_preparation' | 'en_transit' | 'en_livraison' | 'livre' | 'echec' | 'retourne';
 
@@ -41,15 +42,37 @@ function getStepIndex(status: string) {
 interface Props {
   order: Order | null;
   onClose: () => void;
+  onDeleted?: () => void;
 }
 
-export default function OrderDetailModal({ order, onClose }: Props) {
+export default function OrderDetailModal({ order, onClose, onDeleted }: Props) {
+  const [deleting, setDeleting] = React.useState(false);
   if (!order) return null;
 
   const meta = STATUS_CONFIG[order.status] || STATUS_CONFIG.en_preparation;
   const stepIdx = getStepIndex(order.status);
   const isTerminal = ['echec', 'retourne'].includes(order.status);
   const trackingUrl = `/track/${order.tracking}`;
+
+  const handleDelete = async () => {
+    if (!confirm(`Mettre la commande ${order.tracking} à la corbeille ?`)) return;
+    setDeleting(true);
+    try {
+      const res = await fetch('/api/orders/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [order.id] }),
+      });
+      const json = await res.json();
+      if (json.error) { toast.error(json.error); }
+      else {
+        toast.success(`Commande ${order.tracking} déplacée à la corbeille`);
+        onDeleted?.();
+        onClose();
+      }
+    } catch (e: any) { toast.error(e.message); }
+    finally { setDeleting(false); }
+  };
 
   const formatDate = (iso: string) => {
     if (!iso) return '—';
@@ -190,10 +213,20 @@ export default function OrderDetailModal({ order, onClose }: Props) {
             </div>
           </div>
 
-          {/* Dernière mise à jour */}
-          <div className="flex items-center gap-1.5 text-xs text-gray-400 border-t border-gray-100 pt-3">
-            <Clock size={11} />
-            Mis à jour le <span className="font-medium text-gray-600 ml-1">{formatDate(order.last_update)}</span>
+          {/* Footer */}
+          <div className="flex items-center justify-between border-t border-gray-100 pt-3">
+            <div className="flex items-center gap-1.5 text-xs text-gray-400">
+              <Clock size={11} />
+              Mis à jour le <span className="font-medium text-gray-600 ml-1">{formatDate(order.last_update)}</span>
+            </div>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-200 text-red-500 text-xs font-medium hover:bg-red-50 transition-all disabled:opacity-50"
+            >
+              <Trash2 size={12} />
+              {deleting ? 'Suppression...' : 'Corbeille'}
+            </button>
           </div>
         </div>
       </div>

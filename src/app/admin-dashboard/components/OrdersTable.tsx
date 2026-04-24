@@ -107,7 +107,7 @@ export default function OrdersTable() {
 
   return (
     <>
-    <OrderDetailModal order={selectedOrder} onClose={() => setSelectedOrder(null)} />
+    <OrderDetailModal order={selectedOrder} onClose={() => setSelectedOrder(null)} onDeleted={() => fetchOrders(true)} />
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="px-5 py-3.5 border-b border-gray-100 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
         <div className="flex items-center gap-2">

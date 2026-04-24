@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Package, MessageSquare, BarChart3, Settings,
-  ChevronLeft, ChevronRight, Truck, Bell, RefreshCw, Users,
+  ChevronLeft, ChevronRight, Truck, Bell, RefreshCw, Users, Trash2,
 } from 'lucide-react';
 
 const navGroups = [
@@ -30,6 +30,12 @@ const navGroups = [
     items: [
       { href: '/rapports', icon: BarChart3, label: 'Rapports' },
       { href: '/sync', icon: RefreshCw, label: 'Sync ZREXpress' },
+    ],
+  },
+  {
+    label: 'Gestion',
+    items: [
+      { href: '/corbeille', icon: Trash2, label: 'Corbeille' },
     ],
   },
 ];

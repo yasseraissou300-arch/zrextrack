@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     const to = from + pageSize - 1;
 
     const supabase = createServiceClient();
-    let query = supabase.from('orders').select('*', { count: 'exact' }).eq('user_id', user.id);
+    let query = supabase.from('orders').select('*', { count: 'exact' }).eq('user_id', user.id).is('deleted_at', null);
 
     if (status !== 'all') query = query.eq('status', status);
 
