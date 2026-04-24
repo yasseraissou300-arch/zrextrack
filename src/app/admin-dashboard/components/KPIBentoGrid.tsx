@@ -1,70 +1,83 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Package, CheckCircle2, Truck, TrendingUp, MessageSquare, RotateCcw } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { SYNC_DONE_EVENT } from './DashboardHeader';
 
 interface KPIData {
   totalOrders: number;
+  delivered: number;
   deliveredToday: number;
   inTransit: number;
   deliveryRate: number;
   messagesSent: number;
   returned: number;
+  failed: number;
 }
+
+const POLL_INTERVAL = 5_000; // 5 secondes
 
 export default function KPIBentoGrid() {
   const [kpis, setKpis] = useState<KPIData>({
-    totalOrders: 0, deliveredToday: 0, inTransit: 0,
-    deliveryRate: 0, messagesSent: 0, returned: 0,
+    totalOrders: 0, delivered: 0, deliveredToday: 0, inTransit: 0,
+    deliveryRate: 0, messagesSent: 0, returned: 0, failed: 0,
   });
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
-  useEffect(() => {
-    fetchKPIs();
-  }, []);
-
-  const fetchKPIs = async () => {
-    setLoading(true);
+  const fetchKPIs = useCallback(async () => {
     try {
       const today = new Date().toISOString().split('T')[0];
 
-      const [ordersRes, deliveredRes, transitRes, returnedRes, messagesRes] = await Promise.all([
+      const [totalRes, deliveredRes, deliveredTodayRes, transitRes, returnedRes, failedRes, messagesRes] = await Promise.all([
         supabase.from('orders').select('id', { count: 'exact', head: true }),
-        supabase.from('orders').select('id', { count: 'exact', head: true })
-          .eq('status', 'livre').gte('last_update', today),
-        supabase.from('orders').select('id', { count: 'exact', head: true })
-          .in('status', ['en_transit', 'en_livraison']),
-        supabase.from('orders').select('id', { count: 'exact', head: true })
-          .eq('status', 'retourne'),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'livre'),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'livre').gte('last_update', today),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).in('status', ['en_transit', 'en_livraison']),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'retourne'),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'echec'),
         supabase.from('messages').select('id', { count: 'exact', head: true }),
       ]);
 
-      const total = ordersRes.count || 0;
-      const delivered = ordersRes.count ? (
-        await supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'livre')
-      ).count || 0 : 0;
-
-      const rate = total > 0 ? Math.round((delivered / total) * 100 * 10) / 10 : 0;
+      const total = totalRes.count ?? 0;
+      const delivered = deliveredRes.count ?? 0;
+      const rate = total > 0 ? Math.round((delivered / total) * 1000) / 10 : 0;
 
       setKpis({
         totalOrders: total,
-        deliveredToday: deliveredRes.count || 0,
-        inTransit: transitRes.count || 0,
+        delivered,
+        deliveredToday: deliveredTodayRes.count ?? 0,
+        inTransit: transitRes.count ?? 0,
         deliveryRate: rate,
-        messagesSent: messagesRes.count || 0,
-        returned: returnedRes.count || 0,
+        messagesSent: messagesRes.count ?? 0,
+        returned: returnedRes.count ?? 0,
+        failed: failedRes.count ?? 0,
       });
     } catch (e) {
       console.error('KPI error:', e);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  };
+  }, []);
+
+  // Polling toutes les 5 secondes
+  useEffect(() => {
+    fetchKPIs();
+    const interval = setInterval(fetchKPIs, POLL_INTERVAL);
+    return () => clearInterval(interval);
+  }, [fetchKPIs]);
+
+  // Rafraîchir immédiatement après un sync
+  useEffect(() => {
+    const handler = () => fetchKPIs();
+    window.addEventListener(SYNC_DONE_EVENT, handler);
+    return () => window.removeEventListener(SYNC_DONE_EVENT, handler);
+  }, [fetchKPIs]);
 
   const cards = [
     {
-      label: 'Total Commandes',
+      label: 'Total commandes',
       value: kpis.totalOrders.toLocaleString('fr-FR'),
       icon: Package,
       borderColor: 'border-l-blue-500',
@@ -72,12 +85,20 @@ export default function KPIBentoGrid() {
       iconBg: 'bg-blue-50',
     },
     {
-      label: "Livrées aujourd'hui",
-      value: kpis.deliveredToday.toString(),
+      label: 'Livrées au total',
+      value: kpis.delivered.toLocaleString('fr-FR'),
       icon: CheckCircle2,
       borderColor: 'border-l-green-500',
       iconColor: 'text-green-600',
       iconBg: 'bg-green-50',
+    },
+    {
+      label: "Livrées aujourd'hui",
+      value: kpis.deliveredToday.toString(),
+      icon: CheckCircle2,
+      borderColor: 'border-l-teal-500',
+      iconColor: 'text-teal-600',
+      iconBg: 'bg-teal-50',
     },
     {
       label: 'En transit / livraison',
@@ -96,38 +117,46 @@ export default function KPIBentoGrid() {
       iconBg: 'bg-indigo-50',
     },
     {
-      label: 'Messages envoyés',
-      value: kpis.messagesSent.toLocaleString('fr-FR'),
-      icon: MessageSquare,
-      borderColor: 'border-l-teal-500',
-      iconColor: 'text-teal-600',
-      iconBg: 'bg-teal-50',
+      label: 'Échecs',
+      value: kpis.failed.toString(),
+      icon: RotateCcw,
+      borderColor: 'border-l-red-400',
+      iconColor: 'text-red-500',
+      iconBg: 'bg-red-50',
     },
     {
       label: 'Retournés',
       value: kpis.returned.toString(),
       icon: RotateCcw,
-      borderColor: 'border-l-red-500',
-      iconColor: 'text-red-500',
-      iconBg: 'bg-red-50',
+      borderColor: 'border-l-gray-400',
+      iconColor: 'text-gray-500',
+      iconBg: 'bg-gray-100',
+    },
+    {
+      label: 'Messages WhatsApp',
+      value: kpis.messagesSent.toLocaleString('fr-FR'),
+      icon: MessageSquare,
+      borderColor: 'border-l-green-400',
+      iconColor: 'text-green-500',
+      iconBg: 'bg-green-50',
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-3">
       {cards.map((card) => (
         <div
           key={card.label}
-          className={`bg-white rounded-xl border border-gray-100 border-l-4 ${card.borderColor} p-4 shadow-sm`}
+          className={`bg-white rounded-xl border border-gray-100 border-l-4 ${card.borderColor} p-4 shadow-sm transition-all`}
         >
-          <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-3 ${card.iconBg}`}>
-            <card.icon size={16} className={card.iconColor} />
+          <div className={`w-7 h-7 rounded-lg flex items-center justify-center mb-2.5 ${card.iconBg}`}>
+            <card.icon size={14} className={card.iconColor} />
           </div>
-          <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5 leading-tight">
             {card.label}
           </p>
-          <p className="text-2xl font-bold text-gray-900">
-            {loading ? <span className="text-gray-300">—</span> : card.value}
+          <p className="text-xl font-bold text-gray-900 tabular-nums">
+            {loading ? <span className="text-gray-200">—</span> : card.value}
           </p>
         </div>
       ))}

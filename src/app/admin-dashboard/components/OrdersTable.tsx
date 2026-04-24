@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Search, ChevronLeft, ChevronRight, RefreshCw, Copy, CheckCheck } from 'lucide-react';
 import { toast } from 'sonner';
+import { SYNC_DONE_EVENT } from './DashboardHeader';
 
 type Status = 'en_preparation' | 'en_transit' | 'en_livraison' | 'livre' | 'echec' | 'retourne';
 
@@ -42,6 +43,7 @@ function formatDeliveryType(type: string): string {
 }
 
 const PAGE_SIZE = 10;
+const POLL_INTERVAL = 5_000;
 
 export default function OrdersTable() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -51,9 +53,10 @@ export default function OrdersTable() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [lastRefresh, setLastRefresh] = useState<string>('');
 
-  const fetchOrders = useCallback(async () => {
-    setLoading(true);
+  const fetchOrders = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const params = new URLSearchParams({
         page: String(page),
@@ -64,20 +67,31 @@ export default function OrdersTable() {
       const res = await fetch(`/api/orders?${params}`);
       const json = await res.json();
       if (json.error) {
-        toast.error(json.error);
+        if (!silent) toast.error(json.error);
       } else {
         setOrders(json.data || []);
         setTotal(json.count || 0);
+        setLastRefresh(new Date().toLocaleTimeString('fr-FR'));
       }
     } catch (err: any) {
-      toast.error(err.message);
+      if (!silent) toast.error(err.message);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [page, statusFilter, search]);
 
+  // Polling toutes les 5 secondes (silencieux)
   useEffect(() => {
     fetchOrders();
+    const interval = setInterval(() => fetchOrders(true), POLL_INTERVAL);
+    return () => clearInterval(interval);
+  }, [fetchOrders]);
+
+  // Rafraîchir immédiatement après un sync ZREXpress
+  useEffect(() => {
+    const handler = () => fetchOrders(true);
+    window.addEventListener(SYNC_DONE_EVENT, handler);
+    return () => window.removeEventListener(SYNC_DONE_EVENT, handler);
   }, [fetchOrders]);
 
   const copyTracking = (tracking: string) => {
@@ -92,7 +106,10 @@ export default function OrdersTable() {
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="px-5 py-3.5 border-b border-gray-100 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-        <h2 className="font-semibold text-gray-800 text-sm">Commandes récentes <span className="text-gray-400 font-normal">({total})</span></h2>
+        <div className="flex items-center gap-2">
+          <h2 className="font-semibold text-gray-800 text-sm">Commandes récentes <span className="text-gray-400 font-normal">({total})</span></h2>
+          {lastRefresh && <span className="text-[10px] text-gray-300 font-mono">{lastRefresh}</span>}
+        </div>
         <div className="flex gap-2 flex-wrap">
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
