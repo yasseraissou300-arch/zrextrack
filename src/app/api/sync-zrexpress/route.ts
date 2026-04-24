@@ -7,24 +7,27 @@ const APP_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://zrextrack6753.built
 // Statuts qui déclenchent une notification WhatsApp
 const NOTIFY_STATUSES = new Set(['en_transit', 'en_livraison', 'livre', 'echec', 'retourne']);
 
-// Messages WhatsApp par statut
-function buildMessage(status: string, client: string, tracking: string, wilaya: string): string {
+const DEFAULT_TEMPLATES: Record<string, string> = {
+  en_transit:   `📦 Bonjour {client},\n\nVotre commande *{tracking}* est maintenant *en transit* vers {wilaya}.\n\nSuivez-la ici : {lien}`,
+  en_livraison: `🚚 Bonjour {client},\n\nVotre commande *{tracking}* est *en cours de livraison* aujourd'hui !\n\nSoyez disponible. Suivi : {lien}`,
+  livre:        `✅ Bonjour {client},\n\nVotre commande *{tracking}* a été *livrée avec succès* ! 🎉\n\nMerci pour votre confiance. Suivi : {lien}`,
+  echec:        `⚠️ Bonjour {client},\n\nNous n'avons pas pu livrer votre commande *{tracking}*.\n\nVeuillez contacter le vendeur ou suivre : {lien}`,
+  retourne:     `📦 Bonjour {client},\n\nVotre commande *{tracking}* a été *retournée*.\n\nContactez le vendeur. Suivi : {lien}`,
+};
+
+// Construire le message à partir du template (custom ou défaut)
+function buildMessage(
+  status: string, client: string, tracking: string, wilaya: string,
+  customTemplates?: Record<string, string>
+): string {
   const link = `${APP_URL}/track/${tracking}`;
   const name = client || 'cher client';
-  switch (status) {
-    case 'en_transit':
-      return `📦 Bonjour ${name},\n\nVotre commande *${tracking}* est maintenant *en transit* vers ${wilaya || 'votre wilaya'}.\n\nSuivez-la ici : ${link}`;
-    case 'en_livraison':
-      return `🚚 Bonjour ${name},\n\nVotre commande *${tracking}* est *en cours de livraison* aujourd'hui !\n\nSoyez disponible. Suivi : ${link}`;
-    case 'livre':
-      return `✅ Bonjour ${name},\n\nVotre commande *${tracking}* a été *livrée avec succès* ! 🎉\n\nMerci pour votre confiance. Suivi : ${link}`;
-    case 'echec':
-      return `⚠️ Bonjour ${name},\n\nNous n'avons pas pu livrer votre commande *${tracking}*.\n\nVeuillez contacter le vendeur ou suivre : ${link}`;
-    case 'retourne':
-      return `📦 Bonjour ${name},\n\nVotre commande *${tracking}* a été *retournée*.\n\nContactez le vendeur. Suivi : ${link}`;
-    default:
-      return `📦 Bonjour ${name}, mise à jour de votre commande ${tracking} : ${status}. Suivi : ${link}`;
-  }
+  const tpl = (customTemplates?.[status] || DEFAULT_TEMPLATES[status] || `Mise à jour commande {tracking} : ${status}. Suivi : {lien}`);
+  return tpl
+    .replace(/{client}/g, name)
+    .replace(/{tracking}/g, tracking)
+    .replace(/{wilaya}/g, wilaya || 'votre wilaya')
+    .replace(/{lien}/g, link);
 }
 
 // Normaliser numéro algérien → 213XXXXXXXXX
@@ -166,7 +169,7 @@ function mapParcel(p: any, syncedAt: string) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { token, tenantId } = await request.json();
+    const { token, tenantId, templates: customTemplates } = await request.json();
     if (!token) return NextResponse.json({ error: 'Clé API (secretKey) manquante' }, { status: 400 });
     if (!tenantId) return NextResponse.json({ error: 'Tenant ID manquant' }, { status: 400 });
 
@@ -238,7 +241,7 @@ export async function POST(request: NextRequest) {
     // 5. Envoyer les notifications WhatsApp + logger dans messages
     let whatsappSent = 0;
     for (const n of toNotify) {
-      const message = buildMessage(n.status, n.client, n.tracking, n.wilaya);
+      const message = buildMessage(n.status, n.client, n.tracking, n.wilaya, customTemplates);
       const sent = await sendWhatsApp(n.whatsapp, message);
       if (sent) whatsappSent++;
 
