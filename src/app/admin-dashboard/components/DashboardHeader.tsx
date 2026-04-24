@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { RefreshCw, Download, Plus, Wifi, WifiOff, Zap } from 'lucide-react';
+import { RefreshCw, Download, Plus, Wifi, WifiOff, Zap, PauseCircle, PlayCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 const STORAGE_KEY = 'zrexpress_token';
@@ -29,11 +29,24 @@ export default function DashboardHeader() {
     const lastSyncStored = localStorage.getItem('zrextrack_last_sync');
     if (lastSyncStored) setLastSync(lastSyncStored);
 
-    // Activer l'auto-sync si le token existe
-    if (token && tenant) {
+    // Activer l'auto-sync si le token existe (sauf si l'utilisateur l'a désactivé manuellement)
+    const autoDisabled = localStorage.getItem('zrextrack_autosync_disabled') === 'true';
+    if (token && tenant && !autoDisabled) {
       setAutoSyncEnabled(true);
     }
   }, []);
+
+  const toggleAutoSync = () => {
+    const next = !autoSyncEnabled;
+    setAutoSyncEnabled(next);
+    localStorage.setItem('zrextrack_autosync_disabled', next ? 'false' : 'true');
+    if (next) {
+      toast.success('Auto-sync activé', { description: 'Synchronisation automatique toutes les 30 secondes.' });
+    } else {
+      toast.info('Auto-sync arrêté', { description: 'Cliquez sur "Sync maintenant" pour synchroniser manuellement.' });
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    }
+  };
 
   const runSync = useCallback(async (silent = false) => {
     const token = localStorage.getItem(STORAGE_KEY);
@@ -105,11 +118,21 @@ export default function DashboardHeader() {
               Token non configuré
             </span>
           )}
-          {autoSyncEnabled && (
-            <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border bg-blue-50 text-blue-600 border-blue-200">
-              <Zap size={9} />
-              Auto-sync 30s
-            </span>
+          {hasToken && (
+            <button
+              onClick={toggleAutoSync}
+              title={autoSyncEnabled ? 'Arrêter l\'auto-sync' : 'Activer l\'auto-sync'}
+              className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full border transition-all ${
+                autoSyncEnabled
+                  ? 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100'
+                  : 'bg-gray-100 text-gray-400 border-gray-200 hover:bg-gray-200'
+              }`}
+            >
+              {autoSyncEnabled
+                ? <><Zap size={9} className="animate-pulse" />Auto-sync 30s<PauseCircle size={10} /></>
+                : <><PlayCircle size={10} />Auto-sync OFF</>
+              }
+            </button>
           )}
         </div>
         <p className="text-xs text-gray-400">
