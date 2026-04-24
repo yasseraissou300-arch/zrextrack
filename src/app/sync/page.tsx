@@ -10,6 +10,15 @@ import {
 const STORAGE_KEY = 'zrexpress_token';
 const TENANT_KEY = 'zrexpress_tenant';
 const TEMPLATES_KEY = 'zrextrack_templates';
+const NOTIFY_ENABLED_KEY = 'zrextrack_notify_enabled';
+
+const DEFAULT_NOTIFY_ENABLED: Record<string, boolean> = {
+  en_transit:   true,
+  en_livraison: true,
+  livre:        true,
+  echec:        true,
+  retourne:     true,
+};
 
 const DEFAULT_TEMPLATES: Record<string, string> = {
   en_transit:    `📦 Bonjour {client},\n\nVotre commande *{tracking}* est maintenant *en transit* vers {wilaya}.\n\nSuivez-la ici : {lien}`,
@@ -57,6 +66,7 @@ export default function SyncPage() {
   const [templates, setTemplates] = useState<Record<string, string>>(DEFAULT_TEMPLATES);
   const [templatesSaved, setTemplatesSaved] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState<string>('en_transit');
+  const [notifyEnabled, setNotifyEnabled] = useState<Record<string, boolean>>(DEFAULT_NOTIFY_ENABLED);
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -67,6 +77,8 @@ export default function SyncPage() {
     if (hist) setHistory(JSON.parse(hist));
     const savedTemplates = localStorage.getItem(TEMPLATES_KEY);
     if (savedTemplates) setTemplates({ ...DEFAULT_TEMPLATES, ...JSON.parse(savedTemplates) });
+    const savedNotify = localStorage.getItem(NOTIFY_ENABLED_KEY);
+    if (savedNotify) setNotifyEnabled({ ...DEFAULT_NOTIFY_ENABLED, ...JSON.parse(savedNotify) });
   }, []);
 
   const saveToken = () => {
@@ -84,8 +96,17 @@ export default function SyncPage() {
 
   const saveTemplates = () => {
     localStorage.setItem(TEMPLATES_KEY, JSON.stringify(templates));
+    localStorage.setItem(NOTIFY_ENABLED_KEY, JSON.stringify(notifyEnabled));
     setTemplatesSaved(true);
     setTimeout(() => setTemplatesSaved(false), 2000);
+  };
+
+  const toggleNotify = (status: string) => {
+    setNotifyEnabled(prev => {
+      const next = { ...prev, [status]: !prev[status] };
+      localStorage.setItem(NOTIFY_ENABLED_KEY, JSON.stringify(next));
+      return next;
+    });
   };
 
   const resetTemplate = (status: string) => {
@@ -101,7 +122,7 @@ export default function SyncPage() {
       const res = await fetch('/api/sync-zrexpress', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: token.trim(), tenantId: tenantId.trim(), templates }),
+        body: JSON.stringify({ token: token.trim(), tenantId: tenantId.trim(), templates, notifyEnabled }),
       });
       const data: SyncResult = await res.json();
       setResult(data);
@@ -247,17 +268,39 @@ export default function SyncPage() {
                 <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">{'{lien}'}</code>
               </p>
 
-              {/* Onglets statuts */}
-              <div className="flex gap-2 flex-wrap mb-4">
+              {/* Onglets statuts + toggles ON/OFF */}
+              <div className="space-y-2 mb-4">
                 {Object.entries(STATUS_META).map(([key, meta]) => (
-                  <button key={key} onClick={() => setActiveTemplate(key)}
-                    className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-all ${
-                      activeTemplate === key
-                        ? `${meta.bg} ${meta.color} ${meta.border}`
-                        : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
-                    }`}>
-                    {meta.label}
-                  </button>
+                  <div key={key} className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all ${
+                    activeTemplate === key ? `${meta.bg} ${meta.border}` : 'bg-gray-50 border-gray-200'
+                  }`}>
+                    {/* Toggle ON/OFF */}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleNotify(key); }}
+                      title={notifyEnabled[key] ? 'Désactiver ce message' : 'Activer ce message'}
+                      className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${
+                        notifyEnabled[key] ? 'bg-green-500' : 'bg-gray-300'
+                      }`}
+                    >
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${
+                        notifyEnabled[key] ? 'translate-x-4' : 'translate-x-0'
+                      }`} />
+                    </button>
+                    {/* Sélecteur de template actif */}
+                    <button
+                      onClick={() => setActiveTemplate(key)}
+                      className={`flex-1 text-left text-xs font-medium transition-colors ${
+                        activeTemplate === key ? meta.color : 'text-gray-500'
+                      } ${!notifyEnabled[key] ? 'opacity-40 line-through' : ''}`}
+                    >
+                      {meta.label}
+                    </button>
+                    {notifyEnabled[key] ? (
+                      <span className="text-[10px] font-semibold text-green-600 bg-green-100 px-1.5 py-0.5 rounded-full">ON</span>
+                    ) : (
+                      <span className="text-[10px] font-semibold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">OFF</span>
+                    )}
+                  </div>
                 ))}
               </div>
 

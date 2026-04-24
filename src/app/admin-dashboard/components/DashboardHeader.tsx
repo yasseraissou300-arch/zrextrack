@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 const STORAGE_KEY = 'zrexpress_token';
 const TENANT_KEY = 'zrexpress_tenant';
 const TEMPLATES_KEY = 'zrextrack_templates';
+const NOTIFY_ENABLED_KEY = 'zrextrack_notify_enabled';
 const AUTO_SYNC_INTERVAL = 30_000; // 30 secondes
 
 // Event pour notifier les autres composants qu'un sync vient de se faire
@@ -61,7 +62,12 @@ export default function DashboardHeader() {
       const res = await fetch('/api/sync-zrexpress', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, tenantId, templates: JSON.parse(localStorage.getItem(TEMPLATES_KEY) || '{}') }),
+        body: JSON.stringify({
+          token,
+          tenantId,
+          templates: JSON.parse(localStorage.getItem(TEMPLATES_KEY) || '{}'),
+          notifyEnabled: JSON.parse(localStorage.getItem(NOTIFY_ENABLED_KEY) || '{}'),
+        }),
       });
       const json = await res.json();
 

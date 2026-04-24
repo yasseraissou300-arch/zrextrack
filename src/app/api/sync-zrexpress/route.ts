@@ -169,7 +169,7 @@ function mapParcel(p: any, syncedAt: string) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { token, tenantId, templates: customTemplates } = await request.json();
+    const { token, tenantId, templates: customTemplates, notifyEnabled } = await request.json();
     if (!token) return NextResponse.json({ error: 'Clé API (secretKey) manquante' }, { status: 400 });
     if (!tenantId) return NextResponse.json({ error: 'Tenant ID manquant' }, { status: 400 });
 
@@ -213,8 +213,11 @@ export async function POST(request: NextRequest) {
     const toNotify: Array<{ tracking: string; status: string; whatsapp: string; client: string; wilaya: string }> = [];
     for (const row of rows) {
       const existing = existingMap.get(row.tracking);
+      // Vérifier si les notifications sont activées pour ce statut (true par défaut si non précisé)
+      const isEnabled = notifyEnabled ? (notifyEnabled[row.status] !== false) : true;
       if (
         NOTIFY_STATUSES.has(row.status) &&
+        isEnabled &&
         row.whatsapp &&
         row.whatsapp.length > 4 &&
         existing?.status !== row.status
