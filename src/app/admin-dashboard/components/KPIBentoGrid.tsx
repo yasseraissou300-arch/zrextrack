@@ -63,36 +63,72 @@ export default function KPIBentoGrid() {
   };
 
   const cards = [
-    { label: 'Total Commandes', value: kpis.totalOrders.toLocaleString('fr-FR'), icon: Package, color: 'blue', span: 2 },
-    { label: "Livrées aujourd'hui", value: kpis.deliveredToday.toString(), icon: CheckCircle2, color: 'green', span: 1 },
-    { label: 'En transit', value: kpis.inTransit.toString(), icon: Truck, color: 'amber', span: 1 },
-    { label: 'Taux de livraison', value: `${kpis.deliveryRate}%`, icon: TrendingUp, color: 'indigo', span: 1 },
-    { label: 'Messages envoyés', value: kpis.messagesSent.toLocaleString('fr-FR'), icon: MessageSquare, color: 'green', span: 1 },
-    { label: 'Retournés', value: kpis.returned.toString(), icon: RotateCcw, color: 'red', span: 1 },
+    {
+      label: 'Total Commandes',
+      value: kpis.totalOrders.toLocaleString('fr-FR'),
+      icon: Package,
+      borderColor: 'border-l-blue-500',
+      iconColor: 'text-blue-500',
+      iconBg: 'bg-blue-50',
+    },
+    {
+      label: "Livrées aujourd'hui",
+      value: kpis.deliveredToday.toString(),
+      icon: CheckCircle2,
+      borderColor: 'border-l-green-500',
+      iconColor: 'text-green-600',
+      iconBg: 'bg-green-50',
+    },
+    {
+      label: 'En transit / livraison',
+      value: kpis.inTransit.toString(),
+      icon: Truck,
+      borderColor: 'border-l-amber-500',
+      iconColor: 'text-amber-600',
+      iconBg: 'bg-amber-50',
+    },
+    {
+      label: 'Taux de livraison',
+      value: `${kpis.deliveryRate}%`,
+      icon: TrendingUp,
+      borderColor: 'border-l-indigo-500',
+      iconColor: 'text-indigo-600',
+      iconBg: 'bg-indigo-50',
+    },
+    {
+      label: 'Messages envoyés',
+      value: kpis.messagesSent.toLocaleString('fr-FR'),
+      icon: MessageSquare,
+      borderColor: 'border-l-teal-500',
+      iconColor: 'text-teal-600',
+      iconBg: 'bg-teal-50',
+    },
+    {
+      label: 'Retournés',
+      value: kpis.returned.toString(),
+      icon: RotateCcw,
+      borderColor: 'border-l-red-500',
+      iconColor: 'text-red-500',
+      iconBg: 'bg-red-50',
+    },
   ];
-
-  const colorMap: Record<string, string> = {
-    blue: 'bg-blue-50 text-blue-600 border-blue-100',
-    green: 'bg-green-50 text-green-600 border-green-100',
-    amber: 'bg-amber-50 text-amber-600 border-amber-100',
-    indigo: 'bg-indigo-50 text-indigo-600 border-indigo-100',
-    red: 'bg-red-50 text-red-600 border-red-100',
-  };
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
       {cards.map((card) => (
         <div
           key={card.label}
-          className={`bg-white rounded-2xl border p-4 shadow-sm ${card.span === 2 ? 'sm:col-span-2 xl:col-span-2' : ''}`}
+          className={`bg-white rounded-xl border border-gray-100 border-l-4 ${card.borderColor} p-4 shadow-sm`}
         >
-          <div className={`w-10 h-10 rounded-xl border flex items-center justify-center mb-3 ${colorMap[card.color]}`}>
-            <card.icon size={20} />
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-3 ${card.iconBg}`}>
+            <card.icon size={16} className={card.iconColor} />
           </div>
-          <p className="text-2xl font-bold text-gray-900">
-            {loading ? '—' : card.value}
+          <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">
+            {card.label}
           </p>
-          <p className="text-sm text-gray-500 mt-1">{card.label}</p>
+          <p className="text-2xl font-bold text-gray-900">
+            {loading ? <span className="text-gray-300">—</span> : card.value}
+          </p>
         </div>
       ))}
     </div>

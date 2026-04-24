@@ -47,7 +47,7 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
 
 export default function DailyDeliveryChart() {
   return (
-    <div className="bg-white rounded-xl border border-[hsl(var(--border))] p-5">
+    <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
       <div className="flex items-center justify-between mb-5">
         <div>
           <h2 className="text-[15px] font-600 text-[hsl(var(--foreground))]">Livraisons journalières</h2>

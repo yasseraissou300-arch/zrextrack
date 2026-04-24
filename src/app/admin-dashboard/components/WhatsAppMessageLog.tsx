@@ -39,7 +39,7 @@ export default function WhatsAppMessageLog() {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 h-full flex flex-col">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 h-full flex flex-col">
       <div className="p-4 border-b border-gray-100 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <MessageSquare size={18} className="text-green-500" />

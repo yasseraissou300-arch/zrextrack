@@ -70,8 +70,8 @@ export default function AlertsPanel() {
   };
 
   return (
-    <div className="bg-white rounded-xl border border-[hsl(var(--border))] overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-3.5 border-b border-[hsl(var(--border))]">
+    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
         <div className="flex items-center gap-2">
           <AlertTriangle size={16} className="text-amber-600" />
           <h2 className="text-sm font-600 text-[hsl(var(--foreground))]">Alertes actives</h2>

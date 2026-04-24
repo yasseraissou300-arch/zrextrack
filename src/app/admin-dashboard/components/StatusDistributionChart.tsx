@@ -51,7 +51,7 @@ function CustomTooltip({ active, payload }: CustomTooltipProps) {
 
 export default function StatusDistributionChart() {
   return (
-    <div className="bg-white rounded-xl border border-[hsl(var(--border))] p-5 h-full">
+    <div className="bg-white rounded-xl border border-gray-100 p-5 h-full shadow-sm">
       <div className="mb-4">
         <h2 className="text-[15px] font-600 text-[hsl(var(--foreground))]">Répartition des statuts</h2>
         <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">{total.toLocaleString('fr-DZ')} commandes au total</p>

@@ -27,52 +27,53 @@ export default function DashboardHeader() {
   };
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-gray-100">
       <div>
-        <div className="flex items-center gap-2.5 mb-1">
-          <h1 className="text-2xl font-bold text-[hsl(var(--foreground))] tracking-tight">
+        <div className="flex items-center gap-2.5 mb-0.5">
+          <h1 className="text-xl font-bold text-gray-900 tracking-tight">
             Tableau de bord
           </h1>
           <span
-            className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full ${
+            className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full border ${
               connected
-                ? 'bg-green-50 text-green-700 border border-green-200' :'bg-red-50 text-red-700 border border-red-200'
+                ? 'bg-green-50 text-green-700 border-green-200'
+                : 'bg-red-50 text-red-700 border-red-200'
             }`}
           >
-            {connected ? <Wifi size={11} /> : <WifiOff size={11} />}
+            {connected ? <Wifi size={10} /> : <WifiOff size={10} />}
             {connected ? 'ZREXpress connecté' : 'Hors ligne'}
           </span>
         </div>
-        <p className="text-sm text-[hsl(var(--muted-foreground))]">
+        <p className="text-xs text-gray-400">
           Dernière sync :{' '}
-          <span suppressHydrationWarning className="font-medium text-[hsl(var(--foreground))]">
+          <span suppressHydrationWarning className="font-medium text-gray-600">
             {mounted ? lastSync : '28/03/2026 à 22:58'}
           </span>
           {' · '}
           <button
             onClick={() => setConnected(!connected)}
-            className="text-[hsl(var(--primary))] hover:underline text-xs"
+            className="text-green-600 hover:underline"
           >
             Tester la connexion
           </button>
         </p>
       </div>
 
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-2">
         <button
           onClick={handleSync}
           disabled={syncing}
-          className="flex items-center gap-2 px-3.5 py-2 rounded-lg border border-[hsl(var(--border))] bg-white text-sm font-medium text-[hsl(var(--foreground))] hover:bg-[hsl(var(--secondary))] transition-all duration-150 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
         >
-          <RefreshCw size={15} className={syncing ? 'animate-spin' : ''} />
-          {syncing ? 'Synchronisation...' : 'Sync ZREXpress'}
+          <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
+          {syncing ? 'Sync...' : 'Sync ZREXpress'}
         </button>
-        <button className="flex items-center gap-2 px-3.5 py-2 rounded-lg border border-[hsl(var(--border))] bg-white text-sm font-medium text-[hsl(var(--foreground))] hover:bg-[hsl(var(--secondary))] transition-all duration-150 active:scale-95">
-          <Download size={15} />
+        <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all active:scale-95 shadow-sm">
+          <Download size={14} />
           Exporter
         </button>
-        <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[hsl(var(--primary))] text-white text-sm font-medium hover:bg-green-700 transition-all duration-150 active:scale-95 shadow-sm">
-          <Plus size={15} />
+        <button className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-green-500 text-white text-sm font-semibold hover:bg-green-600 transition-all active:scale-95 shadow-sm">
+          <Plus size={14} />
           Nouvelle commande
         </button>
       </div>
