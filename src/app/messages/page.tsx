@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
-import { MessageSquare, Wifi, WifiOff, QrCode, Send, History, CheckCircle, RefreshCw, ChevronLeft, ChevronRight, Settings, AlertCircle, Users, Loader2, Smartphone, Filter, Zap } from 'lucide-react';
+import { MessageSquare, Wifi, WifiOff, QrCode, Send, History, CheckCircle, RefreshCw, ChevronLeft, ChevronRight, Settings, AlertCircle, Users, Loader2, Smartphone, Filter, Zap, Bot, ToggleLeft, ToggleRight, Globe, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface WASettings { instance_id: string; api_token: string; connected: boolean; phone: string; }
@@ -473,9 +473,212 @@ function HistoriqueTab() {
   );
 }
 
+interface BotSettings {
+  ai_enabled: boolean;
+  language: 'darija' | 'arabic' | 'french';
+  system_prompt: string;
+  messages_received: number;
+  ai_replies_sent: number;
+  tracking_replies_sent: number;
+}
+
+const WEBHOOK_URL = `${typeof window !== 'undefined' ? window.location.origin : ''}/api/whatsapp/webhook`;
+
+const DEFAULT_PROMPTS: Record<string, string> = {
+  darija: `Nta assistant livraison dial ZREXpress f l'Algérie. Jaweb 3la les clients bDarija Algérienne — mzyan, wjiz, w rassurant.
+- Waqt livraison: 24 l 72 sa3a
+- F cas problème: 9ol l client ibayno raqm tracking dyalo
+- F cas retour: i9dir ikhalti ma3a l livreur wla i9bir l support
+IMPORTANT: Jaweb DIMA bDarija Algérienne. Wjiz — maximum 2-3 jmla.`,
+  arabic: `أنت مساعد توصيل لشركة ZREXpress في الجزائر. أجب باللغة العربية — واضح وموجز ومريح.
+- وقت التوصيل: 24 إلى 72 ساعة
+- في حالة المشكلة: اطلب رقم التتبع
+- في حالة الإرجاع: تواصل مع السائق أو الدعم`,
+  french: `Tu es l'assistant livraison de ZREXpress en Algérie. Réponds en français — clair, bref et rassurant.
+- Délai de livraison: 24 à 72h
+- En cas de problème: demande le numéro de tracking
+- En cas de retour: contacter le livreur ou le support`,
+};
+
+function BotIATab() {
+  const [settings, setSettings] = useState<BotSettings>({
+    ai_enabled: true, language: 'darija', system_prompt: '',
+    messages_received: 0, ai_replies_sent: 0, tracking_replies_sent: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [webhookUrl, setWebhookUrl] = useState('');
+
+  useEffect(() => {
+    setWebhookUrl(`${window.location.origin}/api/whatsapp/webhook`);
+    fetch('/api/bot-settings').then(r => r.json()).then(j => {
+      setSettings(s => ({ ...s, ...j }));
+      setLoading(false);
+    });
+  }, []);
+
+  const save = async () => {
+    setSaving(true);
+    const res = await fetch('/api/bot-settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ai_enabled: settings.ai_enabled, language: settings.language, system_prompt: settings.system_prompt }),
+    });
+    const json = await res.json();
+    if (json.error) toast.error(json.error);
+    else { toast.success('Paramètres bot sauvegardés !'); setSettings(s => ({ ...s, ...json })); }
+    setSaving(false);
+  };
+
+  const copyWebhook = () => {
+    navigator.clipboard.writeText(webhookUrl);
+    toast.success('URL copiée !');
+  };
+
+  const promptPlaceholder = DEFAULT_PROMPTS[settings.language] || DEFAULT_PROMPTS.darija;
+
+  if (loading) return <div className="flex justify-center py-20"><Loader2 size={24} className="animate-spin text-gray-400" /></div>;
+
+  return (
+    <div className="max-w-2xl space-y-5">
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: 'Messages reçus', value: settings.messages_received, color: 'bg-blue-50 text-blue-700' },
+          { label: 'Réponses IA', value: settings.ai_replies_sent, color: 'bg-purple-50 text-purple-700' },
+          { label: 'Tracking trouvé', value: settings.tracking_replies_sent, color: 'bg-green-50 text-green-700' },
+        ].map(s => (
+          <div key={s.label} className={`rounded-2xl p-4 text-center ${s.color}`}>
+            <p className="text-2xl font-bold">{s.value}</p>
+            <p className="text-xs mt-0.5 opacity-80">{s.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Activation */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${settings.ai_enabled ? 'bg-purple-100' : 'bg-gray-100'}`}>
+            <Bot size={20} className={settings.ai_enabled ? 'text-purple-600' : 'text-gray-400'} />
+          </div>
+          <div>
+            <p className="font-semibold text-gray-900">Bot IA (Gemini)</p>
+            <p className="text-xs text-gray-500">Répond automatiquement aux messages sans numéro de tracking</p>
+          </div>
+        </div>
+        <button
+          onClick={() => setSettings(s => ({ ...s, ai_enabled: !s.ai_enabled }))}
+          className="shrink-0"
+        >
+          {settings.ai_enabled
+            ? <ToggleRight size={36} className="text-purple-600" />
+            : <ToggleLeft size={36} className="text-gray-300" />
+          }
+        </button>
+      </div>
+
+      {/* Webhook URL */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
+        <div className="flex items-center gap-2">
+          <Zap size={16} className="text-amber-500" />
+          <h3 className="font-semibold text-gray-900">URL Webhook</h3>
+          <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-medium">À configurer dans Green API</span>
+        </div>
+        <p className="text-xs text-gray-500">Colle cette URL dans ton tableau de bord Green API → <strong>Notifications</strong>.</p>
+        <div className="flex gap-2">
+          <code className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-gray-700 break-all">
+            {webhookUrl}
+          </code>
+          <button
+            onClick={copyWebhook}
+            className="flex items-center gap-1.5 text-sm px-3 py-2.5 border border-gray-200 rounded-xl hover:bg-gray-50 shrink-0"
+          >
+            <Copy size={14} className="text-gray-500" />
+          </button>
+        </div>
+      </div>
+
+      {/* Language */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
+        <div className="flex items-center gap-2">
+          <Globe size={16} className="text-blue-500" />
+          <h3 className="font-semibold text-gray-900">Langue du bot</h3>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { value: 'darija', label: 'Darija 🇩🇿', sub: 'Dialecte algérien' },
+            { value: 'arabic', label: 'العربية', sub: 'Arabe classique' },
+            { value: 'french', label: 'Français 🇫🇷', sub: 'Français standard' },
+          ].map(l => (
+            <button
+              key={l.value}
+              onClick={() => setSettings(s => ({ ...s, language: l.value as any, system_prompt: s.system_prompt }))}
+              className={`p-3 rounded-xl border text-left transition-colors ${settings.language === l.value ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
+            >
+              <p className="text-sm font-medium text-gray-900">{l.label}</p>
+              <p className="text-xs text-gray-400">{l.sub}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* System prompt */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Bot size={16} className="text-purple-500" />
+            <h3 className="font-semibold text-gray-900">Prompt système</h3>
+          </div>
+          <button
+            onClick={() => setSettings(s => ({ ...s, system_prompt: '' }))}
+            className="text-xs text-gray-400 hover:text-gray-600"
+          >
+            Réinitialiser
+          </button>
+        </div>
+        <p className="text-xs text-gray-500">Laisse vide pour utiliser le prompt par défaut de la langue sélectionnée.</p>
+        <textarea
+          value={settings.system_prompt}
+          onChange={e => setSettings(s => ({ ...s, system_prompt: e.target.value }))}
+          placeholder={promptPlaceholder}
+          rows={6}
+          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-gray-700"
+        />
+      </div>
+
+      {/* Logique bot explication */}
+      <div className="bg-gray-50 rounded-2xl border border-gray-100 p-4 space-y-2">
+        <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Logique du bot</p>
+        <div className="space-y-1.5">
+          {[
+            { step: '1', text: 'Message reçu avec numéro de tracking → répond avec statut commande', color: 'bg-green-500' },
+            { step: '2', text: 'Message sans tracking + IA activée → Gemini répond en darija/arabe/français', color: 'bg-purple-500' },
+            { step: '3', text: 'IA désactivée ou erreur → message par défaut "envoie ton numéro de tracking"', color: 'bg-gray-400' },
+          ].map(item => (
+            <div key={item.step} className="flex items-start gap-2.5">
+              <span className={`w-5 h-5 rounded-full ${item.color} text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5`}>{item.step}</span>
+              <p className="text-xs text-gray-600">{item.text}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <button
+        onClick={save}
+        disabled={saving}
+        className="w-full bg-purple-600 text-white rounded-xl py-2.5 text-sm font-medium hover:bg-purple-700 disabled:opacity-50 flex items-center justify-center gap-2"
+      >
+        {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+        Sauvegarder les paramètres
+      </button>
+    </div>
+  );
+}
+
 const TABS = [
   { id: 'connexion', label: 'Connexion', icon: QrCode },
   { id: 'envoyer', label: 'Envoyer', icon: Send },
+  { id: 'bot', label: 'Bot IA', icon: Bot },
   { id: 'historique', label: 'Historique', icon: History },
 ];
 
@@ -492,11 +695,13 @@ export default function MessagesPage() {
           {TABS.map(t => { const Icon = t.icon; return (
             <button key={t.id} onClick={() => setTab(t.id)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === t.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
               <Icon size={15} />{t.label}
+              {t.id === 'bot' && <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />}
             </button>
           ); })}
         </div>
         {tab === 'connexion' && <ConnexionTab />}
         {tab === 'envoyer' && <EnvoyerTab />}
+        {tab === 'bot' && <BotIATab />}
         {tab === 'historique' && <HistoriqueTab />}
       </div>
     </AppLayout>

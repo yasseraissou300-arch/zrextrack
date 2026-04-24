@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Package, MessageSquare, BarChart3, Settings,
-  ChevronLeft, ChevronRight, Truck, Bell, RefreshCw, Users, Trash2,
+  ChevronLeft, ChevronRight, Truck, Bell, RefreshCw, Users, Trash2, Megaphone, Plug,
 } from 'lucide-react';
 
 const navGroups = [
@@ -21,6 +21,7 @@ const navGroups = [
     label: 'Communication',
     items: [
       { href: '/messages', icon: MessageSquare, label: 'Messages WhatsApp' },
+      { href: '/campagnes', icon: Megaphone, label: 'Campagnes' },
       { href: '/alertes', icon: Bell, label: 'Alertes' },
       { href: '/clients', icon: Users, label: 'Clients' },
     ],
@@ -35,6 +36,7 @@ const navGroups = [
   {
     label: 'Gestion',
     items: [
+      { href: '/integrations', icon: Plug, label: 'Intégrations' },
       { href: '/corbeille', icon: Trash2, label: 'Corbeille' },
     ],
   },

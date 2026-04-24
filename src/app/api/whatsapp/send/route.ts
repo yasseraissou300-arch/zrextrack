@@ -7,6 +7,26 @@ function formatPhone(phone: string): string {
   return digits + '@c.us';
 }
 
+async function sendText(instanceId: string, token: string, chatId: string, message: string) {
+  const res = await fetch(
+    `https://api.green-api.com/waInstance${instanceId}/sendMessage/${token}`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chatId, message }) }
+  );
+  return res.json();
+}
+
+async function sendFile(instanceId: string, token: string, chatId: string, urlFile: string, fileName: string, caption: string) {
+  const res = await fetch(
+    `https://api.green-api.com/waInstance${instanceId}/sendFileByUrl/${token}`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chatId, urlFile, fileName, caption }) }
+  );
+  return res.json();
+}
+
+function guessFileName(url: string): string {
+  try { return new URL(url).pathname.split('/').pop() || 'file'; } catch { return 'file'; }
+}
+
 export async function POST(request: NextRequest) {
   const supabaseAuth = await createClient();
   const { data: { user } } = await supabaseAuth.auth.getUser();
@@ -24,7 +44,7 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { recipients } = body;
+  const { recipients, media_url, media_caption } = body;
 
   if (!Array.isArray(recipients) || recipients.length === 0) {
     return NextResponse.json({ error: 'Aucun destinataire' }, { status: 400 });
@@ -37,15 +57,18 @@ export async function POST(request: NextRequest) {
     let errorMsg = '';
 
     try {
-      const res = await fetch(
-        `https://api.green-api.com/waInstance${settings.instance_id}/sendMessage/${settings.api_token}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chatId, message: r.message }),
+      let json: any;
+      if (media_url) {
+        const fileName = guessFileName(media_url);
+        const caption = media_caption || r.message || '';
+        json = await sendFile(settings.instance_id, settings.api_token, chatId, media_url, fileName, caption);
+        // If media sent, also send text message if provided
+        if (json.idMessage && r.message) {
+          await sendText(settings.instance_id, settings.api_token, chatId, r.message);
         }
-      );
-      const json = await res.json();
+      } else {
+        json = await sendText(settings.instance_id, settings.api_token, chatId, r.message);
+      }
       status = json.idMessage ? 'envoye' : 'echec';
       if (!json.idMessage) errorMsg = JSON.stringify(json);
     } catch (e: any) {
@@ -57,7 +80,7 @@ export async function POST(request: NextRequest) {
       tracking: r.tracking || '',
       client: r.client || '',
       whatsapp: r.whatsapp || '',
-      message: r.message || '',
+      message: media_url ? `[Media] ${media_url}${r.message ? ' — ' + r.message : ''}` : (r.message || ''),
       status,
       sent_at: new Date().toISOString(),
     });
@@ -67,6 +90,5 @@ export async function POST(request: NextRequest) {
 
   const sent = results.filter(r => r.status === 'envoye').length;
   const failed = results.filter(r => r.status === 'echec').length;
-
   return NextResponse.json({ sent, failed, results });
 }

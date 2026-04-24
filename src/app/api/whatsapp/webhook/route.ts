@@ -1,80 +1,219 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createServiceClient } from '@/lib/supabase/server';
 
-const INSTANCE_ID = process.env.GREEN_API_INSTANCE_ID!;
-const API_TOKEN = process.env.GREEN_API_TOKEN!;
-const GEMINI_KEY = process.env.GEMINI_API_KEY!;
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://zrextrack.netlify.app';
 
-const SYSTEM_PROMPT = `Nta assistant livraison dial ZREXpress f l'Algérie. Jaweb 3la les clients bDarija Algérienne — mzyan, wjiz, w rassurant.
+const STATUS_LABELS: Record<string, string> = {
+  en_preparation: '📦 En préparation',
+  en_transit: '🚚 En transit',
+  en_livraison: '🛵 En cours de livraison',
+  livre: '✅ Livré',
+  echec: '⚠️ Échec de livraison',
+  retourne: '🔄 Retourné',
+};
 
-Ma ta3refch:
-- ZREXpress: société livraison rapide f l'Algérie
+const DEFAULT_PROMPTS: Record<string, string> = {
+  darija: `Nta assistant livraison dial ZREXpress f l'Algérie. Jaweb 3la les clients bDarija Algérienne — mzyan, wjiz, w rassurant.
 - Waqt livraison: 24 l 72 sa3a
-- F cas problème b commande: kolhom ibayno n numéro de suivi dyalhom
-- F cas retour: kolhom ikhaltiw ma3a l livreur wla iconnectaw m3a l support
-- F cas ma jawabch l livreur: kolhom i9adro i9olbou report men ZREXpress
+- F cas problème: 9ol l client ibayno raqm tracking dyalo
+- F cas retour: i9dir ikhalti ma3a l livreur wla i9bir l support
+IMPORTANT: Jaweb DIMA bDarija Algérienne. Wjiz — maximum 2-3 jmla.`,
+  arabic: `أنت مساعد توصيل لشركة ZREXpress في الجزائر. أجب على العملاء باللغة العربية الفصحى — بشكل واضح ومريح.
+- وقت التوصيل: 24 إلى 72 ساعة
+- في حالة المشكلة: اطلب رقم التتبع
+- في حالة الإرجاع: تواصل مع السائق أو الدعم
+مهم: أجب دائماً بالعربية. اختصر — جملتان أو ثلاث فقط.`,
+  french: `Tu es l'assistant livraison de ZREXpress en Algérie. Réponds aux clients en français — clair, bref et rassurant.
+- Délai de livraison: 24 à 72h
+- En cas de problème: demande le numéro de tracking
+- En cas de retour: contacter le livreur ou le support
+IMPORTANT: Réponds TOUJOURS en français. Maximum 2-3 phrases.`,
+};
 
-IMPORTANT: Jaweb DIMA bDarija Algérienne. Wjiz — maximum 2-3 jmla.`;
+function extractTracking(text: string): string | null {
+  const match = text.match(/\b(ZR[XE]?\d{4,}|\d{8,12})\b/i);
+  return match ? match[1].toUpperCase() : null;
+}
+
+async function sendWhatsApp(instanceId: string, token: string, chatId: string, message: string) {
+  try {
+    await fetch(
+      `https://api.green-api.com/waInstance${instanceId}/sendMessage/${token}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatId, message }),
+      }
+    );
+  } catch {}
+}
+
+async function callGemini(prompt: string, userMessage: string): Promise<string | null> {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) return null;
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: `${prompt}\n\nClient: ${userMessage}` }] }],
+          generationConfig: { maxOutputTokens: 200, temperature: 0.7 },
+        }),
+      }
+    );
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    // Only handle incoming text messages
     if (body.typeWebhook !== 'incomingMessageReceived') {
       return NextResponse.json({ ok: true });
     }
 
     const msgType = body.messageData?.typeMessage;
-    if (msgType !== 'textMessage') {
+    if (msgType !== 'textMessage' && msgType !== 'extendedTextMessage') {
       return NextResponse.json({ ok: true });
     }
 
-    const message = body.messageData?.textMessageData?.textMessage as string;
-    const chatId = body.senderData?.chatId as string;
+    const text: string =
+      body.messageData?.textMessageData?.textMessage ||
+      body.messageData?.extendedTextMessageData?.text || '';
+    const chatId: string = body.senderData?.chatId || '';
+    const senderName: string = body.senderData?.senderName || '';
+    const instanceId: string = body.instanceData?.idInstance?.toString() || '';
 
-    if (!message || !chatId) {
+    if (!text.trim() || !chatId || chatId.includes('@g.us')) {
       return NextResponse.json({ ok: true });
     }
 
-    // Skip messages from self (avoid infinite loop)
-    if (chatId.includes(INSTANCE_ID)) {
-      return NextResponse.json({ ok: true });
-    }
+    const supabase = createServiceClient();
 
-    // Call Gemini 1.5 Flash (free tier)
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: SYSTEM_PROMPT + '\n\nClient: ' + message }] }],
-          generationConfig: { maxOutputTokens: 150, temperature: 0.7 },
-        }),
+    // Find the user who owns this Green API instance
+    const { data: waSettings } = await supabase
+      .from('whatsapp_settings')
+      .select('user_id, instance_id, api_token')
+      .eq('instance_id', instanceId)
+      .single();
+
+    if (!waSettings) {
+      // Fallback: use env vars for single-instance deployments
+      const envInstance = process.env.GREEN_API_INSTANCE_ID || process.env.GREENAPI_INSTANCE_ID;
+      const envToken = process.env.GREEN_API_TOKEN || process.env.GREENAPI_TOKEN;
+      if (!envInstance || !envToken) return NextResponse.json({ ok: true });
+
+      const tracking = extractTracking(text);
+      if (tracking) {
+        const { data: order } = await supabase
+          .from('orders')
+          .select('tracking, client, wilaya, status, attempts, product')
+          .ilike('tracking', tracking)
+          .limit(1)
+          .single();
+
+        if (order) {
+          const reply = buildTrackingReply(order);
+          await sendWhatsApp(envInstance, envToken, chatId, reply);
+        } else {
+          await sendWhatsApp(envInstance, envToken, chatId, `❌ Commande *${tracking}* introuvable. Vérifiez le numéro et réessayez.`);
+        }
+      } else {
+        await sendWhatsApp(envInstance, envToken, chatId,
+          `Bonjour${senderName ? ` *${senderName}*` : ''} 👋\nEnvoyez votre *numéro de tracking* pour suivre votre commande.\nEx: *ZRX123456*`);
       }
-    );
-
-    if (!geminiRes.ok) {
-      console.error('Gemini error:', await geminiRes.text());
       return NextResponse.json({ ok: true });
     }
 
-    const geminiData = await geminiRes.json();
-    const aiReply: string = geminiData.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+    const { user_id, instance_id, api_token } = waSettings;
 
-    if (!aiReply) return NextResponse.json({ ok: true });
-
-    // Send reply via Green API
-    const greenApiUrl = `https://api.green-api.com/waInstance${INSTANCE_ID}/sendMessage/${API_TOKEN}`;
-    await fetch(greenApiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chatId, message: aiReply }),
+    // Increment messages_received counter
+    await supabase.rpc('increment_bot_stat', { p_user_id: user_id, p_field: 'messages_received' }).catch(() => {
+      supabase.from('bot_settings').upsert(
+        { user_id, messages_received: 1, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id' }
+      );
     });
 
+    const { data: botSettings } = await supabase
+      .from('bot_settings')
+      .select('ai_enabled, language, system_prompt')
+      .eq('user_id', user_id)
+      .single();
+
+    const aiEnabled = botSettings?.ai_enabled ?? true;
+    const language = botSettings?.language ?? 'darija';
+    const customPrompt = botSettings?.system_prompt?.trim() || '';
+    const systemPrompt = customPrompt || DEFAULT_PROMPTS[language] || DEFAULT_PROMPTS.darija;
+
+    // 1. Try tracking lookup first
+    const tracking = extractTracking(text);
+    if (tracking) {
+      const { data: order } = await supabase
+        .from('orders')
+        .select('tracking, client, wilaya, status, attempts, product')
+        .eq('user_id', user_id)
+        .ilike('tracking', tracking)
+        .limit(1)
+        .single();
+
+      if (order) {
+        const reply = buildTrackingReply(order);
+        await sendWhatsApp(instance_id, api_token, chatId, reply);
+        await supabase.from('bot_settings')
+          .upsert({ user_id, tracking_replies_sent: (botSettings as any)?.tracking_replies_sent + 1 || 1, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+        return NextResponse.json({ ok: true });
+      }
+
+      await sendWhatsApp(instance_id, api_token, chatId, `❌ Commande *${tracking}* introuvable. Vérifiez le numéro et réessayez.`);
+      return NextResponse.json({ ok: true });
+    }
+
+    // 2. No tracking — use AI if enabled
+    if (aiEnabled) {
+      const aiReply = await callGemini(systemPrompt, text);
+      if (aiReply) {
+        await sendWhatsApp(instance_id, api_token, chatId, aiReply);
+        await supabase.from('bot_settings')
+          .upsert({ user_id, ai_replies_sent: (botSettings as any)?.ai_replies_sent + 1 || 1, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+        return NextResponse.json({ ok: true });
+      }
+    }
+
+    // 3. Fallback — ask for tracking number
+    const fallback = language === 'french'
+      ? `Bonjour${senderName ? ` *${senderName}*` : ''} 👋\nEnvoyez votre *numéro de tracking* pour suivre votre commande.\n🔗 ${APP_URL}/track`
+      : language === 'arabic'
+      ? `أهلاً${senderName ? ` *${senderName}*` : ''} 👋\nأرسل *رقم التتبع* الخاص بك لتتبع طلبك.`
+      : `السلام عليكم${senderName ? ` *${senderName}*` : ''} 👋\nبعث لينا *رقم التتبع* ديالك باش نتبعو طردك.\nمثلاً: *ZRX123456*`;
+
+    await sendWhatsApp(instance_id, api_token, chatId, fallback);
     return NextResponse.json({ ok: true });
-  } catch (err) {
-    console.error('Webhook error:', err);
-    return NextResponse.json({ ok: true }); // Always 200 so Green API doesn't retry
+  } catch {
+    return NextResponse.json({ ok: true });
   }
+}
+
+function buildTrackingReply(order: any): string {
+  const statusLabel = STATUS_LABELS[order.status] || order.status;
+  let reply = `📦 *Commande ${order.tracking}*\n\n`;
+  reply += `👤 ${order.client || '—'}\n`;
+  if (order.wilaya) reply += `📍 ${order.wilaya}\n`;
+  if (order.product) reply += `🛍️ ${order.product}\n`;
+  reply += `📊 *${statusLabel}*`;
+  if (order.attempts) reply += `\n🔁 Tentatives : ${order.attempts}`;
+  if (order.status === 'echec') reply += `\n\n⚠️ Livreur non joignable. Contactez votre vendeur.`;
+  else if (order.status === 'livre') reply += `\n\n🎉 Merci pour votre confiance !`;
+  return reply;
+}
+
+export async function GET() {
+  return NextResponse.json({ ok: true, service: 'ZREXtrack WhatsApp Bot v2' });
 }
