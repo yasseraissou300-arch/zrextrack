@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, ChevronLeft, ChevronRight, RefreshCw, Copy, CheckCheck } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, RefreshCw, Copy, CheckCheck, ChevronRight as Arrow } from 'lucide-react';
 import { toast } from 'sonner';
 import { SYNC_DONE_EVENT } from './DashboardHeader';
+import OrderDetailModal from './OrderDetailModal';
 
 type Status = 'en_preparation' | 'en_transit' | 'en_livraison' | 'livre' | 'echec' | 'retourne';
 
@@ -54,6 +55,7 @@ export default function OrdersTable() {
   const [total, setTotal] = useState(0);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<string>('');
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   const fetchOrders = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -104,6 +106,8 @@ export default function OrdersTable() {
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
+    <>
+    <OrderDetailModal order={selectedOrder} onClose={() => setSelectedOrder(null)} />
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="px-5 py-3.5 border-b border-gray-100 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
         <div className="flex items-center gap-2">
@@ -151,6 +155,7 @@ export default function OrdersTable() {
               <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Livraison</th>
               <th className="px-4 py-2.5 text-right text-[10px] font-semibold text-gray-400 uppercase tracking-wider">COD</th>
               <th className="px-4 py-2.5 text-center text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Tentatives</th>
+              <th className="px-2 py-2.5 w-6"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
@@ -159,7 +164,7 @@ export default function OrdersTable() {
             ) : orders.length === 0 ? (
               <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">Aucune commande trouvée</td></tr>
             ) : orders.map(order => (
-              <tr key={order.id} className="border-b border-gray-50 hover:bg-slate-50/60 transition-colors">
+              <tr key={order.id} onClick={() => setSelectedOrder(order)} className="border-b border-gray-50 hover:bg-slate-50 transition-colors cursor-pointer group">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1.5">
                     <span className="font-mono text-xs font-semibold text-blue-600">{order.tracking}</span>
@@ -186,6 +191,9 @@ export default function OrdersTable() {
                 <td className="px-4 py-3 text-center">
                   <span className="text-xs font-medium text-gray-500 bg-gray-100 rounded-md px-2 py-0.5">{order.attempts ?? 0}</span>
                 </td>
+                <td className="px-2 py-3">
+                  <Arrow size={13} className="text-gray-300 group-hover:text-gray-500 transition-colors" />
+                </td>
               </tr>
             ))}
           </tbody>
@@ -208,5 +216,6 @@ export default function OrdersTable() {
         </div>
       )}
     </div>
+    </>
   );
 }
