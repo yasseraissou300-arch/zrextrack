@@ -500,6 +500,8 @@ IMPORTANT: Jaweb DIMA bDarija Algérienne. Wjiz — maximum 2-3 jmla.`,
 - En cas de retour: contacter le livreur ou le support`,
 };
 
+interface ChatMsg { role: 'user' | 'bot'; text: string; type?: string; }
+
 function BotIATab() {
   const [settings, setSettings] = useState<BotSettings>({
     ai_enabled: true, language: 'darija', system_prompt: '',
@@ -508,6 +510,9 @@ function BotIATab() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [webhookUrl, setWebhookUrl] = useState('');
+  const [testInput, setTestInput] = useState('');
+  const [testChat, setTestChat] = useState<ChatMsg[]>([]);
+  const [testing, setTesting] = useState(false);
 
   useEffect(() => {
     setWebhookUrl(`${window.location.origin}/api/whatsapp/webhook`);
@@ -533,6 +538,26 @@ function BotIATab() {
   const copyWebhook = () => {
     navigator.clipboard.writeText(webhookUrl);
     toast.success('URL copiée !');
+  };
+
+  const sendTest = async () => {
+    if (!testInput.trim()) return;
+    const userMsg = testInput.trim();
+    setTestInput('');
+    setTestChat(c => [...c, { role: 'user', text: userMsg }]);
+    setTesting(true);
+    const res = await fetch('/api/bot-settings/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: userMsg }),
+    });
+    const json = await res.json();
+    if (json.error && !json.reply) {
+      setTestChat(c => [...c, { role: 'bot', text: `❌ ${json.error}`, type: 'error' }]);
+    } else {
+      setTestChat(c => [...c, { role: 'bot', text: json.reply, type: json.type }]);
+    }
+    setTesting(false);
   };
 
   const promptPlaceholder = DEFAULT_PROMPTS[settings.language] || DEFAULT_PROMPTS.darija;
@@ -660,6 +685,102 @@ function BotIATab() {
               <p className="text-xs text-gray-600">{item.text}</p>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Test chatbot */}
+      <div className="bg-white rounded-2xl border border-purple-100 shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-purple-100 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 bg-purple-100 rounded-lg flex items-center justify-center">
+              <Bot size={14} className="text-purple-600" />
+            </div>
+            <h3 className="font-semibold text-gray-900">Tester le chatbot</h3>
+            <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">Simulation réelle</span>
+          </div>
+          {testChat.length > 0 && (
+            <button onClick={() => setTestChat([])} className="text-xs text-gray-400 hover:text-gray-600">
+              Effacer
+            </button>
+          )}
+        </div>
+
+        {/* Suggestions rapides */}
+        <div className="px-4 pt-3 pb-2 flex flex-wrap gap-1.5">
+          {[
+            { label: 'Tracking valide', msg: 'ZR-123456' },
+            { label: 'Tracking inexistant', msg: 'ZR-999999' },
+            { label: 'Question darija', msg: 'وين طردي؟' },
+            { label: 'Question française', msg: 'Où est ma commande ?' },
+            { label: 'Retard livraison', msg: 'ما وصلنيش طردي من 3 أيام' },
+          ].map(s => (
+            <button
+              key={s.label}
+              onClick={() => setTestInput(s.msg)}
+              className="text-[11px] px-2.5 py-1 bg-purple-50 text-purple-700 rounded-full border border-purple-200 hover:bg-purple-100 transition-colors"
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Chat window */}
+        <div className="mx-4 mb-3 h-64 overflow-y-auto bg-gray-50 rounded-xl p-3 space-y-3 flex flex-col">
+          {testChat.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
+              <Bot size={28} className="mb-2 opacity-30" />
+              <p className="text-xs">Écris un message ou utilise les suggestions</p>
+            </div>
+          ) : (
+            testChat.map((msg, i) => (
+              <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm whitespace-pre-line leading-relaxed ${
+                  msg.role === 'user'
+                    ? 'bg-green-500 text-white rounded-br-sm'
+                    : msg.type === 'error'
+                    ? 'bg-red-50 text-red-700 border border-red-200 rounded-bl-sm'
+                    : 'bg-white text-gray-800 shadow-sm border border-gray-100 rounded-bl-sm'
+                }`} dir={msg.role === 'bot' ? 'auto' : 'auto'}>
+                  {msg.role === 'bot' && (
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <Bot size={11} className={msg.type === 'error' ? 'text-red-500' : msg.type === 'tracking' ? 'text-green-500' : 'text-purple-500'} />
+                      <span className="text-[10px] font-medium text-gray-400">
+                        {msg.type === 'tracking' ? 'Tracking trouvé' : msg.type === 'tracking_not_found' ? 'Tracking introuvable' : msg.type === 'ai' ? 'Réponse IA' : msg.type === 'fallback' ? 'Fallback' : 'Erreur'}
+                      </span>
+                    </div>
+                  )}
+                  {msg.text}
+                </div>
+              </div>
+            ))
+          )}
+          {testing && (
+            <div className="flex justify-start">
+              <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm flex items-center gap-2">
+                <Loader2 size={13} className="animate-spin text-purple-500" />
+                <span className="text-xs text-gray-400">Le bot réfléchit...</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Input */}
+        <div className="px-4 pb-4 flex gap-2">
+          <input
+            value={testInput}
+            onChange={e => setTestInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendTest()}
+            placeholder="Ex: ZR-123456 ou وين طردي؟"
+            className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+            dir="auto"
+          />
+          <button
+            onClick={sendTest}
+            disabled={!testInput.trim() || testing}
+            className="flex items-center gap-1.5 px-4 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-700 disabled:opacity-40 font-medium text-sm shrink-0"
+          >
+            {testing ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+          </button>
         </div>
       </div>
 
