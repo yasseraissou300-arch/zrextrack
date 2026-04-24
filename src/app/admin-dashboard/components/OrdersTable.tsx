@@ -43,7 +43,6 @@ function formatDeliveryType(type: string): string {
   return type;
 }
 
-const PAGE_SIZE = 10;
 const POLL_INTERVAL = 5_000;
 
 export default function OrdersTable() {
@@ -58,13 +57,14 @@ export default function OrdersTable() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
+  const [pageSize, setPageSize] = useState(10);
 
   const fetchOrders = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
       const params = new URLSearchParams({
         page: String(page),
-        pageSize: String(PAGE_SIZE),
+        pageSize: String(pageSize),
         status: statusFilter,
         search,
       });
@@ -83,7 +83,7 @@ export default function OrdersTable() {
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [page, statusFilter, search]);
+  }, [page, statusFilter, search, pageSize]);
 
   // Polling toutes les 5 secondes (silencieux)
   useEffect(() => {
@@ -148,7 +148,7 @@ export default function OrdersTable() {
     }
   };
 
-  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const totalPages = Math.ceil(total / pageSize);
   const allSelected = orders.length > 0 && selected.size === orders.length;
 
   return (
@@ -195,6 +195,17 @@ export default function OrdersTable() {
             <option value="livre">Livrés</option>
             <option value="echec">Échecs</option>
             <option value="retourne">Retournés</option>
+          </select>
+          <select
+            value={pageSize}
+            onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
+            className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none text-gray-600"
+            title="Commandes par page"
+          >
+            <option value={10}>10 / page</option>
+            <option value={25}>25 / page</option>
+            <option value={50}>50 / page</option>
+            <option value={100}>100 / page</option>
           </select>
           <button onClick={() => fetchOrders()} className="p-1.5 border border-gray-200 rounded-lg hover:bg-gray-50">
             <RefreshCw size={14} className="text-gray-500" />
