@@ -252,14 +252,14 @@ function mapParcel(p: any, syncedAt: string) {
   const attempts = p.deliveryAttempts ?? p.delivery_attempts ?? p.attempts ?? 0;
 
   return {
-    tracking: String(tracking),
-    client: String(client),
-    whatsapp: String(whatsapp),
+    tracking_number: String(tracking),
+    customer_name: String(client),
+    customer_whatsapp: String(whatsapp),
     wilaya: String(wilaya),
     district: String(district),
-    product: String(product),
+    product_name: String(product),
     cod: Number(cod),
-    status,
+    delivery_status: status,
     situation: String(situation),
     delivery_type: String(delivery_type),
     delivery_fees: Number(delivery_fees),
@@ -291,44 +291,44 @@ export async function POST(request: NextRequest) {
 
     const allRows = parcels
       .map(p => mapParcel(p, syncedAt))
-      .filter(r => r.tracking)
+      .filter(r => r.tracking_number)
       .map(r => ({ ...r, user_id: userId }));
 
     const seen = new Set<string>();
     const rows = allRows.filter(r => {
-      if (seen.has(r.tracking)) return false;
-      seen.add(r.tracking);
+      if (seen.has(r.tracking_number)) return false;
+      seen.add(r.tracking_number);
       return true;
     });
 
-    const trackingNums = rows.map(r => r.tracking);
+    const trackingNums = rows.map(r => r.tracking_number);
 
     // 2. Charger les statuts actuels pour détecter les changements
     const { data: existingOrders } = await supabase
       .from('orders')
-      .select('tracking, status, whatsapp, client, wilaya')
-      .in('tracking', trackingNums);
+      .select('tracking_number, delivery_status, customer_whatsapp, customer_name, wilaya')
+      .in('tracking_number', trackingNums);
 
-    const existingMap = new Map((existingOrders || []).map(o => [o.tracking, o]));
+    const existingMap = new Map((existingOrders || []).map(o => [o.tracking_number, o]));
 
     // 3. Identifier les commandes dont le statut a changé
-    const toNotify: Array<{ tracking: string; status: string; whatsapp: string; client: string; wilaya: string }> = [];
+    const toNotify: Array<{ tracking_number: string; delivery_status: string; customer_whatsapp: string; customer_name: string; wilaya: string }> = [];
     for (const row of rows) {
-      const existing = existingMap.get(row.tracking);
+      const existing = existingMap.get(row.tracking_number);
       // Vérifier si les notifications sont activées pour ce statut (true par défaut si non précisé)
-      const isEnabled = notifyEnabled ? (notifyEnabled[row.status] !== false) : true;
+      const isEnabled = notifyEnabled ? (notifyEnabled[row.delivery_status] !== false) : true;
       if (
-        NOTIFY_STATUSES.has(row.status) &&
+        NOTIFY_STATUSES.has(row.delivery_status) &&
         isEnabled &&
-        row.whatsapp &&
-        row.whatsapp.length > 4 &&
-        existing?.status !== row.status
+        row.customer_whatsapp &&
+        row.customer_whatsapp.length > 4 &&
+        existing?.delivery_status !== row.delivery_status
       ) {
         toNotify.push({
-          tracking: row.tracking,
-          status: row.status,
-          whatsapp: row.whatsapp,
-          client: row.client,
+          tracking_number: row.tracking_number,
+          delivery_status: row.delivery_status,
+          customer_whatsapp: row.customer_whatsapp,
+          customer_name: row.customer_name,
           wilaya: row.wilaya,
         });
       }
@@ -337,7 +337,7 @@ export async function POST(request: NextRequest) {
     // 4. Upsert les commandes
     const { error, count } = await supabase
       .from('orders')
-      .upsert(rows, { onConflict: 'tracking', count: 'exact' });
+      .upsert(rows, { onConflict: 'tracking_number', count: 'exact' });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -346,15 +346,15 @@ export async function POST(request: NextRequest) {
     // 5. Envoyer les notifications WhatsApp + logger dans messages
     let whatsappSent = 0;
     for (const n of toNotify) {
-      const message = buildMessage(n.status, n.client, n.tracking, n.wilaya, customTemplates);
-      const sent = await sendWhatsApp(n.whatsapp, message);
+      const message = buildMessage(n.delivery_status, n.customer_name, n.tracking_number, n.wilaya, customTemplates);
+      const sent = await sendWhatsApp(n.customer_whatsapp, message);
       if (sent) whatsappSent++;
 
       // Logger dans la table messages
       await supabase.from('messages').insert({
-        tracking: n.tracking,
-        client: n.client,
-        whatsapp: n.whatsapp,
+        tracking_number: n.tracking_number,
+        customer_name: n.customer_name,
+        customer_whatsapp: n.customer_whatsapp,
         message,
         status: sent ? 'envoye' : 'echec',
         sent_at: syncedAt,

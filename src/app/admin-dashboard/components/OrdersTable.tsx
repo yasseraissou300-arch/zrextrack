@@ -10,13 +10,13 @@ type Status = 'en_preparation' | 'en_transit' | 'en_livraison' | 'livre' | 'eche
 
 interface Order {
   id: string;
-  tracking: string;
-  client: string;
-  whatsapp: string;
-  product: string;
+  tracking_number: string;
+  customer_name: string;
+  customer_whatsapp: string;
+  product_name: string;
   wilaya: string;
   district: string;
-  status: Status;
+  delivery_status: Status;
   situation: string;
   delivery_type: string;
   delivery_fees: number;
@@ -276,24 +276,24 @@ export default function OrdersTable() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1.5">
-                    <span className="font-mono text-xs font-semibold text-blue-600">{order.tracking}</span>
+                    <span className="font-mono text-xs font-semibold text-blue-600">{order.tracking_number}</span>
                     <button
-                      onClick={e => { e.stopPropagation(); copyTracking(order.tracking); }}
+                      onClick={e => { e.stopPropagation(); copyTracking(order.tracking_number); }}
                       className="text-gray-300 hover:text-gray-500 transition-colors"
                     >
-                      {copiedId === order.tracking ? <CheckCheck size={11} className="text-green-500" /> : <Copy size={11} />}
+                      {copiedId === order.tracking_number ? <CheckCheck size={11} className="text-green-500" /> : <Copy size={11} />}
                     </button>
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <p className="text-sm font-medium text-gray-800">{order.client}</p>
-                  <p className="text-xs text-gray-400">{order.whatsapp}</p>
+                  <p className="text-sm font-medium text-gray-800">{order.customer_name}</p>
+                  <p className="text-xs text-gray-400">{order.customer_whatsapp}</p>
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-500 max-w-[140px] truncate">{order.product || '—'}</td>
+                <td className="px-4 py-3 text-sm text-gray-500 max-w-[140px] truncate">{order.product_name || '—'}</td>
                 <td className="px-4 py-3 text-sm text-gray-600 font-medium">{order.wilaya || '—'}</td>
                 <td className="px-4 py-3">
-                  <span className={`inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full ${statusConfig[order.status]?.badge || 'bg-gray-100 text-gray-600'}`}>
-                    {order.situation?.trim() || statusConfig[order.status]?.label || order.status}
+                  <span className={`inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full ${statusConfig[order.delivery_status]?.badge || 'bg-gray-100 text-gray-600'}`}>
+                    {order.situation?.trim() || statusConfig[order.delivery_status]?.label || order.delivery_status}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-500">{formatDeliveryType(order.delivery_type)}</td>

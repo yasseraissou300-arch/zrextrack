@@ -16,7 +16,7 @@ export default function AlertesPage() {
       const { data } = await supabase
         .from('orders')
         .select('*')
-        .in('status', ['echec', 'retourne'])
+        .in('delivery_status', ['echec', 'retourne'])
         .order('last_update', { ascending: false })
         .limit(50);
       setAlerts(data || []);
@@ -55,15 +55,15 @@ export default function AlertesPage() {
               <div key={o.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50">
                 <div>
                   <div className="flex items-center gap-2">
-                    <XCircle size={14} className={o.status === 'echec' ? 'text-red-500' : 'text-gray-400'} />
-                    <span className="font-mono text-xs font-medium text-gray-700">{o.tracking}</span>
-                    <span className="font-medium text-gray-900">{o.client}</span>
+                    <XCircle size={14} className={o.delivery_status === 'echec' ? 'text-red-500' : 'text-gray-400'} />
+                    <span className="font-mono text-xs font-medium text-gray-700">{o.tracking_number}</span>
+                    <span className="font-medium text-gray-900">{o.customer_name}</span>
                   </div>
-                  <p className="text-xs text-gray-400 mt-0.5 ml-5">{o.wilaya} — {o.product || 'Produit non précisé'}</p>
+                  <p className="text-xs text-gray-400 mt-0.5 ml-5">{o.wilaya} — {o.product_name || 'Produit non précisé'}</p>
                 </div>
                 <div className="text-right">
-                  <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${o.status === 'echec' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>
-                    {o.status === 'echec' ? 'Échec' : 'Retourné'}
+                  <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${o.delivery_status === 'echec' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'}`}>
+                    {o.delivery_status === 'echec' ? 'Échec' : 'Retourné'}
                   </span>
                   <p className="text-xs text-gray-400 mt-1">{o.attempts ?? 0} tentative(s)</p>
                 </div>

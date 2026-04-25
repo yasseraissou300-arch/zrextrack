@@ -15,20 +15,20 @@ export default function ClientsPage() {
       setLoading(true);
       const { data } = await supabase
         .from('orders')
-        .select('client, whatsapp, wilaya, status')
+        .select('customer_name, customer_whatsapp, wilaya, delivery_status')
         .order('created_at', { ascending: false });
 
       if (data) {
-        // Group by client
+        // Group by customer
         const map = new Map<string, { client: string; whatsapp: string; wilaya: string; total: number; livre: number }>();
         data.forEach(o => {
-          const key = o.whatsapp || o.client;
+          const key = o.customer_whatsapp || o.customer_name;
           if (!map.has(key)) {
-            map.set(key, { client: o.client, whatsapp: o.whatsapp, wilaya: o.wilaya, total: 0, livre: 0 });
+            map.set(key, { client: o.customer_name, whatsapp: o.customer_whatsapp, wilaya: o.wilaya, total: 0, livre: 0 });
           }
           const entry = map.get(key)!;
           entry.total++;
-          if (o.status === 'livre') entry.livre++;
+          if (o.delivery_status === 'livre') entry.livre++;
         });
         setClients(Array.from(map.values()).sort((a, b) => b.total - a.total));
       }

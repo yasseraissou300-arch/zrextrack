@@ -20,8 +20,8 @@ export async function GET() {
 
       const { data } = await supabase
         .from('orders')
-        .select('id, tracking, client, wilaya, status, last_update')
-        .eq('status', status)
+        .select('id, tracking_number, customer_name, wilaya, delivery_status, last_update')
+        .eq('delivery_status', status)
         .lt('last_update', cutoff)
         .order('last_update', { ascending: true })
         .limit(10);
@@ -30,7 +30,7 @@ export async function GET() {
         for (const order of data) {
           const diffMs = now.getTime() - new Date(order.last_update).getTime();
           const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-          stuckOrders.push({ ...order, hours: diffHours });
+          stuckOrders.push({ ...order, tracking: order.tracking_number, client: order.customer_name, status: order.delivery_status, hours: diffHours });
         }
       }
     }

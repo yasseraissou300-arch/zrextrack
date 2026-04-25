@@ -7,11 +7,11 @@ import { toast } from 'sonner';
 
 interface DeletedOrder {
   id: string;
-  tracking: string;
-  client: string;
+  tracking_number: string;
+  customer_name: string;
   wilaya: string;
-  status: string;
-  product: string;
+  delivery_status: string;
+  product_name: string;
   cod: number;
   deleted_at: string;
 }
@@ -49,8 +49,8 @@ export default function CorbeillePage() {
   useEffect(() => { fetchDeleted(); }, [fetchDeleted]);
 
   const filtered = orders.filter(o =>
-    !search || o.tracking.toLowerCase().includes(search.toLowerCase()) ||
-    o.client?.toLowerCase().includes(search.toLowerCase())
+    !search || o.tracking_number.toLowerCase().includes(search.toLowerCase()) ||
+    o.customer_name?.toLowerCase().includes(search.toLowerCase())
   );
 
   const toggleSelect = (id: string) => setSelected(prev => {
@@ -186,14 +186,14 @@ export default function CorbeillePage() {
                       <input type="checkbox" checked={selected.has(order.id)} onChange={() => toggleSelect(order.id)} className="rounded border-gray-300" />
                     </td>
                     <td className="px-4 py-3">
-                      <span className="font-mono text-xs font-semibold text-gray-500">{order.tracking}</span>
+                      <span className="font-mono text-xs font-semibold text-gray-500">{order.tracking_number}</span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{order.client || '—'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-500 max-w-[140px] truncate">{order.product || '—'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{order.customer_name || '—'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-500 max-w-[140px] truncate">{order.product_name || '—'}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{order.wilaya || '—'}</td>
                     <td className="px-4 py-3">
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_BADGE[order.status] || 'bg-gray-100 text-gray-500'}`}>
-                        {STATUS_LABEL[order.status] || order.status}
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_BADGE[order.delivery_status] || 'bg-gray-100 text-gray-500'}`}>
+                        {STATUS_LABEL[order.delivery_status] || order.delivery_status}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right text-sm font-medium text-gray-600">

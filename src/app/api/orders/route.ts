@@ -28,20 +28,20 @@ export async function GET(request: NextRequest) {
     const supabase = createServiceClient();
     let query = supabase.from('orders').select('*', { count: 'exact' }).eq('user_id', user.id).is('deleted_at', null);
 
-    if (status !== 'all') query = query.eq('status', status);
+    if (status !== 'all') query = query.eq('delivery_status', status);
 
     if (situation) {
       // Check if this filter maps to a status code (delivery stage filters)
       const statusCode = SITUATION_TO_STATUS[situation.toLowerCase()];
       if (statusCode) {
-        query = query.eq('status', statusCode);
+        query = query.eq('delivery_status', statusCode);
       } else {
         // Situation-based filter (Commande annulee, Ne repond pas, Commune erronee, etc.)
         query = query.ilike('situation', `%${situation}%`);
       }
     }
 
-    if (search) query = query.or(`tracking.ilike.%${search}%,client.ilike.%${search}%`);
+    if (search) query = query.or(`tracking_number.ilike.%${search}%,customer_name.ilike.%${search}%`);
     query = query.order('last_update', { ascending: false }).range(from, to);
 
     const { data, count, error } = await query;

@@ -6,12 +6,15 @@ import { SYNC_DONE_EVENT } from './DashboardHeader';
 
 interface StuckOrder {
   id: string;
-  tracking: string;
-  client: string;
+  tracking_number: string;
+  customer_name: string;
   wilaya: string;
-  status: string;
+  delivery_status: string;
   last_update: string;
   hours: number;
+  tracking?: string;
+  client?: string;
+  status?: string;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -87,19 +90,19 @@ export default function AlertsPanel() {
       </div>
       <div className="divide-y divide-gray-50">
         {visible.map((order) => {
-          const s = getSeverity(order.hours, order.status);
+          const s = getSeverity(order.hours, order.delivery_status || order.status || '');
           return (
             <div key={order.id} className={`flex items-center gap-3 px-5 py-3 ${s.bg} relative`}>
               <div className={`absolute left-0 top-0 bottom-0 w-1 ${s.bar}`} />
               <div className="flex-1 min-w-0 pl-1">
                 <div className="flex flex-wrap items-center gap-2 mb-0.5">
-                  <span className="text-sm font-semibold text-gray-800 font-mono">{order.tracking}</span>
-                  <span className="text-sm text-gray-500">{order.client}</span>
+                  <span className="text-sm font-semibold text-gray-800 font-mono">{order.tracking_number || order.tracking}</span>
+                  <span className="text-sm text-gray-500">{order.customer_name || order.client}</span>
                   {order.wilaya && <span className="text-xs text-gray-400">{order.wilaya}</span>}
                   <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${s.badge}`}>{s.label}</span>
                 </div>
                 <p className="text-xs text-gray-500">
-                  {STATUS_LABEL[order.status] || order.status} · Sans mise à jour depuis <strong>{order.hours}h</strong>
+                  {STATUS_LABEL[order.delivery_status || order.status || ''] || order.delivery_status || order.status} · Sans mise à jour depuis <strong>{order.hours}h</strong>
                 </p>
               </div>
               <button

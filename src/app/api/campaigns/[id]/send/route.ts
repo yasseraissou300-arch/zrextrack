@@ -61,17 +61,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   let ordersQuery = supabase
     .from('orders')
-    .select('id, tracking, client, whatsapp, wilaya, cod')
+    .select('id, tracking_number, customer_name, customer_whatsapp, wilaya, cod')
     .eq('user_id', user.id)
-    .not('whatsapp', 'is', null)
-    .neq('whatsapp', '');
+    .not('customer_whatsapp', 'is', null)
+    .neq('customer_whatsapp', '');
 
   if (campaign.audience_status) {
-    ordersQuery = ordersQuery.eq('status', campaign.audience_status);
+    ordersQuery = ordersQuery.eq('delivery_status', campaign.audience_status);
   }
 
   const { data: orders } = await ordersQuery;
-  const validOrders = (orders || []).filter(o => o.whatsapp && o.whatsapp.length > 5);
+  const validOrders = (orders || []).filter(o => o.customer_whatsapp && o.customer_whatsapp.length > 5);
 
   await supabase
     .from('campaigns')
@@ -85,13 +85,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   for (const order of validOrders) {
     const message = interpolate(campaign.message_template, {
-      client: order.client || '',
-      tracking: order.tracking || '',
+      client: order.customer_name || '',
+      tracking: order.tracking_number || '',
       wilaya: order.wilaya || '',
       cod: String(order.cod ?? ''),
     });
 
-    const chatId = formatPhone(order.whatsapp);
+    const chatId = formatPhone(order.customer_whatsapp);
     let status: 'envoye' | 'echec' = 'echec';
 
     try {
@@ -108,9 +108,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     await supabase.from('campaign_recipients').insert({
       campaign_id: id,
-      client: order.client || '',
-      phone: order.whatsapp,
-      tracking: order.tracking || '',
+      client: order.customer_name || '',
+      phone: order.customer_whatsapp,
+      tracking: order.tracking_number || '',
       message,
       status,
       sent_at: new Date().toISOString(),

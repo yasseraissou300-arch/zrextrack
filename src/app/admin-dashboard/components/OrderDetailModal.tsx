@@ -8,13 +8,13 @@ type Status = 'en_preparation' | 'en_transit' | 'en_livraison' | 'livre' | 'eche
 
 interface Order {
   id: string;
-  tracking: string;
-  client: string;
-  whatsapp: string;
-  product: string;
+  tracking_number: string;
+  customer_name: string;
+  customer_whatsapp: string;
+  product_name: string;
   wilaya: string;
   district: string;
-  status: Status;
+  delivery_status: Status;
   situation: string;
   delivery_type: string;
   delivery_fees: number;
@@ -49,13 +49,13 @@ export default function OrderDetailModal({ order, onClose, onDeleted }: Props) {
   const [deleting, setDeleting] = React.useState(false);
   if (!order) return null;
 
-  const meta = STATUS_CONFIG[order.status] || STATUS_CONFIG.en_preparation;
-  const stepIdx = getStepIndex(order.status);
-  const isTerminal = ['echec', 'retourne'].includes(order.status);
-  const trackingUrl = `/track/${order.tracking}`;
+  const meta = STATUS_CONFIG[order.delivery_status] || STATUS_CONFIG.en_preparation;
+  const stepIdx = getStepIndex(order.delivery_status);
+  const isTerminal = ['echec', 'retourne'].includes(order.delivery_status);
+  const trackingUrl = `/track/${order.tracking_number}`;
 
   const handleDelete = async () => {
-    if (!confirm(`Mettre la commande ${order.tracking} à la corbeille ?`)) return;
+    if (!confirm(`Mettre la commande ${order.tracking_number} à la corbeille ?`)) return;
     setDeleting(true);
     try {
       const res = await fetch('/api/orders/delete', {
@@ -66,7 +66,7 @@ export default function OrderDetailModal({ order, onClose, onDeleted }: Props) {
       const json = await res.json();
       if (json.error) { toast.error(json.error); }
       else {
-        toast.success(`Commande ${order.tracking} déplacée à la corbeille`);
+        toast.success(`Commande ${order.tracking_number} déplacée à la corbeille`);
         onDeleted?.();
         onClose();
       }
@@ -101,8 +101,8 @@ export default function OrderDetailModal({ order, onClose, onDeleted }: Props) {
                 <span className="text-xs text-gray-500">{order.situation}</span>
               )}
             </div>
-            <p className="font-mono font-bold text-gray-900 text-lg">{order.tracking}</p>
-            <p className="text-sm text-gray-500 mt-0.5">{order.client}</p>
+            <p className="font-mono font-bold text-gray-900 text-lg">{order.tracking_number}</p>
+            <p className="text-sm text-gray-500 mt-0.5">{order.customer_name}</p>
           </div>
           <div className="flex items-center gap-2">
             <a
@@ -163,11 +163,11 @@ export default function OrderDetailModal({ order, onClose, onDeleted }: Props) {
             <div className="grid grid-cols-2 gap-2">
               <div className="bg-gray-50 rounded-xl p-3">
                 <p className="text-[10px] text-gray-400 mb-0.5">Nom</p>
-                <p className="text-sm font-semibold text-gray-800">{order.client || '—'}</p>
+                <p className="text-sm font-semibold text-gray-800">{order.customer_name || '—'}</p>
               </div>
               <div className="bg-gray-50 rounded-xl p-3">
                 <p className="text-[10px] text-gray-400 mb-0.5 flex items-center gap-1"><Phone size={9}/>WhatsApp</p>
-                <p className="text-sm font-semibold text-gray-800">{order.whatsapp || '—'}</p>
+                <p className="text-sm font-semibold text-gray-800">{order.customer_whatsapp || '—'}</p>
               </div>
               <div className="bg-gray-50 rounded-xl p-3">
                 <p className="text-[10px] text-gray-400 mb-0.5 flex items-center gap-1"><MapPin size={9}/>Wilaya</p>
@@ -188,7 +188,7 @@ export default function OrderDetailModal({ order, onClose, onDeleted }: Props) {
             <div className="grid grid-cols-2 gap-2">
               <div className="bg-gray-50 rounded-xl p-3 col-span-2">
                 <p className="text-[10px] text-gray-400 mb-0.5 flex items-center gap-1"><Package size={9}/>Produit</p>
-                <p className="text-sm font-semibold text-gray-800">{order.product || '—'}</p>
+                <p className="text-sm font-semibold text-gray-800">{order.product_name || '—'}</p>
               </div>
               <div className="bg-gray-50 rounded-xl p-3">
                 <p className="text-[10px] text-gray-400 mb-0.5 flex items-center gap-1"><CreditCard size={9}/>Montant COD</p>

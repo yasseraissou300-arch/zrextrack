@@ -58,22 +58,22 @@ export async function POST(request: NextRequest) {
   if (tracking) {
     const { data: order } = await supabase
       .from('orders')
-      .select('tracking, client, wilaya, status, attempts, product')
+      .select('tracking_number, customer_name, wilaya, delivery_status, attempts, product_name')
       .eq('user_id', user.id)
-      .ilike('tracking', tracking)
+      .ilike('tracking_number', tracking)
       .limit(1)
       .single();
 
     if (order) {
-      const statusLabel = STATUS_LABELS[order.status] || order.status;
-      let reply = `📦 *Commande ${order.tracking}*\n\n`;
-      reply += `👤 ${order.client || '—'}\n`;
+      const statusLabel = STATUS_LABELS[order.delivery_status] || order.delivery_status;
+      let reply = `📦 *Commande ${order.tracking_number}*\n\n`;
+      reply += `👤 ${order.customer_name || '—'}\n`;
       if (order.wilaya) reply += `📍 ${order.wilaya}\n`;
-      if (order.product) reply += `🛍️ ${order.product}\n`;
+      if (order.product_name) reply += `🛍️ ${order.product_name}\n`;
       reply += `📊 *${statusLabel}*`;
       if (order.attempts) reply += `\n🔁 Tentatives : ${order.attempts}`;
-      if (order.status === 'echec') reply += `\n\n⚠️ Livreur non joignable. Contactez votre vendeur.`;
-      else if (order.status === 'livre') reply += `\n\n🎉 Merci pour votre confiance !`;
+      if (order.delivery_status === 'echec') reply += `\n\n⚠️ Livreur non joignable. Contactez votre vendeur.`;
+      else if (order.delivery_status === 'livre') reply += `\n\n🎉 Merci pour votre confiance !`;
       return NextResponse.json({ reply, type: 'tracking', tracking });
     }
 

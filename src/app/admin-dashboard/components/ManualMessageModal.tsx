@@ -6,11 +6,11 @@ import { toast } from 'sonner';
 
 interface Order {
   id: string;
-  tracking: string;
-  client: string;
-  whatsapp: string;
-  product: string;
-  status: string;
+  tracking_number: string;
+  customer_name: string;
+  customer_whatsapp: string;
+  product_name: string;
+  delivery_status: string;
 }
 
 interface Props {
@@ -23,24 +23,24 @@ const templates = [
     id: 'tpl-confirmed',
     label: 'Commande confirmée',
     text: (o: Order) =>
-      `Bonjour ${o.client.split(' ')[0]} 👋\n\nVotre commande *${o.tracking}* pour *${o.product}* est enregistrée chez ZREXpress.\n\nNous vous notifierons à chaque étape de la livraison. Merci pour votre confiance ! 🙏`,
+      `Bonjour ${o.customer_name.split(' ')[0]} 👋\n\nVotre commande *${o.tracking_number}* pour *${o.product_name}* est enregistrée chez ZREXpress.\n\nNous vous notifierons à chaque étape de la livraison. Merci pour votre confiance ! 🙏`,
   },
   {
     id: 'tpl-transit',
     label: 'En cours de livraison',
     text: (o: Order) =>
-      `Bonjour ${o.client.split(' ')[0]} 🚚\n\nVotre colis *${o.tracking}* est en route vers vous !\n\nVotre livreur ZREXpress passera aujourd'hui. Assurez-vous d'être disponible.`,
+      `Bonjour ${o.customer_name.split(' ')[0]} 🚚\n\nVotre colis *${o.tracking_number}* est en route vers vous !\n\nVotre livreur ZREXpress passera aujourd'hui. Assurez-vous d'être disponible.`,
   },
   {
     id: 'tpl-delivered',
     label: 'Livraison réussie',
     text: (o: Order) =>
-      `Bonjour ${o.client.split(' ')[0]} ✅\n\nVotre commande *${o.tracking}* a été livrée avec succès !\n\nMerci pour votre achat. N'hésitez pas à nous laisser votre avis. 🌟`,
+      `Bonjour ${o.customer_name.split(' ')[0]} ✅\n\nVotre commande *${o.tracking_number}* a été livrée avec succès !\n\nMerci pour votre achat. N'hésitez pas à nous laisser votre avis. 🌟`,
   },
   {
     id: 'tpl-failed',label: 'Tentative échouée',
     text: (o: Order) =>
-      `Bonjour ${o.client.split(' ')[0]} ⚠️\n\nNous n'avons pas pu livrer votre colis *${o.tracking}* aujourd'hui.\n\nMerci de nous contacter pour reprogrammer la livraison.`,
+      `Bonjour ${o.customer_name.split(' ')[0]} ⚠️\n\nNous n'avons pas pu livrer votre colis *${o.tracking_number}* aujourd'hui.\n\nMerci de nous contacter pour reprogrammer la livraison.`,
   },
   {
     id: 'tpl-custom',label: 'Message personnalisé',
@@ -67,8 +67,8 @@ export default function ManualMessageModal({ order, onClose }: Props) {
     // TODO: Connect to WhatsApp Business API POST /api/whatsapp/send { to: order.whatsapp, message }
     setTimeout(() => {
       setSending(false);
-      toast.success(`Message envoyé à ${order.client}`, {
-        description: `${order.whatsapp} · ${order.tracking}`,
+      toast.success(`Message envoyé à ${order.customer_name}`, {
+        description: `${order.customer_whatsapp} · ${order.tracking_number}`,
       });
       onClose();
     }, 1500);
@@ -88,7 +88,7 @@ export default function ManualMessageModal({ order, onClose }: Props) {
             </div>
             <div>
               <h3 className="text-sm font-600 text-[hsl(var(--foreground))]">Envoyer un message WhatsApp</h3>
-              <p className="text-xs text-[hsl(var(--muted-foreground))]">{order.client} · {order.whatsapp}</p>
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">{order.customer_name} · {order.customer_whatsapp}</p>
             </div>
           </div>
           <button
@@ -103,9 +103,9 @@ export default function ManualMessageModal({ order, onClose }: Props) {
         <div className="px-6 py-3 bg-[hsl(var(--secondary))]/40 border-b border-[hsl(var(--border))]">
           <div className="flex items-center gap-4 text-xs">
             <span className="text-[hsl(var(--muted-foreground))]">Commande :</span>
-            <span className="font-semibold tabular-nums text-[hsl(var(--foreground))]">{order.tracking}</span>
+            <span className="font-semibold tabular-nums text-[hsl(var(--foreground))]">{order.tracking_number}</span>
             <span className="text-[hsl(var(--muted-foreground))]">·</span>
-            <span className="text-[hsl(var(--foreground))] truncate">{order.product}</span>
+            <span className="text-[hsl(var(--foreground))] truncate">{order.product_name}</span>
           </div>
         </div>
 

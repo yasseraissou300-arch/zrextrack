@@ -25,8 +25,8 @@ export async function GET(request: NextRequest) {
       .select('*', { count: 'exact' })
       .eq('user_id', user.id);
 
-    if (status !== 'all') query = query.eq('status', status);
-    if (search) query = query.or('tracking.ilike.%' + search + '%,client.ilike.%' + search + '%');
+    if (status !== 'all') query = query.eq('delivery_status', status);
+    if (search) query = query.or('tracking_number.ilike.%' + search + '%,customer_name.ilike.%' + search + '%');
 
     query = query.order('last_update', { ascending: false }).range(from, to);
 

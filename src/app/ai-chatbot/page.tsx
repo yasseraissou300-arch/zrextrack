@@ -5,7 +5,7 @@ import {
   Bot, CheckCircle2, HeadphonesIcon, MapPin, ToggleLeft, ToggleRight,
   Globe, Loader2, Save, RefreshCw, QrCode, Wifi, WifiOff,
   ChevronDown, ChevronUp, ExternalLink, Copy, Trash2, Sheet, AlertCircle,
-  MessageSquare, Phone, User, Package,
+  MessageSquare, Phone, User, BarChart3, TrendingUp, Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -689,14 +689,209 @@ function DonneesTab() {
   );
 }
 
+// ─── AnalyticsTab ─────────────────────────────────────────────────────────────
+interface AnalyticsData {
+  total: number; complete: number; sheets_sent: number; human_handover: number;
+  conversion_rate: number;
+  by_template: Record<string, { total: number; complete: number }>;
+  by_channel: Record<string, number>;
+  top_wilayas: { wilaya: string; count: number }[];
+  by_day: { date: string; count: number }[];
+}
+
+function AnalyticsTab() {
+  const [data, setData] = useState<AnalyticsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [relancing, setRelancing] = useState(false);
+
+  const fetchAnalytics = useCallback(async () => {
+    setLoading(true);
+    const res = await fetch('/api/ai-chatbot/analytics');
+    const json = await res.json();
+    if (!json.error) setData(json);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchAnalytics(); }, [fetchAnalytics]);
+
+  const triggerRelance = async () => {
+    setRelancing(true);
+    const res = await fetch('/api/ai-chatbot/relance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+    const json = await res.json();
+    if (json.error) toast.error(json.error);
+    else toast.success(`Relance envoyée à ${json.relanced} session(s) inactive(s)`);
+    setRelancing(false);
+  };
+
+  const TEMPLATE_LABELS: Record<string, string> = {
+    auto_confirmation: 'Auto-Confirmation',
+    sav: 'SAV & Réclamations',
+    tracking: 'Suivi de Commande',
+  };
+
+  const maxDay = data ? Math.max(...data.by_day.map(d => d.count), 1) : 1;
+
+  return (
+    <div className="space-y-5">
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: 'Total conversations', value: data?.total ?? 0, icon: MessageSquare, color: 'text-indigo-600 bg-indigo-50' },
+          { label: 'Données complètes', value: data?.complete ?? 0, icon: CheckCircle2, color: 'text-green-600 bg-green-50' },
+          { label: 'Taux de conversion', value: `${data?.conversion_rate ?? 0}%`, icon: TrendingUp, color: 'text-blue-600 bg-blue-50' },
+          { label: 'Transfert humain', value: data?.human_handover ?? 0, icon: Users, color: 'text-amber-600 bg-amber-50' },
+        ].map(kpi => {
+          const Icon = kpi.icon;
+          return (
+            <div key={kpi.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-start gap-3">
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${kpi.color}`}>
+                <Icon size={16} />
+              </div>
+              <div>
+                <p className="text-xl font-bold text-gray-900">{loading ? '—' : kpi.value}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{kpi.label}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* Conversations par jour (14 jours) */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+              <BarChart3 size={15} className="text-indigo-500" />
+              Conversations (14 jours)
+            </h3>
+            <button onClick={fetchAnalytics} className="p-1.5 hover:bg-gray-100 rounded-lg">
+              <RefreshCw size={12} className={`text-gray-400 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+          {loading ? <div className="h-28 flex items-center justify-center"><Loader2 size={18} className="animate-spin text-gray-300" /></div> : (
+            <div className="flex items-end gap-1 h-28">
+              {(data?.by_day ?? []).map(d => (
+                <div key={d.date} className="flex-1 flex flex-col items-center gap-1">
+                  <div
+                    className="w-full bg-indigo-500 rounded-t-sm min-h-[2px] transition-all"
+                    style={{ height: `${Math.round((d.count / maxDay) * 96)}px` }}
+                    title={`${d.date}: ${d.count}`}
+                  />
+                  <span className="text-[8px] text-gray-300 rotate-0">{d.date.slice(8)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Par template */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <Bot size={15} className="text-purple-500" />
+            Par template
+          </h3>
+          {loading ? <div className="flex justify-center py-8"><Loader2 size={18} className="animate-spin text-gray-300" /></div> : (
+            <div className="space-y-3">
+              {Object.entries(data?.by_template ?? {}).map(([type, stats]) => {
+                const rate = stats.total > 0 ? Math.round((stats.complete / stats.total) * 100) : 0;
+                return (
+                  <div key={type} className="space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-700 font-medium">{TEMPLATE_LABELS[type] ?? type}</span>
+                      <span className="text-xs text-gray-500">{stats.complete}/{stats.total} · {rate}%</span>
+                    </div>
+                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-purple-500 rounded-full" style={{ width: `${rate}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+              {Object.keys(data?.by_template ?? {}).length === 0 && (
+                <p className="text-sm text-gray-400 text-center py-4">Aucune session pour l'instant</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Top wilayas */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <MapPin size={15} className="text-green-500" />
+            Top Wilayas
+          </h3>
+          {loading ? <div className="flex justify-center py-8"><Loader2 size={18} className="animate-spin text-gray-300" /></div> : (
+            <div className="space-y-2.5">
+              {(data?.top_wilayas ?? []).map((w, i) => (
+                <div key={w.wilaya} className="flex items-center gap-2">
+                  <span className="text-xs text-gray-400 w-4">{i + 1}</span>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className="text-sm text-gray-700">{w.wilaya}</span>
+                      <span className="text-xs font-bold text-gray-900">{w.count}</span>
+                    </div>
+                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-green-400 rounded-full" style={{ width: `${Math.round((w.count / (data?.top_wilayas[0]?.count || 1)) * 100)}%` }} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {(data?.top_wilayas ?? []).length === 0 && (
+                <p className="text-sm text-gray-400 text-center py-4">Aucune donnée wilaya</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+          <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+            <RefreshCw size={15} className="text-orange-500" />
+            Automatisations
+          </h3>
+          <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 space-y-2">
+            <p className="text-sm font-semibold text-orange-800">Relance inactivité (2h)</p>
+            <p className="text-xs text-orange-600">Envoie un message de rappel aux sessions incomplètes inactives depuis plus de 2 heures.</p>
+            <button
+              onClick={triggerRelance}
+              disabled={relancing}
+              className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-xl text-sm font-semibold hover:bg-orange-600 disabled:opacity-50 transition-colors"
+            >
+              {relancing ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+              Lancer la relance maintenant
+            </button>
+          </div>
+          <div className="bg-gray-50 rounded-xl p-4 space-y-1">
+            <p className="text-xs font-semibold text-gray-600">Automatiser via Vercel Cron</p>
+            <code className="text-[10px] text-gray-500 block font-mono bg-gray-100 rounded px-2 py-1">
+              POST /api/ai-chatbot/relance (every 30min)
+            </code>
+          </div>
+          <div className="grid grid-cols-2 gap-3 pt-1">
+            {[
+              { label: 'Google Sheets envoyés', value: data?.sheets_sent ?? 0, color: 'text-green-700 bg-green-50' },
+              { label: 'Transferts humains', value: data?.human_handover ?? 0, color: 'text-amber-700 bg-amber-50' },
+            ].map(s => (
+              <div key={s.label} className={`rounded-xl p-3 text-center ${s.color}`}>
+                <p className="text-xl font-bold">{loading ? '—' : s.value}</p>
+                <p className="text-[10px] mt-0.5 opacity-80">{s.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
-type Tab = 'templates' | 'whatsapp' | 'facebook' | 'donnees';
+type Tab = 'templates' | 'whatsapp' | 'facebook' | 'donnees' | 'analytics';
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'templates', label: 'Templates IA', icon: <Bot size={14} /> },
   { id: 'whatsapp', label: 'WhatsApp', icon: <Phone size={14} /> },
   { id: 'facebook', label: 'Facebook', icon: <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-current"><path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.3 2.246.464 3.443.464 6.627 0 12-4.974 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.131 3.259L19.752 8l-6.561 6.963z" /></svg> },
   { id: 'donnees', label: 'Données extraites', icon: <Sheet size={14} /> },
+  { id: 'analytics', label: 'Analytiques', icon: <BarChart3 size={14} /> },
 ];
 
 export default function AIChatbotPage() {
@@ -741,6 +936,7 @@ export default function AIChatbotPage() {
         {activeTab === 'whatsapp' && <WhatsAppTab />}
         {activeTab === 'facebook' && <FacebookTab />}
         {activeTab === 'donnees' && <DonneesTab />}
+        {activeTab === 'analytics' && <AnalyticsTab />}
       </div>
     </AppLayout>
   );

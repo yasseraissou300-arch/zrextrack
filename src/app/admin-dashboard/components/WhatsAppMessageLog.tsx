@@ -6,9 +6,9 @@ import { createClient } from '@/lib/supabase/client';
 
 interface Message {
   id: string;
-  client: string;
-  whatsapp: string;
-  tracking: string;
+  customer_name: string;
+  customer_whatsapp: string;
+  tracking_number: string;
   message: string;
   status: 'envoye' | 'echec' | 'en_attente';
   sent_at: string;
@@ -65,10 +65,10 @@ export default function WhatsAppMessageLog() {
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium text-gray-900 text-sm">{msg.client}</span>
-                    <span className="text-xs text-gray-400">{msg.whatsapp}</span>
+                    <span className="font-medium text-gray-900 text-sm">{msg.customer_name}</span>
+                    <span className="text-xs text-gray-400">{msg.customer_whatsapp}</span>
                   </div>
-                  {msg.tracking && <span className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">{msg.tracking}</span>}
+                  {msg.tracking_number && <span className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">{msg.tracking_number}</span>}
                   <p className="text-xs text-gray-500 mt-1 line-clamp-2">{msg.message}</p>
                 </div>
                 <div className="flex flex-col items-end gap-1 shrink-0">

@@ -60,16 +60,16 @@ export async function POST(request: NextRequest) {
     await supabase.from('orders').upsert(
       {
         user_id: integration.user_id,
-        tracking,
-        client: `${order.billing?.first_name || ''} ${order.billing?.last_name || ''}`.trim() || order.billing?.email || 'Client',
-        whatsapp: phone,
-        product: order.line_items?.[0]?.name || '',
+        tracking_number: tracking,
+        customer_name: `${order.billing?.first_name || ''} ${order.billing?.last_name || ''}`.trim() || order.billing?.email || 'Client',
+        customer_whatsapp: phone,
+        product_name: order.line_items?.[0]?.name || '',
         wilaya: order.shipping?.city || order.billing?.city || '',
         cod: order.total ? parseFloat(order.total) : 0,
-        status,
+        delivery_status: status,
         last_update: new Date().toISOString(),
       },
-      { onConflict: 'tracking' }
+      { onConflict: 'tracking_number' }
     );
 
     return NextResponse.json({ ok: true });

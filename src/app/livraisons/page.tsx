@@ -17,16 +17,16 @@ export default function LivraisonsPage() {
       const { data } = await supabase
         .from('orders')
         .select('*')
-        .in('status', ['en_livraison', 'livre', 'echec', 'retourne'])
+        .in('delivery_status', ['en_livraison', 'livre', 'echec', 'retourne'])
         .order('last_update', { ascending: false });
 
       if (data) {
         setOrders(data);
         setStats({
-          en_livraison: data.filter(o => o.status === 'en_livraison').length,
-          livre: data.filter(o => o.status === 'livre').length,
-          echec: data.filter(o => o.status === 'echec').length,
-          retourne: data.filter(o => o.status === 'retourne').length,
+          en_livraison: data.filter(o => o.delivery_status === 'en_livraison').length,
+          livre: data.filter(o => o.delivery_status === 'livre').length,
+          echec: data.filter(o => o.delivery_status === 'echec').length,
+          retourne: data.filter(o => o.delivery_status === 'retourne').length,
         });
       }
       setLoading(false);
@@ -100,12 +100,12 @@ export default function LivraisonsPage() {
                   <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Aucune livraison trouvée</td></tr>
                 ) : orders.map(o => (
                   <tr key={o.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-mono text-xs font-medium">{o.tracking}</td>
-                    <td className="px-4 py-3 font-medium">{o.client}</td>
+                    <td className="px-4 py-3 font-mono text-xs font-medium">{o.tracking_number}</td>
+                    <td className="px-4 py-3 font-medium">{o.customer_name}</td>
                     <td className="px-4 py-3 text-gray-500">{o.wilaya || '—'}</td>
                     <td className="px-4 py-3">
-                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${statusBadge[o.status] || ''}`}>
-                        {statusLabel[o.status] || o.status}
+                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${statusBadge[o.delivery_status] || ''}`}>
+                        {statusLabel[o.delivery_status] || o.delivery_status}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-center">{o.attempts ?? 0}</td>

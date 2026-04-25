@@ -44,22 +44,22 @@ export async function POST(req) {
     }
     const supabase = createServiceClient();
     const { data: order } = await supabase.from('orders')
-      .select('tracking, client, wilaya, status, attempts, last_update, product')
-      .ilike('tracking', tracking).limit(1).single();
+      .select('tracking_number, customer_name, wilaya, delivery_status, attempts, last_update, product_name')
+      .ilike('tracking_number', tracking).limit(1).single();
     if (!order) {
       await sendReply(phone, `❌ Commande *${tracking}* introuvable. Vérifiez et réessayez.`);
       return NextResponse.json({ ok: true });
     }
-    const statusLabel = STATUS_LABELS[order.status] || order.status;
-    let reply = `📦 *Commande ${order.tracking}*\n\n`;
-    reply += `👤 Client : ${order.client || '—'}\n`;
+    const statusLabel = STATUS_LABELS[order.delivery_status] || order.delivery_status;
+    let reply = `📦 *Commande ${order.tracking_number}*\n\n`;
+    reply += `👤 Client : ${order.customer_name || '—'}\n`;
     if (order.wilaya) reply += `📍 Wilaya : ${order.wilaya}\n`;
-    if (order.product) reply += `🛍️ Produit : ${order.product}\n`;
+    if (order.product_name) reply += `🛍️ Produit : ${order.product_name}\n`;
     reply += `📊 Statut : *${statusLabel}*\n`;
     if (order.attempts) reply += `🔁 Tentatives : ${order.attempts}\n`;
-    reply += `\n🔗 ${APP_URL}/track/${order.tracking}`;
-    if (order.status === 'echec') reply += `\n\n⚠️ Livreur non joignable. Contactez votre vendeur.`;
-    else if (order.status === 'livre') reply += `\n\n🎉 Merci pour votre confiance !`;
+    reply += `\n🔗 ${APP_URL}/track/${order.tracking_number}`;
+    if (order.delivery_status === 'echec') reply += `\n\n⚠️ Livreur non joignable. Contactez votre vendeur.`;
+    else if (order.delivery_status === 'livre') reply += `\n\n🎉 Merci pour votre confiance !`;
     await sendReply(phone, reply);
     return NextResponse.json({ ok: true });
   } catch { return NextResponse.json({ ok: true }); }

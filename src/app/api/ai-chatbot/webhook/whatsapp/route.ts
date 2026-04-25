@@ -5,47 +5,133 @@ const EVOLUTION_URL = process.env.EVOLUTION_API_URL || '';
 const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY || '';
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || '';
 
+// ─── 58 Wilayas Algeria normalization ─────────────────────────────────────────
+const WILAYA_MAP: Record<string, string> = {
+  // 01-10
+  adrar: 'Adrar', chlef: 'Chlef', chleff: 'Chlef', 'el chlef': 'Chlef',
+  laghouat: 'Laghouat', 'oum el bouaghi': 'Oum El Bouaghi', 'oum bouaghi': 'Oum El Bouaghi',
+  batna: 'Batna', bejaia: 'Béjaïa', béjaïa: 'Béjaïa', bgayet: 'Béjaïa', bejaia: 'Béjaïa',
+  biskra: 'Biskra', bechar: 'Béchar', béchar: 'Béchar',
+  blida: 'Blida', bouira: 'Bouira',
+  // 11-20
+  tamanrasset: 'Tamanrasset', tamanghasset: 'Tamanrasset',
+  tebessa: 'Tébessa', tébessa: 'Tébessa',
+  tlemcen: 'Tlemcen', tiaret: 'Tiaret',
+  'tizi ouzou': 'Tizi Ouzou', 'tizi-ouzou': 'Tizi Ouzou', 'tizi ouzu': 'Tizi Ouzou', tizi: 'Tizi Ouzou',
+  alger: 'Alger', algiers: 'Alger', dzair: 'Alger',
+  djelfa: 'Djelfa', jijel: 'Jijel',
+  // 21-30
+  setif: 'Sétif', sétif: 'Sétif', setiff: 'Sétif',
+  saida: 'Saïda', saïda: 'Saïda',
+  skikda: 'Skikda', 'sidi bel abbes': 'Sidi Bel Abbès', 'sidi bel abbès': 'Sidi Bel Abbès', sba: 'Sidi Bel Abbès',
+  annaba: 'Annaba', guelma: 'Guelma', constantine: 'Constantine', 'qsentina': 'Constantine',
+  medea: 'Médéa', médéa: 'Médéa',
+  // 31-40
+  mostaganem: 'Mostaganem', msila: 'M\'Sila', 'm\'sila': 'M\'Sila',
+  mascara: 'Mascara', ouargla: 'Ouargla', oran: 'Oran', wahran: 'Oran',
+  'el bayadh': 'El Bayadh', illizi: 'Illizi',
+  'bordj bou arreridj': 'Bordj Bou Arréridj', bba: 'Bordj Bou Arréridj',
+  boumerdes: 'Boumerdès', boumerdès: 'Boumerdès', boumerdes: 'Boumerdès',
+  // 41-50
+  'el tarf': 'El Tarf', tindouf: 'Tindouf', tissemsilt: 'Tissemsilt',
+  'el oued': 'El Oued', 'eloued': 'El Oued',
+  khenchela: 'Khenchela', soukahras: 'Souk Ahras', 'souk ahras': 'Souk Ahras',
+  tipaza: 'Tipaza', tipasa: 'Tipaza', mila: 'Mila',
+  // 51-58
+  'ain defla': 'Aïn Defla', 'aïn defla': 'Aïn Defla', naama: 'Naâma', naâma: 'Naâma',
+  'ain temouchent': 'Aïn Témouchent', 'aïn témouchent': 'Aïn Témouchent',
+  ghardaia: 'Ghardaïa', ghardaïa: 'Ghardaïa',
+  relizane: 'Relizane', timimoun: 'Timimoun',
+  'bordj badji mokhtar': 'Bordj Badji Mokhtar', 'ouled djellal': 'Ouled Djellal',
+  'beni abbes': 'Béni Abbès', 'in salah': 'In Salah', 'in guezzam': 'In Guezzam',
+  touggourt: 'Touggourt', djanet: 'Djanet', 'el meghaier': 'El M\'Ghair',
+};
+
+function normalizeWilaya(raw: string): string {
+  const clean = raw.toLowerCase().trim()
+    .replace(/[éèê]/g, 'e').replace(/[àâ]/g, 'a').replace(/[îï]/g, 'i').replace(/[ôö]/g, 'o').replace(/[ùûü]/g, 'u');
+  return WILAYA_MAP[clean] ?? WILAYA_MAP[raw.toLowerCase().trim()] ?? raw;
+}
+
+// ─── Anger / frustration detection ────────────────────────────────────────────
+const ANGER_KEYWORDS = [
+  'hram', '7ram', 'malhoul', 'mahoul', 'ndir plainte', 'nchakou', 'ghachi',
+  'sba7a', 'dawir', 'faci', 'khayb', 'wahd', 'wa7d dial', 'arnab', 'nas khayba',
+  'f*** ', 'merde', 'nta khayb', 'nti khayba', 'ndir fi', 'ndiru fikom',
+  'hadchi mazal', 'mazal mazal', 'disappointed', 'furious', 'angry', 'scam', 'arnaque',
+];
+
+function isAngerDetected(text: string): boolean {
+  const lower = text.toLowerCase();
+  return ANGER_KEYWORDS.some(kw => lower.includes(kw));
+}
+
+// ─── Blabla / non-serious detection ───────────────────────────────────────────
+const BLABLA_PATTERNS = [
+  /^(hi|hello|salam|mrhba|ahlan|slt|cava|كيف|مرحبا|صباح|مساء)[\s!?.]*$/i,
+  /^(ok|okay|oui|non|yes|no|wah|la|ewa|ewa ewa)[\s!?.]*$/i,
+  /^[😀-🙏🌀-🗿🚀-🛿☀-⛿✀-➿🤀-🧿]+$/,
+  /^.{1,3}$/,
+];
+
+function isBlabla(text: string): boolean {
+  return BLABLA_PATTERNS.some(p => p.test(text.trim()));
+}
+
+// ─── Default system prompts ────────────────────────────────────────────────────
 const DEFAULT_PROMPTS: Record<string, string> = {
   auto_confirmation: `Nta agent IA l [NOM_BOUTIQUE] — khassed tkun chi wajha réelle dyal la boutique!
-Mission dyalek: jme3 les informations li la7jinhom bach ntabet la commande:
+
+Mission: jme3 had l-ma3loumat bach ntabet commande:
 1. Isem w lqeb dial client
 2. Numéro de téléphone
-3. Wilaya (gouvernorat)
-4. Produit li bghah (w kammiya ila kanet)
+3. Wilaya (wa7d men 58 wilayat Dzayer)
+4. Produit li bghah (w kammiya)
 
-Khdm haka:
-- Hayé lmessage dyalek w shl — bhal wlad darna
-- Accepti Darija bel 3arabiya w bel latin/arabizi
-- Waqt ma jme3ti kull l-ma3loumat, khrej:
-  <data>{"nom":"...","telephone":"...","wilaya":"...","produit":"..."}</data>
-- Ba3d <data>, zid: "Shoukran! Ghadi nwejdek équipe dyalna bach ntakd men commande dyalek 🎉"
+Règles muhimma:
+- Jaweb bDarija Algérienne (arabizi + 3arabiya) — shl w hayé
+- Ila client 3and mushkil fhm wilaya: suwelih itfaddal ybyen wilaya dyalo mn had l-lista: Alger, Oran, Constantine, Sétif, Annaba...
+- MUHIM: GHIR akhrej <data> ila 3endek KULL l-ma3loumat (isem + téléphone + wilaya + produit). Ila kayna ma3loumat naqsa, wass3 tsuwal.
+- Ila client machi sérieux (yazrab bla info, ysuwal des questions 7amqa), jaweb b mujamala w ntaddar info
+- Ba3d <data>: "Shoukran! Ghadi nwejdek équipe dyalna bach ntakd men commande dyalek 🎉"
 
-MUHIM: Jaweb DIMA bDarija. Ila client kb bel français — jaweb bel français m3a Darija.`,
+Format: <data>{"nom":"...","telephone":"...","wilaya":"...","produit":"..."}</data>
 
-  sav: `Nta agent SAV l [NOM_BOUTIQUE] — khassed tkun mdiri w m3ak l-client.
-Jme3 had l-ma3loumat:
+DIMA bDarija. Ila client kb bel français — jaweb bel français + darija.`,
+
+  sav: `Nta agent SAV l [NOM_BOUTIQUE] — khassed tkun mdiri w hanen m3a l-client.
+
+Mission: enregistrer réclamation bel tafasil.
+Jme3:
 1. Isem w lqeb
 2. Numéro de téléphone
 3. Wilaya
 4. Produit fih l-mushkil
-5. Wasf l-mushkil: shu sir, mta, w kifash
+5. Wasf l-mushkil (shu sir, mta, kifash)
 
-Waqt ma 3endek kull l-info:
-<data>{"nom":"...","telephone":"...","wilaya":"...","produit":"...","reclamation":"..."}</data>
+Règles:
+- Ila client 3iyyam ou za3fan: khud nafs w fhem — ma tjawbsh b ghadab
+- GHIR akhrej <data> waqt 3endek KULL l-info
+- Ila client machi clair, suwal akter tafasil
+
+Format: <data>{"nom":"...","telephone":"...","wilaya":"...","produit":"...","reclamation":"..."}</data>
 Ba3d <data>: "Sjjalna réclamation dyalek. Ghadi ytwasslek 3la équipe dyal support f aqrab waqt 🙏"
 
-Khdm bel hnen. DIMA bDarija.`,
+DIMA bDarija.`,
 
   tracking: `Nta agent suivi commandes l [NOM_BOUTIQUE].
-Jaweb 3la les questions dyal suivi.
-Waqt client ybghi ya3raf statut:
+Jaweb 3la les questions dyal suivi des commandes.
+
+Waqt client ybghi ya3raf statut dial commande dyalo:
 - Suwelih 3la raqm l-colis (numéro de tracking)
 - Waqt ya3tik raqm, khrej: <data>{"tracking_number":"..."}</data>
-- Ila ma 3endo tracking: bellegh-hom ib3tho l-message li waslhom
+- Ila ma 3endo tracking number: bellegh-hom ib3tho l-message li waslhom men la boutique
 
+Ila suwel 3la shi 7aja okhra jaweb b ma 3endek.
 DIMA bDarija.`,
 };
 
+// ─── Helpers ───────────────────────────────────────────────────────────────────
 interface ClaudeMessage { role: 'user' | 'assistant'; content: string; }
 
 async function callClaude(systemPrompt: string, messages: ClaudeMessage[]): Promise<string | null> {
@@ -110,17 +196,16 @@ async function notifyGoogleSheets(webhookUrl: string, type: string, data: Record
   } catch { /* non-blocking */ }
 }
 
-// GET — Evolution API webhook verification
+// ─── GET — webhook verification ───────────────────────────────────────────────
 export async function GET() {
-  return NextResponse.json({ ok: true, service: 'ZREXtrack AI Webhook v1' });
+  return NextResponse.json({ ok: true, service: 'ZREXtrack AI Webhook v2' });
 }
 
-// POST — Evolution API incoming message handler
+// ─── POST — Evolution API incoming message handler ────────────────────────────
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    // Evolution API sends different event types — we only care about MESSAGES_UPSERT
     const event: string = body.event || '';
     if (event !== 'MESSAGES_UPSERT' && event !== 'messages.upsert') {
       return NextResponse.json({ ok: true });
@@ -133,14 +218,13 @@ export async function POST(req: NextRequest) {
     const text: string = msgData.message?.conversation || msgData.message?.extendedTextMessage?.text || '';
     const contactName: string = msgData.pushName || '';
 
-    // Skip outgoing messages, groups, and empty messages
     if (fromMe || !text.trim() || remoteJid.includes('@g.us') || !instanceName) {
       return NextResponse.json({ ok: true });
     }
 
     const supabase = createServiceClient();
 
-    // Route to user via instance_name → user_id
+    // Route to user via instance_name
     const { data: waInstance } = await supabase
       .from('whatsapp_instances')
       .select('user_id')
@@ -148,10 +232,9 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (!waInstance) return NextResponse.json({ ok: true });
-
     const userId = waInstance.user_id;
 
-    // Load active template configs
+    // Load active configs
     const { data: configs } = await supabase
       .from('chatbot_configs')
       .select('*')
@@ -160,13 +243,10 @@ export async function POST(req: NextRequest) {
 
     if (!configs || configs.length === 0) return NextResponse.json({ ok: true });
 
-    // Use first active config (priority: auto_confirmation > sav > tracking)
     const priority = ['auto_confirmation', 'sav', 'tracking'];
-    const config = priority
-      .map(t => configs.find(c => c.template_type === t))
-      .find(Boolean) ?? configs[0];
+    const config = priority.map(t => configs.find(c => c.template_type === t)).find(Boolean) ?? configs[0];
 
-    // Load or create chat session
+    // Load existing session
     const { data: existingSession } = await supabase
       .from('ai_chat_sessions')
       .select('*')
@@ -175,34 +255,93 @@ export async function POST(req: NextRequest) {
       .eq('contact_id', remoteJid)
       .single();
 
-    const conversation: ClaudeMessage[] = existingSession?.conversation ?? [];
+    // Skip if already handed over to human
+    if (existingSession?.human_handover) {
+      return NextResponse.json({ ok: true });
+    }
 
-    // Build system prompt
+    // Detect anger before AI call
+    const angerDetected = isAngerDetected(text);
+
+    if (angerDetected) {
+      const handoverMsg = `Smah liya 3la l-iklaj! Ghadi nwejdek wa7d d'équipe dyalna b sra3a bach ysa3dek 🙏`;
+      await sendWhatsApp(instanceName, remoteJid, handoverMsg);
+      if (existingSession) {
+        await supabase
+          .from('ai_chat_sessions')
+          .update({ human_handover: true, updated_at: new Date().toISOString() })
+          .eq('id', existingSession.id);
+      } else {
+        await supabase.from('ai_chat_sessions').insert({
+          user_id: userId, channel: 'whatsapp', contact_id: remoteJid, contact_name: contactName,
+          template_type: config.template_type, conversation: [], extracted_data: {},
+          is_complete: false, sheets_sent: false, human_handover: true, failure_count: 0,
+          updated_at: new Date().toISOString(),
+        });
+      }
+      return NextResponse.json({ ok: true });
+    }
+
+    // Skip blabla — send friendly nudge without Claude
+    if (isBlabla(text)) {
+      const nudges: Record<string, string> = {
+        auto_confirmation: 'Ahlan! Kifash nqdarek nsa3dek? Bghiti tdir commande? 😊',
+        sav: 'Ahlan! 3andek mushkil m3a commande? Qul liya w ghadi nsa3dek 🙏',
+        tracking: 'Ahlan! Bghiti t3raf statut dyal commande dyalek? 3tini raqm l-colis.',
+      };
+      const nudge = nudges[config.template_type] ?? nudges.auto_confirmation;
+      await sendWhatsApp(instanceName, remoteJid, nudge);
+      return NextResponse.json({ ok: true });
+    }
+
+    const conversation: ClaudeMessage[] = existingSession?.conversation ?? [];
+    const failureCount: number = existingSession?.failure_count ?? 0;
+
+    // Human handover after 2 consecutive failures
+    if (failureCount >= 2) {
+      const handoverMsg = `Smah, ma fhemtsh mezyan shu tbghi. Ghadi nwejdek m3a wa7d mena équipe dyalna 👨‍💼`;
+      await sendWhatsApp(instanceName, remoteJid, handoverMsg);
+      if (existingSession) {
+        await supabase
+          .from('ai_chat_sessions')
+          .update({ human_handover: true, updated_at: new Date().toISOString() })
+          .eq('id', existingSession.id);
+      }
+      return NextResponse.json({ ok: true });
+    }
+
     const defaultPrompt = DEFAULT_PROMPTS[config.template_type] ?? DEFAULT_PROMPTS.auto_confirmation;
     const rawPrompt = config.custom_prompt?.trim() || defaultPrompt;
     const systemPrompt = rawPrompt.replace(/\[NOM_BOUTIQUE\]/g, config.shop_name || 'notre boutique');
 
-    // Add user message
     conversation.push({ role: 'user', content: text });
 
-    // Call Claude
     const aiReply = await callClaude(systemPrompt, conversation);
+
+    // Track failure if Claude unavailable
+    const newFailureCount = aiReply ? 0 : failureCount + 1;
 
     if (!aiReply) {
       await sendWhatsApp(instanceName, remoteJid, 'Smah liya, kayen bug tqani. Raje3 diri f had lweqt.');
+      if (existingSession) {
+        await supabase
+          .from('ai_chat_sessions')
+          .update({ failure_count: newFailureCount, updated_at: new Date().toISOString() })
+          .eq('id', existingSession.id);
+      }
       return NextResponse.json({ ok: true });
     }
 
-    // Extract structured data if present
     const extracted = extractData(aiReply);
     const cleanReply = stripDataTag(aiReply);
 
-    // Add assistant turn
     conversation.push({ role: 'assistant', content: aiReply });
 
-    // Merge extracted data
+    // Normalize wilaya if present
     const existingData: Record<string, string> = existingSession?.extracted_data ?? {};
-    const newData = extracted ? { ...existingData, ...extracted } : existingData;
+    let newData = extracted ? { ...existingData, ...extracted } : existingData;
+    if (newData.wilaya) newData.wilaya = normalizeWilaya(newData.wilaya);
+
     const isComplete = !!extracted && Object.keys(extracted).length >= 3;
 
     // Upsert session
@@ -219,12 +358,14 @@ export async function POST(req: NextRequest) {
           extracted_data: newData,
           is_complete: isComplete,
           sheets_sent: existingSession?.sheets_sent ?? false,
+          human_handover: false,
+          failure_count: newFailureCount,
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'user_id,channel,contact_id' }
       );
 
-    // Send to Google Sheets if data complete and not already sent
+    // Send to Google Sheets when complete
     if (isComplete && !existingSession?.sheets_sent && config.google_sheets_url) {
       await notifyGoogleSheets(config.google_sheets_url, config.template_type, newData);
       await supabase
@@ -235,7 +376,6 @@ export async function POST(req: NextRequest) {
         .eq('contact_id', remoteJid);
     }
 
-    // Send reply
     if (cleanReply) {
       await sendWhatsApp(instanceName, remoteJid, cleanReply);
     }

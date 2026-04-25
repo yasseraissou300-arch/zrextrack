@@ -68,7 +68,7 @@ export async function POST() {
   // Charger toutes les commandes avec leur situation stockée
   const { data: orders, error } = await supabase
     .from('orders')
-    .select('id, status, situation')
+    .select('id, delivery_status, situation')
     .eq('user_id', user.id)
     .is('deleted_at', null);
 
@@ -76,15 +76,15 @@ export async function POST() {
   if (!orders || orders.length === 0) return NextResponse.json({ updated: 0 });
 
   // Re-classifier chaque commande uniquement à partir de la SITUATION stockée.
-  // Le champ status en base est déjà le statut interne mappé ('en_preparation', etc.),
+  // Le champ delivery_status en base est déjà le statut interne mappé ('en_preparation', etc.),
   // pas le nom ZREXpress original — on passe '' comme état pour forcer la lecture de la situation.
-  const updates: { id: string; status: string }[] = [];
+  const updates: { id: string; delivery_status: string }[] = [];
   for (const order of orders) {
     const sit = order.situation ?? '';
     if (!sit.trim()) continue; // pas de situation → on ne peut pas reclassifier
     const newStatus = mapStatus('', sit);
-    if (newStatus !== order.status) {
-      updates.push({ id: order.id, status: newStatus });
+    if (newStatus !== order.delivery_status) {
+      updates.push({ id: order.id, delivery_status: newStatus });
     }
   }
 
@@ -93,7 +93,7 @@ export async function POST() {
   for (const upd of updates) {
     await supabase
       .from('orders')
-      .update({ status: upd.status })
+      .update({ delivery_status: upd.delivery_status })
       .eq('id', upd.id)
       .eq('user_id', user.id);
     updated++;

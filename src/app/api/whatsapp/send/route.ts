@@ -77,9 +77,9 @@ export async function POST(request: NextRequest) {
 
     await supabase.from('messages').insert({
       user_id: user.id,
-      tracking: r.tracking || '',
-      client: r.client || '',
-      whatsapp: r.whatsapp || '',
+      tracking_number: r.tracking || '',
+      customer_name: r.client || '',
+      customer_whatsapp: r.whatsapp || '',
       message: media_url ? `[Media] ${media_url}${r.message ? ' — ' + r.message : ''}` : (r.message || ''),
       status,
       sent_at: new Date().toISOString(),

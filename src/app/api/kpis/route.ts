@@ -9,13 +9,13 @@ export async function GET() {
     const [totalRes, deliveredRes, deliveredTodayRes, transitRes, livraisonRes, returnedRes, failedRes, prepRes, messagesRes] =
       await Promise.all([
         supabase.from('orders').select('id', { count: 'exact', head: true }),
-        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'livre'),
-        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'livre').gte('last_update', today),
-        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'en_transit'),
-        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'en_livraison'),
-        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'retourne'),
-        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'echec'),
-        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'en_preparation'),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('delivery_status', 'livre'),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('delivery_status', 'livre').gte('last_update', today),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('delivery_status', 'en_transit'),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('delivery_status', 'en_livraison'),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('delivery_status', 'retourne'),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('delivery_status', 'echec'),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('delivery_status', 'en_preparation'),
         supabase.from('messages').select('id', { count: 'exact', head: true }),
       ]);
 

@@ -76,3 +76,12 @@ CREATE POLICY "ai_chat_sessions_user_isolation" ON ai_chat_sessions
 CREATE INDEX IF NOT EXISTS idx_ai_sessions_user_channel_contact ON ai_chat_sessions(user_id, channel, contact_id);
 CREATE INDEX IF NOT EXISTS idx_whatsapp_instances_name ON whatsapp_instances(instance_name);
 CREATE INDEX IF NOT EXISTS idx_facebook_connections_page ON facebook_connections(page_id);
+
+-- ─── v2 additions (run if upgrading from initial schema) ─────────────────────
+ALTER TABLE ai_chat_sessions
+  ADD COLUMN IF NOT EXISTS human_handover BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS failure_count  INT DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS relance_sent   BOOLEAN DEFAULT false;
+
+-- Index for relance query (inactive incomplete sessions)
+CREATE INDEX IF NOT EXISTS idx_ai_sessions_relance ON ai_chat_sessions(is_complete, human_handover, relance_sent, updated_at);

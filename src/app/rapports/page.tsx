@@ -14,13 +14,13 @@ export default function RapportsPage() {
   useEffect(() => {
     const fetch = async () => {
       setLoading(true);
-      const { data } = await supabase.from('orders').select('status, wilaya, cod');
+      const { data } = await supabase.from('orders').select('delivery_status, wilaya, cod');
       if (data) {
         const total = data.length;
-        const livre = data.filter(o => o.status === 'livre').length;
-        const echec = data.filter(o => o.status === 'echec').length;
-        const retourne = data.filter(o => o.status === 'retourne').length;
-        const en_cours = data.filter(o => ['en_preparation','en_transit','en_livraison'].includes(o.status)).length;
+        const livre = data.filter(o => o.delivery_status === 'livre').length;
+        const echec = data.filter(o => o.delivery_status === 'echec').length;
+        const retourne = data.filter(o => o.delivery_status === 'retourne').length;
+        const en_cours = data.filter(o => ['en_preparation','en_transit','en_livraison'].includes(o.delivery_status)).length;
         setStats({ total, livre, echec, retourne, en_cours, rate: total > 0 ? Math.round((livre / total) * 100) : 0 });
 
         // By wilaya

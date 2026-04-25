@@ -29,15 +29,15 @@ export async function POST(_req) {
     const alerts = [];
     for (const [status, hours] of Object.entries(THRESHOLDS)) {
       const cutoff = new Date(now - hours * 3600000);
-      const { data } = await supabase.from('orders').select('tracking,client,whatsapp,last_update')
-        .eq('status', status).lt('last_update', cutoff.toISOString()).not('whatsapp','is',null).neq('whatsapp','');
+      const { data } = await supabase.from('orders').select('tracking_number,customer_name,customer_whatsapp,last_update')
+        .eq('delivery_status', status).lt('last_update', cutoff.toISOString()).not('customer_whatsapp','is',null).neq('customer_whatsapp','');
       for (const o of data || []) {
         const h = Math.round((now - new Date(o.last_update)) / 3600000);
         const labels = { en_preparation: 'en préparation', en_transit: 'en transit', en_livraison: 'en cours de livraison' };
-        const msg = `⏰ Bonjour${o.client ? ` *${o.client}*` : ''}, votre commande *${o.tracking}* est ${labels[status]} depuis *${h}h*.\n\nNotre équipe s'en occupe.\n\n🔗 ${APP_URL}/track/${o.tracking}`;
-        const sent = await sendWA(o.whatsapp, msg);
-        await supabase.from('messages').insert({ client: o.client, whatsapp: o.whatsapp, tracking: o.tracking, message: msg, status: sent ? 'envoye' : 'echec', sent_at: new Date().toISOString(), user_id: user.id }).then(() => {});
-        alerts.push({ tracking: o.tracking, status, hours: h, notified: sent });
+        const msg = `⏰ Bonjour${o.customer_name ? ` *${o.customer_name}*` : ''}, votre commande *${o.tracking_number}* est ${labels[status]} depuis *${h}h*.\n\nNotre équipe s'en occupe.\n\n🔗 ${APP_URL}/track/${o.tracking_number}`;
+        const sent = await sendWA(o.customer_whatsapp, msg);
+        await supabase.from('messages').insert({ customer_name: o.customer_name, customer_whatsapp: o.customer_whatsapp, tracking_number: o.tracking_number, message: msg, status: sent ? 'envoye' : 'echec', sent_at: new Date().toISOString(), user_id: user.id }).then(() => {});
+        alerts.push({ tracking_number: o.tracking_number, delivery_status: status, hours: h, notified: sent });
       }
     }
     return NextResponse.json({ alerts: alerts.length, notified: alerts.filter(a => a.notified).length });

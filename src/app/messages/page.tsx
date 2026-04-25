@@ -5,12 +5,12 @@ import { MessageSquare, Wifi, WifiOff, QrCode, Send, History, CheckCircle, Refre
 import { toast } from 'sonner';
 
 interface WASettings { instance_id: string; api_token: string; connected: boolean; phone: string; }
-interface Order { id: string; tracking: string; client: string; whatsapp: string; situation: string; wilaya: string; status: string; cod: number; }
-interface MsgLog { id: string; tracking: string; client: string; whatsapp: string; message: string; status: 'envoye' | 'echec' | 'en_attente'; sent_at: string; }
+interface Order { id: string; tracking_number: string; customer_name: string; customer_whatsapp: string; situation: string; wilaya: string; delivery_status: string; cod: number; }
+interface MsgLog { id: string; tracking_number: string; customer_name: string; customer_whatsapp: string; message: string; status: 'envoye' | 'echec' | 'en_attente'; sent_at: string; }
 
 const MOCK_ORDER: Order = {
-  id: 'preview', tracking: 'ZR-000000', client: 'محمد',
-  whatsapp: '', situation: '', wilaya: 'الجزائر', status: '', cod: 2500,
+  id: 'preview', tracking_number: 'ZR-000000', customer_name: 'محمد',
+  customer_whatsapp: '', situation: '', wilaya: 'الجزائر', delivery_status: '', cod: 2500,
 };
 
 const SITUATION_FILTERS = [
@@ -26,37 +26,37 @@ const SITUATION_FILTERS = [
 
 const TEMPLATES = [
   { id: 'ne_repond_pas', label: 'Ma jawabch', situation: 'ne repond pas',
-    text: (o: Order) => `السلام عليكم ${o.client} 👋
-عندك طرد برقم *${o.tracking}* ولقيناك ما جاوبتناش.
+    text: (o: Order) => `السلام عليكم ${o.customer_name} 👋
+عندك طرد برقم *${o.tracking_number}* ولقيناك ما جاوبتناش.
 ارجاء تواصل معنا باش نوصلو ليك طردك.
 شكرا 🙏` },
   { id: 'annule', label: 'Commande lghya', situation: 'commande annul',
-    text: (o: Order) => `السلام عليكم ${o.client} 👋
-طردك رقم *${o.tracking}* تلغى.
+    text: (o: Order) => `السلام عليكم ${o.customer_name} 👋
+طردك رقم *${o.tracking_number}* تلغى.
 إذا عندك أي سؤال ولا تبغي تعاود تطلب، تواصل معنا.
 شكرا 🙏` },
   { id: 'commune_erronee', label: 'Adresse khata', situation: 'commune erron',
-    text: (o: Order) => `السلام عليكم ${o.client} 👋
-طردك رقم *${o.tracking}* فيه مشكل في عنوان التسليم.
+    text: (o: Order) => `السلام عليكم ${o.customer_name} 👋
+طردك رقم *${o.tracking_number}* فيه مشكل في عنوان التسليم.
 ارجاء راسلنا وعطينا عنوانك الصحيح باش نوصلو ليك طردك.
 شكرا 🙏` },
   { id: 'en_livraison', label: 'F tariq', situation: 'en cours de livraison',
-    text: (o: Order) => `السلام عليكم ${o.client} 👋
-طردك رقم *${o.tracking}* مع الليفروار دروك في *${o.wilaya}*.
+    text: (o: Order) => `السلام عليكم ${o.customer_name} 👋
+طردك رقم *${o.tracking_number}* مع الليفروار دروك في *${o.wilaya}*.
 المبلغ لي يتسلم : *${o.cod} دج*
 كون في الدار ويصلك. شكرا 🚚` },
   { id: 'livre', label: 'Twassal', situation: 'livr',
-    text: (o: Order) => `السلام عليكم ${o.client} 👋
-طردك رقم *${o.tracking}* وصل.
+    text: (o: Order) => `السلام عليكم ${o.customer_name} 👋
+طردك رقم *${o.tracking_number}* وصل.
 شكرا على ثقتك فينا وانشاء الله راك راضي على الطلبية. نتمنالك يوم مليح 🙏` },
   { id: 'retourne', label: 'Rjae', situation: 'retour',
-    text: (o: Order) => `السلام عليكم ${o.client} 👋
-طردك رقم *${o.tracking}* رجع لينا.
+    text: (o: Order) => `السلام عليكم ${o.customer_name} 👋
+طردك رقم *${o.tracking_number}* رجع لينا.
 إذا تبغي تعاود تطلب ولا عندك سؤال، تواصل معنا.
 شكرا 🙏` },
   { id: 'transit', label: 'F route', situation: 'en transit',
-    text: (o: Order) => `السلام عليكم ${o.client} 👋
-طردك رقم *${o.tracking}* في الطريق لـ *${o.wilaya}*.
+    text: (o: Order) => `السلام عليكم ${o.customer_name} 👋
+طردك رقم *${o.tracking_number}* في الطريق لـ *${o.wilaya}*.
 غادي يوصلك قريب انشاء الله. شكرا 🙏` },
   { id: 'custom', label: 'Personnalise', situation: '', text: () => '' },
 ];
@@ -210,7 +210,7 @@ function EnvoyerTab() {
   const totalPages = Math.ceil(total / PAGE_SIZE);
   const template = TEMPLATES.find(t => t.id === templateId) || TEMPLATES[0];
   const previewOrder = orders[0] || MOCK_ORDER;
-  const ordersWithPhone = displayedOrders.filter(o => o.whatsapp && o.whatsapp.length > 5);
+  const ordersWithPhone = displayedOrders.filter(o => o.customer_whatsapp && o.customer_whatsapp.length > 5);
 
   const toggleAll = () => {
     if (ordersWithPhone.every(o => selected.has(o.id))) setSelected(new Set());
@@ -220,7 +220,7 @@ function EnvoyerTab() {
   const sendMessages = async () => {
     if (selected.size === 0) { toast.error('Selectionne au moins un client'); return; }
     const recipients = displayedOrders.filter(o => selected.has(o.id)).map(o => ({
-      tracking: o.tracking, client: o.client, whatsapp: o.whatsapp,
+      tracking: o.tracking_number, client: o.customer_name, whatsapp: o.customer_whatsapp,
       message: templateId === 'custom' ? customText : template.text(o),
     }));
     setSending(true);
@@ -392,16 +392,16 @@ function EnvoyerTab() {
               ) : displayedOrders.length === 0 ? (
                 <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Aucune commande</td></tr>
               ) : displayedOrders.map(order => {
-                const hasPhone = !!(order.whatsapp && order.whatsapp.length > 5);
+                const hasPhone = !!(order.customer_whatsapp && order.customer_whatsapp.length > 5);
                 return (
                   <tr key={order.id} className={`transition-colors ${hasPhone ? 'hover:bg-gray-50 cursor-pointer' : 'opacity-40'}`}
                     onClick={() => { if (!hasPhone) return; setSelected(s => { const n = new Set(s); n.has(order.id) ? n.delete(order.id) : n.add(order.id); return n; }); }}>
                     <td className="px-4 py-3"><input type="checkbox" checked={selected.has(order.id)} disabled={!hasPhone} readOnly className="rounded" /></td>
-                    <td className="px-4 py-3 font-medium text-gray-900">{order.client || '—'}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-gray-600">{order.tracking}</td>
-                    <td className="px-4 py-3 text-xs"><span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{order.situation || statusToLabel(order.status)}</span></td>
+                    <td className="px-4 py-3 font-medium text-gray-900">{order.customer_name || '—'}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-gray-600">{order.tracking_number}</td>
+                    <td className="px-4 py-3 text-xs"><span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{order.situation || statusToLabel(order.delivery_status)}</span></td>
                     <td className="px-4 py-3 text-gray-500">{order.wilaya || '—'}</td>
-                    <td className="px-4 py-3 text-gray-500">{order.whatsapp || <span className="text-red-400 text-xs">Aucun</span>}</td>
+                    <td className="px-4 py-3 text-gray-500">{order.customer_whatsapp || <span className="text-red-400 text-xs">Aucun</span>}</td>
                   </tr>
                 );
               })}
@@ -456,9 +456,9 @@ function HistoriqueTab() {
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <span className="font-medium text-gray-900 text-sm">{msg.client}</span>
-                    <span className="text-xs text-gray-400">{msg.whatsapp}</span>
-                    {msg.tracking && <span className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">{msg.tracking}</span>}
+                    <span className="font-medium text-gray-900 text-sm">{msg.customer_name}</span>
+                    <span className="text-xs text-gray-400">{msg.customer_whatsapp}</span>
+                    {msg.tracking_number && <span className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">{msg.tracking_number}</span>}
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg.bg}`}>{cfg.label}</span>
                   </div>
                   <p className="text-xs text-gray-500 line-clamp-2 whitespace-pre-line text-right" dir="rtl">{msg.message}</p>
