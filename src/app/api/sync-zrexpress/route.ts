@@ -115,7 +115,18 @@ function mapStatus(rawState: string, rawSituation = ''): string {
   // ══ PRIORITÉ 3 : SITUATION → EN LIVRAISON ════════════════════════════════
   if (sit && has(sit,
     'sorti en livraison', 'sorti', 'en cours de livraison', 'en distribution',
-    'distribution', 'reporte', 'reportee', 'en route vers client'
+    'distribution', 'reporte', 'reportee', 'en route vers client',
+    // ZREXpress : appel au client pour livraison bureau ou domicile
+    'appel telephonique', 'appel tel', 'appele',
+    // En attente de retrait au bureau
+    'en attente de retrait', 'attente de retrait', 'attente retrait',
+    'en attente au bureau', 'disponible au bureau', 'au bureau',
+    // Passage prévu
+    'passage prevu', 'passage programme', 'livraison prevue',
+    // Avisé (client notifié)
+    'avise', 'avisee', 'client avise',
+    // Livraison en cours générique
+    'en livraison', 'livraison en cours', 'en cours'
   )) return 'en_livraison';
 
   // ══ PRIORITÉ 4 : SITUATION → EN TRANSIT ══════════════════════════════════

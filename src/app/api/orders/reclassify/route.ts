@@ -32,7 +32,16 @@ function mapStatus(rawState: string, rawSituation = ''): string {
   )) return 'echec';
 
   if (sit && has(sit, 'retourne', 'retour expediteur', 'retour confirme', 'refus client', 'renvoye', 'retour marchand')) return 'retourne';
-  if (sit && has(sit, 'sorti en livraison', 'sorti', 'en cours de livraison', 'distribution', 'reporte')) return 'en_livraison';
+  if (sit && has(sit,
+    'sorti en livraison', 'sorti', 'en cours de livraison', 'en distribution',
+    'distribution', 'reporte', 'reportee', 'en route vers client',
+    'appel telephonique', 'appel tel', 'appele',
+    'en attente de retrait', 'attente de retrait', 'attente retrait',
+    'en attente au bureau', 'disponible au bureau', 'au bureau',
+    'passage prevu', 'passage programme', 'livraison prevue',
+    'avise', 'avisee', 'client avise',
+    'en livraison', 'livraison en cours', 'en cours'
+  )) return 'en_livraison';
   if (sit && has(sit, 'en transit', 'transit', 'hub', 'centre tri', 'expedie')) return 'en_transit';
   if (sit && has(sit, 'livre', 'remis') && !has(sit, 'non remis', 'en cours', 'sorti')) return 'livre';
 
