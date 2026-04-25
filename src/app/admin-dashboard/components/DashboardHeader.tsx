@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { RefreshCw, Download, Plus, Wifi, WifiOff, Zap, PauseCircle, PlayCircle } from 'lucide-react';
+import { RefreshCw, Download, Plus, Wifi, WifiOff, Zap, PauseCircle, PlayCircle, Trash2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
 const STORAGE_KEY = 'zrexpress_token';
@@ -20,6 +20,8 @@ export default function DashboardHeader() {
   const [hasToken, setHasToken] = useState(false);
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [showClearModal, setShowClearModal] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem(STORAGE_KEY);
@@ -106,7 +108,62 @@ export default function DashboardHeader() {
     };
   }, [autoSyncEnabled, runSync]);
 
+  const handleClearAll = async () => {
+    setClearing(true);
+    try {
+      const res = await fetch('/api/orders/clear-all', { method: 'DELETE' });
+      const json = await res.json();
+      if (json.error) {
+        toast.error(json.error);
+      } else {
+        toast.success(`${json.deleted} commande(s) supprimée(s)`);
+        setShowClearModal(false);
+        window.dispatchEvent(new Event(SYNC_DONE_EVENT));
+      }
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setClearing(false);
+    }
+  };
+
   return (
+    <>
+    {showClearModal && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
+              <AlertTriangle size={20} className="text-red-600" />
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900">Vider l'historique</h3>
+              <p className="text-xs text-gray-500">Cette action est irréversible</p>
+            </div>
+          </div>
+          <p className="text-sm text-gray-600">
+            Toutes vos commandes seront définitivement supprimées. Cette action ne peut pas être annulée.
+          </p>
+          <div className="flex gap-3 pt-1">
+            <button
+              onClick={() => setShowClearModal(false)}
+              disabled={clearing}
+              className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={handleClearAll}
+              disabled={clearing}
+              className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {clearing ? <RefreshCw size={13} className="animate-spin" /> : <Trash2 size={13} />}
+              {clearing ? 'Suppression...' : 'Tout supprimer'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-gray-100">
       <div>
         <div className="flex items-center gap-2.5 mb-0.5">
@@ -166,11 +223,19 @@ export default function DashboardHeader() {
           <Download size={14} />
           Exporter
         </button>
+        <button
+          onClick={() => setShowClearModal(true)}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-sm font-medium text-red-600 hover:bg-red-100 transition-all active:scale-95 shadow-sm"
+        >
+          <Trash2 size={14} />
+          Vider l'historique
+        </button>
         <button className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-green-500 text-white text-sm font-semibold hover:bg-green-600 transition-all active:scale-95 shadow-sm">
           <Plus size={14} />
           Nouvelle commande
         </button>
       </div>
     </div>
+    </>
   );
 }
