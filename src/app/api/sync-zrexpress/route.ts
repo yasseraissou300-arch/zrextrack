@@ -74,66 +74,91 @@ function norm(raw: string): string {
 }
 
 // Map ZREXpress état + situation → statut interne
-// Reçoit les deux champs pour une classification correcte
+// RÈGLE : la situation est vérifiée EN PREMIER — elle prime toujours sur l'état
 function mapStatus(rawState: string, rawSituation = ''): string {
   const s = norm(rawState);
   const sit = norm(rawSituation);
   const has = (src: string, ...terms: string[]) => terms.some(t => src.includes(t));
 
-  // ── LIVRÉ ────────────────────────────────────────────────────────────────
-  if (s === 'livre' || s === 'livree' || s === 'delivered') return 'livre';
-  if (has(s, 'livre') && !has(s, 'en livr', 'en cours', 'retour')) return 'livre';
-  if (has(s, 'livraison a domicile effectuee', 'remis au client', 'remis destinataire')) return 'livre';
-
-  // ── EN TRANSIT (expédié vers hub, en route inter-wilayas) ────────────────
-  if (has(s, 'expedie', 'expedier', 'shipped', 'en transit', 'transit',
-           'arrive au hub', 'arrivee hub', 'hub', 'centre tri', 'centre de tri',
-           'en route', 'en acheminement', 'acheminement')) return 'en_transit';
-  if (has(sit, 'en transit', 'transit', 'hub', 'centre tri', 'arrive', 'expedie')) return 'en_transit';
-
-  // ── EN COURS DE LIVRAISON (sorti du hub vers le client) ─────────────────
-  if (has(s, 'en livr', 'en cours de livr', 'sorti en livr', 'sorti',
-           'en distribution', 'distribution', 'on delivery', 'out for delivery')) return 'en_livraison';
-  if (has(sit, 'sorti en livr', 'sorti', 'en cours de livr', 'distribution',
-          'en route vers client', 'reporte', 'reportee')) return 'en_livraison';
-
-  // ── EN PRÉPARATION (réellement en préparation chez le vendeur/hub) ───────
-  if (has(s, 'en preparation', 'preparation', 'prise en charge', 'pec',
-           'en attente', 'attente', 'nouveau', 'new', 'pending', 'recu',
-           'enleve', 'collecte', 'ramassage')) return 'en_preparation';
-
-  // ── RETOURNÉ ─────────────────────────────────────────────────────────────
-  if (has(s, 'retourne', 'en retour', 'retour expediteur', 'retour confirme',
-           'return')) return 'retourne';
-  if (has(sit, 'retourne', 'retour', 'refus client', 'refus livraison',
-          'renvoye', 'renvoi')) return 'retourne';
-
-  // ── ÉCHEC (tentatives échouées, annulé, adresse erronée…) ───────────────
-  if (has(s, 'echec', 'echoue', 'annule', 'annulee', 'cancel', 'canceled',
-           'errone', 'erronee', 'incorrect', 'non delivre', 'non livre')) return 'echec';
-
-  // Situations qui indiquent un échec même si l'état global est en_livraison
-  if (has(sit,
-    'appele sans reponse', 'sans reponse', 'appele sr',
-    'client absent', 'absent',
-    'refus', 'refuse',
-    'echec', 'echoue',
-    'annule', 'annulee',
-    'commune erronee', 'adresse erronee', 'adresse incorrecte',
-    'errone', 'erronee',
-    'non remis', 'colis non remis',
-    'non joignable', 'injoignable',
-    'telephone incorrect', 'numero incorrect',
-    'introuvable', 'adresse introuvable',
-    'en attente adresse', 'attente confirmation'
+  // ══ PRIORITÉ 1 : SITUATION → ÉCHEC ═══════════════════════════════════════
+  // Si la situation indique un problème, peu importe l'état (même "En préparation")
+  if (sit && has(sit,
+    // Pas de réponse
+    'appele sans reponse', 'sans reponse', 'appele sr', 'ne repond pas',
+    'repond pas', 'pas repondu', 'pas de reponse',
+    // Absent / injoignable
+    'client absent', 'absent', 'non joignable', 'injoignable',
+    // Refus
+    'refus de livraison', 'refuse',
+    // Annulé
+    'annule', 'annulee', 'annulation',
+    // Echec livraison
+    'echec', 'echoue', 'echec de livraison', 'non livre', 'non remis', 'colis non remis',
+    // Adresse/commune erronée
+    'commune erronee', 'adresse erronee', 'adresse incorrecte', 'errone', 'erronee',
+    'commune incorrecte', 'wilaya erronee',
+    // Téléphone invalide
+    'telephone incorrect', 'numero incorrect', 'numero invalide',
+    // Introuvable
+    'introuvable', 'adresse introuvable', 'client introuvable',
+    // En attente d'info
+    'en attente adresse', 'attente adresse', 'attente confirmation',
+    'en attente de confirmation'
   )) return 'echec';
 
-  // ── FALLBACK ─────────────────────────────────────────────────────────────
-  // Si l'état est inconnu mais la situation donne un indice
-  if (has(sit, 'livre') && !has(sit, 'en cours', 'sorti')) return 'livre';
-  if (has(sit, 'sorti', 'distribution', 'en livr')) return 'en_livraison';
-  if (has(sit, 'transit', 'hub', 'expedie')) return 'en_transit';
-  if (has(sit, 'retour')) return 'retourne';
+  // ══ PRIORITÉ 2 : SITUATION → RETOURNÉ ════════════════════════════════════
+  if (sit && has(sit,
+    'retourne', 'retour expediteur', 'retour confirme',
+    'refus client', 'renvoye', 'renvoi', 'retour marchand'
+  )) return 'retourne';
+
+  // ══ PRIORITÉ 3 : SITUATION → EN LIVRAISON ════════════════════════════════
+  if (sit && has(sit,
+    'sorti en livraison', 'sorti', 'en cours de livraison', 'en distribution',
+    'distribution', 'reporte', 'reportee', 'en route vers client'
+  )) return 'en_livraison';
+
+  // ══ PRIORITÉ 4 : SITUATION → EN TRANSIT ══════════════════════════════════
+  if (sit && has(sit, 'en transit', 'transit', 'hub', 'centre tri', 'arrive au hub', 'expedie')) return 'en_transit';
+
+  // ══ PRIORITÉ 5 : SITUATION → LIVRÉ ═══════════════════════════════════════
+  if (sit && has(sit, 'livre', 'remis') && !has(sit, 'en cours', 'sorti', 'non remis')) return 'livre';
+
+  // ══ À PARTIR D'ICI : lecture de l'ÉTAT (aucune situation significative) ══
+
+  // ── ÉTAT → LIVRÉ ─────────────────────────────────────────────────────────
+  if (s === 'livre' || s === 'livree' || s === 'delivered') return 'livre';
+  if (has(s, 'livre') && !has(s, 'en livr', 'en cours', 'retour')) return 'livre';
+  if (has(s, 'remis au client', 'remis destinataire', 'livraison effectuee')) return 'livre';
+
+  // ── ÉTAT → ÉCHEC / ANNULÉ ────────────────────────────────────────────────
+  if (has(s,
+    'echec', 'echoue', 'annule', 'annulee', 'annulation',
+    'cancel', 'canceled', 'errone', 'erronee', 'non delivre', 'non livre'
+  )) return 'echec';
+
+  // ── ÉTAT → RETOURNÉ ──────────────────────────────────────────────────────
+  if (has(s, 'retourne', 'en retour', 'retour expediteur', 'retour confirme', 'return')) return 'retourne';
+
+  // ── ÉTAT → EN TRANSIT ────────────────────────────────────────────────────
+  if (has(s,
+    'expedie', 'expedier', 'shipped', 'en transit', 'transit',
+    'arrive au hub', 'arrivee hub', 'hub', 'centre tri', 'centre de tri',
+    'en acheminement', 'acheminement'
+  )) return 'en_transit';
+
+  // ── ÉTAT → EN LIVRAISON ──────────────────────────────────────────────────
+  if (has(s,
+    'en livr', 'en cours de livr', 'sorti', 'en distribution',
+    'distribution', 'on delivery', 'out for delivery'
+  )) return 'en_livraison';
+
+  // ── ÉTAT → EN PRÉPARATION ────────────────────────────────────────────────
+  if (has(s,
+    'en preparation', 'preparation', 'prise en charge', 'pec',
+    'en attente', 'attente', 'nouveau', 'new', 'pending',
+    'recu', 'enleve', 'collecte', 'ramassage'
+  )) return 'en_preparation';
 
   return 'en_preparation';
 }
