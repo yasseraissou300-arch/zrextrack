@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, ChevronLeft, ChevronRight, RefreshCw, Copy, CheckCheck, ChevronRight as Arrow, Trash2 } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, RefreshCw, Copy, CheckCheck, ChevronRight as Arrow, Trash2, Wand2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SYNC_DONE_EVENT } from './DashboardHeader';
 import OrderDetailModal from './OrderDetailModal';
@@ -58,6 +58,7 @@ export default function OrdersTable() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
   const [pageSize, setPageSize] = useState(10);
+  const [reclassifying, setReclassifying] = useState(false);
 
   const fetchOrders = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -148,6 +149,15 @@ export default function OrdersTable() {
     }
   };
 
+  const reclassify = async () => {
+    setReclassifying(true);
+    const res = await fetch('/api/orders/reclassify', { method: 'POST' });
+    const json = await res.json();
+    if (json.error) toast.error(json.error);
+    else { toast.success(json.message); fetchOrders(true); }
+    setReclassifying(false);
+  };
+
   const totalPages = Math.ceil(total / pageSize);
   const allSelected = orders.length > 0 && selected.size === orders.length;
 
@@ -207,6 +217,15 @@ export default function OrdersTable() {
             <option value={50}>50 / page</option>
             <option value={100}>100 / page</option>
           </select>
+          <button
+            onClick={reclassify}
+            disabled={reclassifying}
+            title="Recorrige les statuts mal classifiés (Appelé sans réponse, Annulé, Erroné…)"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border border-amber-200 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 disabled:opacity-50 transition-colors"
+          >
+            <Wand2 size={12} className={reclassifying ? 'animate-spin' : ''} />
+            {reclassifying ? 'Correction...' : 'Corriger statuts'}
+          </button>
           <button onClick={() => fetchOrders()} className="p-1.5 border border-gray-200 rounded-lg hover:bg-gray-50">
             <RefreshCw size={14} className="text-gray-500" />
           </button>
@@ -274,7 +293,7 @@ export default function OrdersTable() {
                 <td className="px-4 py-3 text-sm text-gray-600 font-medium">{order.wilaya || '—'}</td>
                 <td className="px-4 py-3">
                   <span className={`inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full ${statusConfig[order.status]?.badge || 'bg-gray-100 text-gray-600'}`}>
-                    {order.situation || statusConfig[order.status]?.label || order.status}
+                    {order.situation?.trim() || statusConfig[order.status]?.label || order.status}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-500">{formatDeliveryType(order.delivery_type)}</td>

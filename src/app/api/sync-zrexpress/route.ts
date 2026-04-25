@@ -62,15 +62,79 @@ async function sendWhatsApp(phone: string, message: string): Promise<boolean> {
   }
 }
 
-// Map ZREXpress parcel status → our internal status
-function mapStatus(state: string): string {
-  const s = (state || '').toLowerCase().replace(/\s+/g, '_');
-  if (s.includes('livr') && !s.includes('en_')) return 'livre';
-  if (s.includes('en_pr') || s.includes('preparation')) return 'en_preparation';
-  if (s.includes('transit')) return 'en_transit';
-  if (s.includes('en_livr') || s.includes('sorti') || s.includes('distribution')) return 'en_livraison';
-  if (s.includes('retour')) return 'retourne';
-  if (s.includes('chec') || s.includes('annul') || s.includes('echec')) return 'echec';
+// Normalise une chaîne ZREXpress : minuscules + sans accents + espaces normalisés
+function norm(raw: string): string {
+  return (raw || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '') // supprime les accents
+    .replace(/[_\-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Map ZREXpress état + situation → statut interne
+// Reçoit les deux champs pour une classification correcte
+function mapStatus(rawState: string, rawSituation = ''): string {
+  const s = norm(rawState);
+  const sit = norm(rawSituation);
+  const has = (src: string, ...terms: string[]) => terms.some(t => src.includes(t));
+
+  // ── LIVRÉ ────────────────────────────────────────────────────────────────
+  if (s === 'livre' || s === 'livree' || s === 'delivered') return 'livre';
+  if (has(s, 'livre') && !has(s, 'en livr', 'en cours', 'retour')) return 'livre';
+  if (has(s, 'livraison a domicile effectuee', 'remis au client', 'remis destinataire')) return 'livre';
+
+  // ── EN TRANSIT (expédié vers hub, en route inter-wilayas) ────────────────
+  if (has(s, 'expedie', 'expedier', 'shipped', 'en transit', 'transit',
+           'arrive au hub', 'arrivee hub', 'hub', 'centre tri', 'centre de tri',
+           'en route', 'en acheminement', 'acheminement')) return 'en_transit';
+  if (has(sit, 'en transit', 'transit', 'hub', 'centre tri', 'arrive', 'expedie')) return 'en_transit';
+
+  // ── EN COURS DE LIVRAISON (sorti du hub vers le client) ─────────────────
+  if (has(s, 'en livr', 'en cours de livr', 'sorti en livr', 'sorti',
+           'en distribution', 'distribution', 'on delivery', 'out for delivery')) return 'en_livraison';
+  if (has(sit, 'sorti en livr', 'sorti', 'en cours de livr', 'distribution',
+          'en route vers client', 'reporte', 'reportee')) return 'en_livraison';
+
+  // ── EN PRÉPARATION (réellement en préparation chez le vendeur/hub) ───────
+  if (has(s, 'en preparation', 'preparation', 'prise en charge', 'pec',
+           'en attente', 'attente', 'nouveau', 'new', 'pending', 'recu',
+           'enleve', 'collecte', 'ramassage')) return 'en_preparation';
+
+  // ── RETOURNÉ ─────────────────────────────────────────────────────────────
+  if (has(s, 'retourne', 'en retour', 'retour expediteur', 'retour confirme',
+           'return')) return 'retourne';
+  if (has(sit, 'retourne', 'retour', 'refus client', 'refus livraison',
+          'renvoye', 'renvoi')) return 'retourne';
+
+  // ── ÉCHEC (tentatives échouées, annulé, adresse erronée…) ───────────────
+  if (has(s, 'echec', 'echoue', 'annule', 'annulee', 'cancel', 'canceled',
+           'errone', 'erronee', 'incorrect', 'non delivre', 'non livre')) return 'echec';
+
+  // Situations qui indiquent un échec même si l'état global est en_livraison
+  if (has(sit,
+    'appele sans reponse', 'sans reponse', 'appele sr',
+    'client absent', 'absent',
+    'refus', 'refuse',
+    'echec', 'echoue',
+    'annule', 'annulee',
+    'commune erronee', 'adresse erronee', 'adresse incorrecte',
+    'errone', 'erronee',
+    'non remis', 'colis non remis',
+    'non joignable', 'injoignable',
+    'telephone incorrect', 'numero incorrect',
+    'introuvable', 'adresse introuvable',
+    'en attente adresse', 'attente confirmation'
+  )) return 'echec';
+
+  // ── FALLBACK ─────────────────────────────────────────────────────────────
+  // Si l'état est inconnu mais la situation donne un indice
+  if (has(sit, 'livre') && !has(sit, 'en cours', 'sorti')) return 'livre';
+  if (has(sit, 'sorti', 'distribution', 'en livr')) return 'en_livraison';
+  if (has(sit, 'transit', 'hub', 'expedie')) return 'en_transit';
+  if (has(sit, 'retour')) return 'retourne';
+
   return 'en_preparation';
 }
 
@@ -143,8 +207,10 @@ function mapParcel(p: any, syncedAt: string) {
 
   const rawStatus =
     p.state?.name || p.stateName || p.status?.name || p.statusName || p.state || p.status || '';
-  const status = mapStatus(rawStatus);
-  const situation = p.situation?.name || p.situationName || p.situation || '';
+  const situation =
+    p.situation?.name || p.situationName || p.lastSituation?.name || p.lastSituationName || p.situation || '';
+  // Passer aussi la situation pour une classification plus précise
+  const status = mapStatus(rawStatus, situation);
   const delivery_type = p.deliveryType || p.delivery_type || p.type || '';
   const delivery_fees = p.deliveryPrice ?? p.delivery_price ?? p.deliveryFees ?? p.delivery_fees ?? p.fees ?? 0;
   const attempts = p.deliveryAttempts ?? p.delivery_attempts ?? p.attempts ?? 0;
