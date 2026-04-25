@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Package, MessageSquare, BarChart3, Settings,
-  ChevronLeft, ChevronRight, Truck, Bell, RefreshCw, Users, Trash2, Megaphone, Plug, MessageCircle,
+  ChevronLeft, ChevronRight, Truck, Bell, RefreshCw, Users, Trash2, Megaphone, Plug, MessageCircle, Bot,
 } from 'lucide-react';
 import { useChatbot } from '@/contexts/ChatbotContext';
 
@@ -22,6 +22,7 @@ const navGroups = [
     label: 'Communication',
     items: [
       { href: '/messages', icon: MessageSquare, label: 'Messages WhatsApp' },
+      { href: '/ai-chatbot', icon: Bot, label: 'AI Chatbot' },
       { href: '/campagnes', icon: Megaphone, label: 'Campagnes' },
       { href: '/alertes', icon: Bell, label: 'Alertes' },
       { href: '/clients', icon: Users, label: 'Clients' },
