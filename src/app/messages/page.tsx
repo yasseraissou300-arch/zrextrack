@@ -623,6 +623,82 @@ function BotIATab() {
         </div>
       </div>
 
+      {/* Facebook Messenger */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+            <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 fill-white"><path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.3 2.246.464 3.443.464 6.627 0 12-4.974 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.131 3.259L19.752 8l-6.561 6.963z"/></svg>
+          </div>
+          <h3 className="font-semibold text-gray-900">Facebook Messenger</h3>
+          <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">Omnicanal</span>
+        </div>
+        <p className="text-xs text-gray-500">Connectez votre Page Facebook pour recevoir et répondre automatiquement aux messages Messenger.</p>
+        <div className="space-y-2.5">
+          <div className="bg-gray-50 rounded-xl p-3 space-y-2">
+            <p className="text-xs font-semibold text-gray-600">URL Webhook Facebook :</p>
+            <code className="block text-xs text-gray-700 break-all">{typeof window !== 'undefined' ? window.location.origin : ''}/api/facebook/webhook</code>
+          </div>
+          <div className="bg-amber-50 rounded-xl p-3 space-y-1.5">
+            <p className="text-xs font-semibold text-amber-800">Variables d'environnement requises :</p>
+            <div className="space-y-1">
+              {[
+                { key: 'FACEBOOK_VERIFY_TOKEN', desc: 'Token de vérification webhook (défaut: zrextrack_fb_verify)' },
+                { key: 'FACEBOOK_PAGE_ACCESS_TOKEN', desc: 'Token d\'accès page Meta' },
+              ].map(v => (
+                <div key={v.key} className="flex items-start gap-2">
+                  <code className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-mono shrink-0">{v.key}</code>
+                  <span className="text-[11px] text-amber-700">{v.desc}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="bg-blue-50 rounded-xl p-3 space-y-1.5">
+            <p className="text-xs font-semibold text-blue-800">Configuration étape par étape :</p>
+            {[
+              'Créer une app sur developers.facebook.com',
+              'Ajouter le produit "Messenger" à l\'app',
+              'Configurer le webhook avec l\'URL ci-dessus',
+              'Définir FACEBOOK_VERIFY_TOKEN et FACEBOOK_PAGE_ACCESS_TOKEN',
+              'Abonner la page au webhook (messages, messaging_postbacks)',
+            ].map((step, i) => (
+              <div key={i} className="flex items-start gap-2">
+                <span className="w-4 h-4 bg-blue-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
+                <p className="text-[11px] text-blue-800">{step}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Google Sheets Export */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
+        <div className="flex items-center gap-2">
+          <svg viewBox="0 0 24 24" className="w-4 h-4 fill-green-600"><path d="M19.5 3h-15A1.5 1.5 0 003 4.5v15A1.5 1.5 0 004.5 21h15a1.5 1.5 0 001.5-1.5v-15A1.5 1.5 0 0019.5 3zm-10 13.5H7.5V15H9.5v1.5zm0-3H7.5V12H9.5v1.5zm0-3H7.5V9H9.5v1.5zm4 6h-2V15h2v1.5zm0-3h-2V12h2v1.5zm0-3h-2V9h2v1.5zm3.5 6H15V15h2v1.5zm0-3H15V12h2v1.5zm0-3H15V9h2v1.5z"/></svg>
+          <h3 className="font-semibold text-gray-900">Export Google Sheets</h3>
+          <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">Commandes & Réclamations</span>
+        </div>
+        <p className="text-xs text-gray-500">Chaque commande validée et chaque réclamation reçue via le chatbot sont automatiquement envoyées vers votre Google Sheets via un webhook.</p>
+        <div className="bg-gray-50 rounded-xl p-3 space-y-2">
+          <p className="text-xs font-semibold text-gray-600">Variable d'environnement :</p>
+          <code className="block text-xs text-gray-700">GOOGLE_SHEETS_WEBHOOK_URL=https://hooks.zapier.com/...</code>
+        </div>
+        <div className="bg-green-50 rounded-xl p-3 space-y-1.5">
+          <p className="text-xs font-semibold text-green-800">Comment configurer avec Make.com ou n8n :</p>
+          {[
+            'Créer un scénario/workflow avec un déclencheur "Webhook"',
+            'Copier l\'URL du webhook générée',
+            'Ajouter GOOGLE_SHEETS_WEBHOOK_URL dans vos variables d\'environnement Netlify',
+            'Connecter le webhook à Google Sheets → Ajouter une ligne',
+            'Les données envoyées incluent : type, timestamp, nom, téléphone, produits, adresse / réclamation',
+          ].map((step, i) => (
+            <div key={i} className="flex items-start gap-2">
+              <span className="w-4 h-4 bg-green-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
+              <p className="text-[11px] text-green-800">{step}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Language */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
         <div className="flex items-center gap-2">

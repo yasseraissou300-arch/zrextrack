@@ -1,0 +1,59 @@
+{
+  "company": {
+    "name": "ZREXpress",
+    "description": "Service de livraison e-commerce en Algérie",
+    "contact_email": "support@zrexpress.dz",
+    "hours": "8h - 18h, Dimanche - Jeudi",
+    "website": "https://zrextrack.netlify.app"
+  },
+  "delivery": {
+    "standard_delay": "24 à 72 heures selon la wilaya",
+    "remote_delay": "3 à 5 jours pour les zones éloignées",
+    "coverage": "58 wilayas d'Algérie",
+    "tracking_format": "Numéro commençant par ZRX ou ZRE suivi de chiffres (ex: ZRX123456)"
+  },
+  "pricing": {
+    "home_delivery": "À partir de 400 DA",
+    "stopdesk": "À partir de 250 DA",
+    "note": "Tarif varie selon la wilaya et le poids"
+  },
+  "returns": {
+    "window": "7 jours après réception",
+    "conditions": "Produit intact, non utilisé, dans son emballage d'origine",
+    "process": "Refuser la livraison ou contacter le support dans les 7 jours"
+  },
+  "payment": {
+    "methods": ["Paiement à la livraison (cash on delivery)"],
+    "currency": "DZD (Dinar Algérien)"
+  },
+  "faq": [
+    {
+      "question": "Comment suivre ma commande ?",
+      "answer": "Envoyez votre numéro de tracking (ex: ZRX123456) par message et nous vous donnons le statut en temps réel."
+    },
+    {
+      "question": "Mon colis n'est pas arrivé après 3 jours",
+      "answer": "Envoyez votre numéro de tracking pour vérifier le statut. Si le livreur ne vous a pas contacté, nous organisons un nouveau passage."
+    },
+    {
+      "question": "Comment faire un retour ?",
+      "answer": "Vous pouvez refuser la livraison directement au livreur, ou nous contacter dans les 7 jours si vous avez déjà reçu le colis."
+    },
+    {
+      "question": "Puis-je changer mon adresse de livraison ?",
+      "answer": "Oui, contactez-nous rapidement avant que le colis soit en cours de livraison. Envoyez votre numéro de tracking et la nouvelle adresse."
+    },
+    {
+      "question": "Quels modes de paiement acceptez-vous ?",
+      "answer": "Uniquement le paiement à la livraison (cash on delivery). Vous payez quand vous recevez votre commande."
+    },
+    {
+      "question": "Le livreur n'a pas sonné / n'est pas venu",
+      "answer": "Vérifiez votre numéro de téléphone et assurez-vous d'être joignable. Envoyez votre tracking et nous organisons un nouveau passage."
+    }
+  ],
+  "order_collection": {
+    "required_fields": ["Nom complet", "Numéro de téléphone", "Produits commandés", "Adresse de livraison"],
+    "confirmation_message": "Votre commande sera confirmée par notre équipe sous 24h."
+  }
+}
