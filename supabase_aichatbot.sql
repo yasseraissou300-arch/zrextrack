@@ -83,5 +83,10 @@ ALTER TABLE ai_chat_sessions
   ADD COLUMN IF NOT EXISTS failure_count  INT DEFAULT 0,
   ADD COLUMN IF NOT EXISTS relance_sent   BOOLEAN DEFAULT false;
 
+-- Facebook OAuth additions
+ALTER TABLE facebook_connections
+  ADD COLUMN IF NOT EXISTS page_picture  TEXT DEFAULT '',
+  ADD COLUMN IF NOT EXISTS pending_pages TEXT DEFAULT NULL;
+
 -- Index for relance query (inactive incomplete sessions)
 CREATE INDEX IF NOT EXISTS idx_ai_sessions_relance ON ai_chat_sessions(is_complete, human_handover, relance_sent, updated_at);

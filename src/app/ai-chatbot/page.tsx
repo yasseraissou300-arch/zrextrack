@@ -427,104 +427,134 @@ function WhatsAppTab() {
 }
 
 // ─── FacebookTab ──────────────────────────────────────────────────────────────
+interface PendingPage { id: string; name: string; access_token: string; picture: string; }
+interface FBConn { page_id: string; page_name: string; page_picture: string; verify_token: string; connected: boolean; }
+
 function FacebookTab() {
-  const [connection, setConnection] = useState<FBConnection | null>(null);
+  const [connection, setConnection] = useState<FBConn | null>(null);
+  const [pendingPages, setPendingPages] = useState<PendingPage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ page_id: '', page_name: '', page_access_token: '' });
+  const [selecting, setSelecting] = useState(false);
+
+  const fetchStatus = async () => {
+    const res = await fetch('/api/ai-chatbot/facebook');
+    const json = await res.json();
+    setConnection(json.connection ?? null);
+    setPendingPages(json.pending_pages ?? []);
+    setLoading(false);
+  };
 
   useEffect(() => {
-    fetch('/api/ai-chatbot/facebook').then(r => r.json()).then(j => {
-      if (j.connection) {
-        setConnection(j.connection);
-        setForm({ page_id: j.connection.page_id, page_name: j.connection.page_name, page_access_token: j.connection.page_access_token });
-      }
-      setLoading(false);
-    });
+    fetchStatus();
+    // Handle redirect from OAuth
+    const params = new URLSearchParams(window.location.search);
+    const success = params.get('success');
+    const error = params.get('error');
+    if (success === 'connected') toast.success('Page Facebook connectée avec succès !');
+    if (success === 'select_page') toast.info('Choisissez votre page Facebook ci-dessous');
+    if (error === 'denied') toast.error('Connexion annulée');
+    if (error === 'no_pages') toast.error('Aucune page Facebook trouvée sur ce compte');
+    if (success || error) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('success'); url.searchParams.delete('error'); url.searchParams.delete('tab');
+      window.history.replaceState({}, '', url.toString());
+    }
   }, []);
-
-  const save = async () => {
-    setSaving(true);
-    const res = await fetch('/api/ai-chatbot/facebook', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
-    });
-    const json = await res.json();
-    if (json.error) toast.error(json.error);
-    else { toast.success('Page Facebook connectée !'); setConnection(json.data); }
-    setSaving(false);
-  };
 
   const disconnect = async () => {
     await fetch('/api/ai-chatbot/facebook', { method: 'DELETE' });
-    setConnection(null);
-    setForm({ page_id: '', page_name: '', page_access_token: '' });
+    setConnection(null); setPendingPages([]);
     toast.success('Déconnecté');
+  };
+
+  const selectPage = async (page: PendingPage) => {
+    setSelecting(true);
+    const res = await fetch('/api/ai-chatbot/facebook', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ page_id: page.id }),
+    });
+    const json = await res.json();
+    if (json.error) toast.error(json.error);
+    else { toast.success(`Page "${page.name}" connectée !`); setConnection(json.connection); setPendingPages([]); }
+    setSelecting(false);
   };
 
   const appUrl = typeof window !== 'undefined' ? window.location.origin : '';
   const webhookUrl = `${appUrl}/api/ai-chatbot/webhook/facebook`;
-  const verifyToken = connection?.verify_token || `zrex_fb_${(typeof window !== 'undefined' ? 'preview' : '')}`;
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 size={24} className="animate-spin text-gray-400" /></div>;
 
   return (
     <div className="space-y-4 max-w-2xl">
-      {/* Status */}
+      {/* Status card */}
       <div className={`rounded-2xl border p-5 flex items-center gap-4 ${connection?.connected ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${connection?.connected ? 'bg-blue-100' : 'bg-gray-100'}`}>
-          <svg viewBox="0 0 24 24" className={`w-5 h-5 ${connection?.connected ? 'fill-blue-600' : 'fill-gray-400'}`}>
-            <path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.3 2.246.464 3.443.464 6.627 0 12-4.974 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.131 3.259L19.752 8l-6.561 6.963z" />
-          </svg>
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden shrink-0 ${connection?.connected ? 'bg-blue-100' : 'bg-gray-100'}`}>
+          {connection?.page_picture
+            ? <img src={connection.page_picture} alt="" className="w-full h-full object-cover" />
+            : <svg viewBox="0 0 24 24" className={`w-5 h-5 ${connection?.connected ? 'fill-blue-600' : 'fill-gray-400'}`}><path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.3 2.246.464 3.443.464 6.627 0 12-4.974 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.131 3.259L19.752 8l-6.561 6.963z" /></svg>
+          }
         </div>
         <div className="flex-1">
-          <p className="font-semibold text-gray-900">{connection?.connected ? `${connection.page_name || 'Page connectée'}` : 'Aucune page Facebook connectée'}</p>
-          <p className="text-sm text-gray-500">{connection?.connected ? `Page ID : ${connection.page_id}` : 'Connectez votre page Messenger pour centraliser les messages'}</p>
+          <p className="font-semibold text-gray-900">
+            {connection?.connected ? connection.page_name || 'Page connectée' : 'Aucune page connectée'}
+          </p>
+          <p className="text-sm text-gray-500">
+            {connection?.connected ? `Page ID : ${connection.page_id}` : 'Connectez votre page Messenger en un clic'}
+          </p>
         </div>
         {connection?.connected && (
-          <button onClick={disconnect} className="p-2 text-red-400 hover:bg-red-50 rounded-lg">
+          <button onClick={disconnect} className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors" title="Déconnecter">
             <Trash2 size={14} />
           </button>
         )}
       </div>
 
-      {/* Config form */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
-        <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-          <svg viewBox="0 0 24 24" className="w-4 h-4 fill-blue-600"><path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.3 2.246.464 3.443.464 6.627 0 12-4.974 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.131 3.259L19.752 8l-6.561 6.963z" /></svg>
-          Configuration Facebook Messenger
-        </h3>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-gray-600">Page ID *</label>
-            <input value={form.page_id} onChange={e => setForm(f => ({ ...f, page_id: e.target.value }))} placeholder="123456789012345" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-gray-600">Nom de la page</label>
-            <input value={form.page_name} onChange={e => setForm(f => ({ ...f, page_name: e.target.value }))} placeholder="Ma Boutique" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+      {/* Page selection (after OAuth with multiple pages) */}
+      {pendingPages.length > 0 && (
+        <div className="bg-white rounded-2xl border border-blue-200 shadow-sm p-5 space-y-3">
+          <p className="font-semibold text-gray-900 text-sm">Choisissez votre page Facebook</p>
+          <div className="space-y-2">
+            {pendingPages.map(page => (
+              <button
+                key={page.id}
+                onClick={() => selectPage(page)}
+                disabled={selecting}
+                className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-colors text-left disabled:opacity-50"
+              >
+                {page.picture
+                  ? <img src={page.picture} alt="" className="w-9 h-9 rounded-xl object-cover shrink-0" />
+                  : <div className="w-9 h-9 bg-blue-100 rounded-xl flex items-center justify-center shrink-0"><svg viewBox="0 0 24 24" className="w-4 h-4 fill-blue-600"><path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.3 2.246.464 3.443.464 6.627 0 12-4.974 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.131 3.259L19.752 8l-6.561 6.963z" /></svg></div>
+                }
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">{page.name}</p>
+                  <p className="text-xs text-gray-400">ID : {page.id}</p>
+                </div>
+                {selecting && <Loader2 size={14} className="animate-spin text-blue-500 ml-auto" />}
+              </button>
+            ))}
           </div>
         </div>
+      )}
 
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-gray-600">Page Access Token *</label>
-          <input value={form.page_access_token} onChange={e => setForm(f => ({ ...f, page_access_token: e.target.value }))} placeholder="EAAxxxxxx..." type="password" className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 font-mono" />
-        </div>
+      {/* Connect button */}
+      {!connection?.connected && pendingPages.length === 0 && (
+        <a
+          href="/api/ai-chatbot/facebook/oauth"
+          className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl bg-[#1877F2] text-white font-semibold text-sm hover:bg-[#166fe5] transition-colors shadow-sm active:scale-[0.98]"
+        >
+          <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white"><path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.3 2.246.464 3.443.464 6.627 0 12-4.974 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.131 3.259L19.752 8l-6.561 6.963z" /></svg>
+          Se connecter avec Facebook
+        </a>
+      )}
 
-        <button onClick={save} disabled={saving || !form.page_id || !form.page_access_token} className="w-full bg-blue-600 text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2 transition-colors">
-          {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-          {connection?.connected ? 'Mettre à jour' : 'Connecter la page'}
-        </button>
-      </div>
-
-      {/* Webhook info */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
-        <h3 className="font-semibold text-gray-900 text-sm">Paramètres du Webhook Meta</h3>
-        <div className="space-y-3">
+      {/* Webhook info (visible once connected) */}
+      {connection?.connected && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
+          <h3 className="font-semibold text-gray-900 text-sm">Webhook Meta (configuré automatiquement)</h3>
           {[
             { label: 'URL du Webhook', value: webhookUrl },
-            { label: 'Token de vérification', value: verifyToken },
+            { label: 'Token de vérification', value: connection.verify_token },
           ].map(item => (
             <div key={item.label} className="space-y-1">
               <p className="text-xs text-gray-500">{item.label}</p>
@@ -537,9 +567,172 @@ function FacebookTab() {
             </div>
           ))}
         </div>
-        <div className="bg-blue-50 rounded-xl p-3 space-y-1.5">
-          <p className="text-xs font-semibold text-blue-800">Abonnements requis :</p>
-          <code className="text-xs text-blue-700">messages, messaging_postbacks, messaging_optins</code>
+      )}
+    </div>
+  );
+}
+
+// ─── GoogleSheetsTab ─────────────────────────────────────────────────────────
+const TEMPLATE_LABELS: Record<string, string> = {
+  auto_confirmation: 'Auto-Confirmation',
+  sav: 'SAV & Réclamations',
+  tracking: 'Suivi de Commande',
+};
+
+function GoogleSheetsTab() {
+  const [serviceEmail, setServiceEmail] = useState('');
+  const [configs, setConfigs] = useState<{ template_type: string; google_sheets_url: string }[]>([]);
+  const [sheetUrls, setSheetUrls] = useState<Record<string, string>>({});
+  const [testing, setTesting] = useState<string | null>(null);
+  const [saving, setSaving] = useState<string | null>(null);
+  const [testResults, setTestResults] = useState<Record<string, 'ok' | 'error'>>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/ai-chatbot/googlesheets').then(r => r.json()).then(json => {
+      setServiceEmail(json.service_email || '');
+      setConfigs(json.configs || []);
+      const urls: Record<string, string> = {};
+      for (const c of (json.configs || [])) {
+        // Show the original Sheet URL if it's a sheets.googleapis.com URL (extract ID and rebuild)
+        const idMatch = c.google_sheets_url?.match(/spreadsheets\/([a-zA-Z0-9_-]+)/);
+        urls[c.template_type] = idMatch
+          ? `https://docs.google.com/spreadsheets/d/${idMatch[1]}/edit`
+          : (c.google_sheets_url || '');
+      }
+      setSheetUrls(urls);
+      setLoading(false);
+    });
+  }, []);
+
+  const testConnection = async (templateType: string) => {
+    const url = sheetUrls[templateType] || '';
+    if (!url) { toast.error('Collez l\'URL de votre Sheet d\'abord'); return; }
+    setTesting(templateType);
+    const res = await fetch('/api/ai-chatbot/googlesheets/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sheet_url: url }),
+    });
+    const json = await res.json();
+    if (json.ok) {
+      setTestResults(prev => ({ ...prev, [templateType]: 'ok' }));
+      toast.success('Connexion réussie ! Le bot peut écrire dans ce Sheet ✅');
+    } else {
+      setTestResults(prev => ({ ...prev, [templateType]: 'error' }));
+      toast.error(json.error || 'Accès refusé');
+    }
+    setTesting(null);
+  };
+
+  const saveSheet = async (templateType: string) => {
+    setSaving(templateType);
+    const res = await fetch('/api/ai-chatbot/googlesheets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ template_type: templateType, sheet_url: sheetUrls[templateType] || '' }),
+    });
+    const json = await res.json();
+    if (json.error) toast.error(json.error);
+    else toast.success('Sheet sauvegardé !');
+    setSaving(null);
+  };
+
+  if (loading) return <div className="flex justify-center py-20"><Loader2 size={24} className="animate-spin text-gray-400" /></div>;
+
+  return (
+    <div className="space-y-5 max-w-2xl">
+      {/* How it works */}
+      <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex gap-3">
+        <CheckCircle2 size={16} className="text-green-600 shrink-0 mt-0.5" />
+        <div className="text-sm text-green-800 space-y-1">
+          <p className="font-semibold">Connexion directe — sans Make ni Zapier</p>
+          <p>Le bot écrit automatiquement les données clients dans votre Google Sheet dès qu'une conversation est complète.</p>
+        </div>
+      </div>
+
+      {/* Step 1 — Share with service account */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="w-6 h-6 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-xs font-bold shrink-0">1</span>
+          <h3 className="font-semibold text-gray-900 text-sm">Partagez votre Sheet avec notre bot</h3>
+        </div>
+        <p className="text-xs text-gray-500 ml-8">Ouvrez votre Google Sheet → Partager → Collez cet email → Éditeur → Envoyer</p>
+        {serviceEmail ? (
+          <div className="flex gap-2 ml-8">
+            <code className="flex-1 bg-indigo-50 border border-indigo-200 rounded-xl px-3 py-2.5 text-sm text-indigo-700 font-mono break-all">{serviceEmail}</code>
+            <button
+              onClick={() => { navigator.clipboard.writeText(serviceEmail); toast.success('Email copié !'); }}
+              className="p-2.5 bg-indigo-100 text-indigo-600 rounded-xl hover:bg-indigo-200 transition-colors shrink-0"
+            >
+              <Copy size={14} />
+            </button>
+          </div>
+        ) : (
+          <div className="ml-8 bg-amber-50 border border-amber-200 rounded-xl p-3">
+            <p className="text-xs text-amber-700 font-medium">Service account non configuré</p>
+            <p className="text-xs text-amber-600 mt-0.5">Ajoutez <code className="bg-amber-100 px-1 rounded">GOOGLE_SERVICE_ACCOUNT_EMAIL</code> et <code className="bg-amber-100 px-1 rounded">GOOGLE_PRIVATE_KEY</code> dans vos variables d'environnement.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Step 2 — Paste Sheet URL per template */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="w-6 h-6 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-xs font-bold shrink-0">2</span>
+          <h3 className="font-semibold text-gray-900 text-sm">Collez l'URL de votre Sheet par template</h3>
+        </div>
+
+        {['auto_confirmation', 'sav', 'tracking'].map(type => {
+          const result = testResults[type];
+          return (
+            <div key={type} className="ml-8 space-y-2">
+              <label className="text-xs font-semibold text-gray-600">{TEMPLATE_LABELS[type]}</label>
+              <div className="flex gap-2">
+                <input
+                  value={sheetUrls[type] || ''}
+                  onChange={e => setSheetUrls(prev => ({ ...prev, [type]: e.target.value }))}
+                  placeholder="https://docs.google.com/spreadsheets/d/..."
+                  className={`flex-1 border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 font-mono text-xs transition-colors ${
+                    result === 'ok' ? 'border-green-400 bg-green-50 focus:ring-green-500/20' :
+                    result === 'error' ? 'border-red-300 bg-red-50 focus:ring-red-500/20' :
+                    'border-gray-200 focus:ring-indigo-500/20 focus:border-indigo-400'
+                  }`}
+                />
+                <button
+                  onClick={() => testConnection(type)}
+                  disabled={testing === type || !sheetUrls[type]}
+                  title="Tester la connexion"
+                  className="px-3 py-2.5 border border-gray-200 rounded-xl text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors shrink-0 flex items-center gap-1.5"
+                >
+                  {testing === type ? <Loader2 size={12} className="animate-spin" /> :
+                   result === 'ok' ? <CheckCircle2 size={12} className="text-green-600" /> :
+                   <RefreshCw size={12} />}
+                  Tester
+                </button>
+                <button
+                  onClick={() => saveSheet(type)}
+                  disabled={saving === type || !sheetUrls[type]}
+                  className="px-3 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-semibold hover:bg-indigo-700 disabled:opacity-50 transition-colors shrink-0 flex items-center gap-1.5"
+                >
+                  {saving === type ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                  Sauver
+                </button>
+              </div>
+              {result === 'ok' && <p className="text-xs text-green-600 flex items-center gap-1"><CheckCircle2 size={10} />Connexion OK — le bot peut écrire dans ce Sheet</p>}
+              {result === 'error' && <p className="text-xs text-red-500">Accès refusé — vérifiez que vous avez partagé avec l'email ci-dessus</p>}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Columns written */}
+      <div className="bg-gray-50 rounded-2xl p-4 space-y-2">
+        <p className="text-xs font-semibold text-gray-600">Colonnes écrites automatiquement :</p>
+        <div className="flex flex-wrap gap-2">
+          {['Date', 'Client', 'Téléphone', 'Wilaya', 'Produit', 'Statut', 'Canal'].map(col => (
+            <span key={col} className="text-[11px] bg-white border border-gray-200 text-gray-600 px-2 py-1 rounded-lg font-mono">{col}</span>
+          ))}
         </div>
       </div>
     </div>
@@ -884,13 +1077,14 @@ function AnalyticsTab() {
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-type Tab = 'templates' | 'whatsapp' | 'facebook' | 'donnees' | 'analytics';
+type Tab = 'templates' | 'whatsapp' | 'facebook' | 'googlesheets' | 'donnees' | 'analytics';
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'templates', label: 'Templates IA', icon: <Bot size={14} /> },
   { id: 'whatsapp', label: 'WhatsApp', icon: <Phone size={14} /> },
   { id: 'facebook', label: 'Facebook', icon: <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-current"><path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.3 2.246.464 3.443.464 6.627 0 12-4.974 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.131 3.259L19.752 8l-6.561 6.963z" /></svg> },
-  { id: 'donnees', label: 'Données extraites', icon: <Sheet size={14} /> },
+  { id: 'googlesheets', label: 'Google Sheets', icon: <Sheet size={14} /> },
+  { id: 'donnees', label: 'Données extraites', icon: <MessageSquare size={14} /> },
   { id: 'analytics', label: 'Analytiques', icon: <BarChart3 size={14} /> },
 ];
 
@@ -935,6 +1129,7 @@ export default function AIChatbotPage() {
         {activeTab === 'templates' && <TemplatesTab />}
         {activeTab === 'whatsapp' && <WhatsAppTab />}
         {activeTab === 'facebook' && <FacebookTab />}
+        {activeTab === 'googlesheets' && <GoogleSheetsTab />}
         {activeTab === 'donnees' && <DonneesTab />}
         {activeTab === 'analytics' && <AnalyticsTab />}
       </div>
