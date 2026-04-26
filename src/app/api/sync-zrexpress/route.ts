@@ -39,20 +39,25 @@ function normalizePhone(phone: string): string {
   return clean;
 }
 
-// Envoyer un message WhatsApp via Green API
-async function sendWhatsApp(instanceId: string, token: string, phone: string, message: string): Promise<boolean> {
+// Envoyer un message WhatsApp via Meta Business API
+async function sendWhatsApp(phoneNumberId: string, accessToken: string, phone: string, message: string): Promise<boolean> {
   try {
     const intlPhone = normalizePhone(phone);
-    const res = await fetch(
-      `https://api.green-api.com/waInstance${instanceId}/sendMessage/${token}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chatId: `${intlPhone}@c.us`, message }),
-      }
-    );
+    const res = await fetch(`https://graph.facebook.com/v18.0/${phoneNumberId}/messages`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: intlPhone,
+        type: 'text',
+        text: { body: message },
+      }),
+    });
     const json = await res.json().catch(() => ({}));
-    return !!json.idMessage;
+    return !!json.messages?.[0]?.id;
   } catch {
     return false;
   }

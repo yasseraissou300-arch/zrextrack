@@ -14,19 +14,23 @@ export async function GET() {
     .single();
 
   if (!settings?.instance_id || !settings?.api_token) {
-    return NextResponse.json({ stateInstance: 'notAuthorized', connected: false });
+    return NextResponse.json({ connected: false, error: 'Credentials non configurés' });
   }
 
-  const res = await fetch(
-    `https://api.green-api.com/waInstance${settings.instance_id}/getStateInstance/${settings.api_token}`
-  );
-  const json = await res.json();
-  const connected = json.stateInstance === 'authorized';
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/v18.0/${settings.instance_id}?access_token=${settings.api_token}`
+    );
+    const json = await res.json();
+    const connected = !!json.id && !json.error;
 
-  await supabase
-    .from('whatsapp_settings')
-    .update({ connected, updated_at: new Date().toISOString() })
-    .eq('user_id', user.id);
+    await supabase
+      .from('whatsapp_settings')
+      .update({ connected, updated_at: new Date().toISOString() })
+      .eq('user_id', user.id);
 
-  return NextResponse.json({ ...json, connected });
+    return NextResponse.json({ connected, phone: json.display_phone_number || '' });
+  } catch {
+    return NextResponse.json({ connected: false });
+  }
 }

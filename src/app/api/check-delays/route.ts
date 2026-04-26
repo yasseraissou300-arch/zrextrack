@@ -4,15 +4,18 @@ import { createClient, createServiceClient } from '@/lib/supabase/server';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://zrextrack.vercel.app';
 const THRESHOLDS = { en_preparation: 24, en_transit: 72, en_livraison: 48 };
 
-async function sendWA(instanceId: string, token: string, phone: string, message: string): Promise<boolean> {
+async function sendWA(phoneNumberId: string, accessToken: string, phone: string, message: string): Promise<boolean> {
   try {
     const clean = phone.replace(/\D/g, '');
     if (!clean || clean.length < 9) return false;
     const intl = clean.startsWith('213') ? clean : `213${clean.replace(/^0/, '')}`;
-    const res = await fetch(`https://api.green-api.com/waInstance${instanceId}/sendMessage/${token}`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chatId: `${intl}@c.us`, message }) });
+    const res = await fetch(`https://graph.facebook.com/v18.0/${phoneNumberId}/messages`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messaging_product: 'whatsapp', to: intl, type: 'text', text: { body: message } }),
+    });
     const json = await res.json().catch(() => ({}));
-    return !!json.idMessage;
+    return !!json.messages?.[0]?.id;
   } catch { return false; }
 }
 
