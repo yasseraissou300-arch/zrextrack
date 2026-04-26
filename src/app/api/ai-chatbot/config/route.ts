@@ -84,6 +84,10 @@ export async function GET() {
       custom_prompt: '',
       language: 'darija',
       google_sheets_url: '',
+      admin_whatsapp: '',
+      media_url: '',
+      blocked_prefixes: [],
+      human_pause_hours: 4,
     };
   });
 
@@ -96,12 +100,22 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json();
-  const { template_type, is_active, shop_name, custom_prompt, language, google_sheets_url } = body;
+  const {
+    template_type, is_active, shop_name, custom_prompt, language, google_sheets_url,
+    admin_whatsapp, media_url, blocked_prefixes, human_pause_hours,
+  } = body;
 
   const { data, error } = await supabase
     .from('chatbot_configs')
     .upsert(
-      { user_id: user.id, template_type, is_active, shop_name, custom_prompt, language, google_sheets_url, updated_at: new Date().toISOString() },
+      {
+        user_id: user.id, template_type, is_active, shop_name, custom_prompt, language, google_sheets_url,
+        admin_whatsapp: admin_whatsapp ?? '',
+        media_url: media_url ?? '',
+        blocked_prefixes: Array.isArray(blocked_prefixes) ? blocked_prefixes : [],
+        human_pause_hours: human_pause_hours ?? 4,
+        updated_at: new Date().toISOString(),
+      },
       { onConflict: 'user_id,template_type' }
     )
     .select()

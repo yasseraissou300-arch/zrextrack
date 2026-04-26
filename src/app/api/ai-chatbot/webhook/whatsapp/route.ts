@@ -7,37 +7,31 @@ const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || '';
 
 // ─── 58 Wilayas Algeria normalization ─────────────────────────────────────────
 const WILAYA_MAP: Record<string, string> = {
-  // 01-10
   adrar: 'Adrar', chlef: 'Chlef', chleff: 'Chlef', 'el chlef': 'Chlef',
   laghouat: 'Laghouat', 'oum el bouaghi': 'Oum El Bouaghi', 'oum bouaghi': 'Oum El Bouaghi',
-  batna: 'Batna', bejaia: 'Béjaïa', béjaïa: 'Béjaïa', bgayet: 'Béjaïa', bejaia: 'Béjaïa',
+  batna: 'Batna', bejaia: 'Béjaïa', béjaïa: 'Béjaïa', bgayet: 'Béjaïa',
   biskra: 'Biskra', bechar: 'Béchar', béchar: 'Béchar',
   blida: 'Blida', bouira: 'Bouira',
-  // 11-20
   tamanrasset: 'Tamanrasset', tamanghasset: 'Tamanrasset',
   tebessa: 'Tébessa', tébessa: 'Tébessa',
   tlemcen: 'Tlemcen', tiaret: 'Tiaret',
   'tizi ouzou': 'Tizi Ouzou', 'tizi-ouzou': 'Tizi Ouzou', 'tizi ouzu': 'Tizi Ouzou', tizi: 'Tizi Ouzou',
   alger: 'Alger', algiers: 'Alger', dzair: 'Alger',
   djelfa: 'Djelfa', jijel: 'Jijel',
-  // 21-30
   setif: 'Sétif', sétif: 'Sétif', setiff: 'Sétif',
   saida: 'Saïda', saïda: 'Saïda',
   skikda: 'Skikda', 'sidi bel abbes': 'Sidi Bel Abbès', 'sidi bel abbès': 'Sidi Bel Abbès', sba: 'Sidi Bel Abbès',
   annaba: 'Annaba', guelma: 'Guelma', constantine: 'Constantine', 'qsentina': 'Constantine',
   medea: 'Médéa', médéa: 'Médéa',
-  // 31-40
   mostaganem: 'Mostaganem', msila: 'M\'Sila', 'm\'sila': 'M\'Sila',
   mascara: 'Mascara', ouargla: 'Ouargla', oran: 'Oran', wahran: 'Oran',
   'el bayadh': 'El Bayadh', illizi: 'Illizi',
   'bordj bou arreridj': 'Bordj Bou Arréridj', bba: 'Bordj Bou Arréridj',
-  boumerdes: 'Boumerdès', boumerdès: 'Boumerdès', boumerdes: 'Boumerdès',
-  // 41-50
+  boumerdes: 'Boumerdès', boumerdès: 'Boumerdès',
   'el tarf': 'El Tarf', tindouf: 'Tindouf', tissemsilt: 'Tissemsilt',
   'el oued': 'El Oued', 'eloued': 'El Oued',
   khenchela: 'Khenchela', soukahras: 'Souk Ahras', 'souk ahras': 'Souk Ahras',
   tipaza: 'Tipaza', tipasa: 'Tipaza', mila: 'Mila',
-  // 51-58
   'ain defla': 'Aïn Defla', 'aïn defla': 'Aïn Defla', naama: 'Naâma', naâma: 'Naâma',
   'ain temouchent': 'Aïn Témouchent', 'aïn témouchent': 'Aïn Témouchent',
   ghardaia: 'Ghardaïa', ghardaïa: 'Ghardaïa',
@@ -148,11 +142,13 @@ Ila suwel 3la shi 7aja okhra jaweb b ma 3endek.
 DIMA bDarija.`,
 };
 
-// ─── Helpers ───────────────────────────────────────────────────────────────────
+// ─── Types ─────────────────────────────────────────────────────────────────────
 interface ClaudeMessage { role: 'user' | 'assistant'; content: string; }
+interface ClaudeResult { text: string | null; tokens: number; }
 
-async function callClaude(systemPrompt: string, messages: ClaudeMessage[]): Promise<string | null> {
-  if (!ANTHROPIC_KEY) return null;
+// ─── Claude call (returns text + token count) ─────────────────────────────────
+async function callClaude(systemPrompt: string, messages: ClaudeMessage[]): Promise<ClaudeResult> {
+  if (!ANTHROPIC_KEY) return { text: null, tokens: 0 };
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -168,28 +164,27 @@ async function callClaude(systemPrompt: string, messages: ClaudeMessage[]): Prom
         messages: messages.slice(-10),
       }),
     });
-    if (!res.ok) return null;
+    if (!res.ok) return { text: null, tokens: 0 };
     const json = await res.json();
-    return json.content?.[0]?.text ?? null;
+    const text = json.content?.[0]?.text ?? null;
+    const tokens = (json.usage?.input_tokens ?? 0) + (json.usage?.output_tokens ?? 0);
+    return { text, tokens };
   } catch {
-    return null;
+    return { text: null, tokens: 0 };
   }
 }
 
 function extractData(text: string): Record<string, string> | null {
   const match = text.match(/<data>([\s\S]*?)<\/data>/);
   if (!match) return null;
-  try {
-    return JSON.parse(match[1].trim());
-  } catch {
-    return null;
-  }
+  try { return JSON.parse(match[1].trim()); } catch { return null; }
 }
 
 function stripDataTag(text: string): string {
   return text.replace(/<data>[\s\S]*?<\/data>/g, '').trim();
 }
 
+// ─── WhatsApp senders ─────────────────────────────────────────────────────────
 async function sendWhatsApp(instanceName: string, number: string, text: string): Promise<void> {
   if (!EVOLUTION_URL || !EVOLUTION_KEY) return;
   const cleanNumber = number.replace('@s.whatsapp.net', '').replace('@g.us', '');
@@ -202,6 +197,19 @@ async function sendWhatsApp(instanceName: string, number: string, text: string):
   } catch { /* non-blocking */ }
 }
 
+async function sendWhatsAppMedia(instanceName: string, number: string, mediaUrl: string, caption: string): Promise<void> {
+  if (!EVOLUTION_URL || !EVOLUTION_KEY || !mediaUrl) return;
+  const cleanNumber = number.replace('@s.whatsapp.net', '').replace('@g.us', '');
+  try {
+    await fetch(`${EVOLUTION_URL}/message/sendMedia/${instanceName}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: EVOLUTION_KEY },
+      body: JSON.stringify({ number: cleanNumber, mediatype: 'image', media: mediaUrl, caption }),
+    });
+  } catch { /* non-blocking */ }
+}
+
+// ─── Google Sheets notifier ───────────────────────────────────────────────────
 async function notifyGoogleSheets(webhookUrl: string, type: string, data: Record<string, unknown>): Promise<void> {
   if (!webhookUrl) return;
   try {
@@ -213,9 +221,28 @@ async function notifyGoogleSheets(webhookUrl: string, type: string, data: Record
   } catch { /* non-blocking */ }
 }
 
+// ─── Admin WhatsApp notification ──────────────────────────────────────────────
+async function notifyAdmin(
+  instanceName: string,
+  adminWA: string,
+  data: Record<string, string>,
+  shopName: string,
+  templateType: string,
+): Promise<void> {
+  if (!adminWA) return;
+  const lines: string[] = [`✅ *${templateType === 'sav' ? 'Réclamation' : 'Commande'} Nouvelle — ${shopName}*`];
+  if (data.nom) lines.push(`👤 Nom: ${data.nom}`);
+  if (data.telephone) lines.push(`📞 Tél: ${data.telephone}`);
+  if (data.wilaya) lines.push(`📍 Wilaya: ${data.wilaya}`);
+  if (data.produit) lines.push(`🛍️ Produit: ${data.produit}`);
+  if (data.reclamation) lines.push(`⚠️ Réclamation: ${data.reclamation}`);
+  if (data.tracking_number) lines.push(`📦 Tracking: ${data.tracking_number}`);
+  await sendWhatsApp(instanceName, adminWA, lines.join('\n'));
+}
+
 // ─── GET — webhook verification ───────────────────────────────────────────────
 export async function GET() {
-  return NextResponse.json({ ok: true, service: 'ZREXtrack AI Webhook v2' });
+  return NextResponse.json({ ok: true, service: 'ZREXtrack AI Webhook v3' });
 }
 
 // ─── POST — Evolution API incoming message handler ────────────────────────────
@@ -231,11 +258,11 @@ export async function POST(req: NextRequest) {
     const instanceName: string = body.instance || '';
     const msgData = body.data || {};
     const remoteJid: string = msgData.key?.remoteJid || '';
-    const fromMe: boolean = msgData.key?.fromMe ?? true;
+    const fromMe: boolean = msgData.key?.fromMe ?? false;
     const text: string = msgData.message?.conversation || msgData.message?.extendedTextMessage?.text || '';
     const contactName: string = msgData.pushName || '';
 
-    if (fromMe || !text.trim() || remoteJid.includes('@g.us') || !instanceName) {
+    if (!text.trim() || remoteJid.includes('@g.us') || !instanceName) {
       return NextResponse.json({ ok: true });
     }
 
@@ -247,21 +274,18 @@ export async function POST(req: NextRequest) {
       .select('user_id')
       .eq('instance_name', instanceName)
       .single();
-
     if (!waInstance) return NextResponse.json({ ok: true });
     const userId = waInstance.user_id;
 
-    // Load active configs
+    // Load active config
     const { data: configs } = await supabase
       .from('chatbot_configs')
       .select('*')
       .eq('user_id', userId)
       .eq('is_active', true);
-
     if (!configs || configs.length === 0) return NextResponse.json({ ok: true });
-
     const priority = ['auto_confirmation', 'sav', 'tracking'];
-    const config = priority.map(t => configs.find(c => c.template_type === t)).find(Boolean) ?? configs[0];
+    const config = priority.map(t => configs.find((c: { template_type: string }) => c.template_type === t)).find(Boolean) ?? configs[0];
 
     // Load existing session
     const { data: existingSession } = await supabase
@@ -272,14 +296,40 @@ export async function POST(req: NextRequest) {
       .eq('contact_id', remoteJid)
       .single();
 
-    // Skip if already handed over to human
+    // ─── Admin typing → pause AI for configured hours ─────────────────────────
+    if (fromMe) {
+      if (existingSession && !existingSession.human_handover) {
+        const pauseHours: number = config.human_pause_hours ?? 4;
+        const pauseUntil = new Date(Date.now() + pauseHours * 3600_000).toISOString();
+        await supabase
+          .from('ai_chat_sessions')
+          .update({ human_pause_until: pauseUntil, updated_at: new Date().toISOString() })
+          .eq('id', existingSession.id);
+      }
+      return NextResponse.json({ ok: true });
+    }
+
+    // ─── Number filtering — skip blocked prefixes ─────────────────────────────
+    const blockedPrefixes: string[] = config.blocked_prefixes ?? [];
+    const cleanJid = remoteJid.replace('@s.whatsapp.net', '');
+    if (blockedPrefixes.length > 0 && blockedPrefixes.some((p: string) => cleanJid.startsWith(p))) {
+      return NextResponse.json({ ok: true });
+    }
+
+    // ─── Human pause check ─────────────────────────────────────────────────────
+    if (existingSession?.human_pause_until) {
+      if (Date.now() < new Date(existingSession.human_pause_until).getTime()) {
+        return NextResponse.json({ ok: true });
+      }
+    }
+
+    // ─── Already handed over to human ─────────────────────────────────────────
     if (existingSession?.human_handover) {
       return NextResponse.json({ ok: true });
     }
 
-    // Detect anger before AI call
+    // ─── Anger detection → immediate human handover ───────────────────────────
     const angerDetected = isAngerDetected(text);
-
     if (angerDetected) {
       const handoverMsg = `Smah liya 3la l-iklaj! Ghadi nwejdek wa7d d'équipe dyalna b sra3a bach ysa3dek 🙏`;
       await sendWhatsApp(instanceName, remoteJid, handoverMsg);
@@ -293,13 +343,13 @@ export async function POST(req: NextRequest) {
           user_id: userId, channel: 'whatsapp', contact_id: remoteJid, contact_name: contactName,
           template_type: config.template_type, conversation: [], extracted_data: {},
           is_complete: false, sheets_sent: false, human_handover: true, failure_count: 0,
-          updated_at: new Date().toISOString(),
+          tokens_used: 0, updated_at: new Date().toISOString(),
         });
       }
       return NextResponse.json({ ok: true });
     }
 
-    // Skip blabla — send friendly nudge without Claude
+    // ─── Blabla → friendly nudge without Claude ───────────────────────────────
     if (isBlabla(text)) {
       const nudges: Record<string, string> = {
         auto_confirmation: 'Ahlan! Kifash nqdarek nsa3dek? Bghiti tdir commande? 😊',
@@ -307,14 +357,19 @@ export async function POST(req: NextRequest) {
         tracking: 'Ahlan! Bghiti t3raf statut dyal commande dyalek? 3tini raqm l-colis.',
       };
       const nudge = nudges[config.template_type] ?? nudges.auto_confirmation;
+      // Send product image on first contact if configured
+      if (!existingSession && config.media_url) {
+        await sendWhatsAppMedia(instanceName, remoteJid, config.media_url, '');
+      }
       await sendWhatsApp(instanceName, remoteJid, nudge);
       return NextResponse.json({ ok: true });
     }
 
     const conversation: ClaudeMessage[] = existingSession?.conversation ?? [];
     const failureCount: number = existingSession?.failure_count ?? 0;
+    const totalTokens: number = existingSession?.tokens_used ?? 0;
 
-    // Human handover after 2 consecutive failures
+    // Human handover after 2 consecutive AI failures
     if (failureCount >= 2) {
       const handoverMsg = `Smah, ma fhemtsh mezyan shu tbghi. Ghadi nwejdek m3a wa7d mena équipe dyalna 👨‍💼`;
       await sendWhatsApp(instanceName, remoteJid, handoverMsg);
@@ -331,19 +386,23 @@ export async function POST(req: NextRequest) {
     const rawPrompt = config.custom_prompt?.trim() || defaultPrompt;
     const systemPrompt = rawPrompt.replace(/\[NOM_BOUTIQUE\]/g, config.shop_name || 'notre boutique');
 
+    // Send product image on first message if configured
+    if (!existingSession && config.media_url) {
+      await sendWhatsAppMedia(instanceName, remoteJid, config.media_url, '');
+    }
+
     conversation.push({ role: 'user', content: text });
+    const { text: aiReply, tokens: newTokens } = await callClaude(systemPrompt, conversation);
 
-    const aiReply = await callClaude(systemPrompt, conversation);
-
-    // Track failure if Claude unavailable
     const newFailureCount = aiReply ? 0 : failureCount + 1;
+    const updatedTokens = totalTokens + newTokens;
 
     if (!aiReply) {
       await sendWhatsApp(instanceName, remoteJid, 'Smah liya, kayen bug tqani. Raje3 diri f had lweqt.');
       if (existingSession) {
         await supabase
           .from('ai_chat_sessions')
-          .update({ failure_count: newFailureCount, updated_at: new Date().toISOString() })
+          .update({ failure_count: newFailureCount, tokens_used: updatedTokens, updated_at: new Date().toISOString() })
           .eq('id', existingSession.id);
       }
       return NextResponse.json({ ok: true });
@@ -354,14 +413,12 @@ export async function POST(req: NextRequest) {
 
     conversation.push({ role: 'assistant', content: aiReply });
 
-    // Normalize wilaya if present
     const existingData: Record<string, string> = existingSession?.extracted_data ?? {};
     let newData = extracted ? { ...existingData, ...extracted } : existingData;
     if (newData.wilaya) newData.wilaya = normalizeWilaya(newData.wilaya);
 
     const isComplete = !!extracted && Object.keys(extracted).length >= 3;
 
-    // Upsert session
     await supabase
       .from('ai_chat_sessions')
       .upsert(
@@ -377,14 +434,20 @@ export async function POST(req: NextRequest) {
           sheets_sent: existingSession?.sheets_sent ?? false,
           human_handover: false,
           failure_count: newFailureCount,
+          tokens_used: updatedTokens,
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'user_id,channel,contact_id' }
       );
 
-    // Send to Google Sheets when complete
-    if (isComplete && !existingSession?.sheets_sent && config.google_sheets_url) {
-      await notifyGoogleSheets(config.google_sheets_url, config.template_type, newData);
+    // Google Sheets + admin notification on completion
+    if (isComplete && !existingSession?.sheets_sent) {
+      if (config.google_sheets_url) {
+        await notifyGoogleSheets(config.google_sheets_url, config.template_type, newData);
+      }
+      if (config.admin_whatsapp) {
+        await notifyAdmin(instanceName, config.admin_whatsapp, newData, config.shop_name || 'Boutique', config.template_type);
+      }
       await supabase
         .from('ai_chat_sessions')
         .update({ sheets_sent: true })

@@ -6,6 +6,7 @@ import {
   Globe, Loader2, Save, RefreshCw, QrCode, Wifi, WifiOff,
   ChevronDown, ChevronUp, ExternalLink, Copy, Trash2, Sheet, AlertCircle,
   MessageSquare, Phone, User, BarChart3, TrendingUp, Users,
+  Sparkles, Bell, Image, Shield, Clock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -17,6 +18,10 @@ interface TemplateConfig {
   custom_prompt: string;
   language: string;
   google_sheets_url: string;
+  admin_whatsapp: string;
+  media_url: string;
+  blocked_prefixes: string[];
+  human_pause_hours: number;
 }
 
 interface WAStatus { connected: boolean; phone: string; instance: { instance_name: string } | null; }
@@ -64,6 +69,7 @@ function TemplatesTab() {
   const [defaults, setDefaults] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
+  const [refining, setRefining] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
 
   const fetchConfigs = useCallback(async () => {
@@ -77,7 +83,7 @@ function TemplatesTab() {
 
   useEffect(() => { fetchConfigs(); }, [fetchConfigs]);
 
-  const updateConfig = (type: string, field: string, value: string | boolean) => {
+  const updateConfig = (type: string, field: string, value: string | boolean | number | string[]) => {
     setConfigs(prev => prev.map(c => c.template_type === type ? { ...c, [field]: value } : c));
   };
 
@@ -92,6 +98,24 @@ function TemplatesTab() {
     if (json.error) toast.error(json.error);
     else toast.success(`Template "${TEMPLATE_META[config.template_type].label}" sauvegardé !`);
     setSaving(null);
+  };
+
+  const refinePrompt = async (config: TemplateConfig) => {
+    const prompt = config.custom_prompt?.trim() || defaults[config.template_type] || '';
+    if (!prompt) { toast.error('Écrivez d\'abord un prompt à améliorer'); return; }
+    setRefining(config.template_type);
+    const res = await fetch('/api/ai-chatbot/refine-prompt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, template_type: config.template_type, shop_name: config.shop_name }),
+    });
+    const json = await res.json();
+    if (json.error) toast.error(json.error);
+    else {
+      updateConfig(config.template_type, 'custom_prompt', json.refined);
+      toast.success('Prompt amélioré par l\'IA ✨');
+    }
+    setRefining(null);
   };
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 size={24} className="animate-spin text-gray-400" /></div>;
@@ -191,12 +215,22 @@ function TemplatesTab() {
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-semibold text-gray-600">Prompt personnalisé</label>
-                    <button
-                      onClick={() => updateConfig(config.template_type, 'custom_prompt', '')}
-                      className="text-[11px] text-gray-400 hover:text-gray-600"
-                    >
-                      Réinitialiser
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => refinePrompt(config)}
+                        disabled={refining === config.template_type}
+                        className="text-[11px] flex items-center gap-1 text-purple-600 hover:text-purple-800 font-medium disabled:opacity-50"
+                      >
+                        {refining === config.template_type ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
+                        Améliorer avec IA
+                      </button>
+                      <button
+                        onClick={() => updateConfig(config.template_type, 'custom_prompt', '')}
+                        className="text-[11px] text-gray-400 hover:text-gray-600"
+                      >
+                        Réinitialiser
+                      </button>
+                    </div>
                   </div>
                   <textarea
                     value={config.custom_prompt}
@@ -224,6 +258,71 @@ function TemplatesTab() {
                     className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 font-mono"
                   />
                   <p className="text-[11px] text-gray-400">Recevra un POST JSON avec : type, timestamp, nom, telephone, wilaya, produit</p>
+                </div>
+
+                {/* Admin notification */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-600 flex items-center gap-1.5">
+                    <Bell size={12} className="text-amber-500" />
+                    Notifier l'admin (numéro WhatsApp)
+                  </label>
+                  <input
+                    value={(config as TemplateConfig).admin_whatsapp ?? ''}
+                    onChange={e => updateConfig(config.template_type, 'admin_whatsapp', e.target.value)}
+                    placeholder="Ex: 213661234567"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 font-mono"
+                  />
+                  <p className="text-[11px] text-gray-400">Reçoit un résumé WhatsApp dès qu'une commande est complète. Format : 213XXXXXXXXX</p>
+                </div>
+
+                {/* Product media */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-600 flex items-center gap-1.5">
+                    <Image size={12} className="text-blue-500" />
+                    Image produit (URL)
+                  </label>
+                  <input
+                    value={(config as TemplateConfig).media_url ?? ''}
+                    onChange={e => updateConfig(config.template_type, 'media_url', e.target.value)}
+                    placeholder="https://..."
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 font-mono"
+                  />
+                  <p className="text-[11px] text-gray-400">Envoyée automatiquement au premier message du client</p>
+                </div>
+
+                {/* Blocked prefixes */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-600 flex items-center gap-1.5">
+                    <Shield size={12} className="text-red-500" />
+                    Numéros exclus (préfixes)
+                  </label>
+                  <input
+                    value={((config as TemplateConfig).blocked_prefixes ?? []).join(', ')}
+                    onChange={e => {
+                      const prefixes = e.target.value.split(',').map(p => p.trim()).filter(Boolean);
+                      updateConfig(config.template_type, 'blocked_prefixes', prefixes);
+                    }}
+                    placeholder="Ex: 213550, 213551 (séparés par virgule)"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-400 font-mono"
+                  />
+                  <p className="text-[11px] text-gray-400">Le bot ignorera les messages de ces numéros (utile pour exclure concurrents ou tests)</p>
+                </div>
+
+                {/* Human pause hours */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-600 flex items-center gap-1.5">
+                    <Clock size={12} className="text-purple-500" />
+                    Pause IA après intervention humaine (heures)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={48}
+                    value={(config as TemplateConfig).human_pause_hours ?? 4}
+                    onChange={e => updateConfig(config.template_type, 'human_pause_hours', parseInt(e.target.value) || 4)}
+                    className="w-32 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400"
+                  />
+                  <p className="text-[11px] text-gray-400">Quand vous répondez manuellement, le bot se met en pause pour X heures</p>
                 </div>
 
                 <button
