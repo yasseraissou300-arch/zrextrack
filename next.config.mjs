@@ -30,14 +30,18 @@ const nextConfig = {
       dev: dev
     }
   ) {
-    config.module.rules.push({
-      test: /\.(jsx|tsx)$/,
-      exclude: [/node_modules/],
-      use: [{
-        loader: '@dhiwise/component-tagger/nextLoader',
-      }],
-    });
+    // Component tagger — uniquement en dev si le package est disponible
     if (dev) {
+      try {
+        require.resolve('@dhiwise/component-tagger/nextLoader');
+        config.module.rules.push({
+          test: /\.(jsx|tsx)$/,
+          exclude: [/node_modules/],
+          use: [{ loader: '@dhiwise/component-tagger/nextLoader' }],
+        });
+      } catch (_) {
+        // package non installé, on ignore silencieusement
+      }
       const ignoredPaths = (process.env.WATCH_IGNORED_PATHS || '')
         .split(',')
         .map((p) => p.trim())
