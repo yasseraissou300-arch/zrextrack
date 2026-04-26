@@ -70,7 +70,7 @@ function isAngerDetected(text: string): boolean {
 const BLABLA_PATTERNS = [
   /^(hi|hello|salam|mrhba|ahlan|slt|cava|كيف|مرحبا|صباح|مساء)[\s!?.]*$/i,
   /^(ok|okay|oui|non|yes|no|wah|la|ewa|ewa ewa)[\s!?.]*$/i,
-  /^[😀-🙏🌀-🗿🚀-🛿☀-⛿✀-➿🤀-🧿]+$/,
+  /^\p{Emoji}+$/u,
   /^.{1,3}$/,
 ];
 
