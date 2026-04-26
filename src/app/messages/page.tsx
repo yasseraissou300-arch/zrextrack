@@ -79,107 +79,109 @@ function StatusBadge({ connected }: { connected: boolean }) {
 }
 
 function ConnexionTab() {
-  const [status, setStatus] = useState<string>('disconnected');
-  const [phone, setPhone] = useState<string>('');
+  const [connected, setConnected] = useState<boolean | null>(null);
+  const [phone, setPhone] = useState('');
   const [qr, setQr] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [connecting, setConnecting] = useState(false);
-  const socketRef = useRef<any>(null);
+  const [busy, setBusy] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Charger le statut initial
+  const stopPoll = () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
+
   useEffect(() => {
-    fetch('/api/whatsapp/status')
+    fetch('/api/ai-chatbot/whatsapp/status')
       .then(r => r.json())
-      .then(j => { setStatus(j.status || (j.connected ? 'ready' : 'disconnected')); setPhone(j.phone || ''); setLoading(false); })
-      .catch(() => setLoading(false));
+      .then(j => { setConnected(j.connected || false); setPhone(j.phone || ''); })
+      .catch(() => setConnected(false));
+    return stopPoll;
   }, []);
 
-  // Socket.io — connexion au backend pour recevoir le QR en temps réel
-  useEffect(() => {
-    const backendUrl = process.env.NEXT_PUBLIC_WHATSAPP_BACKEND_URL;
-    if (!backendUrl) return;
-
-    // Import dynamique pour éviter SSR
-    import('socket.io-client').then(({ io }) => {
-      const socket = io(backendUrl, { transports: ['websocket'] });
-      socketRef.current = socket;
-
-      socket.on('connect', () => {
-        // Récupérer userId via API puis rejoindre la room
-        fetch('/api/auth/me').then(r => r.json()).then(({ userId }) => {
-          socket.emit('join', { userId });
-        }).catch(() => {});
-      });
-
-      socket.on('qr', ({ qr: qrData }: any) => {
-        setQr(qrData);
-        setStatus('qr_pending');
-        setConnecting(false);
-      });
-
-      socket.on('status', ({ status: s, phone: p }: any) => {
-        setStatus(s);
-        if (p) setPhone(p);
-        if (s === 'ready') { setQr(null); toast.success(`WhatsApp connecte${p ? ` — +${p}` : ''} !`); }
-        if (s === 'disconnected') { setQr(null); }
-      });
-
-      return () => { socket.disconnect(); };
-    });
-  }, []);
-
-  const connect = async () => {
-    setConnecting(true);
-    setQr(null);
-    const res = await fetch('/api/whatsapp/connect', { method: 'POST' });
-    const json = await res.json();
-    if (json.error) { toast.error(json.error); setConnecting(false); return; }
-    if (json.status === 'ready') { setStatus('ready'); setPhone(json.phone || ''); setConnecting(false); return; }
-    // QR arrivera via Socket.io
+  const startPoll = () => {
+    stopPoll();
+    pollRef.current = setInterval(async () => {
+      try {
+        const j = await fetch('/api/ai-chatbot/whatsapp/status').then(r => r.json());
+        if (j.connected) {
+          setConnected(true); setPhone(j.phone || ''); setQr(null); setBusy(false);
+          stopPoll();
+          toast.success(`WhatsApp connecté${j.phone ? ` — +${j.phone}` : ''} !`);
+        }
+      } catch {}
+    }, 3000);
   };
 
-  const disconnect = async () => {
-    await fetch('/api/whatsapp/disconnect', { method: 'POST' });
-    setStatus('disconnected'); setPhone(''); setQr(null);
+  const connect = async () => {
+    setBusy(true); setQr(null);
+
+    // Ensure instance exists
+    const instJson = await fetch('/api/ai-chatbot/whatsapp/instance').then(r => r.json()).catch(() => ({}));
+    if (!instJson.instance) {
+      const cr = await fetch('/api/ai-chatbot/whatsapp/instance', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create' }),
+      }).then(r => r.json()).catch(() => ({ error: 'Erreur réseau' }));
+      if (cr.error) { toast.error(cr.error); setBusy(false); return; }
+    }
+
+    // Get QR from Evolution API
+    const qrJson = await fetch('/api/ai-chatbot/whatsapp/qr').then(r => r.json()).catch(() => ({ error: 'Erreur réseau' }));
+    if (qrJson.connected) { setConnected(true); setPhone(qrJson.phone || ''); setBusy(false); return; }
+    if (!qrJson.qr) { toast.error(qrJson.error || 'Impossible d\'obtenir le QR'); setBusy(false); return; }
+
+    const qrData = qrJson.qr.startsWith('data:') ? qrJson.qr : `data:image/png;base64,${qrJson.qr}`;
+    setQr(qrData); setBusy(false);
+    startPoll();
+  };
+
+  const handleDisconnect = async () => {
+    stopPoll();
+    await fetch('/api/ai-chatbot/whatsapp/instance', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete' }),
+    }).catch(() => {});
+    setConnected(false); setPhone(''); setQr(null);
     toast.success('Déconnecté');
   };
 
-  const checkStatus = async () => {
-    const res = await fetch('/api/whatsapp/status');
-    const json = await res.json();
-    setStatus(json.status || (json.connected ? 'ready' : 'disconnected'));
-    setPhone(json.phone || '');
+  const handleRefreshQr = async () => {
+    stopPoll(); setBusy(true); setQr(null);
+    const qrJson = await fetch('/api/ai-chatbot/whatsapp/qr').then(r => r.json()).catch(() => ({ error: 'Erreur réseau' }));
+    if (!qrJson.qr) { toast.error(qrJson.error || 'QR non disponible'); setBusy(false); return; }
+    const qrData = qrJson.qr.startsWith('data:') ? qrJson.qr : `data:image/png;base64,${qrJson.qr}`;
+    setQr(qrData); setBusy(false);
+    startPoll();
   };
 
-  const isReady = status === 'ready';
-  const isPending = status === 'qr_pending' || status === 'initializing' || connecting;
+  const handleCheckStatus = async () => {
+    const j = await fetch('/api/ai-chatbot/whatsapp/status').then(r => r.json()).catch(() => ({}));
+    setConnected(j.connected || false); setPhone(j.phone || '');
+  };
 
-  if (loading) return <div className="flex items-center justify-center py-20"><Loader2 size={24} className="animate-spin text-gray-400" /></div>;
+  if (connected === null) return <div className="flex items-center justify-center py-20"><Loader2 size={24} className="animate-spin text-gray-400" /></div>;
 
   return (
     <div className="max-w-xl space-y-6">
       {/* Statut */}
-      <div className={`rounded-2xl p-5 border-2 ${isReady ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+      <div className={`rounded-2xl p-5 border-2 ${connected ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isReady ? 'bg-green-500' : isPending ? 'bg-amber-400' : 'bg-gray-300'}`}>
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${connected ? 'bg-green-500' : qr ? 'bg-amber-400' : 'bg-gray-300'}`}>
               <MessageSquare size={20} className="text-white" />
             </div>
             <div>
               <p className="font-semibold text-gray-900">WhatsApp</p>
-              <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${isReady ? 'bg-green-100 text-green-700' : isPending ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'}`}>
-                {isReady ? <><Wifi size={12} /> Connecte</> : isPending ? <><Loader2 size={12} className="animate-spin" /> En cours...</> : <><WifiOff size={12} /> Deconnecte</>}
+              <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${connected ? 'bg-green-100 text-green-700' : qr ? 'bg-amber-100 text-amber-700' : busy ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'}`}>
+                {connected ? <><Wifi size={12} /> Connecté</> : qr ? <><Loader2 size={12} className="animate-spin" /> En attente du scan...</> : busy ? <><Loader2 size={12} className="animate-spin" /> Connexion...</> : <><WifiOff size={12} /> Déconnecté</>}
               </span>
-              {isReady && phone && <p className="text-xs text-green-600 mt-0.5">+{phone}</p>}
+              {connected && phone && <p className="text-xs text-green-600 mt-0.5">+{phone}</p>}
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={checkStatus} className="p-1.5 border border-gray-200 rounded-lg hover:bg-white">
+            <button onClick={handleCheckStatus} className="p-1.5 border border-gray-200 rounded-lg hover:bg-white">
               <RefreshCw size={14} className="text-gray-400" />
             </button>
-            {isReady && (
-              <button onClick={disconnect} className="text-xs px-3 py-1.5 border border-red-200 text-red-600 rounded-lg hover:bg-red-50">
-                Deconnecter
+            {connected && (
+              <button onClick={handleDisconnect} className="text-xs px-3 py-1.5 border border-red-200 text-red-600 rounded-lg hover:bg-red-50">
+                Déconnecter
               </button>
             )}
           </div>
@@ -187,7 +189,7 @@ function ConnexionTab() {
       </div>
 
       {/* QR Code */}
-      {!isReady && (
+      {!connected && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
           <div className="flex items-center gap-2">
             <QrCode size={16} className="text-gray-500" />
@@ -199,29 +201,29 @@ function ConnexionTab() {
               <img src={qr} alt="QR Code WhatsApp" className="w-56 h-56 rounded-xl border border-gray-200" />
               <p className="text-xs text-gray-500 text-center">Ouvre WhatsApp → <strong>Appareils liés</strong> → scanne ce QR</p>
               <p className="text-xs text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg">QR expire en 20 secondes — rafraichis si expiré</p>
-              <button onClick={connect} disabled={connecting} className="flex items-center gap-1.5 text-sm px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50">
+              <button onClick={handleRefreshQr} disabled={busy} className="flex items-center gap-1.5 text-sm px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50">
                 <RefreshCw size={13} /> Nouveau QR
               </button>
             </div>
           ) : (
             <div className="space-y-3">
               <div className="bg-blue-50 rounded-xl p-4 space-y-1.5">
-                {['Ton numero WhatsApp sera le numero d\'envoi des notifications','Aucun abonnement requis — utilise ton compte WhatsApp personnel ou Business','La session persiste même après redémarrage (Redis)'].map((t, i) => (
+                {['Ton numero WhatsApp sera le numero d\'envoi des notifications', 'Aucun abonnement requis — utilise ton compte WhatsApp personnel ou Business', 'Session gérée par Evolution API'].map((t, i) => (
                   <div key={i} className="flex items-start gap-2">
                     <CheckCircle size={13} className="text-blue-500 shrink-0 mt-0.5" />
                     <p className="text-[11px] text-blue-800">{t}</p>
                   </div>
                 ))}
               </div>
-              <button onClick={connect} disabled={connecting} className="w-full bg-green-600 text-white rounded-xl py-3 text-sm font-medium hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2">
-                {connecting ? <><Loader2 size={15} className="animate-spin" /> Génération QR...</> : <><QrCode size={15} /> Connecter WhatsApp</>}
+              <button onClick={connect} disabled={busy} className="w-full bg-green-600 text-white rounded-xl py-3 text-sm font-medium hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2">
+                {busy ? <><Loader2 size={15} className="animate-spin" /> Génération QR...</> : <><QrCode size={15} /> Connecter WhatsApp</>}
               </button>
             </div>
           )}
         </div>
       )}
 
-      {isReady && (
+      {connected && (
         <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex items-center gap-3">
           <CheckCircle size={20} className="text-green-600 shrink-0" />
           <div>
@@ -261,7 +263,7 @@ function EnvoyerTab() {
     setLoadingOrders(false);
   }, [page, situationFilter]);
 
-  useEffect(() => { fetch('/api/whatsapp/status').then(r => r.json()).then(j => setConnected(j.connected)); }, []);
+  useEffect(() => { fetch('/api/ai-chatbot/whatsapp/status').then(r => r.json()).then(j => setConnected(j.connected || false)); }, []);
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
   useEffect(() => {
     setSubSituationFilter('');
