@@ -511,14 +511,25 @@ function HistoriqueTab() {
           <div className="flex items-center gap-2">
             <History size={16} className="text-gray-500" />
             <h3 className="font-semibold text-gray-900">Historique des messages</h3>
+            {echecCount > 0 && <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-0.5 rounded-full">{echecCount} echec</span>}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {echecCount > 0 && (
+              <button
+                onClick={resendAll}
+                disabled={resendingAll}
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-50 font-medium"
+              >
+                {resendingAll ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                Tout renvoyer ({echecCount})
+              </button>
+            )}
             <button
               onClick={() => setFilterEchec(f => !f)}
               className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl border font-medium transition-colors ${filterEchec ? 'bg-red-600 text-white border-red-600' : 'border-gray-200 text-gray-600 hover:border-red-400 hover:text-red-600'}`}
             >
               <AlertCircle size={12} />
-              Echec uniquement {echecCount > 0 && <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${filterEchec ? 'bg-white text-red-600' : 'bg-red-100 text-red-600'}`}>{echecCount}</span>}
+              Echec seulement
             </button>
             <button onClick={fetchMessages} className="p-1.5 hover:bg-gray-100 rounded-lg">
               <RefreshCw size={14} className="text-gray-400" />
