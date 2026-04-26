@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 
-function formatPhone(phone: string): string {
+const BACKEND = process.env.WHATSAPP_BACKEND_URL;
+const SECRET = process.env.WHATSAPP_BACKEND_SECRET;
+
+function normalizePhone(phone: string): string {
   const clean = phone.replace(/[\s\-\(\)\+\.]/g, '');
   if (clean.startsWith('213')) return clean;
   if (clean.startsWith('0')) return '213' + clean.slice(1);
@@ -9,39 +12,16 @@ function formatPhone(phone: string): string {
   return clean;
 }
 
-async function sendMetaMessage(phoneNumberId: string, accessToken: string, to: string, message: string) {
-  const res = await fetch(`https://graph.facebook.com/v18.0/${phoneNumberId}/messages`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      messaging_product: 'whatsapp',
-      to,
-      type: 'text',
-      text: { body: message },
-    }),
-  });
-  return res.json();
-}
-
 export async function POST(request: NextRequest) {
   const supabaseAuth = await createClient();
   const { data: { user } } = await supabaseAuth.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
 
-  const supabase = createServiceClient();
-  const { data: settings } = await supabase
-    .from('whatsapp_settings')
-    .select('instance_id, api_token')
-    .eq('user_id', user.id)
-    .single();
-
-  if (!settings?.instance_id || !settings?.api_token) {
-    return NextResponse.json({ error: 'WhatsApp Business non configuré — entre ton Phone Number ID et Access Token' }, { status: 400 });
+  if (!BACKEND || !SECRET) {
+    return NextResponse.json({ error: 'Backend WhatsApp non configuré' }, { status: 500 });
   }
 
+  const supabase = createServiceClient();
   const body = await request.json();
   const { recipients } = body;
 
@@ -51,17 +31,19 @@ export async function POST(request: NextRequest) {
 
   const results = [];
   for (const r of recipients) {
-    const to = formatPhone(r.whatsapp);
+    const to = normalizePhone(r.whatsapp);
     let status: 'envoye' | 'echec' = 'echec';
     let errorMsg = '';
 
     try {
-      const json = await sendMetaMessage(settings.instance_id, settings.api_token, to, r.message);
-      if (json.messages?.[0]?.id) {
-        status = 'envoye';
-      } else {
-        errorMsg = json.error?.message || JSON.stringify(json);
-      }
+      const res = await fetch(`${BACKEND}/api/send/${user.id}`, {
+        method: 'POST',
+        headers: { 'x-backend-secret': SECRET, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to, message: r.message }),
+      });
+      const json = await res.json();
+      if (json.success) status = 'envoye';
+      else errorMsg = json.error || 'Echec envoi';
     } catch (e: any) {
       errorMsg = e.message;
     }

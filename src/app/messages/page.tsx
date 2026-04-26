@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
 import { MessageSquare, Wifi, WifiOff, QrCode, Send, History, CheckCircle, RefreshCw, ChevronLeft, ChevronRight, Settings, AlertCircle, Users, Loader2, Smartphone, Filter, Zap, Bot, ToggleLeft, ToggleRight, Globe, Copy } from 'lucide-react';
 import { toast } from 'sonner';
@@ -79,129 +79,157 @@ function StatusBadge({ connected }: { connected: boolean }) {
 }
 
 function ConnexionTab() {
-  const [settings, setSettings] = useState<WASettings>({ instance_id: '', api_token: '', connected: false, phone: '' });
+  const [status, setStatus] = useState<string>('disconnected');
+  const [phone, setPhone] = useState<string>('');
+  const [qr, setQr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [statusChecking, setStatusChecking] = useState(false);
-  const [form, setForm] = useState({ instance_id: '', api_token: '' });
+  const [connecting, setConnecting] = useState(false);
+  const socketRef = useRef<any>(null);
 
-  const fetchSettings = useCallback(async () => {
-    setLoading(true);
-    const res = await fetch('/api/whatsapp/settings');
-    const json = await res.json();
-    setSettings(json);
-    setForm({ instance_id: json.instance_id || '', api_token: json.api_token || '' });
-    setLoading(false);
+  // Charger le statut initial
+  useEffect(() => {
+    fetch('/api/whatsapp/status')
+      .then(r => r.json())
+      .then(j => { setStatus(j.status || (j.connected ? 'ready' : 'disconnected')); setPhone(j.phone || ''); setLoading(false); })
+      .catch(() => setLoading(false));
   }, []);
 
-  useEffect(() => { fetchSettings(); }, [fetchSettings]);
+  // Socket.io — connexion au backend pour recevoir le QR en temps réel
+  useEffect(() => {
+    const backendUrl = process.env.NEXT_PUBLIC_WHATSAPP_BACKEND_URL;
+    if (!backendUrl) return;
 
-  const saveSettings = async () => {
-    if (!form.instance_id || !form.api_token) { toast.error('Remplis les deux champs'); return; }
-    setSaving(true);
-    const res = await fetch('/api/whatsapp/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+    // Import dynamique pour éviter SSR
+    import('socket.io-client').then(({ io }) => {
+      const socket = io(backendUrl, { transports: ['websocket'] });
+      socketRef.current = socket;
+
+      socket.on('connect', () => {
+        // Récupérer userId via API puis rejoindre la room
+        fetch('/api/auth/me').then(r => r.json()).then(({ userId }) => {
+          socket.emit('join', { userId });
+        }).catch(() => {});
+      });
+
+      socket.on('qr', ({ qr: qrData }: any) => {
+        setQr(qrData);
+        setStatus('qr_pending');
+        setConnecting(false);
+      });
+
+      socket.on('status', ({ status: s, phone: p }: any) => {
+        setStatus(s);
+        if (p) setPhone(p);
+        if (s === 'ready') { setQr(null); toast.success(`WhatsApp connecte${p ? ` — +${p}` : ''} !`); }
+        if (s === 'disconnected') { setQr(null); }
+      });
+
+      return () => { socket.disconnect(); };
+    });
+  }, []);
+
+  const connect = async () => {
+    setConnecting(true);
+    setQr(null);
+    const res = await fetch('/api/whatsapp/connect', { method: 'POST' });
     const json = await res.json();
-    if (json.error) toast.error(json.error);
-    else { toast.success('Credentials sauvegardes !'); setSettings(s => ({ ...s, ...form })); }
-    setSaving(false);
+    if (json.error) { toast.error(json.error); setConnecting(false); return; }
+    if (json.status === 'ready') { setStatus('ready'); setPhone(json.phone || ''); setConnecting(false); return; }
+    // QR arrivera via Socket.io
   };
 
-  const checkStatus = useCallback(async () => {
-    setStatusChecking(true);
+  const disconnect = async () => {
+    await fetch('/api/whatsapp/disconnect', { method: 'POST' });
+    setStatus('disconnected'); setPhone(''); setQr(null);
+    toast.success('Déconnecté');
+  };
+
+  const checkStatus = async () => {
     const res = await fetch('/api/whatsapp/status');
     const json = await res.json();
-    setSettings(s => ({ ...s, connected: json.connected, phone: json.phone || s.phone }));
-    if (json.connected) toast.success(`WhatsApp Business connecte${json.phone ? ` — ${json.phone}` : ''} !`);
-    else toast.error(json.error || 'Credentials invalides — verifie ton Phone Number ID et Access Token');
-    setStatusChecking(false);
-  }, []);
+    setStatus(json.status || (json.connected ? 'ready' : 'disconnected'));
+    setPhone(json.phone || '');
+  };
+
+  const isReady = status === 'ready';
+  const isPending = status === 'qr_pending' || status === 'initializing' || connecting;
 
   if (loading) return <div className="flex items-center justify-center py-20"><Loader2 size={24} className="animate-spin text-gray-400" /></div>;
 
   return (
     <div className="max-w-xl space-y-6">
       {/* Statut */}
-      <div className={`rounded-2xl p-5 border-2 ${settings.connected ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+      <div className={`rounded-2xl p-5 border-2 ${isReady ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${settings.connected ? 'bg-green-500' : 'bg-gray-300'}`}>
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isReady ? 'bg-green-500' : isPending ? 'bg-amber-400' : 'bg-gray-300'}`}>
               <MessageSquare size={20} className="text-white" />
             </div>
             <div>
-              <p className="font-semibold text-gray-900">WhatsApp Business API</p>
-              <StatusBadge connected={settings.connected} />
-              {settings.connected && settings.phone && <p className="text-xs text-green-600 mt-0.5">{settings.phone}</p>}
+              <p className="font-semibold text-gray-900">WhatsApp</p>
+              <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${isReady ? 'bg-green-100 text-green-700' : isPending ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'}`}>
+                {isReady ? <><Wifi size={12} /> Connecte</> : isPending ? <><Loader2 size={12} className="animate-spin" /> En cours...</> : <><WifiOff size={12} /> Deconnecte</>}
+              </span>
+              {isReady && phone && <p className="text-xs text-green-600 mt-0.5">+{phone}</p>}
             </div>
-          </div>
-          <button onClick={checkStatus} disabled={statusChecking} className="flex items-center gap-1.5 text-sm px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-white disabled:opacity-50">
-            {statusChecking ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Verifier
-          </button>
-        </div>
-      </div>
-
-      {/* Credentials */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
-        <div className="flex items-center gap-2">
-          <Settings size={16} className="text-gray-500" />
-          <h3 className="font-semibold text-gray-900">Credentials Meta WhatsApp Business</h3>
-        </div>
-
-        {/* Guide setup */}
-        <div className="bg-blue-50 rounded-xl p-4 space-y-2">
-          <p className="text-xs font-semibold text-blue-800">Comment obtenir tes credentials :</p>
-          {[
-            'Va sur developers.facebook.com → Cree une app → choisis "Business"',
-            'Ajoute le produit "WhatsApp" a ton app',
-            'Dans WhatsApp → Getting Started : copie le Phone Number ID',
-            'Genere un Access Token permanent (ou utilise le token temporaire pour tester)',
-          ].map((step, i) => (
-            <div key={i} className="flex items-start gap-2">
-              <span className="w-4 h-4 bg-blue-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
-              <p className="text-[11px] text-blue-800">{step}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="space-y-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Phone Number ID</label>
-            <input
-              value={form.instance_id}
-              onChange={e => setForm(f => ({ ...f, instance_id: e.target.value }))}
-              placeholder="ex: 123456789012345"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <p className="text-xs text-gray-400 mt-1">Trouve dans Meta for Developers → WhatsApp → Getting Started</p>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Access Token</label>
-            <input
-              value={form.api_token}
-              onChange={e => setForm(f => ({ ...f, api_token: e.target.value }))}
-              placeholder="EAAxxxxxxxxxxxxx..."
-              type="password"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <p className="text-xs text-gray-400 mt-1">Token permanent recommande — va dans Parametres Systeme → Utilisateurs Systeme</p>
           </div>
           <div className="flex gap-2">
-            <button onClick={saveSettings} disabled={saving} className="flex-1 bg-gray-900 text-white rounded-lg py-2.5 text-sm font-medium hover:bg-gray-700 disabled:opacity-50 flex items-center justify-center gap-2">
-              {saving && <Loader2 size={14} className="animate-spin" />}
-              Sauvegarder
+            <button onClick={checkStatus} className="p-1.5 border border-gray-200 rounded-lg hover:bg-white">
+              <RefreshCw size={14} className="text-gray-400" />
             </button>
-            <button onClick={checkStatus} disabled={statusChecking || !form.instance_id || !form.api_token} className="flex items-center gap-1.5 px-4 py-2.5 border border-gray-200 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50">
-              {statusChecking ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
-              Tester
-            </button>
+            {isReady && (
+              <button onClick={disconnect} className="text-xs px-3 py-1.5 border border-red-200 text-red-600 rounded-lg hover:bg-red-50">
+                Deconnecter
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Info gratuit */}
-      <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
-        <p className="text-sm font-semibold text-green-800 mb-1">Plan gratuit Meta : 1000 conversations/mois</p>
-        <p className="text-xs text-green-700">Les messages de service (livraison, suivi) sont gratuits dans la fenetre de 24h apres un message du client. Les messages inities par toi comptent dans le quota mensuel.</p>
-      </div>
+      {/* QR Code */}
+      {!isReady && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+          <div className="flex items-center gap-2">
+            <QrCode size={16} className="text-gray-500" />
+            <h3 className="font-semibold text-gray-900">Connecter WhatsApp</h3>
+          </div>
+
+          {qr ? (
+            <div className="flex flex-col items-center gap-3">
+              <img src={qr} alt="QR Code WhatsApp" className="w-56 h-56 rounded-xl border border-gray-200" />
+              <p className="text-xs text-gray-500 text-center">Ouvre WhatsApp → <strong>Appareils liés</strong> → scanne ce QR</p>
+              <p className="text-xs text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg">QR expire en 20 secondes — rafraichis si expiré</p>
+              <button onClick={connect} disabled={connecting} className="flex items-center gap-1.5 text-sm px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50">
+                <RefreshCw size={13} /> Nouveau QR
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="bg-blue-50 rounded-xl p-4 space-y-1.5">
+                {['Ton numero WhatsApp sera le numero d\'envoi des notifications','Aucun abonnement requis — utilise ton compte WhatsApp personnel ou Business','La session persiste même après redémarrage (Redis)'].map((t, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <CheckCircle size={13} className="text-blue-500 shrink-0 mt-0.5" />
+                    <p className="text-[11px] text-blue-800">{t}</p>
+                  </div>
+                ))}
+              </div>
+              <button onClick={connect} disabled={connecting} className="w-full bg-green-600 text-white rounded-xl py-3 text-sm font-medium hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2">
+                {connecting ? <><Loader2 size={15} className="animate-spin" /> Génération QR...</> : <><QrCode size={15} /> Connecter WhatsApp</>}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {isReady && (
+        <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex items-center gap-3">
+          <CheckCircle size={20} className="text-green-600 shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-green-800">WhatsApp connecté</p>
+            <p className="text-xs text-green-700">Les notifications de livraison seront envoyées depuis le +{phone}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

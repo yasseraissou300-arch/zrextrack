@@ -1,36 +1,25 @@
 import { NextResponse } from 'next/server';
-import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
+
+const BACKEND = process.env.WHATSAPP_BACKEND_URL;
+const SECRET = process.env.WHATSAPP_BACKEND_SECRET;
 
 export async function GET() {
-  const supabaseAuth = await createClient();
-  const { data: { user } } = await supabaseAuth.auth.getUser();
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
 
-  const supabase = createServiceClient();
-  const { data: settings } = await supabase
-    .from('whatsapp_settings')
-    .select('instance_id, api_token')
-    .eq('user_id', user.id)
-    .single();
-
-  if (!settings?.instance_id || !settings?.api_token) {
-    return NextResponse.json({ connected: false, error: 'Credentials non configurés' });
+  if (!BACKEND || !SECRET) {
+    return NextResponse.json({ connected: false, status: 'backend_not_configured' });
   }
 
   try {
-    const res = await fetch(
-      `https://graph.facebook.com/v18.0/${settings.instance_id}?access_token=${settings.api_token}`
-    );
+    const res = await fetch(`${BACKEND}/api/status/${user.id}`, {
+      headers: { 'x-backend-secret': SECRET },
+    });
     const json = await res.json();
-    const connected = !!json.id && !json.error;
-
-    await supabase
-      .from('whatsapp_settings')
-      .update({ connected, updated_at: new Date().toISOString() })
-      .eq('user_id', user.id);
-
-    return NextResponse.json({ connected, phone: json.display_phone_number || '' });
+    return NextResponse.json({ ...json, connected: json.status === 'ready' });
   } catch {
-    return NextResponse.json({ connected: false });
+    return NextResponse.json({ connected: false, status: 'backend_unreachable' });
   }
 }
