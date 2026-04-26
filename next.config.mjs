@@ -24,24 +24,8 @@ const nextConfig = {
     ];
   },
 
-  webpack(
-    config,
-    {
-      dev: dev
-    }
-  ) {
-    // Component tagger — uniquement en dev si le package est disponible
+  webpack(config, { dev }) {
     if (dev) {
-      try {
-        require.resolve('@dhiwise/component-tagger/nextLoader');
-        config.module.rules.push({
-          test: /\.(jsx|tsx)$/,
-          exclude: [/node_modules/],
-          use: [{ loader: '@dhiwise/component-tagger/nextLoader' }],
-        });
-      } catch (_) {
-        // package non installé, on ignore silencieusement
-      }
       const ignoredPaths = (process.env.WATCH_IGNORED_PATHS || '')
         .split(',')
         .map((p) => p.trim())
