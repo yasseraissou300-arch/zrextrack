@@ -14,12 +14,19 @@ export async function GET() {
     .single();
 
   if (!settings?.instance_id || !settings?.api_token) {
-    return NextResponse.json({ error: 'Credentials non configurés' }, { status: 400 });
+    return NextResponse.json({ error: 'Entre ton Instance ID et API Token dans l\'onglet Connexion puis Sauvegarder' }, { status: 400 });
   }
 
-  const res = await fetch(
-    `https://api.green-api.com/waInstance${settings.instance_id}/qr/${settings.api_token}`
-  );
-  const json = await res.json();
-  return NextResponse.json(json);
+  try {
+    const res = await fetch(
+      `https://api.green-api.com/waInstance${settings.instance_id}/qr/${settings.api_token}`
+    );
+    if (!res.ok) {
+      return NextResponse.json({ error: `Green API erreur ${res.status} — vérifie ton Instance ID et Token` }, { status: 502 });
+    }
+    const json = await res.json();
+    return NextResponse.json(json);
+  } catch {
+    return NextResponse.json({ error: 'Impossible de contacter Green API' }, { status: 502 });
+  }
 }

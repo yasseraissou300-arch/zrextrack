@@ -16,7 +16,7 @@ async function sendReply(phone, message) {
   const host = instanceId.slice(0, 4);
   const cleanPhone = phone.replace(/\D/g, '');
   const intlPhone = cleanPhone.startsWith('213') ? cleanPhone : `213${cleanPhone.replace(/^0/, '')}`;
-  await fetch(`https://${host}.api.greenapi.com/waInstance${instanceId}/sendMessage/${token}`, {
+  await fetch(`https://api.green-api.com/waInstance${instanceId}/sendMessage/${token}`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ chatId: `${intlPhone}@c.us`, message }),
   }).catch(() => {});

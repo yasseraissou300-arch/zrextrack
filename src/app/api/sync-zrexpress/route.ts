@@ -40,23 +40,19 @@ function normalizePhone(phone: string): string {
 }
 
 // Envoyer un message WhatsApp via Green API
-async function sendWhatsApp(phone: string, message: string): Promise<boolean> {
-  const instanceId = process.env.GREEN_API_INSTANCE_ID;
-  const token = process.env.GREEN_API_TOKEN;
-  if (!instanceId || !token) return false;
-
+async function sendWhatsApp(instanceId: string, token: string, phone: string, message: string): Promise<boolean> {
   try {
     const intlPhone = normalizePhone(phone);
-    const host = process.env.GREEN_API_HOST || '7107';
     const res = await fetch(
-      `https://${host}.api.greenapi.com/waInstance${instanceId}/sendMessage/${token}`,
+      `https://api.green-api.com/waInstance${instanceId}/sendMessage/${token}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chatId: `${intlPhone}@c.us`, message }),
       }
     );
-    return res.ok;
+    const json = await res.json().catch(() => ({}));
+    return !!json.idMessage;
   } catch {
     return false;
   }
@@ -256,15 +252,10 @@ function mapParcel(p: any, syncedAt: string) {
     customer_name: String(client),
     customer_whatsapp: String(whatsapp),
     wilaya: String(wilaya),
-    district: String(district),
     product_name: String(product),
     cod: Number(cod),
     delivery_status: status,
-    situation: String(situation),
-    delivery_type: String(delivery_type),
-    delivery_fees: Number(delivery_fees),
     attempts: Number(attempts),
-    created_at: p.createdAt || p.created_at || syncedAt,
     last_update: syncedAt,
   };
 }
@@ -280,6 +271,13 @@ export async function POST(request: NextRequest) {
     const userId = user?.id ?? null;
 
     const supabase = createServiceClient();
+
+    // Récupérer les credentials WhatsApp depuis whatsapp_settings (comme les autres routes)
+    const { data: waSettings } = userId
+      ? await supabase.from('whatsapp_settings').select('instance_id, api_token').eq('user_id', userId).single()
+      : { data: null };
+    const waInstanceId: string = waSettings?.instance_id ?? '';
+    const waToken: string = waSettings?.api_token ?? '';
 
     // 1. Récupérer toutes les commandes depuis ZREXpress
     const parcels = await fetchAllParcels(token, tenantId);
@@ -347,7 +345,9 @@ export async function POST(request: NextRequest) {
     let whatsappSent = 0;
     for (const n of toNotify) {
       const message = buildMessage(n.delivery_status, n.customer_name, n.tracking_number, n.wilaya, customTemplates);
-      const sent = await sendWhatsApp(n.customer_whatsapp, message);
+      const sent = waInstanceId && waToken
+        ? await sendWhatsApp(waInstanceId, waToken, n.customer_whatsapp, message)
+        : false;
       if (sent) whatsappSent++;
 
       // Logger dans la table messages

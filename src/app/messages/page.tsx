@@ -113,11 +113,19 @@ function ConnexionTab() {
   }, []);
   const getQR = async () => {
     setQrLoading(true); setQrData(null);
-    const res = await fetch('/api/whatsapp/qr');
-    const json = await res.json();
-    if (json.type === 'qrCode') setQrData(json.message);
-    else if (json.type === 'alreadyLogged') { toast.success('Deja connecte !'); checkStatus(); }
-    else toast.error(json.message || 'Erreur QR');
+    try {
+      const res = await fetch('/api/whatsapp/qr');
+      const json = await res.json();
+      if (json.type === 'qrCode') {
+        setQrData(json.message);
+      } else if (json.type === 'alreadyLogged') {
+        toast.success('Deja connecte !'); checkStatus();
+      } else {
+        toast.error(json.error || json.message || `Erreur QR (code ${res.status})`);
+      }
+    } catch (e) {
+      toast.error('Impossible de contacter le serveur');
+    }
     setQrLoading(false);
   };
   if (loading) return <div className="flex items-center justify-center py-20"><Loader2 size={24} className="animate-spin text-gray-400" /></div>;
@@ -425,49 +433,140 @@ function EnvoyerTab() {
 function HistoriqueTab() {
   const [messages, setMessages] = useState<MsgLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filterEchec, setFilterEchec] = useState(false);
+  const [resending, setResending] = useState<Set<string>>(new Set());
+  const [resendingAll, setResendingAll] = useState(false);
+
   const fetchMessages = useCallback(async () => {
     setLoading(true);
-    const res = await fetch('/api/messages');
+    const res = await fetch('/api/messages?pageSize=200');
     const json = await res.json();
     setMessages(json.data || []);
     setLoading(false);
   }, []);
+
   useEffect(() => { fetchMessages(); }, [fetchMessages]);
+
+  const resend = async (msg: MsgLog) => {
+    setResending(s => new Set(s).add(msg.id));
+    const res = await fetch('/api/whatsapp/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ recipients: [{ tracking: msg.tracking_number, client: msg.customer_name, whatsapp: msg.customer_whatsapp, message: msg.message }] }),
+    });
+    const json = await res.json();
+    if (json.error) toast.error(json.error);
+    else if (json.sent > 0) { toast.success('Message renvoyé !'); fetchMessages(); }
+    else toast.error('Echec du renvoi');
+    setResending(s => { const n = new Set(s); n.delete(msg.id); return n; });
+  };
+
+  const resendAll = async () => {
+    const failed = displayed.filter(m => m.status === 'echec');
+    if (failed.length === 0) return;
+    setResendingAll(true);
+    const recipients = failed.map(m => ({ tracking: m.tracking_number, client: m.customer_name, whatsapp: m.customer_whatsapp, message: m.message }));
+    const res = await fetch('/api/whatsapp/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ recipients }),
+    });
+    const json = await res.json();
+    if (json.error) toast.error(json.error);
+    else { toast.success(`${json.sent} message(s) renvoyé(s)`); fetchMessages(); }
+    setResendingAll(false);
+  };
+
   const statusConfig: Record<string, { label: string; bg: string }> = {
     envoye: { label: 'Envoye', bg: 'bg-green-100 text-green-700' },
     echec: { label: 'Echec', bg: 'bg-red-100 text-red-600' },
     en_attente: { label: 'En attente', bg: 'bg-amber-100 text-amber-700' },
   };
+
+  const echecCount = messages.filter(m => m.status === 'echec').length;
+  const displayed = filterEchec ? messages.filter(m => m.status === 'echec') : messages;
+
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-        <div className="flex items-center gap-2"><History size={16} className="text-gray-500" /><h3 className="font-semibold text-gray-900">Historique des messages</h3></div>
-        <button onClick={fetchMessages} className="p-1.5 hover:bg-gray-100 rounded-lg"><RefreshCw size={14} className="text-gray-400" /></button>
-      </div>
-      <div className="divide-y divide-gray-50">
-        {loading ? (
-          <div className="flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-gray-400" /></div>
-        ) : messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-gray-400"><MessageSquare size={32} className="mb-2 opacity-30" /><p className="text-sm">Aucun message envoye</p></div>
-        ) : messages.map(msg => {
-          const cfg = statusConfig[msg.status] || statusConfig.en_attente;
-          return (
-            <div key={msg.id} className="p-4 hover:bg-gray-50">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <span className="font-medium text-gray-900 text-sm">{msg.customer_name}</span>
-                    <span className="text-xs text-gray-400">{msg.customer_whatsapp}</span>
-                    {msg.tracking_number && <span className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">{msg.tracking_number}</span>}
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg.bg}`}>{cfg.label}</span>
-                  </div>
-                  <p className="text-xs text-gray-500 line-clamp-2 whitespace-pre-line text-right" dir="rtl">{msg.message}</p>
-                </div>
-                <span className="text-[10px] text-gray-400 shrink-0">{new Date(msg.sent_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
-              </div>
+    <div className="space-y-4">
+      {/* Bannière échecs */}
+      {echecCount > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <AlertCircle size={18} className="text-red-500 shrink-0" />
+            <p className="text-sm text-red-700 font-medium">{echecCount} message{echecCount > 1 ? 's' : ''} en échec — non livré{echecCount > 1 ? 's' : ''}</p>
+          </div>
+          <button
+            onClick={resendAll}
+            disabled={resendingAll}
+            className="flex items-center gap-1.5 text-sm px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-50 font-medium shrink-0"
+          >
+            {resendingAll ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+            Tout renvoyer
+          </button>
+        </div>
+      )}
+
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-gray-100 flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <History size={16} className="text-gray-500" />
+            <h3 className="font-semibold text-gray-900">Historique des messages</h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setFilterEchec(f => !f)}
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl border font-medium transition-colors ${filterEchec ? 'bg-red-600 text-white border-red-600' : 'border-gray-200 text-gray-600 hover:border-red-400 hover:text-red-600'}`}
+            >
+              <AlertCircle size={12} />
+              Echec uniquement {echecCount > 0 && <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${filterEchec ? 'bg-white text-red-600' : 'bg-red-100 text-red-600'}`}>{echecCount}</span>}
+            </button>
+            <button onClick={fetchMessages} className="p-1.5 hover:bg-gray-100 rounded-lg">
+              <RefreshCw size={14} className="text-gray-400" />
+            </button>
+          </div>
+        </div>
+
+        <div className="divide-y divide-gray-50">
+          {loading ? (
+            <div className="flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-gray-400" /></div>
+          ) : displayed.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+              <MessageSquare size={32} className="mb-2 opacity-30" />
+              <p className="text-sm">{filterEchec ? 'Aucun message en echec' : 'Aucun message envoye'}</p>
             </div>
-          );
-        })}
+          ) : displayed.map(msg => {
+            const cfg = statusConfig[msg.status] || statusConfig.en_attente;
+            const isResending = resending.has(msg.id);
+            return (
+              <div key={msg.id} className={`p-4 hover:bg-gray-50 ${msg.status === 'echec' ? 'border-l-2 border-red-300' : ''}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="font-medium text-gray-900 text-sm">{msg.customer_name}</span>
+                      <span className="text-xs text-gray-400">{msg.customer_whatsapp}</span>
+                      {msg.tracking_number && <span className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">{msg.tracking_number}</span>}
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg.bg}`}>{cfg.label}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 line-clamp-2 whitespace-pre-line text-right" dir="rtl">{msg.message}</p>
+                  </div>
+                  <div className="flex flex-col items-end gap-2 shrink-0">
+                    <span className="text-[10px] text-gray-400">{new Date(msg.sent_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                    {msg.status === 'echec' && (
+                      <button
+                        onClick={() => resend(msg)}
+                        disabled={isResending}
+                        className="flex items-center gap-1 text-xs px-2.5 py-1 bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-600 hover:text-white transition-colors disabled:opacity-50 font-medium"
+                      >
+                        {isResending ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+                        Renvoyer
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
