@@ -111,10 +111,22 @@ function ConnexionTab() {
 
   const connect = async () => {
     setBusy(true); setQr(null);
-    // Get QR directly from Green API
+
+    // Ensure instance exists
+    const instJson = await fetch('/api/ai-chatbot/whatsapp/instance').then(r => r.json()).catch(() => ({}));
+    if (!instJson.instance) {
+      const cr = await fetch('/api/ai-chatbot/whatsapp/instance', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create' }),
+      }).then(r => r.json()).catch(() => ({ error: 'Erreur réseau' }));
+      if (cr.error) { toast.error(cr.error); setBusy(false); return; }
+    }
+
+    // Get QR from Evolution API
     const qrJson = await fetch('/api/ai-chatbot/whatsapp/qr').then(r => r.json()).catch(() => ({ error: 'Erreur réseau' }));
     if (qrJson.connected) { setConnected(true); setPhone(qrJson.phone || ''); setBusy(false); return; }
-    if (!qrJson.qr) { toast.error(qrJson.error || 'Impossible d\'obtenir le QR code'); setBusy(false); return; }
+    if (!qrJson.qr) { toast.error(qrJson.error || 'Impossible d\'obtenir le QR'); setBusy(false); return; }
+
     const qrData = qrJson.qr.startsWith('data:') ? qrJson.qr : `data:image/png;base64,${qrJson.qr}`;
     setQr(qrData); setBusy(false);
     startPoll();
@@ -122,6 +134,10 @@ function ConnexionTab() {
 
   const handleDisconnect = async () => {
     stopPoll();
+    await fetch('/api/ai-chatbot/whatsapp/instance', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete' }),
+    }).catch(() => {});
     setConnected(false); setPhone(''); setQr(null);
     toast.success('Déconnecté');
   };
