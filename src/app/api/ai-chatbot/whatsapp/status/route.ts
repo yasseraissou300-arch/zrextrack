@@ -44,5 +44,9 @@ export async function GET(req: NextRequest) {
     } catch { /* use cached DB value */ }
   }
 
-  return NextResponse.json({ connected: instance.connected, phone: instance.phone_number, instance });
+  return NextResponse.json({
+    connected: instance.connected,
+    phone: instance.phone_number || '',
+    instance: instance.instance_name,
+  });
 }

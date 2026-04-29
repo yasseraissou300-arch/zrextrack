@@ -451,18 +451,18 @@ export async function POST(req: NextRequest) {
       }
       await supabase
         .from('ai_chat_sessions')
-        .update({ sheets_sent: true })
+        .update({ sheets_sent: true, updated_at: new Date().toISOString() })
         .eq('user_id', userId)
         .eq('channel', 'whatsapp')
         .eq('contact_id', remoteJid);
     }
 
-    if (cleanReply) {
-      await sendWhatsApp(instanceName, remoteJid, cleanReply);
-    }
-
+    await sendWhatsApp(instanceName, remoteJid, cleanReply);
     return NextResponse.json({ ok: true });
-  } catch {
+
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error('[Webhook] Error:', message);
     return NextResponse.json({ ok: true });
   }
 }

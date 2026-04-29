@@ -3,7 +3,7 @@ import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 const EVOLUTION_URL = process.env.EVOLUTION_API_URL || '';
 const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY || '';
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://zrextrack.netlify.app';
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://zrextrack.vercel.app';
 
 type ServiceType = 'auto_confirmation' | 'sav' | 'tracking';
 
@@ -70,6 +70,7 @@ export async function POST(req: NextRequest) {
     await evolutionRequest('/instance/create', 'POST', {
       instanceName,
       token: user.id,
+      integration: 'WHATSAPP-BAILEYS',
       qrcode: true,
       webhook: `${APP_URL}/api/ai-chatbot/webhook/whatsapp`,
       webhookByEvents: false,

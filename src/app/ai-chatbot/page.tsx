@@ -1281,19 +1281,19 @@ export default function AIChatbotPage() {
               <Bot size={20} className="text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">AI Chatbot</h1>
-              <p className="text-sm text-gray-500">Agent IA autonome · Darija Algérienne · Multi-canal</p>
+              <h1 className="text-lg font-bold text-gray-900">AI Chatbot</h1>
+              <p className="text-xs text-gray-500">Gestion des bots WhatsApp et configurations</p>
             </div>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-xl w-fit">
+        <div className="flex gap-1 bg-gray-100 p-1 rounded-xl mb-6 overflow-x-auto">
           {TABS.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
                 activeTab === tab.id
                   ? 'bg-white text-gray-900 shadow-sm'
                   : 'text-gray-500 hover:text-gray-700'
@@ -1305,7 +1305,7 @@ export default function AIChatbotPage() {
           ))}
         </div>
 
-        {/* Tab content */}
+        {/* Tab Content */}
         {activeTab === 'templates' && <TemplatesTab />}
         {activeTab === 'whatsapp' && <WhatsAppTab />}
         {activeTab === 'facebook' && <FacebookTab />}
