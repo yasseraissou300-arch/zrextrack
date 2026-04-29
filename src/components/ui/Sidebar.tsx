@@ -66,7 +66,7 @@ export default function Sidebar() {
         </div>
         {!collapsed && (
           <div className="flex flex-col leading-tight">
-            <span className="font-bold text-[15px] text-gray-900 tracking-tight">ZREXTrack</span>
+            <span className="font-bold text-[15px] text-gray-900 tracking-tight">Autotim</span>
             <span className="text-[10px] text-gray-400 font-medium tracking-wide uppercase">ZREXpress</span>
           </div>
         )}
