@@ -24,7 +24,6 @@ interface TemplateConfig {
   human_pause_hours: number;
 }
 
-interface WAStatus { connected: boolean; phone: string; instance: { instance_name: string } | null; }
 interface FBConnection { page_id: string; page_name: string; page_access_token: string; verify_token: string; connected: boolean; }
 interface Session {
   id: string; channel: string; contact_id: string; contact_name: string;
@@ -342,42 +341,91 @@ function TemplatesTab() {
   );
 }
 
-// ─── WhatsAppTab ──────────────────────────────────────────────────────────────
-function WhatsAppTab() {
-  const [status, setStatus] = useState<WAStatus>({ connected: false, phone: '', instance: null });
+// ─── Per-service WhatsApp connection block ────────────────────────────────────
+type WAServiceType = 'auto_confirmation' | 'sav' | 'tracking';
+
+interface WAServiceStatus {
+  connected: boolean;
+  phone: string;
+  instance: { instance_name: string; service_type: string } | null;
+}
+
+const WA_SERVICE_META: Record<WAServiceType, {
+  label: string;
+  desc: string;
+  icon: React.ComponentType<{ size: number; className?: string }>;
+  iconCls: string;
+  badgeCls: string;
+  borderCls: string;
+  headerConnectedCls: string;
+  statusConnectedCls: string;
+  qrHoverCls: string;
+  linkBtnCls: string;
+}> = {
+  auto_confirmation: {
+    label: 'Auto-Confirmation',
+    desc: 'Confirme les commandes et collecte les infos client',
+    icon: CheckCircle2,
+    iconCls: 'bg-green-100 text-green-600',
+    badgeCls: 'bg-green-100 text-green-700',
+    borderCls: 'border-green-200',
+    headerConnectedCls: 'bg-green-50 border-green-200',
+    statusConnectedCls: 'bg-green-100 text-green-700',
+    qrHoverCls: 'hover:border-green-400 hover:bg-green-50 hover:text-green-700',
+    linkBtnCls: 'border-green-200 hover:bg-green-50 hover:text-green-700',
+  },
+  sav: {
+    label: 'SAV & Réclamations',
+    desc: 'Enregistre et escalade les réclamations clients',
+    icon: HeadphonesIcon,
+    iconCls: 'bg-amber-100 text-amber-600',
+    badgeCls: 'bg-amber-100 text-amber-700',
+    borderCls: 'border-amber-200',
+    headerConnectedCls: 'bg-amber-50 border-amber-200',
+    statusConnectedCls: 'bg-amber-100 text-amber-700',
+    qrHoverCls: 'hover:border-amber-400 hover:bg-amber-50 hover:text-amber-700',
+    linkBtnCls: 'border-amber-200 hover:bg-amber-50 hover:text-amber-700',
+  },
+  tracking: {
+    label: 'Suivi de Commande',
+    desc: 'Répond aux questions de suivi et de livraison',
+    icon: MapPin,
+    iconCls: 'bg-blue-100 text-blue-600',
+    badgeCls: 'bg-blue-100 text-blue-700',
+    borderCls: 'border-blue-200',
+    headerConnectedCls: 'bg-blue-50 border-blue-200',
+    statusConnectedCls: 'bg-blue-100 text-blue-700',
+    qrHoverCls: 'hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700',
+    linkBtnCls: 'border-blue-200 hover:bg-blue-50 hover:text-blue-700',
+  },
+};
+
+function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType }) {
+  const [status, setStatus] = useState<WAServiceStatus>({ connected: false, phone: '', instance: null });
   const [qr, setQr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [qrLoading, setQrLoading] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [evolutionConfigured, setEvolutionConfigured] = useState(false);
-  const [pollCount, setPollCount] = useState(0);
+
+  const meta = WA_SERVICE_META[serviceType];
+  const Icon = meta.icon;
 
   const fetchStatus = useCallback(async () => {
-    const res = await fetch('/api/ai-chatbot/whatsapp/status');
+    const res = await fetch(`/api/ai-chatbot/whatsapp/status?service=${serviceType}`);
     const json = await res.json();
     setStatus({ connected: json.connected ?? false, phone: json.phone ?? '', instance: json.instance ?? null });
-    setEvolutionConfigured(true);
-    return json.connected;
-  }, []);
-
-  const fetchInstance = useCallback(async () => {
-    const res = await fetch('/api/ai-chatbot/whatsapp/instance');
-    const json = await res.json();
-    setEvolutionConfigured(json.evolutionConfigured ?? false);
-    setLoading(false);
-    return json;
-  }, []);
+    return json.connected as boolean;
+  }, [serviceType]);
 
   useEffect(() => {
-    fetchInstance().then(() => fetchStatus());
-  }, [fetchInstance, fetchStatus]);
+    fetchStatus().then(() => setLoading(false));
+  }, [fetchStatus]);
 
   // Poll for connection while QR is displayed
   useEffect(() => {
     if (!qr || status.connected) return;
     const timer = setInterval(async () => {
       const connected = await fetchStatus();
-      setPollCount(p => p + 1);
       if (connected) { setQr(null); clearInterval(timer); }
     }, 4000);
     return () => clearInterval(timer);
@@ -388,18 +436,18 @@ function WhatsAppTab() {
     const res = await fetch('/api/ai-chatbot/whatsapp/instance', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'create' }),
+      body: JSON.stringify({ action: 'create', service_type: serviceType }),
     });
     const json = await res.json();
     if (json.error) toast.error(json.error);
-    else { toast.success('Instance créée !'); await fetchStatus(); }
+    else await fetchStatus();
     setCreating(false);
   };
 
   const fetchQr = async () => {
     setQrLoading(true);
     setQr(null);
-    const res = await fetch('/api/ai-chatbot/whatsapp/qr');
+    const res = await fetch(`/api/ai-chatbot/whatsapp/qr?service=${serviceType}`);
     const json = await res.json();
     if (json.error) toast.error(json.error);
     else if (json.qr) setQr(json.qr);
@@ -407,34 +455,113 @@ function WhatsAppTab() {
     setQrLoading(false);
   };
 
+  if (loading) {
+    return (
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex justify-center">
+        <Loader2 size={20} className="animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  return (
+    <div className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${status.connected ? meta.borderCls : 'border-gray-100'}`}>
+      {/* Header */}
+      <div className={`p-4 flex items-center gap-3 ${status.connected ? meta.headerConnectedCls : 'bg-gray-50 border-b border-gray-100'}`}>
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${meta.iconCls}`}>
+          <Icon size={18} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-gray-900 text-sm">{meta.label}</h3>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${meta.badgeCls}`}>
+              {serviceType === 'auto_confirmation' ? 'Commandes' : serviceType === 'sav' ? 'Support' : 'Livraison'}
+            </span>
+          </div>
+          <p className="text-xs text-gray-500 mt-0.5 truncate">{meta.desc}</p>
+        </div>
+        <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium shrink-0 ${
+          status.connected ? meta.statusConnectedCls : 'bg-gray-100 text-gray-500'
+        }`}>
+          {status.connected ? <Wifi size={11} /> : <WifiOff size={11} />}
+          {status.connected ? 'Connecté' : 'Déconnecté'}
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="p-4 space-y-3">
+        {!status.instance ? (
+          <button
+            onClick={createInstance}
+            disabled={creating}
+            className={`w-full flex items-center justify-center gap-2 py-6 border-2 border-dashed rounded-xl transition-colors text-sm font-medium text-gray-400 ${meta.qrHoverCls} disabled:opacity-50`}
+          >
+            {creating ? <Loader2 size={16} className="animate-spin" /> : <QrCode size={16} />}
+            {creating ? 'Initialisation...' : 'Lier le numéro'}
+          </button>
+        ) : status.connected ? (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm text-gray-700">
+              <Phone size={13} className="text-gray-400" />
+              <span className="font-mono">+{status.phone}</span>
+            </div>
+            <button onClick={() => fetchStatus()} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+              <RefreshCw size={12} className="text-gray-400" />
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {qr ? (
+              <div className="flex flex-col items-center gap-2">
+                <div className="bg-white p-2 border-2 border-gray-200 rounded-xl inline-block">
+                  <img src={qr} alt={`QR Code ${meta.label}`} className="w-40 h-40" />
+                </div>
+                <p className="text-[11px] text-gray-400 text-center">
+                  WhatsApp → Appareils liés → Lier un appareil
+                </p>
+              </div>
+            ) : (
+              <button
+                onClick={fetchQr}
+                disabled={qrLoading}
+                className={`w-full flex items-center justify-center gap-2 py-8 border-2 border-dashed rounded-xl transition-colors text-gray-400 ${meta.qrHoverCls} disabled:opacity-50`}
+              >
+                {qrLoading ? <Loader2 size={18} className="animate-spin" /> : <QrCode size={18} />}
+                <span className="text-sm font-medium">{qrLoading ? 'Génération du QR...' : 'Lier le numéro'}</span>
+              </button>
+            )}
+          </div>
+        )}
+        {status.instance && (
+          <p className="text-[10px] text-gray-300 font-mono truncate">
+            {status.instance.instance_name}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── WhatsAppTab ──────────────────────────────────────────────────────────────
+function WhatsAppTab() {
+  const [evolutionConfigured, setEvolutionConfigured] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/ai-chatbot/whatsapp/instance')
+      .then(r => r.json())
+      .then(json => setEvolutionConfigured(json.evolutionConfigured ?? false));
+  }, []);
+
   const appUrl = typeof window !== 'undefined' ? window.location.origin : '';
   const webhookUrl = `${appUrl}/api/ai-chatbot/webhook/whatsapp`;
 
-  if (loading) return <div className="flex justify-center py-20"><Loader2 size={24} className="animate-spin text-gray-400" /></div>;
-
   return (
     <div className="space-y-4 max-w-2xl">
-      {/* Connection status */}
-      <div className={`rounded-2xl border p-5 flex items-center gap-4 ${status.connected ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${status.connected ? 'bg-green-100' : 'bg-gray-100'}`}>
-          {status.connected ? <Wifi size={22} className="text-green-600" /> : <WifiOff size={22} className="text-gray-400" />}
-        </div>
-        <div className="flex-1">
-          <p className="font-semibold text-gray-900">{status.connected ? 'WhatsApp connecté' : 'WhatsApp non connecté'}</p>
-          <p className="text-sm text-gray-500">{status.connected ? `Numéro : +${status.phone}` : 'Scannez le QR code avec votre WhatsApp Business'}</p>
-        </div>
-        <button onClick={fetchStatus} className="p-2 hover:bg-white rounded-lg transition-colors">
-          <RefreshCw size={14} className={`text-gray-400 ${loading ? 'animate-spin' : ''}`} />
-        </button>
-      </div>
-
-      {/* Evolution API config warning */}
       {!evolutionConfigured && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex gap-3">
           <AlertCircle size={16} className="text-amber-600 shrink-0 mt-0.5" />
           <div className="text-sm text-amber-800 space-y-2">
             <p className="font-semibold">Evolution API non configurée</p>
-            <p>Ajoutez ces variables dans Netlify :</p>
+            <p>Ajoutez ces variables dans Netlify / Vercel :</p>
             <div className="space-y-1 font-mono text-xs bg-amber-100 rounded-lg p-3">
               <p>EVOLUTION_API_URL=https://evolution.votredomaine.com</p>
               <p>EVOLUTION_API_KEY=votre-clé-api</p>
@@ -447,80 +574,34 @@ function WhatsAppTab() {
         </div>
       )}
 
-      {/* Instance actions */}
-      {!status.instance ? (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 text-center space-y-3">
-          <div className="w-14 h-14 bg-green-100 rounded-2xl flex items-center justify-center mx-auto">
-            <QrCode size={24} className="text-green-600" />
-          </div>
-          <p className="font-semibold text-gray-900">Initialiser l'instance WhatsApp</p>
-          <p className="text-sm text-gray-500">Crée votre instance dédiée dans Evolution API. Chaque client a sa propre instance isolée.</p>
+      <div>
+        <h2 className="text-sm font-semibold text-gray-700">Connexions WhatsApp par service</h2>
+        <p className="text-xs text-gray-400 mt-0.5">Chaque service utilise un numéro WhatsApp indépendant et isolé.</p>
+      </div>
+
+      {(['auto_confirmation', 'sav', 'tracking'] as WAServiceType[]).map(serviceType => (
+        <ServiceConnectionBlock key={serviceType} serviceType={serviceType} />
+      ))}
+
+      {/* Shared webhook URL info */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <ExternalLink size={13} className="text-gray-400" />
+          <h3 className="font-semibold text-gray-900 text-sm">URL Webhook Evolution API</h3>
+        </div>
+        <p className="text-xs text-gray-400">Les 3 instances pointent vers ce webhook — le routage par service est automatique.</p>
+        <div className="flex gap-2">
+          <code className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs text-gray-700 break-all">
+            {webhookUrl}
+          </code>
           <button
-            onClick={createInstance}
-            disabled={creating}
-            className="mx-auto flex items-center gap-2 px-6 py-2.5 bg-green-600 text-white rounded-xl text-sm font-semibold hover:bg-green-700 disabled:opacity-50 transition-colors"
+            onClick={() => { navigator.clipboard.writeText(webhookUrl); toast.success('Copié !'); }}
+            className="p-2 border border-gray-200 rounded-xl hover:bg-gray-50 shrink-0"
           >
-            {creating ? <Loader2 size={14} className="animate-spin" /> : <QrCode size={14} />}
-            Créer l'instance
+            <Copy size={13} className="text-gray-500" />
           </button>
         </div>
-      ) : (
-        <>
-          {/* QR Code section */}
-          {!status.connected && (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
-              <div className="flex items-center gap-2">
-                <QrCode size={16} className="text-gray-500" />
-                <h3 className="font-semibold text-gray-900">Scanner le QR Code</h3>
-              </div>
-              {qr ? (
-                <div className="flex flex-col items-center gap-3">
-                  <div className="bg-white p-3 border-2 border-gray-200 rounded-xl inline-block">
-                    <img src={qr} alt="QR Code WhatsApp" className="w-48 h-48" />
-                  </div>
-                  <p className="text-xs text-gray-500 text-center">
-                    Ouvrez WhatsApp → Appareils liés → Lier un appareil
-                    <br />
-                    <span className="text-gray-400">{qr ? `Actualisation dans ${Math.max(0, 30 - (pollCount * 4))}s...` : ''}</span>
-                  </p>
-                </div>
-              ) : (
-                <button
-                  onClick={fetchQr}
-                  disabled={qrLoading}
-                  className="w-full flex items-center justify-center gap-2 py-10 border-2 border-dashed border-gray-200 rounded-xl hover:border-green-400 hover:bg-green-50 transition-colors text-gray-500 hover:text-green-700"
-                >
-                  {qrLoading ? <Loader2 size={20} className="animate-spin" /> : <QrCode size={20} />}
-                  <span className="font-medium">{qrLoading ? 'Génération...' : 'Afficher le QR Code'}</span>
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Webhook URL */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
-            <div className="flex items-center gap-2">
-              <ExternalLink size={14} className="text-gray-500" />
-              <h3 className="font-semibold text-gray-900 text-sm">URL Webhook (Evolution API)</h3>
-            </div>
-            <p className="text-xs text-gray-500">Configurée automatiquement lors de la création de l'instance.</p>
-            <div className="flex gap-2">
-              <code className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs text-gray-700 break-all">
-                {webhookUrl}
-              </code>
-              <button
-                onClick={() => { navigator.clipboard.writeText(webhookUrl); toast.success('Copié !'); }}
-                className="p-2 border border-gray-200 rounded-xl hover:bg-gray-50"
-              >
-                <Copy size={13} className="text-gray-500" />
-              </button>
-            </div>
-            <p className="text-xs text-gray-400">
-              Instance : <code className="bg-gray-100 px-1 rounded">{status.instance.instance_name}</code>
-            </p>
-          </div>
-        </>
-      )}
+      </div>
     </div>
   );
 }

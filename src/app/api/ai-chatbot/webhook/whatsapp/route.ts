@@ -268,24 +268,25 @@ export async function POST(req: NextRequest) {
 
     const supabase = createServiceClient();
 
-    // Route to user via instance_name
+    // Route to user + service via instance_name
     const { data: waInstance } = await supabase
       .from('whatsapp_instances')
-      .select('user_id')
+      .select('user_id, service_type')
       .eq('instance_name', instanceName)
       .single();
     if (!waInstance) return NextResponse.json({ ok: true });
     const userId = waInstance.user_id;
+    const serviceType: string = waInstance.service_type || 'auto_confirmation';
 
-    // Load active config
-    const { data: configs } = await supabase
+    // Load config for the specific service that received the message
+    const { data: config } = await supabase
       .from('chatbot_configs')
       .select('*')
       .eq('user_id', userId)
-      .eq('is_active', true);
-    if (!configs || configs.length === 0) return NextResponse.json({ ok: true });
-    const priority = ['auto_confirmation', 'sav', 'tracking'];
-    const config = priority.map(t => configs.find((c: { template_type: string }) => c.template_type === t)).find(Boolean) ?? configs[0];
+      .eq('template_type', serviceType)
+      .eq('is_active', true)
+      .single();
+    if (!config) return NextResponse.json({ ok: true });
 
     // Load existing session
     const { data: existingSession } = await supabase
