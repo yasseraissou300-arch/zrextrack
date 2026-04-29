@@ -34,7 +34,7 @@ export default function LoginPage() {
               <span className="text-white font-bold text-xl">Z</span>
             </div>
             <div className="text-left">
-              <h1 className="text-2xl font-bold text-white">ZREXTrack</h1>
+              <h1 className="text-2xl font-bold text-white">Autotim</h1>
               <p className="text-slate-400 text-sm">Suivi Commandes ZREXpress</p>
             </div>
           </div>

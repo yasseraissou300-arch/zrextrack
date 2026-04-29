@@ -53,7 +53,7 @@ export default function TrackingPage() {
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/track" className="flex items-center gap-2">
             <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center"><span className="text-white font-bold text-sm">Z</span></div>
-            <span className="font-bold text-gray-900">ZREXTrack</span>
+            <span className="font-bold text-gray-900">Autotim</span>
           </Link>
           <span className="text-xs text-gray-400">Suivi de commande</span>
         </div>
