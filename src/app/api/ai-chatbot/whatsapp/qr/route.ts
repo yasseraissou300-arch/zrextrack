@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const serviceType = req.nextUrl.searchParams.get('service') || 'auto_confirmation';
+  const debug = req.nextUrl.searchParams.get('debug') === '1';
 
   const { data: instance } = await supabase
     .from('whatsapp_instances')
@@ -41,11 +42,16 @@ export async function GET(req: NextRequest) {
 
   if (!EVOLUTION_URL || !EVOLUTION_KEY) {
     return NextResponse.json({
-      error: 'Evolution API non configurée. Ajoutez EVOLUTION_API_URL et EVOLUTION_API_KEY dans .env',
+      error: 'Evolution API non configurée. Ajoutez EVOLUTION_API_URL et EVOLUTION_API_KEY dans Vercel.',
+      debug: { urlSet: !!EVOLUTION_URL, keySet: !!EVOLUTION_KEY },
     }, { status: 503 });
   }
 
   const headers = { apikey: EVOLUTION_KEY };
+  const debugLog: Record<string, unknown> = {
+    instanceName: instance.instance_name,
+    urlPrefix: EVOLUTION_URL.substring(0, 30),
+  };
 
   try {
     // 1. Check if already connected
@@ -54,8 +60,11 @@ export async function GET(req: NextRequest) {
       { headers }
     ).catch(() => null);
 
+    debugLog.stateStatus = stateRes?.status ?? 'fetch_failed';
+
     if (stateRes?.ok) {
       const stateJson = await stateRes.json();
+      debugLog.stateJson = stateJson;
       const isOpen = stateJson.instance?.state === 'open' || stateJson.state === 'open';
       if (isOpen) {
         createServiceClient()
@@ -73,39 +82,54 @@ export async function GET(req: NextRequest) {
       { headers }
     ).catch(() => null);
 
-    let qr = connectRes?.ok ? extractQr(await connectRes.json()) : null;
+    debugLog.connectStatus = connectRes?.status ?? 'fetch_failed';
+    const connectJson = connectRes?.ok ? await connectRes.json() : null;
+    debugLog.connectJson = connectJson;
+    let qr = connectJson ? extractQr(connectJson) : null;
 
     // 3. Instance not found (404) or no QR → create it fresh
     if (!qr) {
+      const createBody = {
+        instanceName: instance.instance_name,
+        integration: 'WHATSAPP-BAILEYS',
+        qrcode: true,
+        webhook: `${process.env.NEXT_PUBLIC_APP_URL || 'https://zrextrack.vercel.app'}/api/ai-chatbot/webhook/whatsapp`,
+        webhookByEvents: false,
+        events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
+      };
+
       const createRes = await fetch(`${EVOLUTION_URL}/instance/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', apikey: EVOLUTION_KEY },
-        body: JSON.stringify({
-          instanceName: instance.instance_name,
-          integration: 'WHATSAPP-BAILEYS',
-          qrcode: true,
-          webhook: `${process.env.NEXT_PUBLIC_APP_URL || 'https://zrextrack.vercel.app'}/api/ai-chatbot/webhook/whatsapp`,
-          webhookByEvents: false,
-          events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
-        }),
+        body: JSON.stringify(createBody),
       }).catch(() => null);
 
-      if (createRes?.ok) {
-        qr = extractQr(await createRes.json());
+      debugLog.createStatus = createRes?.status ?? 'fetch_failed';
+      const createJson = createRes?.ok ? await createRes.json() : null;
+      if (!createRes?.ok) {
+        const errText = await createRes?.text().catch(() => '');
+        debugLog.createError = errText;
       }
+      debugLog.createJson = createJson;
+
+      if (createJson) qr = extractQr(createJson);
 
       if (!qr) {
         const retryRes = await fetch(
           `${EVOLUTION_URL}/instance/connect/${instance.instance_name}`,
           { headers }
         ).catch(() => null);
-        qr = retryRes?.ok ? extractQr(await retryRes.json()) : null;
+        debugLog.retryStatus = retryRes?.status ?? 'fetch_failed';
+        const retryJson = retryRes?.ok ? await retryRes.json() : null;
+        debugLog.retryJson = retryJson;
+        qr = retryJson ? extractQr(retryJson) : null;
       }
     }
 
     if (!qr) {
       return NextResponse.json({
-        error: 'QR non disponible. Vérifiez que l\'Evolution API est accessible et que les variables EVOLUTION_API_URL / EVOLUTION_API_KEY sont correctes.',
+        error: 'QR non disponible.',
+        ...(debug ? { debug: debugLog } : {}),
       }, { status: 502 });
     }
 
@@ -114,6 +138,6 @@ export async function GET(req: NextRequest) {
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Erreur inconnue';
-    return NextResponse.json({ error: message }, { status: 502 });
+    return NextResponse.json({ error: message, debug: debugLog }, { status: 502 });
   }
 }
