@@ -8,7 +8,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'ZREXTrack — Suivi Commandes ZREXpress',
+  title: 'Autotim — Suivi Commandes ZREXpress',
   description: 'Plateforme de suivi des commandes ZREXpress avec automatisation WhatsApp pour les e-commerçants algériens.',
   icons: {
     icon: [{ url: '/favicon.ico', type: 'image/x-icon' }],
