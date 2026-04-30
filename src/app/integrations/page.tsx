@@ -292,7 +292,7 @@ export default function IntegrationsPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-gray-500">
             {[
               { n: '1', t: 'Connecter', d: 'Renseignez votre boutique et configurez le webhook dans votre plateforme.' },
-              { n: '2', t: 'Sync automatique', d: 'Chaque nouvelle commande est automatiquement importée dans ZREXTrack.' },
+              { n: '2', t: 'Sync automatique', d: 'Chaque nouvelle commande est automatiquement importée dans Autotim.' },
               { n: '3', t: 'Notification WhatsApp', d: 'Le client reçoit une confirmation WhatsApp dès que la commande change de statut.' },
             ].map(item => (
               <div key={item.n} className="flex items-start gap-2.5">
