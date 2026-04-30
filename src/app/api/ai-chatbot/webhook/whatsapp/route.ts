@@ -297,16 +297,8 @@ export async function POST(req: NextRequest) {
       .eq('contact_id', remoteJid)
       .single();
 
-    // ─── Admin typing → pause AI for configured hours ─────────────────────────
+    // ─── Skip bot's own outgoing messages echoed back by Evolution API ──────────
     if (fromMe) {
-      if (existingSession && !existingSession.human_handover) {
-        const pauseHours: number = config.human_pause_hours ?? 4;
-        const pauseUntil = new Date(Date.now() + pauseHours * 3600_000).toISOString();
-        await supabase
-          .from('ai_chat_sessions')
-          .update({ human_pause_until: pauseUntil, updated_at: new Date().toISOString() })
-          .eq('id', existingSession.id);
-      }
       return NextResponse.json({ ok: true });
     }
 
