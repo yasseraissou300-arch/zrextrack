@@ -72,7 +72,7 @@ export default function AdminPage() {
               <Crown size={16} className="text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-gray-900">Admin ZREXTrack</h1>
+              <h1 className="text-lg font-bold text-gray-900">Admin Autotim</h1>
               <p className="text-xs text-gray-500">Gestion des utilisateurs</p>
             </div>
           </div>
