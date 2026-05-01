@@ -69,7 +69,7 @@ function TemplatesTab() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [refining, setRefining] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<string | null>('auto_confirmation');
 
   const fetchConfigs = useCallback(async () => {
     setLoading(true);
@@ -177,6 +177,44 @@ function TemplatesTab() {
             {/* Config expand */}
             {isExpanded && (
               <div className="border-t border-gray-100 p-5 space-y-4 bg-gray-50/50">
+
+                {/* Custom prompt — FIRST so it's immediately visible */}
+                <div className="space-y-1.5 bg-white rounded-2xl border border-green-200 p-4">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+                      <Sparkles size={14} className="text-green-600" />
+                      Prompt du bot (instructions IA)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => refinePrompt(config)}
+                        disabled={refining === config.template_type}
+                        className="text-[11px] flex items-center gap-1 text-purple-600 hover:text-purple-800 font-medium disabled:opacity-50"
+                      >
+                        {refining === config.template_type ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
+                        Améliorer avec IA
+                      </button>
+                      <button
+                        onClick={() => updateConfig(config.template_type, 'custom_prompt', '')}
+                        className="text-[11px] text-gray-400 hover:text-gray-600"
+                      >
+                        Réinitialiser
+                      </button>
+                    </div>
+                  </div>
+                  <textarea
+                    value={config.custom_prompt}
+                    onChange={e => updateConfig(config.template_type, 'custom_prompt', e.target.value)}
+                    placeholder={defaults[config.template_type] || 'Laissez vide pour utiliser le prompt Darija par défaut...'}
+                    rows={10}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 resize-y font-mono text-gray-700"
+                  />
+                  <p className="text-[11px] text-gray-400">
+                    Utilisez <code className="bg-gray-100 px-1 rounded">[NOM_BOUTIQUE]</code> pour insérer le nom de boutique.
+                    L'IA extrait les données avec la balise <code className="bg-gray-100 px-1 rounded">&lt;data&gt;{'{...}'}&lt;/data&gt;</code>
+                  </p>
+                </div>
+
                 {/* Shop name */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-gray-600">Nom de la boutique</label>
@@ -208,40 +246,6 @@ function TemplatesTab() {
                       </button>
                     ))}
                   </div>
-                </div>
-
-                {/* Custom prompt */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold text-gray-600">Prompt personnalisé</label>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => refinePrompt(config)}
-                        disabled={refining === config.template_type}
-                        className="text-[11px] flex items-center gap-1 text-purple-600 hover:text-purple-800 font-medium disabled:opacity-50"
-                      >
-                        {refining === config.template_type ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
-                        Améliorer avec IA
-                      </button>
-                      <button
-                        onClick={() => updateConfig(config.template_type, 'custom_prompt', '')}
-                        className="text-[11px] text-gray-400 hover:text-gray-600"
-                      >
-                        Réinitialiser
-                      </button>
-                    </div>
-                  </div>
-                  <textarea
-                    value={config.custom_prompt}
-                    onChange={e => updateConfig(config.template_type, 'custom_prompt', e.target.value)}
-                    placeholder={defaults[config.template_type] || 'Laissez vide pour utiliser le prompt Darija par défaut...'}
-                    rows={7}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 resize-none font-mono text-gray-700"
-                  />
-                  <p className="text-[11px] text-gray-400">
-                    Utilisez <code className="bg-gray-100 px-1 rounded">[NOM_BOUTIQUE]</code> pour insérer le nom de boutique.
-                    L'IA extrait les données avec la balise <code className="bg-gray-100 px-1 rounded">&lt;data&gt;{'{...}'}&lt;/data&gt;</code>
-                  </p>
                 </div>
 
                 {/* Google Sheets URL */}
