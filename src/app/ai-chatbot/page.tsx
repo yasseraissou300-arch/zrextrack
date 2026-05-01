@@ -67,9 +67,9 @@ function TemplatesTab() {
   const [configs, setConfigs] = useState<TemplateConfig[]>([]);
   const [defaults, setDefaults] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState<string | null>(null);
-  const [refining, setRefining] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [saving, setSaving] = useState<string | null>('auto_confirmation');
+  const [refining, setRefining] = useState<string | null>('auto_confirmation');
+  const [expanded, setExpanded] = useState<string | null>('auto_confirmation');
 
   const fetchConfigs = useCallback(async () => {
     setLoading(true);
@@ -402,7 +402,7 @@ const WA_SERVICE_META: Record<WAServiceType, {
 
 function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType }) {
   const [status, setStatus] = useState<WAServiceStatus>({ connected: false, phone: '', instance: null });
-  const [qr, setQr] = useState<string | null>(null);
+  const [qr, setQr] = useState<string | null>('auto_confirmation');
   const [loading, setLoading] = useState(true);
   const [qrLoading, setQrLoading] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -763,8 +763,8 @@ function GoogleSheetsTab() {
   const [serviceEmail, setServiceEmail] = useState('');
   const [configs, setConfigs] = useState<{ template_type: string; google_sheets_url: string }[]>([]);
   const [sheetUrls, setSheetUrls] = useState<Record<string, string>>({});
-  const [testing, setTesting] = useState<string | null>(null);
-  const [saving, setSaving] = useState<string | null>(null);
+  const [testing, setTesting] = useState<string | null>('auto_confirmation');
+  const [saving, setSaving] = useState<string | null>('auto_confirmation');
   const [testResults, setTestResults] = useState<Record<string, 'ok' | 'error'>>({});
   const [loading, setLoading] = useState(true);
 
