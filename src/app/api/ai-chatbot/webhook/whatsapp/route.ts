@@ -4,6 +4,7 @@ import { createServiceClient } from '@/lib/supabase/server';
 const EVOLUTION_URL = process.env.EVOLUTION_API_URL || '';
 const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY || '';
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || '';
+const GEMINI_KEY = process.env.GEMINI_API_KEY || '';
 
 // ─── 58 Wilayas Algeria normalization ─────────────────────────────────────────
 const WILAYA_MAP: Record<string, string> = {
@@ -23,7 +24,7 @@ const WILAYA_MAP: Record<string, string> = {
   skikda: 'Skikda', 'sidi bel abbes': 'Sidi Bel Abbès', 'sidi bel abbès': 'Sidi Bel Abbès', sba: 'Sidi Bel Abbès',
   annaba: 'Annaba', guelma: 'Guelma', constantine: 'Constantine', 'qsentina': 'Constantine',
   medea: 'Médéa', médéa: 'Médéa',
-  mostaganem: 'Mostaganem', msila: 'M\'Sila', 'm\'sila': 'M\'Sila',
+  mostaganem: 'Mostaganem', msila: "M'Sila", "m'sila": "M'Sila",
   mascara: 'Mascara', ouargla: 'Ouargla', oran: 'Oran', wahran: 'Oran',
   'el bayadh': 'El Bayadh', illizi: 'Illizi',
   'bordj bou arreridj': 'Bordj Bou Arréridj', bba: 'Bordj Bou Arréridj',
@@ -38,7 +39,7 @@ const WILAYA_MAP: Record<string, string> = {
   relizane: 'Relizane', timimoun: 'Timimoun',
   'bordj badji mokhtar': 'Bordj Badji Mokhtar', 'ouled djellal': 'Ouled Djellal',
   'beni abbes': 'Béni Abbès', 'in salah': 'In Salah', 'in guezzam': 'In Guezzam',
-  touggourt: 'Touggourt', djanet: 'Djanet', 'el meghaier': 'El M\'Ghair',
+  touggourt: 'Touggourt', djanet: 'Djanet', 'el meghaier': "El M'Ghair",
 };
 
 function normalizeWilaya(raw: string): string {
@@ -146,7 +147,43 @@ DIMA bDarija.`,
 interface ClaudeMessage { role: 'user' | 'assistant'; content: string; }
 interface ClaudeResult { text: string | null; tokens: number; }
 
-// ─── Claude call (returns text + token count) ─────────────────────────────────
+// ─── Gemini call (free fallback) ──────────────────────────────────────────────
+async function callGemini(systemPrompt: string, messages: ClaudeMessage[]): Promise<ClaudeResult> {
+  if (!GEMINI_KEY) return { text: null, tokens: 0 };
+  try {
+    // Build Gemini contents from message history
+    const contents = messages.slice(-10).map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
+    }));
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents,
+          generationConfig: { maxOutputTokens: 600, temperature: 0.7 },
+        }),
+      }
+    );
+    if (!res.ok) {
+      const err = await res.text();
+      console.error('[Gemini] Error:', res.status, err);
+      return { text: null, tokens: 0 };
+    }
+    const json = await res.json();
+    const text = json.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
+    const tokens = (json.usageMetadata?.promptTokenCount ?? 0) + (json.usageMetadata?.candidatesTokenCount ?? 0);
+    return { text, tokens };
+  } catch (e) {
+    console.error('[Gemini] Exception:', e);
+    return { text: null, tokens: 0 };
+  }
+}
+
+// ─── Claude call (primary) ─────────────────────────────────────────────────────
 async function callClaude(systemPrompt: string, messages: ClaudeMessage[]): Promise<ClaudeResult> {
   if (!ANTHROPIC_KEY) return { text: null, tokens: 0 };
   try {
@@ -164,14 +201,29 @@ async function callClaude(systemPrompt: string, messages: ClaudeMessage[]): Prom
         messages: messages.slice(-10),
       }),
     });
-    if (!res.ok) return { text: null, tokens: 0 };
+    if (!res.ok) {
+      const err = await res.text();
+      console.error('[Claude] Error:', res.status, err);
+      return { text: null, tokens: 0 };
+    }
     const json = await res.json();
     const text = json.content?.[0]?.text ?? null;
     const tokens = (json.usage?.input_tokens ?? 0) + (json.usage?.output_tokens ?? 0);
     return { text, tokens };
-  } catch {
+  } catch (e) {
+    console.error('[Claude] Exception:', e);
     return { text: null, tokens: 0 };
   }
+}
+
+// ─── AI call with automatic fallback Claude → Gemini ─────────────────────────
+async function callAI(systemPrompt: string, messages: ClaudeMessage[]): Promise<ClaudeResult> {
+  // Try Claude first
+  const claudeResult = await callClaude(systemPrompt, messages);
+  if (claudeResult.text) return claudeResult;
+  // Fallback to Gemini
+  console.log('[AI] Claude failed, trying Gemini fallback...');
+  return callGemini(systemPrompt, messages);
 }
 
 function extractData(text: string): Record<string, string> | null {
@@ -385,7 +437,7 @@ export async function POST(req: NextRequest) {
     }
 
     conversation.push({ role: 'user', content: text });
-    const { text: aiReply, tokens: newTokens } = await callClaude(systemPrompt, conversation);
+    const { text: aiReply, tokens: newTokens } = await callAI(systemPrompt, conversation);
 
     const newFailureCount = aiReply ? 0 : failureCount + 1;
     const updatedTokens = totalTokens + newTokens;
