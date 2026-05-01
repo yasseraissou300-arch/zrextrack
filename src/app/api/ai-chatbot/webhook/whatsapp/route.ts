@@ -4,6 +4,7 @@ import { createServiceClient } from '@/lib/supabase/server';
 const EVOLUTION_URL = process.env.EVOLUTION_API_URL || '';
 const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY || '';
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || '';
+const GEMINI_KEY = process.env.GEMINI_API_KEY || '';
 
 // ─── 58 Wilayas Algeria normalization ─────────────────────────────────────────
 const WILAYA_MAP: Record<string, string> = {
@@ -110,25 +111,29 @@ MUHIM BEZZAF:
 - Ila wa7da naqsa: kemmel tsuwal
 - Jaweb DIMA bdarija dziriya — machi français seul, machi maghribiya`,
 
-  sav: `Nta agent SAV l [NOM_BOUTIQUE] — khassed tkun mdiri w hanen m3a l-client.
+  sav: `Nta "Amine", l'assistant virtuel dyal [NOM_BOUTIQUE]. Rôle dyalek: tgestion les réclamations bel empathie w l-efficacité.
 
-Mission: enregistrer réclamation bel tafasil.
-Jme3:
-1. Isem w lqeb
-2. Numéro de téléphone
-3. Wilaya
-4. Produit fih l-mushkil
-5. Wasf l-mushkil (shu sir, mta, kifash)
+LANGUE: Darija dziriya — blanche, warm, respectueuse. Machi fousha, machi français seul.
 
-Règles:
-- Ila client 3iyyam ou za3fan: khud nafs w fhem — ma tjawbsh b ghadab
-- GHIR akhrej <data> waqt 3endek KULL l-info
-- Ila client machi clair, suwal akter tafasil
+COMPORTEMENT:
+- Ibda dima b ta7iya: "Assalam", "Ya l'khir", "Marhba bik"
+- Ila client za3fan: ista3mel "Smahna khouya/khti", "Nfahmou fik", "Haqqek 3lina"
+- Jaweb b réponses QSIRAT — machi paragraphes twila
+- MA tsuwelsh 3la nom/prénom wela formulaire — jaweb directement 3la l-mushkil
 
-Format: <data>{"nom":"...","telephone":"...","wilaya":"...","produit":"...","reclamation":"..."}</data>
-Ba3d <data>: "Sjjalna réclamation dyalek. Ghadi ytwasslek 3la équipe dyal support f aqrab waqt 🙏"
+RÉPONSES SELON L-MUSHKIL:
+- Ghalta f commande: "Smahna bezzaf 3la l'ghalta, hada machi men 3wayedna. Atini raqm l'commande nchoufou wach sra."
+- Retard: "Nfahmou beli raki m'pressed, nchoufou m3a la livraison win rahi lhagua douka."
+- Produit cassé/défectueux: "Haqqek 3lina khouya, hada maqboulsh. 3tini raqm l'commande nbeddloulak wela nraj3oulak flouss."
+- Mauvaise taille: "Smahna 3la had l-ghalta. Golili raqm l'commande w l-taille li bghi, nsolwlha m3ak."
 
-DIMA bDarija.`,
+ACTION WAQT CLIENT I3TINI RAQM L-COMMANDE:
+- Rassure-le: "Dossier dyalek ma7loul, nraj3oulek khbar f aqrab waqt inchallah"
+- Khrej had l-tag: <data>{"reclamation":"[wasf l-mushkil]","commande":"[raqm]"}</data>
+
+CLÔTURE: "Rani hna l ay haja wahda khra. Inchallah ma ykoun ghir l'khir 🙏"
+
+MUHIM: Responses qsirat w directes — machi robot fared, bhal wa7d men l-équipe.`,
 
   tracking: `Nta agent suivi commandes l [NOM_BOUTIQUE].
 Jaweb 3la les questions dyal suivi des commandes.
@@ -146,7 +151,43 @@ DIMA bDarija.`,
 interface ClaudeMessage { role: 'user' | 'assistant'; content: string; }
 interface ClaudeResult { text: string | null; tokens: number; }
 
-// ─── Claude call (returns text + token count) ─────────────────────────────────
+// ─── Gemini call (free fallback) ──────────────────────────────────────────────
+async function callGemini(systemPrompt: string, messages: ClaudeMessage[]): Promise<ClaudeResult> {
+  if (!GEMINI_KEY) return { text: null, tokens: 0 };
+  try {
+    // Build Gemini contents from message history
+    const contents = messages.slice(-10).map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
+    }));
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents,
+          generationConfig: { maxOutputTokens: 600, temperature: 0.7 },
+        }),
+      }
+    );
+    if (!res.ok) {
+      const err = await res.text();
+      console.error('[Gemini] Error:', res.status, err);
+      return { text: null, tokens: 0 };
+    }
+    const json = await res.json();
+    const text = json.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
+    const tokens = (json.usageMetadata?.promptTokenCount ?? 0) + (json.usageMetadata?.candidatesTokenCount ?? 0);
+    return { text, tokens };
+  } catch (e) {
+    console.error('[Gemini] Exception:', e);
+    return { text: null, tokens: 0 };
+  }
+}
+
+// ─── Claude call (primary) ─────────────────────────────────────────────────────
 async function callClaude(systemPrompt: string, messages: ClaudeMessage[]): Promise<ClaudeResult> {
   if (!ANTHROPIC_KEY) return { text: null, tokens: 0 };
   try {
@@ -164,14 +205,29 @@ async function callClaude(systemPrompt: string, messages: ClaudeMessage[]): Prom
         messages: messages.slice(-10),
       }),
     });
-    if (!res.ok) return { text: null, tokens: 0 };
+    if (!res.ok) {
+      const err = await res.text();
+      console.error('[Claude] Error:', res.status, err);
+      return { text: null, tokens: 0 };
+    }
     const json = await res.json();
     const text = json.content?.[0]?.text ?? null;
     const tokens = (json.usage?.input_tokens ?? 0) + (json.usage?.output_tokens ?? 0);
     return { text, tokens };
-  } catch {
+  } catch (e) {
+    console.error('[Claude] Exception:', e);
     return { text: null, tokens: 0 };
   }
+}
+
+// ─── AI call with automatic fallback Claude → Gemini ─────────────────────────
+async function callAI(systemPrompt: string, messages: ClaudeMessage[]): Promise<ClaudeResult> {
+  // Try Claude first
+  const claudeResult = await callClaude(systemPrompt, messages);
+  if (claudeResult.text) return claudeResult;
+  // Fallback to Gemini
+  console.log('[AI] Claude failed, trying Gemini fallback...');
+  return callGemini(systemPrompt, messages);
 }
 
 function extractData(text: string): Record<string, string> | null {
@@ -297,16 +353,8 @@ export async function POST(req: NextRequest) {
       .eq('contact_id', remoteJid)
       .single();
 
-    // ─── Admin typing → pause AI for configured hours ─────────────────────────
+    // ─── Skip bot's own outgoing messages echoed back by Evolution API ──────────
     if (fromMe) {
-      if (existingSession && !existingSession.human_handover) {
-        const pauseHours: number = config.human_pause_hours ?? 4;
-        const pauseUntil = new Date(Date.now() + pauseHours * 3600_000).toISOString();
-        await supabase
-          .from('ai_chat_sessions')
-          .update({ human_pause_until: pauseUntil, updated_at: new Date().toISOString() })
-          .eq('id', existingSession.id);
-      }
       return NextResponse.json({ ok: true });
     }
 
@@ -393,7 +441,7 @@ export async function POST(req: NextRequest) {
     }
 
     conversation.push({ role: 'user', content: text });
-    const { text: aiReply, tokens: newTokens } = await callClaude(systemPrompt, conversation);
+    const { text: aiReply, tokens: newTokens } = await callAI(systemPrompt, conversation);
 
     const newFailureCount = aiReply ? 0 : failureCount + 1;
     const updatedTokens = totalTokens + newTokens;
