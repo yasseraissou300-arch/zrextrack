@@ -5,6 +5,7 @@ const EVOLUTION_URL = process.env.EVOLUTION_API_URL || '';
 const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY || '';
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || '';
 const GEMINI_KEY = process.env.GEMINI_API_KEY || '';
+const GROQ_KEY = process.env.GROQ_API_KEY || '';
 
 // ─── 58 Wilayas Algeria normalization ─────────────────────────────────────────
 const WILAYA_MAP: Record<string, string> = {
@@ -147,11 +148,10 @@ DIMA bDarija.`,
 interface ClaudeMessage { role: 'user' | 'assistant'; content: string; }
 interface ClaudeResult { text: string | null; tokens: number; }
 
-// ─── Gemini call (free fallback) ──────────────────────────────────────────────
+// ─── Gemini call (free fallback #1) ───────────────────────────────────────────
 async function callGemini(systemPrompt: string, messages: ClaudeMessage[]): Promise<ClaudeResult> {
   if (!GEMINI_KEY) return { text: null, tokens: 0 };
   try {
-    // Build Gemini contents from message history
     const contents = messages.slice(-10).map(m => ({
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }],
@@ -179,6 +179,41 @@ async function callGemini(systemPrompt: string, messages: ClaudeMessage[]): Prom
     return { text, tokens };
   } catch (e) {
     console.error('[Gemini] Exception:', e);
+    return { text: null, tokens: 0 };
+  }
+}
+
+// ─── Groq call (free fallback #2) ─────────────────────────────────────────────
+async function callGroq(systemPrompt: string, messages: ClaudeMessage[]): Promise<ClaudeResult> {
+  if (!GROQ_KEY) return { text: null, tokens: 0 };
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${GROQ_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'llama-3.1-8b-instant',
+        max_tokens: 600,
+        temperature: 0.7,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...messages.slice(-10),
+        ],
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      console.error('[Groq] Error:', res.status, err);
+      return { text: null, tokens: 0 };
+    }
+    const json = await res.json();
+    const text = json.choices?.[0]?.message?.content ?? null;
+    const tokens = (json.usage?.prompt_tokens ?? 0) + (json.usage?.completion_tokens ?? 0);
+    return { text, tokens };
+  } catch (e) {
+    console.error('[Groq] Exception:', e);
     return { text: null, tokens: 0 };
   }
 }
@@ -216,14 +251,15 @@ async function callClaude(systemPrompt: string, messages: ClaudeMessage[]): Prom
   }
 }
 
-// ─── AI call with automatic fallback Claude → Gemini ─────────────────────────
+// ─── AI call with automatic fallback Claude → Gemini → Groq ──────────────────
 async function callAI(systemPrompt: string, messages: ClaudeMessage[]): Promise<ClaudeResult> {
-  // Try Claude first
   const claudeResult = await callClaude(systemPrompt, messages);
   if (claudeResult.text) return claudeResult;
-  // Fallback to Gemini
   console.log('[AI] Claude failed, trying Gemini fallback...');
-  return callGemini(systemPrompt, messages);
+  const geminiResult = await callGemini(systemPrompt, messages);
+  if (geminiResult.text) return geminiResult;
+  console.log('[AI] Gemini failed, trying Groq fallback...');
+  return callGroq(systemPrompt, messages);
 }
 
 function extractData(text: string): Record<string, string> | null {
@@ -320,7 +356,6 @@ export async function POST(req: NextRequest) {
 
     const supabase = createServiceClient();
 
-    // Route to user + service via instance_name
     const { data: waInstance } = await supabase
       .from('whatsapp_instances')
       .select('user_id, service_type')
@@ -330,7 +365,6 @@ export async function POST(req: NextRequest) {
     const userId = waInstance.user_id;
     const serviceType: string = waInstance.service_type || 'auto_confirmation';
 
-    // Load config for the specific service that received the message
     const { data: config } = await supabase
       .from('chatbot_configs')
       .select('*')
@@ -340,7 +374,6 @@ export async function POST(req: NextRequest) {
       .single();
     if (!config) return NextResponse.json({ ok: true });
 
-    // Load existing session
     const { data: existingSession } = await supabase
       .from('ai_chat_sessions')
       .select('*')
@@ -349,31 +382,26 @@ export async function POST(req: NextRequest) {
       .eq('contact_id', remoteJid)
       .single();
 
-    // ─── Skip bot's own outgoing messages echoed back by Evolution API ──────────
     if (fromMe) {
       return NextResponse.json({ ok: true });
     }
 
-    // ─── Number filtering — skip blocked prefixes ─────────────────────────────
     const blockedPrefixes: string[] = config.blocked_prefixes ?? [];
     const cleanJid = remoteJid.replace('@s.whatsapp.net', '');
     if (blockedPrefixes.length > 0 && blockedPrefixes.some((p: string) => cleanJid.startsWith(p))) {
       return NextResponse.json({ ok: true });
     }
 
-    // ─── Human pause check ─────────────────────────────────────────────────────
     if (existingSession?.human_pause_until) {
       if (Date.now() < new Date(existingSession.human_pause_until).getTime()) {
         return NextResponse.json({ ok: true });
       }
     }
 
-    // ─── Already handed over to human ─────────────────────────────────────────
     if (existingSession?.human_handover) {
       return NextResponse.json({ ok: true });
     }
 
-    // ─── Anger detection → immediate human handover ───────────────────────────
     const angerDetected = isAngerDetected(text);
     if (angerDetected) {
       const handoverMsg = `Smah liya 3la l-iklaj! Ghadi nwejdek wa7d d'équipe dyalna b sra3a bach ysa3dek 🙏`;
@@ -394,7 +422,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    // ─── Blabla → friendly nudge without Claude ───────────────────────────────
     if (isBlabla(text)) {
       const nudges: Record<string, string> = {
         auto_confirmation: 'Ahlan! Kifash nqdarek nsa3dek? Bghiti tdir commande? 😊',
@@ -402,7 +429,6 @@ export async function POST(req: NextRequest) {
         tracking: 'Ahlan! Bghiti t3raf statut dyal commande dyalek? 3tini raqm l-colis.',
       };
       const nudge = nudges[config.template_type] ?? nudges.auto_confirmation;
-      // Send product image on first contact if configured
       if (!existingSession && config.media_url) {
         await sendWhatsAppMedia(instanceName, remoteJid, config.media_url, '');
       }
@@ -414,7 +440,6 @@ export async function POST(req: NextRequest) {
     const failureCount: number = existingSession?.failure_count ?? 0;
     const totalTokens: number = existingSession?.tokens_used ?? 0;
 
-    // Human handover after 2 consecutive AI failures
     if (failureCount >= 2) {
       const handoverMsg = `Smah, ma fhemtsh mezyan shu tbghi. Ghadi nwejdek m3a wa7d mena équipe dyalna 👨‍💼`;
       await sendWhatsApp(instanceName, remoteJid, handoverMsg);
@@ -431,7 +456,6 @@ export async function POST(req: NextRequest) {
     const rawPrompt = config.custom_prompt?.trim() || defaultPrompt;
     const systemPrompt = rawPrompt.replace(/\[NOM_BOUTIQUE\]/g, config.shop_name || 'notre boutique');
 
-    // Send product image on first message if configured
     if (!existingSession && config.media_url) {
       await sendWhatsAppMedia(instanceName, remoteJid, config.media_url, '');
     }
@@ -485,7 +509,6 @@ export async function POST(req: NextRequest) {
         { onConflict: 'user_id,channel,contact_id' }
       );
 
-    // Google Sheets + admin notification on completion
     if (isComplete && !existingSession?.sheets_sent) {
       if (config.google_sheets_url) {
         await notifyGoogleSheets(config.google_sheets_url, config.template_type, newData);
