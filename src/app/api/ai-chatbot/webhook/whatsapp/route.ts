@@ -24,7 +24,7 @@ const WILAYA_MAP: Record<string, string> = {
   skikda: 'Skikda', 'sidi bel abbes': 'Sidi Bel Abbès', 'sidi bel abbès': 'Sidi Bel Abbès', sba: 'Sidi Bel Abbès',
   annaba: 'Annaba', guelma: 'Guelma', constantine: 'Constantine', 'qsentina': 'Constantine',
   medea: 'Médéa', médéa: 'Médéa',
-  mostaganem: 'Mostaganem', msila: "M'Sila", "m'sila": "M'Sila",
+  mostaganem: 'Mostaganem', msila: 'M\'Sila', 'm\'sila': 'M\'Sila',
   mascara: 'Mascara', ouargla: 'Ouargla', oran: 'Oran', wahran: 'Oran',
   'el bayadh': 'El Bayadh', illizi: 'Illizi',
   'bordj bou arreridj': 'Bordj Bou Arréridj', bba: 'Bordj Bou Arréridj',
@@ -39,7 +39,7 @@ const WILAYA_MAP: Record<string, string> = {
   relizane: 'Relizane', timimoun: 'Timimoun',
   'bordj badji mokhtar': 'Bordj Badji Mokhtar', 'ouled djellal': 'Ouled Djellal',
   'beni abbes': 'Béni Abbès', 'in salah': 'In Salah', 'in guezzam': 'In Guezzam',
-  touggourt: 'Touggourt', djanet: 'Djanet', 'el meghaier': "El M'Ghair",
+  touggourt: 'Touggourt', djanet: 'Djanet', 'el meghaier': 'El M\'Ghair',
 };
 
 function normalizeWilaya(raw: string): string {
@@ -157,7 +157,7 @@ async function callGemini(systemPrompt: string, messages: ClaudeMessage[]): Prom
       parts: [{ text: m.content }],
     }));
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
