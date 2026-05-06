@@ -448,6 +448,16 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
     setCreating(false);
   };
 
+  const disconnect = async () => {
+    await fetch('/api/ai-chatbot/whatsapp/instance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete', service_type: serviceType }),
+    });
+    setStatus({ connected: false, phone: '', instance: null });
+    setQr(null);
+  };
+
   const fetchQr = async () => {
     setQrLoading(true);
     setQr(null);
@@ -503,13 +513,21 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
             {creating ? 'Initialisation...' : 'Lier le numéro'}
           </button>
         ) : status.connected ? (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm text-gray-700">
-              <Phone size={13} className="text-gray-400" />
-              <span className="font-mono">+{status.phone}</span>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm text-gray-700">
+                <Phone size={13} className="text-gray-400" />
+                <span className="font-mono">{status.phone ? '+' + status.phone : '—'}</span>
+              </div>
+              <button onClick={() => fetchStatus()} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
+                <RefreshCw size={12} className="text-gray-400" />
+              </button>
             </div>
-            <button onClick={() => fetchStatus()} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
-              <RefreshCw size={12} className="text-gray-400" />
+            <button
+              onClick={disconnect}
+              className="w-full text-xs text-red-500 hover:text-red-700 hover:bg-red-50 border border-red-200 rounded-lg py-1.5 transition-colors"
+            >
+              Déconnecter / Changer de numéro
             </button>
           </div>
         ) : (
