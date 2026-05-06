@@ -7,13 +7,20 @@ export const maxDuration = 60;
 const EVOLUTION_URL = process.env.EVOLUTION_API_URL || '';
 const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY || '';
 
-// Extract base64 QR from any Evolution API response shape
+// Extract QR from any Evolution API response shape (handles string, object, URL, base64)
 function extractQr(json: unknown): string | null {
   const j = json as Record<string, unknown>;
+  const qrcode = j?.qrcode;
+  // qrcode can be a string (the base64/URL directly) or an object with .base64
+  const fromQrcode = typeof qrcode === 'string'
+    ? qrcode
+    : (qrcode as Record<string, string>)?.base64 ?? null;
   return (
-    (j?.qrcode as Record<string, string>)?.base64 ??
+    fromQrcode ??
     (j?.base64 as string) ??
+    (typeof j?.qr === 'string' ? (j.qr as string) : null) ??
     (j?.qr as Record<string, string>)?.base64 ??
+    (j?.pairingCode as string) ??
     null
   );
 }
@@ -133,7 +140,15 @@ export async function GET(req: NextRequest) {
       }, { status: 502 });
     }
 
-    const qrData = qr.startsWith('data:') ? qr : `data:image/png;base64,${qr}`;
+    // Normalise QR: can be a data URL, a http URL, or raw base64
+    let qrData: string;
+    if (qr.startsWith('data:')) {
+      qrData = qr; // already a data URL
+    } else if (qr.startsWith('http://') || qr.startsWith('https://')) {
+      qrData = qr; // use URL directly — Evolution API sometimes returns an image URL
+    } else {
+      qrData = `data:image/png;base64,${qr}`; // raw base64 — add prefix
+    }
     return NextResponse.json({ qr: qrData, connected: false });
 
   } catch (err: unknown) {
