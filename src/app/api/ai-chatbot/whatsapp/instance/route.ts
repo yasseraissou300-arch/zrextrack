@@ -73,8 +73,6 @@ export async function POST(req: NextRequest) {
       integration: 'WHATSAPP-BAILEYS',
       qrcode: true,
       webhook: `${APP_URL}/api/ai-chatbot/webhook/whatsapp`,
-      webhookByEvents: false,
-      events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
     });
 
     const { data, error } = await serviceSupabase
@@ -108,4 +106,4 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
-}
+      }
