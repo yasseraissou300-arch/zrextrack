@@ -101,8 +101,6 @@ export async function GET(req: NextRequest) {
         integration: 'WHATSAPP-BAILEYS',
         qrcode: true,
         webhook: `${process.env.NEXT_PUBLIC_APP_URL || 'https://zrextrack.vercel.app'}/api/ai-chatbot/webhook/whatsapp`,
-        webhookByEvents: false,
-        events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
       };
 
       const createRes = await fetch(`${EVOLUTION_URL}/instance/create`, {
@@ -155,4 +153,4 @@ export async function GET(req: NextRequest) {
     const message = err instanceof Error ? err.message : 'Erreur inconnue';
     return NextResponse.json({ error: message, debug: debugLog }, { status: 502 });
   }
-}
+    }
