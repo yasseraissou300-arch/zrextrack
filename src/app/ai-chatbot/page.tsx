@@ -425,6 +425,14 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
     fetchStatus().then(() => setLoading(false));
   }, [fetchStatus]);
 
+  // Auto-fetch QR as soon as instance exists and is not connected
+  useEffect(() => {
+    if (status.instance && !status.connected && !qr && !qrLoading && !loading) {
+      fetchQr();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status.instance, status.connected, loading]);
+
   // Poll for connection while QR is displayed
   useEffect(() => {
     if (!qr || status.connected) return;
@@ -444,7 +452,7 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
     });
     const json = await res.json();
     if (json.error) toast.error(json.error);
-    else await fetchStatus();
+    else { await fetchStatus(); fetchQr(); }
     setCreating(false);
   };
 
@@ -539,7 +547,7 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
                     src={qr}
                     alt={`QR Code ${meta.label}`}
                     className="w-40 h-40"
-                    onError={() => { setQr(null); fetchQr(); }}
+                    onError={() => setQr(null)}
                   />
                 </div>
                 <p className="text-[11px] text-gray-400 text-center">
