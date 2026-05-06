@@ -517,7 +517,12 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
             {qr ? (
               <div className="flex flex-col items-center gap-2">
                 <div className="bg-white p-2 border-2 border-gray-200 rounded-xl inline-block">
-                  <img src={qr} alt={`QR Code ${meta.label}`} className="w-40 h-40" />
+                  <img
+                    src={qr}
+                    alt={`QR Code ${meta.label}`}
+                    className="w-40 h-40"
+                    onError={() => { setQr(null); fetchQr(); }}
+                  />
                 </div>
                 <p className="text-[11px] text-gray-400 text-center">
                   WhatsApp → Appareils liés → Lier un appareil
