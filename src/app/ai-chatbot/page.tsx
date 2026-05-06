@@ -4,7 +4,7 @@ import AppLayout from '@/components/ui/AppLayout';
 import {
   Bot, CheckCircle2, HeadphonesIcon, MapPin, ToggleLeft, ToggleRight,
   Globe, Loader2, Save, RefreshCw, QrCode, Wifi, WifiOff,
-  ChevronDown, ChevronUp, ExternalLink, Copy, Trash2, Sheet, AlerhtCircle,
+  ChevronDown, ChevronUp, ExternalLink, Copy, Trash2, Sheet, AlertCircle,
   MessageSquare, Phone, User, BarChart3, TrendingUp, Users,
   Sparkles, Bell, Image, Shield, Clock,
 } from 'lucide-react';
