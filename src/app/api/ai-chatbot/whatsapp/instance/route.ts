@@ -72,7 +72,6 @@ export async function POST(req: NextRequest) {
       token: user.id,
       integration: 'WHATSAPP-BAILEYS',
       qrcode: true,
-      webhook: `${APP_URL}/api/ai-chatbot/webhook/whatsapp`,
     });
 
     const { data, error } = await serviceSupabase

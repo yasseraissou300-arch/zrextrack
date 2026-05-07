@@ -94,13 +94,12 @@ export async function GET(req: NextRequest) {
     debugLog.connectJson = connectJson;
     let qr = connectJson ? extractQr(connectJson) : null;
 
-    // 3. Instance not found (404) or no QR → create it fresh
+    // 3. Instance not found (404) or no QR → create it fresh (no webhook to avoid Evolution API 400 when events array is absent)
     if (!qr) {
       const createBody = {
         instanceName: instance.instance_name,
         integration: 'WHATSAPP-BAILEYS',
         qrcode: true,
-        webhook: `${process.env.NEXT_PUBLIC_APP_URL || 'https://zrextrack.vercel.app'}/api/ai-chatbot/webhook/whatsapp`,
       };
 
       const createRes = await fetch(`${EVOLUTION_URL}/instance/create`, {
