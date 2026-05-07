@@ -6,6 +6,40 @@ export const maxDuration = 60;
 
 const EVOLUTION_URL = process.env.EVOLUTION_API_URL || '';
 const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY || '';
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://zrextrack.vercel.app';
+
+async function setEvolutionWebhook(instanceName: string): Promise<void> {
+  if (!EVOLUTION_URL || !EVOLUTION_KEY) return;
+  const webhookUrl = `${APP_URL}/api/ai-chatbot/webhook/whatsapp`;
+  const payloads: object[] = [
+    {
+      webhook: {
+        url: webhookUrl,
+        enabled: true,
+        events: ['MESSAGES_UPSERT'],
+        webhookByEvents: false,
+        webhookBase64: false,
+      },
+    },
+    {
+      url: webhookUrl,
+      enabled: true,
+      events: ['MESSAGES_UPSERT'],
+      webhookByEvents: false,
+      webhookBase64: false,
+    },
+  ];
+  for (const body of payloads) {
+    try {
+      const res = await fetch(`${EVOLUTION_URL}/webhook/set/${instanceName}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: EVOLUTION_KEY },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) return;
+    } catch {}
+  }
+}
 
 // Extract QR from any Evolution API response shape (handles string, object, URL, base64)
 function extractQr(json: unknown): string | null {
@@ -74,6 +108,7 @@ export async function GET(req: NextRequest) {
       debugLog.stateJson = stateJson;
       const isOpen = stateJson.instance?.state === 'open' || stateJson.state === 'open';
       if (isOpen) {
+        await setEvolutionWebhook(instance.instance_name);
         createServiceClient()
           .from('whatsapp_instances')
           .update({ connected: true, updated_at: new Date().toISOString() })
@@ -115,6 +150,10 @@ export async function GET(req: NextRequest) {
         debugLog.createError = errText;
       }
       debugLog.createJson = createJson;
+
+      if (createRes?.ok) {
+        await setEvolutionWebhook(instance.instance_name);
+      }
 
       if (createJson) qr = extractQr(createJson);
 
