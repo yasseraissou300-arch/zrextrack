@@ -32,39 +32,6 @@ async function evolutionRequest(path: string, method = 'GET', body?: object) {
   }
 }
 
-async function setEvolutionWebhook(instanceName: string): Promise<void> {
-  if (!EVOLUTION_URL || !EVOLUTION_KEY) return;
-  const webhookUrl = `${APP_URL}/api/ai-chatbot/webhook/whatsapp`;
-  const payloads: object[] = [
-    {
-      webhook: {
-        url: webhookUrl,
-        enabled: true,
-        events: ['MESSAGES_UPSERT'],
-        webhookByEvents: false,
-        webhookBase64: false,
-      },
-    },
-    {
-      url: webhookUrl,
-      enabled: true,
-      events: ['MESSAGES_UPSERT'],
-      webhookByEvents: false,
-      webhookBase64: false,
-    },
-  ];
-  for (const body of payloads) {
-    try {
-      const res = await fetch(`${EVOLUTION_URL}/webhook/set/${instanceName}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', apikey: EVOLUTION_KEY },
-        body: JSON.stringify(body),
-      });
-      if (res.ok) return;
-    } catch {}
-  }
-}
-
 // GET — return all instances for the user
 export async function GET() {
   const supabase = await createClient();
@@ -107,7 +74,14 @@ export async function POST(req: NextRequest) {
       qrcode: true,
     });
 
-    await setEvolutionWebhook(instanceName);
+    // Set webhook separately after creation — Evolution API requires events array
+    // when setting webhook (can't be done in createBody without events)
+    await evolutionRequest(`/webhook/set/${instanceName}`, 'POST', {
+      url: `${APP_URL}/api/ai-chatbot/webhook/whatsapp`,
+      webhook_by_events: false,
+      webhook_base64: false,
+      events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
+    });
 
     const { data, error } = await serviceSupabase
       .from('whatsapp_instances')

@@ -6,40 +6,6 @@ export const maxDuration = 60;
 
 const EVOLUTION_URL = process.env.EVOLUTION_API_URL || '';
 const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY || '';
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://zrextrack.vercel.app';
-
-async function setEvolutionWebhook(instanceName: string): Promise<void> {
-  if (!EVOLUTION_URL || !EVOLUTION_KEY) return;
-  const webhookUrl = `${APP_URL}/api/ai-chatbot/webhook/whatsapp`;
-  const payloads: object[] = [
-    {
-      webhook: {
-        url: webhookUrl,
-        enabled: true,
-        events: ['MESSAGES_UPSERT'],
-        webhookByEvents: false,
-        webhookBase64: false,
-      },
-    },
-    {
-      url: webhookUrl,
-      enabled: true,
-      events: ['MESSAGES_UPSERT'],
-      webhookByEvents: false,
-      webhookBase64: false,
-    },
-  ];
-  for (const body of payloads) {
-    try {
-      const res = await fetch(`${EVOLUTION_URL}/webhook/set/${instanceName}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', apikey: EVOLUTION_KEY },
-        body: JSON.stringify(body),
-      });
-      if (res.ok) return;
-    } catch {}
-  }
-}
 
 // Extract QR from any Evolution API response shape (handles string, object, URL, base64)
 function extractQr(json: unknown): string | null {
@@ -76,7 +42,7 @@ export async function GET(req: NextRequest) {
 
   if (!instance) {
     return NextResponse.json(
-      { error: 'Instance non créée. Cliquez sur "Lier le numéro" d\'abord.' },
+      { error: 'Instance non créée. Cliquez sur "Lier le numéro" d'abord.' },
       { status: 404 }
     );
   }
@@ -89,10 +55,23 @@ export async function GET(req: NextRequest) {
   }
 
   const headers = { apikey: EVOLUTION_KEY };
+  const APP_URL_BASE = process.env.NEXT_PUBLIC_APP_URL || 'https://zrextrack.vercel.app';
   const debugLog: Record<string, unknown> = {
     instanceName: instance.instance_name,
     urlPrefix: EVOLUTION_URL.substring(0, 30),
   };
+
+  // Always ensure webhook is configured on this instance (fixes instances created without webhook)
+  fetch(`${EVOLUTION_URL}/webhook/set/${instance.instance_name}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: EVOLUTION_KEY },
+    body: JSON.stringify({
+      url: `${APP_URL_BASE}/api/ai-chatbot/webhook/whatsapp`,
+      webhook_by_events: false,
+      webhook_base64: false,
+      events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
+    }),
+  }).catch(() => null); // non-blocking
 
   try {
     // 1. Check if already connected
@@ -108,7 +87,6 @@ export async function GET(req: NextRequest) {
       debugLog.stateJson = stateJson;
       const isOpen = stateJson.instance?.state === 'open' || stateJson.state === 'open';
       if (isOpen) {
-        await setEvolutionWebhook(instance.instance_name);
         createServiceClient()
           .from('whatsapp_instances')
           .update({ connected: true, updated_at: new Date().toISOString() })
@@ -151,9 +129,7 @@ export async function GET(req: NextRequest) {
       }
       debugLog.createJson = createJson;
 
-      if (createRes?.ok) {
-        await setEvolutionWebhook(instance.instance_name);
-      }
+      // Webhook already set above (non-blocking call at start of function)
 
       if (createJson) qr = extractQr(createJson);
 
