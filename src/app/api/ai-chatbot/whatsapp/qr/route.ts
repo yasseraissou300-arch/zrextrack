@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 
+// Allow up to 60s for Evolution API to generate QR (WhatsApp handshake is slow)
 export const maxDuration = 60;
 
 const EVOLUTION_URL = process.env.EVOLUTION_API_URL || '';
 const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY || '';
 
+// Extract QR from any Evolution API response shape (handles string, object, URL, base64)
 function extractQr(json: unknown): string | null {
   const j = json as Record<string, unknown>;
   const qrcode = j?.qrcode;
+  // qrcode can be a string (the base64/URL directly) or an object with .base64
   const fromQrcode = typeof qrcode === 'string'
     ? qrcode
     : (qrcode as Record<string, string>)?.base64 ?? null;
@@ -39,14 +42,14 @@ export async function GET(req: NextRequest) {
 
   if (!instance) {
     return NextResponse.json(
-      { error: 'Instance non creee. Cliquez sur Lier le numero d abord.' },
+      { error: 'Instance non créée. Cliquez sur "Lier le numéro" d'abord.' },
       { status: 404 }
     );
   }
 
   if (!EVOLUTION_URL || !EVOLUTION_KEY) {
     return NextResponse.json({
-      error: 'Evolution API non configuree.',
+      error: 'Evolution API non configurée. Ajoutez EVOLUTION_API_URL et EVOLUTION_API_KEY dans Vercel.',
       debug: { urlSet: !!EVOLUTION_URL, keySet: !!EVOLUTION_KEY },
     }, { status: 503 });
   }
@@ -58,22 +61,22 @@ export async function GET(req: NextRequest) {
     urlPrefix: EVOLUTION_URL.substring(0, 30),
   };
 
-  // Always ensure webhook is configured (fixes instances created without webhook)
-  fetch(EVOLUTION_URL + '/webhook/set/' + instance.instance_name, {
+  // Always ensure webhook is configured on this instance (fixes instances created without webhook)
+  fetch(`${EVOLUTION_URL}/webhook/set/${instance.instance_name}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', apikey: EVOLUTION_KEY },
     body: JSON.stringify({
-      url: APP_URL_BASE + '/api/ai-chatbot/webhook/whatsapp',
+      url: `${APP_URL_BASE}/api/ai-chatbot/webhook/whatsapp`,
       webhook_by_events: false,
       webhook_base64: false,
       events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
     }),
-  }).catch(() => null);
+  }).catch(() => null); // non-blocking
 
   try {
     // 1. Check if already connected
     const stateRes = await fetch(
-      EVOLUTION_URL + '/instance/connectionState/' + instance.instance_name,
+      `${EVOLUTION_URL}/instance/connectionState/${instance.instance_name}`,
       { headers }
     ).catch(() => null);
 
@@ -95,7 +98,7 @@ export async function GET(req: NextRequest) {
 
     // 2. Try to get QR from existing instance
     const connectRes = await fetch(
-      EVOLUTION_URL + '/instance/connect/' + instance.instance_name,
+      `${EVOLUTION_URL}/instance/connect/${instance.instance_name}`,
       { headers }
     ).catch(() => null);
 
@@ -104,7 +107,7 @@ export async function GET(req: NextRequest) {
     debugLog.connectJson = connectJson;
     let qr = connectJson ? extractQr(connectJson) : null;
 
-    // 3. Instance not found or no QR - create fresh (no webhook in body to avoid Evolution API 400)
+    // 3. Instance not found (404) or no QR → create it fresh (no webhook to avoid Evolution API 400 when events array is absent)
     if (!qr) {
       const createBody = {
         instanceName: instance.instance_name,
@@ -112,7 +115,7 @@ export async function GET(req: NextRequest) {
         qrcode: true,
       };
 
-      const createRes = await fetch(EVOLUTION_URL + '/instance/create', {
+      const createRes = await fetch(`${EVOLUTION_URL}/instance/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', apikey: EVOLUTION_KEY },
         body: JSON.stringify(createBody),
@@ -126,11 +129,13 @@ export async function GET(req: NextRequest) {
       }
       debugLog.createJson = createJson;
 
+      // Webhook already set above (non-blocking call at start of function)
+
       if (createJson) qr = extractQr(createJson);
 
       if (!qr) {
         const retryRes = await fetch(
-          EVOLUTION_URL + '/instance/connect/' + instance.instance_name,
+          `${EVOLUTION_URL}/instance/connect/${instance.instance_name}`,
           { headers }
         ).catch(() => null);
         debugLog.retryStatus = retryRes?.status ?? 'fetch_failed';
@@ -147,13 +152,14 @@ export async function GET(req: NextRequest) {
       }, { status: 502 });
     }
 
+    // Normalise QR: can be a data URL, a http URL, or raw base64
     let qrData: string;
     if (qr.startsWith('data:')) {
-      qrData = qr;
+      qrData = qr; // already a data URL
     } else if (qr.startsWith('http://') || qr.startsWith('https://')) {
-      qrData = qr;
+      qrData = qr; // use URL directly — Evolution API sometimes returns an image URL
     } else {
-      qrData = 'data:image/png;base64,' + qr;
+      qrData = `data:image/png;base64,${qr}`; // raw base64 — add prefix
     }
     return NextResponse.json({ qr: qrData, connected: false });
 
