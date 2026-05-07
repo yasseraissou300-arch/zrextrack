@@ -3,6 +3,7 @@ import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 const EVOLUTION_URL = process.env.EVOLUTION_API_URL || '';
 const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY || '';
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://zrextrack.vercel.app';
 
 type ServiceType = 'auto_confirmation' | 'sav' | 'tracking';
 
@@ -13,13 +14,13 @@ const SERVICE_SUFFIX: Record<ServiceType, string> = {
 };
 
 function getInstanceName(userId: string, serviceType: ServiceType): string {
-  return `zrex_${userId.replace(/-/g, '').slice(0, 12)}_${SERVICE_SUFFIX[serviceType]}`;
+  return 'zrex_' + userId.replace(/-/g, '').slice(0, 12) + '_' + SERVICE_SUFFIX[serviceType];
 }
 
 async function evolutionRequest(path: string, method = 'GET', body?: object) {
   if (!EVOLUTION_URL || !EVOLUTION_KEY) return null;
   try {
-    const res = await fetch(`${EVOLUTION_URL}${path}`, {
+    const res = await fetch(EVOLUTION_URL + path, {
       method,
       headers: { 'Content-Type': 'application/json', apikey: EVOLUTION_KEY },
       body: body ? JSON.stringify(body) : undefined,
@@ -66,12 +67,20 @@ export async function POST(req: NextRequest) {
   const instanceName = getInstanceName(user.id, serviceType);
 
   if (action === 'create') {
-    // No webhook in createBody — Evolution API throws 400 when webhook is set without events array
+    // Create instance without webhook in body (Evolution API 400 if webhook set without events)
     await evolutionRequest('/instance/create', 'POST', {
       instanceName,
       token: user.id,
       integration: 'WHATSAPP-BAILEYS',
       qrcode: true,
+    });
+
+    // Set webhook separately — requires events array to be valid
+    await evolutionRequest('/webhook/set/' + instanceName, 'POST', {
+      url: APP_URL + '/api/ai-chatbot/webhook/whatsapp',
+      webhook_by_events: false,
+      webhook_base64: false,
+      events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
     });
 
     const { data, error } = await serviceSupabase
@@ -95,7 +104,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'delete') {
-    await evolutionRequest(`/instance/delete/${instanceName}`, 'DELETE');
+    await evolutionRequest('/instance/delete/' + instanceName, 'DELETE');
     await serviceSupabase
       .from('whatsapp_instances')
       .delete()
