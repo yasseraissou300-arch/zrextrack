@@ -94,13 +94,12 @@ export async function GET(req: NextRequest) {
     debugLog.connectJson = connectJson;
     let qr = connectJson ? extractQr(connectJson) : null;
 
-    // 3. Instance not found (404) or no QR → create it fresh
+    // 3. Instance not found (404) or no QR → create it fresh (no webhook during create to avoid Evolution API validation errors)
     if (!qr) {
       const createBody = {
         instanceName: instance.instance_name,
         integration: 'WHATSAPP-BAILEYS',
         qrcode: true,
-        webhook: `${process.env.NEXT_PUBLIC_APP_URL || 'https://zrextrack.vercel.app'}/api/ai-chatbot/webhook/whatsapp`,
       };
 
       const createRes = await fetch(`${EVOLUTION_URL}/instance/create`, {
@@ -119,6 +118,7 @@ export async function GET(req: NextRequest) {
 
       if (createJson) qr = extractQr(createJson);
 
+      // 4. If created but no QR yet, connect to get QR
       if (!qr) {
         const retryRes = await fetch(
           `${EVOLUTION_URL}/instance/connect/${instance.instance_name}`,
@@ -153,4 +153,4 @@ export async function GET(req: NextRequest) {
     const message = err instanceof Error ? err.message : 'Erreur inconnue';
     return NextResponse.json({ error: message, debug: debugLog }, { status: 502 });
   }
-    }
+}
