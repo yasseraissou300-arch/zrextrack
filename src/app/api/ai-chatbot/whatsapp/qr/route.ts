@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
 
   if (!instance) {
     return NextResponse.json(
-      { error: 'Instance non créée. Cliquez sur "Lier le numéro" d\'abord.' },
+      { error: 'Instance non créée. Cliquez sur \"Lier le numéro\" d\'abord.' },
       { status: 404 }
     );
   }
@@ -94,7 +94,7 @@ export async function GET(req: NextRequest) {
     debugLog.connectJson = connectJson;
     let qr = connectJson ? extractQr(connectJson) : null;
 
-    // 3. Instance not found (404) or no QR → create it fresh (no webhook during create to avoid Evolution API validation errors)
+    // 3. Instance not found (404) or no QR → create it fresh (no webhook to avoid Evolution API 400 when events array is absent)
     if (!qr) {
       const createBody = {
         instanceName: instance.instance_name,
@@ -118,7 +118,6 @@ export async function GET(req: NextRequest) {
 
       if (createJson) qr = extractQr(createJson);
 
-      // 4. If created but no QR yet, connect to get QR
       if (!qr) {
         const retryRes = await fetch(
           `${EVOLUTION_URL}/instance/connect/${instance.instance_name}`,
