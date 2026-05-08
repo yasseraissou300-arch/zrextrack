@@ -5,6 +5,7 @@ const EVOLUTION_URL = process.env.EVOLUTION_API_URL || '';
 const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY || '';
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || '';
 const GEMINI_KEY = process.env.GEMINI_API_KEY || '';
+const GROQ_KEY = process.env.GROQ_API_KEY || '';
 
 // ─── 58 Wilayas Algeria normalization ─────────────────────────────────────────
 const WILAYA_MAP: Record<string, string> = {
@@ -187,6 +188,40 @@ async function callGemini(systemPrompt: string, messages: ClaudeMessage[]): Prom
   }
 }
 
+// ─── GROQ call (free tier, OpenAI-compatible) ─────────────────────────────────
+async function callGroq(systemPrompt: string, messages: ClaudeMessage[]): Promise<ClaudeResult> {
+    if (!GROQ_KEY) return { text: null, tokens: 0 };
+    try {
+          const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                  method: 'POST',
+                  headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${GROQ_KEY}`,
+                  },
+                  body: JSON.stringify({
+                            model: 'llama-3.1-8b-instant',
+                            max_tokens: 600,
+                            temperature: 0.7,
+                            messages: [
+                              { role: 'system', content: systemPrompt },
+                                        ...messages.slice(-10).map(m => ({ role: m.role, content: m.content })),
+                                      ],
+                  }),
+          });
+          if (!res.ok) {
+                  const err = await res.text();
+                  console.error('[GROQ] Error:', res.status, err);
+                  return { text: null, tokens: 0 };
+          }
+          const json = await res.json();
+          const text = json.choices?.[0]?.message?.content ?? null;
+          const tokens = (json.usage?.prompt_tokens ?? 0) + (json.usage?.completion_tokens ?? 0);
+          return { text, tokens };
+    } catch (e) {
+          console.error('[GROQ] Exception:', e);
+          return { text: null, tokens: 0 };
+    }
+}
 // ─── Claude call (primary) ─────────────────────────────────────────────────────
 async function callClaude(systemPrompt: string, messages: ClaudeMessage[]): Promise<ClaudeResult> {
   if (!ANTHROPIC_KEY) return { text: null, tokens: 0 };
@@ -227,7 +262,11 @@ async function callAI(systemPrompt: string, messages: ClaudeMessage[]): Promise<
   if (claudeResult.text) return claudeResult;
   // Fallback to Gemini
   console.log('[AI] Claude failed, trying Gemini fallback...');
-  return callGemini(systemPrompt, messages);
+    const geminiResult = await callGemini(systemPrompt, messages);
+    if (geminiResult.text) return geminiResult;
+    // Final fallback to GROQ
+    console.log('[AI] Gemini failed, trying GROQ fallback...');
+    return callGroq(systemPrompt, messages);
 }
 
 function extractData(text: string): Record<string, string> | null {
