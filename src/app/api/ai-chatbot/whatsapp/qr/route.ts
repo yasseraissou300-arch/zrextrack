@@ -124,35 +124,85 @@ export async function GET(req: NextRequest) {
     }
 
     // 2. Try to get QR (or pairing code if a phone number was provided) from existing instance.
-    // Evolution API: GET /instance/connect/{name} returns QR by default, or pairingCode when
-    // `?number=PHONE` is appended.
-    const connectUrl = wantPairingCode
-      ? `${EVOLUTION_URL}/instance/connect/${instance.instance_name}?number=${encodeURIComponent(phone)}`
-      : `${EVOLUTION_URL}/instance/connect/${instance.instance_name}`;
-    const connectRes = await fetch(connectUrl, { headers }).catch(() => null);
+    // Evolution API supports several patterns depending on version :
+    //   a) GET /instance/connect/{name}?number=PHONE → returns pairingCode
+    //   b) POST /instance/connect/{name} { number: PHONE } → idem
+    //   c) POST /instance/pairing-code/{name} { number: PHONE } → dedicated endpoint
+    // On essaie chaque format en cascade et on remonte la première réponse exploitable.
 
-    debugLog.connectStatus = connectRes?.status ?? 'fetch_failed';
-    const connectJson = connectRes?.ok ? await connectRes.json() : null;
-    debugLog.connectJson = connectJson;
+    let connectJson: unknown = null;
 
-    // En mode pairing : on cherche le code en priorité, sinon on retombe sur le QR.
     if (wantPairingCode) {
-      const pairingCode = connectJson ? extractPairingCode(connectJson) : null;
+      // Format A — GET avec query
+      const urlA = `${EVOLUTION_URL}/instance/connect/${instance.instance_name}?number=${encodeURIComponent(phone)}`;
+      const resA = await fetch(urlA, { headers }).catch(() => null);
+      debugLog.attemptA = { url: urlA.replace(EVOLUTION_URL, '<base>'), status: resA?.status ?? 'fetch_failed' };
+      if (resA?.ok) {
+        connectJson = await resA.json().catch(() => null);
+        debugLog.attemptA_body = connectJson;
+        if (extractPairingCode(connectJson)) {
+          // succès direct, skip les autres tentatives
+        } else if (!resA.ok) {
+          connectJson = null;
+        }
+      }
+
+      // Format B — POST avec body si A n'a pas donné de code
+      if (!extractPairingCode(connectJson)) {
+        const urlB = `${EVOLUTION_URL}/instance/connect/${instance.instance_name}`;
+        const resB = await fetch(urlB, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', apikey: EVOLUTION_KEY },
+          body: JSON.stringify({ number: phone }),
+        }).catch(() => null);
+        debugLog.attemptB = { url: urlB.replace(EVOLUTION_URL, '<base>'), status: resB?.status ?? 'fetch_failed' };
+        if (resB?.ok) {
+          const bJson = await resB.json().catch(() => null);
+          debugLog.attemptB_body = bJson;
+          if (extractPairingCode(bJson)) connectJson = bJson;
+        }
+      }
+
+      // Format C — endpoint dédié pairing-code
+      if (!extractPairingCode(connectJson)) {
+        const urlC = `${EVOLUTION_URL}/instance/pairing-code/${instance.instance_name}`;
+        const resC = await fetch(urlC, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', apikey: EVOLUTION_KEY },
+          body: JSON.stringify({ number: phone }),
+        }).catch(() => null);
+        debugLog.attemptC = { url: urlC.replace(EVOLUTION_URL, '<base>'), status: resC?.status ?? 'fetch_failed' };
+        if (resC?.ok) {
+          const cJson = await resC.json().catch(() => null);
+          debugLog.attemptC_body = cJson;
+          if (extractPairingCode(cJson)) connectJson = cJson;
+        }
+      }
+
+      const pairingCode = extractPairingCode(connectJson);
       if (pairingCode) {
-        // Code typique Evolution : "ABCDEFGH" — on insère un tiret au milieu pour
-        // matcher le format affiché par WhatsApp ("ABCD-EFGH").
         const formatted = pairingCode.length === 8 && !pairingCode.includes('-')
           ? `${pairingCode.slice(0, 4)}-${pairingCode.slice(4)}`
           : pairingCode;
         return NextResponse.json({ pairingCode: formatted, phone, connected: false });
       }
-      // Pas de pairingCode reçu : on retourne une erreur explicite plutôt que de
-      // basculer silencieusement en mode QR.
+
+      // Aucun format n'a marché — on remonte tous les détails techniques
+      // pour que le frontend puisse les afficher (pas juste un toast vague).
       return NextResponse.json({
-        error: 'Code de pairing non reçu. Vérifie le numéro ou réessaie.',
-        ...(debug ? { debug: debugLog } : {}),
+        error: 'Aucun code reçu d\'Evolution API après 3 tentatives. Vérifie le numéro ou utilise le QR.',
+        debug: debugLog,
       }, { status: 502 });
     }
+
+    // ── Mode QR classique (pas de numéro fourni) ──────────────────────────
+    const connectRes = await fetch(
+      `${EVOLUTION_URL}/instance/connect/${instance.instance_name}`,
+      { headers }
+    ).catch(() => null);
+    debugLog.connectStatus = connectRes?.status ?? 'fetch_failed';
+    connectJson = connectRes?.ok ? await connectRes.json() : null;
+    debugLog.connectJson = connectJson;
 
     let qr = connectJson ? extractQr(connectJson) : null;
 

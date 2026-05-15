@@ -415,7 +415,9 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
   const [pairingCode, setPairingCode] = useState<string | null>(null);
   const [pairingLoading, setPairingLoading] = useState(false);
   const [pairingError, setPairingError] = useState<string | null>(null);
+  const [pairingDebug, setPairingDebug] = useState<unknown>(null);
   const [codeCopied, setCodeCopied] = useState(false);
+  const [showDebug, setShowDebug] = useState(false);
   // Tracker la transition Déconnecté → Connecté pour afficher un toast/banner de succès
   const wasConnectedRef = React.useRef<boolean>(false);
 
@@ -504,6 +506,7 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
     }
     setPairingLoading(true);
     setPairingError(null);
+    setPairingDebug(null);
     try {
       const res = await fetch(`/api/ai-chatbot/whatsapp/qr?service=${serviceType}&number=${encodeURIComponent(phone)}&debug=1`);
       const json = await res.json();
@@ -517,6 +520,7 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
       } else {
         const errMsg = json.error || 'Aucun code reçu — vérifie ton numéro et réessaie.';
         setPairingError(errMsg);
+        if (json.debug) setPairingDebug(json.debug);
         toast.error(errMsg);
       }
     } catch (err: any) {
@@ -650,12 +654,29 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
           <div className="space-y-4">
             {/* Bannière d'erreur visible (pas juste un toast qui disparaît) */}
             {pairingError && (
-              <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700">
-                <AlertCircle size={14} className="shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <strong>Erreur :</strong> {pairingError}
+              <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700 space-y-2">
+                <div className="flex items-start gap-2">
+                  <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <strong>Erreur :</strong> {pairingError}
+                  </div>
+                  <button onClick={() => { setPairingError(null); setPairingDebug(null); setShowDebug(false); }} className="text-red-400 hover:text-red-600 text-base leading-none">×</button>
                 </div>
-                <button onClick={() => setPairingError(null)} className="text-red-400 hover:text-red-600 text-base leading-none">×</button>
+                {pairingDebug !== null && (
+                  <div className="pt-1 border-t border-red-100">
+                    <button
+                      onClick={() => setShowDebug(s => !s)}
+                      className="text-[10px] text-red-500 hover:text-red-700 underline"
+                    >
+                      {showDebug ? '▼ Masquer' : '▶ Voir détails techniques'}
+                    </button>
+                    {showDebug && (
+                      <pre className="mt-1.5 text-[10px] bg-white border border-red-100 rounded p-2 overflow-x-auto whitespace-pre-wrap break-all max-h-48 overflow-y-auto">
+                        {JSON.stringify(pairingDebug, null, 2)}
+                      </pre>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
