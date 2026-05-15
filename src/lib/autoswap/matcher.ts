@@ -268,6 +268,15 @@ const SIZE_EQUIVALENCES: Record<string, string[][]> = {
     ['40', '42', '44'],
     ['46', '48', '50'],
   ],
+  // Ayla Abaya (SKU "ayl") — mêmes groupes que hijab miral
+  ayl: [
+    ['40', '42', '44'],
+    ['46', '48', '50'],
+  ],
+  'ayla abaya': [
+    ['40', '42', '44'],
+    ['46', '48', '50'],
+  ],
   // Pantalon lain sport (SKU "spt")
   spt: [
     ['S', 'M'],

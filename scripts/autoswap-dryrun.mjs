@@ -147,6 +147,8 @@ const setsEqual = (a, b) => {
 const SIZE_EQUIVALENCES = {
   mrl: [['40','42','44'], ['46','48','50']],
   'hijab miral': [['40','42','44'], ['46','48','50']],
+  ayl: [['40','42','44'], ['46','48','50']],
+  'ayla abaya': [['40','42','44'], ['46','48','50']],
   spt: [['S','M'], ['L','XL'], ['XXL','XXXL']],
   'pantalon lain sport': [['S','M'], ['L','XL'], ['XXL','XXXL']],
   plin: [['S','M'], ['L','XL'], ['XXL','XXXL']],
