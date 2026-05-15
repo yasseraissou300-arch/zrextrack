@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
-  const token = 'zZhWCuWzJFvXUnRoYyoyFRqBBQZvVSk4vYPJcZjuoGeLtKBw3rcfL1EVvs07CJvv';
-  const tenantId = '3da412b7-5c9e-4fe9-bd40-8ee76fe6163c';
+  const token = process.env.ZREXPRESS_DEBUG_TOKEN || '';
+  const tenantId = process.env.ZREXPRESS_DEBUG_TENANT || '';
+
+  if (!token || !tenantId) {
+    return NextResponse.json(
+      { error: 'ZREXPRESS_DEBUG_TOKEN and ZREXPRESS_DEBUG_TENANT env vars required' },
+      { status: 500 },
+    );
+  }
   
   const res = await fetch('https://api.zrexpress.app/api/v1.0/parcels/search', {
     method: 'POST',

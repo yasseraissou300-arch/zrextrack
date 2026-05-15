@@ -176,7 +176,7 @@ function mapStatus(rawState: string, rawSituation = ''): string {
 }
 
 // Fetch all pages from ZREXpress
-async function fetchAllParcels(token: string, tenantId: string): Promise<any[]> {
+export async function fetchAllParcels(token: string, tenantId: string): Promise<any[]> {
   const all: any[] = [];
   let pageNumber = 1;
   const pageSize = 100;

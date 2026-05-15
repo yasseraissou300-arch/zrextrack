@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Package, MessageSquare, BarChart3, Settings,
-  ChevronLeft, ChevronRight, Truck, Bell, RefreshCw, Users, Trash2, Megaphone, Plug, MessageCircle, Bot,
+  ChevronLeft, ChevronRight, Truck, Bell, RefreshCw, Users, Trash2, Megaphone, Plug, MessageCircle, Bot, Repeat,
 } from 'lucide-react';
 import { useChatbot } from '@/contexts/ChatbotContext';
 
@@ -16,6 +16,7 @@ const navGroups = [
       { href: '/admin-dashboard', icon: LayoutDashboard, label: 'Tableau de bord' },
       { href: '/commandes', icon: Package, label: 'Commandes' },
       { href: '/livraisons', icon: Truck, label: 'Livraisons' },
+      { href: '/autoswap', icon: Repeat, label: 'AutoSwap' },
     ],
   },
   {
