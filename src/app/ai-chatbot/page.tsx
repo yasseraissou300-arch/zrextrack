@@ -410,6 +410,11 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
   const [loading, setLoading] = useState(true);
   const [qrLoading, setQrLoading] = useState(false);
   const [creating, setCreating] = useState(false);
+  // Pairing code par numéro de téléphone (alternative au QR)
+  const [phoneInput, setPhoneInput] = useState('');
+  const [pairingCode, setPairingCode] = useState<string | null>(null);
+  const [pairingLoading, setPairingLoading] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
 
   const meta = WA_SERVICE_META[serviceType];
   const Icon = meta.icon;
@@ -433,15 +438,15 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status.instance, status.connected, loading]);
 
-  // Poll for connection while QR is displayed
+  // Poll for connection while QR OR pairing code is displayed
   useEffect(() => {
-    if (!qr || status.connected) return;
+    if ((!qr && !pairingCode) || status.connected) return;
     const timer = setInterval(async () => {
       const connected = await fetchStatus();
-      if (connected) { setQr(null); clearInterval(timer); }
+      if (connected) { setQr(null); setPairingCode(null); clearInterval(timer); }
     }, 4000);
     return () => clearInterval(timer);
-  }, [qr, status.connected, fetchStatus]);
+  }, [qr, pairingCode, status.connected, fetchStatus]);
 
   const createInstance = async () => {
     setCreating(true);
@@ -464,6 +469,38 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
     });
     setStatus({ connected: false, phone: '', instance: null });
     setQr(null);
+    setPairingCode(null);
+    setPhoneInput('');
+  };
+
+  // Demande un code à 8 caractères au backend pour pairer le compte WhatsApp
+  // via le numéro de téléphone (au lieu de scanner un QR).
+  const fetchPairingCode = async () => {
+    if (!phoneInput.trim()) {
+      toast.error('Entrez votre numéro de téléphone WhatsApp');
+      return;
+    }
+    setPairingLoading(true);
+    setPairingCode(null);
+    setQr(null);
+    const res = await fetch(`/api/ai-chatbot/whatsapp/qr?service=${serviceType}&number=${encodeURIComponent(phoneInput.trim())}`);
+    const json = await res.json();
+    if (json.error) toast.error(json.error);
+    else if (json.pairingCode) setPairingCode(json.pairingCode);
+    else if (json.connected) { toast.success('Déjà connecté !'); fetchStatus(); }
+    setPairingLoading(false);
+  };
+
+  const copyPairingCode = async () => {
+    if (!pairingCode) return;
+    try {
+      // Copier sans le tiret pour que WhatsApp accepte directement le code collé
+      await navigator.clipboard.writeText(pairingCode.replace(/-/g, ''));
+      setCodeCopied(true);
+      setTimeout(() => setCodeCopied(false), 2000);
+    } catch {
+      toast.error('Impossible de copier le code');
+    }
   };
 
   const fetchQr = async () => {
@@ -540,7 +577,36 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
           </div>
         ) : (
           <div className="space-y-3">
-            {qr ? (
+            {pairingCode ? (
+              // Affichage du code de pairing — l'utilisateur tape ce code dans WhatsApp
+              <div className="flex flex-col items-center gap-3 py-2">
+                <p className="text-xs text-gray-500 text-center">
+                  Sur ton téléphone : <strong className="text-gray-700">WhatsApp → Appareils liés → Lier avec un numéro de téléphone</strong>
+                </p>
+                <button
+                  type="button"
+                  onClick={copyPairingCode}
+                  className={`group flex items-center gap-3 px-5 py-3 rounded-xl border-2 transition-colors ${
+                    codeCopied
+                      ? 'bg-green-50 border-green-300 text-green-700'
+                      : 'bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-900'
+                  }`}
+                  title="Cliquer pour copier"
+                >
+                  <span className="font-mono text-2xl tracking-[0.3em] font-bold">{pairingCode}</span>
+                  <Copy size={16} className="text-gray-400 group-hover:text-gray-600" />
+                </button>
+                <p className="text-[11px] text-gray-400 text-center">
+                  {codeCopied ? '✓ Code copié dans le presse-papier' : 'Entre ce code (8 caractères) dans WhatsApp'}
+                </p>
+                <button
+                  onClick={() => { setPairingCode(null); setPhoneInput(''); }}
+                  className="text-[11px] text-gray-400 hover:text-gray-600 underline"
+                >
+                  ← Choisir une autre méthode
+                </button>
+              </div>
+            ) : qr ? (
               <div className="flex flex-col items-center gap-2">
                 <div className="bg-white p-2 border-2 border-gray-200 rounded-xl inline-block">
                   <img
@@ -553,6 +619,29 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
                 <p className="text-[11px] text-gray-400 text-center">
                   WhatsApp → Appareils liés → Lier un appareil
                 </p>
+                {/* Option alternative : lier par numéro de téléphone */}
+                <div className="w-full mt-2 pt-3 border-t border-gray-100 space-y-2">
+                  <p className="text-[11px] text-gray-500 text-center font-medium">
+                    Ou lier par numéro de téléphone
+                  </p>
+                  <div className="flex gap-1.5">
+                    <input
+                      type="tel"
+                      placeholder="0XXXXXXXXX"
+                      value={phoneInput}
+                      onChange={e => setPhoneInput(e.target.value)}
+                      className="flex-1 text-sm px-2.5 py-1.5 border border-gray-200 rounded-md focus:outline-none focus:border-gray-400"
+                    />
+                    <button
+                      onClick={fetchPairingCode}
+                      disabled={pairingLoading || !phoneInput.trim()}
+                      className={`flex items-center justify-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md border transition-colors ${meta.linkBtnCls} disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      {pairingLoading ? <Loader2 size={12} className="animate-spin" /> : <Phone size={12} />}
+                      Lier
+                    </button>
+                  </div>
+                </div>
               </div>
             ) : (
               <button
