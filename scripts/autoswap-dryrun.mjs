@@ -143,16 +143,17 @@ const setsEqual = (a, b) => {
   return a.every(x => s.has(x));
 };
 
-// Mode STRICT : produit + quantité + sets de couleurs ET tailles IDENTIQUES.
-// Pas d'intersection partielle — un colis source [noir, vert] doit matcher
-// une cible avec EXACTEMENT [noir, vert] (pas juste [noir]).
+// Mode STRICT : produit + géo autorisée + quantité + sets de couleurs ET
+// tailles IDENTIQUES. Pas d'intersection partielle.
 function matchProduct(a, b) {
   if (a.uuid && b.uuid && a.uuid === b.uuid) {
+    if (!isGeoSwapAllowed(a, b)) return null;
     return { conf: 'EXACT', sharedColors: a.colors, sharedSizes: a.sizes };
   }
   const sameSku = !!a.sku && a.sku === b.sku;
   const sameName = !a.sku && !b.sku && !!a.nameFp && a.nameFp === b.nameFp;
   if (!sameSku && !sameName) return null;
+  if (!isGeoSwapAllowed(a, b)) return null;
   if (a.quantity !== b.quantity) return null;
   if (a.colors.length === 0 || b.colors.length === 0) return null;
   if (a.sizes.length === 0 || b.sizes.length === 0) return null;
@@ -162,6 +163,11 @@ function matchProduct(a, b) {
 }
 
 const TARGET_STATES = new Set(['commande_recue', 'pret_a_expedier', 'appel_confirmation']);
+
+// Règles métier ZRExpress (note officielle)
+const MAX_SWAP_COUNT = 2;
+const RESTRICTED_WILAYAS = new Set([1, 8, 11, 30, 32, 45, 49, 52, 53, 54, 58]);
+const isGeoSwapAllowed = (s, t) => !RESTRICTED_WILAYAS.has(s.wilayaCode) || s.wilayaCode === t.wilayaCode;
 
 function scorePair(s, t, m) {
   const warnings = [];
@@ -187,7 +193,8 @@ function savings(s, t, sameCity) {
 
 function match(parcels) {
   const norm = parcels.map(normalize);
-  const sources = norm.filter(p => p.swap.eligible && p.swap.swappedAt === null);
+  // Max 2 swaps par colis (règle ZRExpress)
+  const sources = norm.filter(p => p.swap.eligible && p.swap.swappedAt === null && p.swap.count < MAX_SWAP_COUNT);
   const targets = norm.filter(p => TARGET_STATES.has(p.state));
   const cands = [];
   for (const s of sources) for (const t of targets) {
