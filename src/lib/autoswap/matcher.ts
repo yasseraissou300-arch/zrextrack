@@ -52,6 +52,17 @@ interface ParsedDescription {
   variantColors: string[];   // toutes les couleurs détectées (multi-variants ok)
   variantSizes: string[];    // toutes les tailles détectées
   productVariantId: string | null;
+  quantity: number;          // nombre total d'articles dans le colis (extrait de " - N" en fin)
+}
+
+// Extrait la quantité totale du colis depuis productsDescription.
+// Format observé : "Produit( SKU )( variantes )XN : uuid - QTY"
+// Le " - QTY" en toute fin est la quantité totale.
+// Ex : "pantalon lain( plin )( M noir , Blanc , Beige , Blue ) :  - 4" → 4
+// Ex : "Pontalon lain sport beige M  :  - 1" → 1
+function extractQuantity(raw: string): number {
+  const m = raw.match(/-\s*(\d+)\s*$/);
+  return m ? Math.max(1, parseInt(m[1], 10)) : 1;
 }
 
 const UUID_REGEX = /[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i;
@@ -97,7 +108,7 @@ function classifyToken(tok: string): { type: 'color' | 'size'; canonical: string
 export function parseProductsDescription(raw: string): ParsedDescription {
   const desc = (raw || '').trim();
   if (!desc) {
-    return { productName: '', productSkuCode: null, variantColors: [], variantSizes: [], productVariantId: null };
+    return { productName: '', productSkuCode: null, variantColors: [], variantSizes: [], productVariantId: null, quantity: 1 };
   }
 
   const { name, sku } = extractNameAndSku(desc);
@@ -121,6 +132,7 @@ export function parseProductsDescription(raw: string): ParsedDescription {
     variantColors: [...colors].sort(),
     variantSizes: [...sizes].sort(),
     productVariantId: desc.match(UUID_REGEX)?.[0] || null,
+    quantity: extractQuantity(desc),
   };
 }
 
@@ -153,6 +165,7 @@ export function normalizeParcel(p: ZRParcel): NormalizedParcel {
     productNameFingerprint: nameFingerprint(parsed.productName),
     variantColors: parsed.variantColors,
     variantSizes: parsed.variantSizes,
+    quantity: parsed.quantity,
     rawDescription: p.productsDescription || '',
     cityTerritoryId: p.deliveryAddress?.cityTerritoryId || '',
     wilayaCode: Number(p.deliveryAddress?.cityTerritoryCode ?? 0),
@@ -241,6 +254,10 @@ function productConfidence(a: NormalizedParcel, b: NormalizedParcel): {
 
   if (!sameSku && !sameName) return null;
 
+  // Mode STRICT : la QUANTITÉ doit aussi correspondre (le contenu du colis source
+  // doit fournir exactement ce que la cible attend — ni plus, ni moins).
+  if (a.quantity !== b.quantity) return null;
+
   const sharedColors = intersection(a.variantColors, b.variantColors);
   const sharedSizes = intersection(a.variantSizes, b.variantSizes);
 
@@ -325,6 +342,7 @@ function toSwappableSide(p: NormalizedParcel, sharedColors: string[], sharedSize
     product: p.productName,
     variantColor: formatMatched(sharedColors) || formatMatched(p.variantColors),
     variantSize: formatMatched(sharedSizes) || formatMatched(p.variantSizes),
+    quantity: p.quantity,
     amount: p.amount,
   };
 }
@@ -340,6 +358,7 @@ function toTargetSide(p: NormalizedParcel, sharedColors: string[], sharedSizes: 
     product: p.productName,
     variantColor: formatMatched(sharedColors) || formatMatched(p.variantColors),
     variantSize: formatMatched(sharedSizes) || formatMatched(p.variantSizes),
+    quantity: p.quantity,
     amount: p.amount,
     // Tout ce dont execute/route.ts a besoin pour construire le payload de swap.
     // Ces champs ne sont pas affichés dans la UI mais sont préservés à travers le round-trip.

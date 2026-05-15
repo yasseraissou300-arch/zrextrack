@@ -65,9 +65,14 @@ function nameFingerprint(name) {
     .sort().join(' ');
 }
 
+function extractQuantity(raw) {
+  const m = raw.match(/-\s*(\d+)\s*$/);
+  return m ? Math.max(1, parseInt(m[1], 10)) : 1;
+}
+
 function parseDesc(raw) {
   const desc = (raw || '').trim();
-  if (!desc) return { name: '', sku: null, colors: [], sizes: [], nameFp: '', uuid: null };
+  if (!desc) return { name: '', sku: null, colors: [], sizes: [], nameFp: '', uuid: null, quantity: 1 };
   const { name, sku } = extractNameAndSku(desc);
   const colors = new Set(), sizes = new Set();
   for (const t of tokenize(desc)) {
@@ -82,6 +87,7 @@ function parseDesc(raw) {
     sizes: [...sizes].sort(),
     nameFp: nameFingerprint(name),
     uuid: desc.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i)?.[0] || null,
+    quantity: extractQuantity(desc),
   };
 }
 
@@ -111,7 +117,7 @@ function normalize(p) {
   return {
     id: p.id, tracking: p.trackingNumber || '',
     sku: v.sku, name: v.name, nameFp: v.nameFp, uuid: v.uuid,
-    colors: v.colors, sizes: v.sizes,
+    colors: v.colors, sizes: v.sizes, quantity: v.quantity,
     cityId: p.deliveryAddress?.cityTerritoryId || '',
     wilayaCode: Number(p.deliveryAddress?.cityTerritoryCode ?? 0),
     cityName: p.deliveryAddress?.city || '',
@@ -133,8 +139,7 @@ function normalize(p) {
 
 const inter = (a, b) => { const s = new Set(b); return a.filter(x => s.has(x)); };
 
-// Mode STRICT : on rejette tout match où couleur OU taille diffère (return null).
-// Seuls EXACT (UUID identique) et STRONG (couleur + taille communes) sont proposés.
+// Mode STRICT : produit + couleur + taille + QUANTITÉ doivent matcher. Sinon null.
 function matchProduct(a, b) {
   if (a.uuid && b.uuid && a.uuid === b.uuid) {
     return { conf: 'EXACT', sharedColors: inter(a.colors, b.colors), sharedSizes: inter(a.sizes, b.sizes) };
@@ -142,6 +147,7 @@ function matchProduct(a, b) {
   const sameSku = !!a.sku && a.sku === b.sku;
   const sameName = !a.sku && !b.sku && !!a.nameFp && a.nameFp === b.nameFp;
   if (!sameSku && !sameName) return null;
+  if (a.quantity !== b.quantity) return null;
   const sc = inter(a.colors, b.colors), sz = inter(a.sizes, b.sizes);
   if (sc.length > 0 && sz.length > 0) return { conf: 'STRONG', sharedColors: sc, sharedSizes: sz };
   return null;
