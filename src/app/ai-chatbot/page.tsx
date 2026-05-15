@@ -517,6 +517,12 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
       } else if (json.connected) {
         toast.success('WhatsApp déjà connecté !');
         await fetchStatus();
+      } else if (json.pairingNotSupported) {
+        // Evolution API renvoie un QR au lieu du code → on bascule en mode QR
+        // proprement, avec un avertissement informatif (pas d'erreur rouge).
+        if (json.qr) setQr(json.qr);
+        setPairingError(json.notice || 'Le pairing par numéro n\'est pas supporté par cette instance Evolution. Scanne le QR à la place.');
+        setPhoneInput('');
       } else {
         const errMsg = json.error || 'Aucun code reçu — vérifie ton numéro et réessaie.';
         setPairingError(errMsg);
