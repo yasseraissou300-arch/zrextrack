@@ -1,31 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
-import type { MatchProposal, ExecuteResponse, ExecutionResult } from '@/lib/autoswap/types';
+import type { MatchProposal, ExecuteResponse, ExecutionResult, SwapRequestPayload } from '@/lib/autoswap/types';
 
-// ⚠️ L'endpoint Swap officiel ZRExpress n'est pas encore documenté.
-// Pour activer l'exécution réelle :
-//   1. Inspecter https://app.zrexpress.app/parcel-swap dans Chrome DevTools → onglet Network
-//   2. Cliquer manuellement sur "Swap" pour un colis
-//   3. Récupérer l'URL exacte + méthode + payload de la requête sortante
-//   4. Renseigner ZREXPRESS_SWAP_ENDPOINT dans .env.local (URL ABSOLUE)
-//   5. Adapter buildSwapPayload() ci-dessous si le format diffère du défaut
-const DEFAULT_SWAP_ENDPOINT = 'https://api.zrexpress.app/api/v1.0/parcels/swap';
+// Endpoint découvert via le spec Swagger interne ZRExpress :
+//   https://api.zrexpress.app/swagger/internal-v1/swagger.json
+//   → POST /api/v1.0/parcel-modification-requests/swap
+//   → operationId : CreateSwapParcelModificationRequestEndpoint
+//   → permissions requises : SupplierAdminRole | SupplierParcelsManagerRole
+const SWAP_URL = process.env.ZREXPRESS_SWAP_ENDPOINT
+  || 'https://api.zrexpress.app/api/v1.0/parcel-modification-requests/swap';
 
-function buildSwapPayload(swap: MatchProposal) {
-  // Format présumé — à confirmer après inspection des DevTools.
+// Construit le payload conforme au schéma CreateSwapParcelModificationRequestRequest.
+// Le swap prend le colis SOURCE (déjà en mouvement chez le livreur) et le redirige
+// vers les coordonnées du client TARGET (nouvelle commande confirmée).
+function buildSwapPayload(swap: MatchProposal): SwapRequestPayload {
+  const t = swap.target;
   return {
-    sourceParcelId: swap.swappable.id,
-    targetParcelId: swap.target.id,
+    parcelId: swap.swappable.id,
+    amount: t.amount,
+    phone: t.swapPayload.phone,
+    deliveryType: t.swapPayload.deliveryType,
+    deliveryAddress: t.swapPayload.deliveryAddress,
+    hubId: t.swapPayload.hubId,
+    newCustomerName: t.customer || null,
+    newCustomerId: t.swapPayload.customerId,
   };
 }
 
 async function callZRExpressSwap(
   token: string,
   tenantId: string,
-  endpoint: string,
   swap: MatchProposal,
 ): Promise<{ ok: boolean; status: number; body: unknown }> {
-  const res = await fetch(endpoint, {
+  const res = await fetch(SWAP_URL, {
     method: 'POST',
     headers: {
       'X-Api-Key': token,
@@ -52,8 +59,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Aucun swap validé fourni' }, { status: 400 });
     }
 
-    const endpoint = process.env.ZREXPRESS_SWAP_ENDPOINT || DEFAULT_SWAP_ENDPOINT;
-
     const supabaseAuth = await createClient();
     const { data: { user } } = await supabaseAuth.auth.getUser();
     const userId = user?.id ?? null;
@@ -68,7 +73,7 @@ export async function POST(request: NextRequest) {
     for (const swap of approved_swaps) {
       let result: ExecutionResult;
       try {
-        const { ok, status, body } = await callZRExpressSwap(token, tenantId, endpoint, swap);
+        const { ok, status, body } = await callZRExpressSwap(token, tenantId, swap);
         if (ok) {
           executed += 1;
           result = {
@@ -78,22 +83,16 @@ export async function POST(request: NextRequest) {
             zr_response: body,
           };
 
-          // Met à jour la table orders : ancien colis → swap_redirected, nouveau → swap_shipped
-          await supabase
-            .from('orders')
-            .update({ delivery_status: 'swap_redirected', last_update: new Date().toISOString() })
-            .eq('tracking_number', swap.swappable.tracking);
-          await supabase
-            .from('orders')
-            .update({ delivery_status: 'swap_shipped', last_update: new Date().toISOString() })
-            .eq('tracking_number', swap.target.tracking);
+          const now = new Date().toISOString();
+          await supabase.from('orders').update({ delivery_status: 'swap_redirected', last_update: now }).eq('tracking_number', swap.swappable.tracking);
+          await supabase.from('orders').update({ delivery_status: 'swap_shipped',    last_update: now }).eq('tracking_number', swap.target.tracking);
         } else {
           failed += 1;
           result = {
             source_tracking: swap.swappable.tracking,
             target_tracking: swap.target.tracking,
             status: 'failed',
-            error: `ZRExpress HTTP ${status}: ${JSON.stringify(body).slice(0, 200)}`,
+            error: `ZRExpress HTTP ${status}: ${JSON.stringify(body).slice(0, 300)}`,
             zr_response: body,
           };
         }
@@ -107,7 +106,6 @@ export async function POST(request: NextRequest) {
         };
       }
 
-      // Audit log (best-effort — n'arrête pas l'exécution si ça échoue).
       await supabase.from('autoswap_log').insert({
         source_tracking: swap.swappable.tracking,
         target_tracking: swap.target.tracking,
@@ -123,8 +121,7 @@ export async function POST(request: NextRequest) {
       results.push(result);
     }
 
-    const response: ExecuteResponse = { executed, failed, results };
-    return NextResponse.json(response);
+    return NextResponse.json({ executed, failed, results } as ExecuteResponse);
   } catch (err: any) {
     return NextResponse.json({ error: err?.message || 'Erreur AutoSwap execute' }, { status: 500 });
   }
