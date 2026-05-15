@@ -201,9 +201,35 @@ export function normalizeParcel(p: ZRParcel): NormalizedParcel {
   };
 }
 
+// ── Règles métier ZRExpress (source : note officielle) ──────────────────────
+
+// Un colis ne peut être swappé que 2 fois maximum.
+const MAX_SWAP_COUNT = 2;
+
+// Wilayas du Sud algérien qui ne peuvent swapper que dans la même wilaya
+// (interdiction cross-wilaya pour ces régions). Codes officiels ZRExpress.
+const RESTRICTED_WILAYAS = new Set<number>([
+  1,  // Adrar
+  8,  // Bechar
+  11, // Tamanrasset
+  30, // Ouargla
+  32, // El Bayadh
+  45, // Naama
+  49, // Timimoun
+  52, // Beni Abbes
+  53, // In Salah
+  54, // In Guezzam
+  58, // El Menia
+]);
+
 // Vérifie qu'un colis est éligible côté source (swap possible).
+// L'API ZRExpress positionne isEligibleForSwap=true uniquement pour les états
+// « Ne répond pas 3 » ou « Commande annulée » — on délègue ce check à l'API.
+// On ajoute en local le filtre du nombre de swaps (max 2 par colis).
 export function isSwappable(p: NormalizedParcel): boolean {
-  return p.swap.isEligibleForSwap === true && p.swap.swappedAt === null;
+  return p.swap.isEligibleForSwap === true
+    && p.swap.swappedAt === null
+    && p.swap.count < MAX_SWAP_COUNT;
 }
 
 // `appel_confirmation` (URL de l'UI ZRExpress) n'existe pas côté API : les vrais
@@ -212,6 +238,16 @@ const TARGET_STATES = new Set(['commande_recue', 'pret_a_expedier', 'appel_confi
 
 export function isTarget(p: NormalizedParcel): boolean {
   return TARGET_STATES.has(p.stateName);
+}
+
+// Vérifie la contrainte géographique du swap selon la règle ZRExpress :
+// si le colis source est dans une wilaya du Sud (RESTRICTED_WILAYAS),
+// la cible doit être dans la MÊME wilaya. Sinon swap interdit.
+function isGeoSwapAllowed(source: NormalizedParcel, target: NormalizedParcel): boolean {
+  if (RESTRICTED_WILAYAS.has(source.wilayaCode)) {
+    return source.wilayaCode === target.wilayaCode;
+  }
+  return true;
 }
 
 // ── Matching ────────────────────────────────────────────────────────────────
@@ -243,8 +279,10 @@ function productConfidence(a: NormalizedParcel, b: NormalizedParcel): {
   sharedColors: string[];
   sharedSizes: string[];
 } | null {
-  // EXACT par UUID — seule façon de bypasser le check ensembliste.
+  // EXACT par UUID — bypass le check ensembliste, mais la règle géographique
+  // ZRExpress reste obligatoire (contrainte du transporteur).
   if (a.productVariantId && b.productVariantId && a.productVariantId === b.productVariantId) {
+    if (!isGeoSwapAllowed(a, b)) return null;
     return {
       confidence: 'EXACT',
       sharedColors: a.variantColors,
@@ -259,6 +297,10 @@ function productConfidence(a: NormalizedParcel, b: NormalizedParcel): {
                    a.productNameFingerprint === b.productNameFingerprint;
 
   if (!sameSku && !sameName) return null;
+
+  // Règle ZRExpress : certaines wilayas du Sud ne peuvent swap qu'en interne.
+  // Si la source est dans une wilaya restreinte, la cible doit y être aussi.
+  if (!isGeoSwapAllowed(a, b)) return null;
 
   // Quantité identique (contenu du colis = ce que veut la cible).
   if (a.quantity !== b.quantity) return null;
