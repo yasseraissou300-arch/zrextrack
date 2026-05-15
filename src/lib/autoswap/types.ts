@@ -76,6 +76,7 @@ export interface NormalizedParcel {
   productNameFingerprint: string;    // nom normalisé (sans couleurs/tailles) — sert quand SKU manque
   variantColors: string[];           // canoniques (ex ['noir', 'beige']) — multi-variants possibles
   variantSizes: string[];            // canoniques (ex ['M', 'XL', '42'])
+  quantity: number;                  // nombre total d'articles dans le colis (ex "- 4" en fin de description)
   rawDescription: string;
   // Géographie
   cityTerritoryId: string;
@@ -127,6 +128,7 @@ export interface MatchProposal {
     product: string;
     variantColor: string | null;
     variantSize: string | null;
+    quantity: number;
     amount: number;
   };
   target: {
@@ -139,6 +141,7 @@ export interface MatchProposal {
     product: string;
     variantColor: string | null;
     variantSize: string | null;
+    quantity: number;
     amount: number;
     // Données complètes nécessaires pour construire le payload de swap.
     // Pas affichées dans l'UI ; sérialisées dans la requête /execute.
