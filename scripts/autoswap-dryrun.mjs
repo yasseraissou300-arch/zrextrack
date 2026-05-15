@@ -137,20 +137,28 @@ function normalize(p) {
   };
 }
 
-const inter = (a, b) => { const s = new Set(b); return a.filter(x => s.has(x)); };
+const setsEqual = (a, b) => {
+  if (a.length !== b.length) return false;
+  const s = new Set(b);
+  return a.every(x => s.has(x));
+};
 
-// Mode STRICT : produit + couleur + taille + QUANTITÉ doivent matcher. Sinon null.
+// Mode STRICT : produit + quantité + sets de couleurs ET tailles IDENTIQUES.
+// Pas d'intersection partielle — un colis source [noir, vert] doit matcher
+// une cible avec EXACTEMENT [noir, vert] (pas juste [noir]).
 function matchProduct(a, b) {
   if (a.uuid && b.uuid && a.uuid === b.uuid) {
-    return { conf: 'EXACT', sharedColors: inter(a.colors, b.colors), sharedSizes: inter(a.sizes, b.sizes) };
+    return { conf: 'EXACT', sharedColors: a.colors, sharedSizes: a.sizes };
   }
   const sameSku = !!a.sku && a.sku === b.sku;
   const sameName = !a.sku && !b.sku && !!a.nameFp && a.nameFp === b.nameFp;
   if (!sameSku && !sameName) return null;
   if (a.quantity !== b.quantity) return null;
-  const sc = inter(a.colors, b.colors), sz = inter(a.sizes, b.sizes);
-  if (sc.length > 0 && sz.length > 0) return { conf: 'STRONG', sharedColors: sc, sharedSizes: sz };
-  return null;
+  if (a.colors.length === 0 || b.colors.length === 0) return null;
+  if (a.sizes.length === 0 || b.sizes.length === 0) return null;
+  if (!setsEqual(a.colors, b.colors)) return null;
+  if (!setsEqual(a.sizes, b.sizes)) return null;
+  return { conf: 'STRONG', sharedColors: a.colors, sharedSizes: a.sizes };
 }
 
 const TARGET_STATES = new Set(['commande_recue', 'pret_a_expedier', 'appel_confirmation']);

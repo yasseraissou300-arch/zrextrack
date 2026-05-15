@@ -216,33 +216,39 @@ export function isTarget(p: NormalizedParcel): boolean {
 
 // ── Matching ────────────────────────────────────────────────────────────────
 
-function intersection<T>(a: T[], b: T[]): T[] {
+// Égalité ensembliste : a et b contiennent exactement les mêmes éléments
+// (ordre ignoré, doublons ignorés). Utilisé pour exiger que TOUTES les
+// couleurs/tailles d'un colis multi-variants correspondent à la cible.
+function setsEqual<T>(a: T[], b: T[]): boolean {
+  if (a.length !== b.length) return false;
   const set = new Set(b);
-  return a.filter(x => set.has(x));
+  return a.every(x => set.has(x));
 }
 
 // Détermine le niveau de confiance d'un match produit.
-// Mode STRICT : un swap n'est proposé que si produit + couleur + taille sont identiques.
-// Tout ce qui diffère sur l'un de ces 3 critères → null (pas de proposition).
-// La wilaya n'est PAS un critère de filtrage (juste un bonus de score plus tard).
+// Mode STRICT : un swap n'est proposé que si :
+//   - même produit (SKU ou fingerprint du nom)
+//   - même quantité (contenu du colis identique)
+//   - même ENSEMBLE de couleurs (pas juste intersection : pour un colis
+//     multi-variants à 2 couleurs [noir, vert], la cible doit aussi avoir
+//     EXACTEMENT [noir, vert] — pas seulement [noir] ou [noir, blanc])
+//   - même ENSEMBLE de tailles
 //
-// EXACT  → même UUID variante (cas idéal, rare en pratique)
-// STRONG → même produit (SKU ou nom-fingerprint) + couleur commune + taille commune
+// La wilaya n'est PAS un critère de filtrage (juste un bonus de score).
 //
-// Pas de tier WEAK exposé : si variant manquant d'un côté ou variantes contradictoires,
-// on rejette le match plutôt que de demander à l'humain de vérifier.
+// EXACT  → même UUID variante (rare en pratique, bypass les checks de set)
+// STRONG → même produit + même quantité + sets de couleurs et tailles identiques
 function productConfidence(a: NormalizedParcel, b: NormalizedParcel): {
   confidence: Confidence;
   sharedColors: string[];
   sharedSizes: string[];
 } | null {
-  // EXACT par UUID — seule façon de bypasser le check couleur/taille
-  // car l'UUID encode déjà la variante exacte.
+  // EXACT par UUID — seule façon de bypasser le check ensembliste.
   if (a.productVariantId && b.productVariantId && a.productVariantId === b.productVariantId) {
     return {
       confidence: 'EXACT',
-      sharedColors: intersection(a.variantColors, b.variantColors),
-      sharedSizes: intersection(a.variantSizes, b.variantSizes),
+      sharedColors: a.variantColors,
+      sharedSizes: a.variantSizes,
     };
   }
 
@@ -254,20 +260,23 @@ function productConfidence(a: NormalizedParcel, b: NormalizedParcel): {
 
   if (!sameSku && !sameName) return null;
 
-  // Mode STRICT : la QUANTITÉ doit aussi correspondre (le contenu du colis source
-  // doit fournir exactement ce que la cible attend — ni plus, ni moins).
+  // Quantité identique (contenu du colis = ce que veut la cible).
   if (a.quantity !== b.quantity) return null;
 
-  const sharedColors = intersection(a.variantColors, b.variantColors);
-  const sharedSizes = intersection(a.variantSizes, b.variantSizes);
+  // Garde-fou : il faut avoir détecté au moins une couleur ET une taille
+  // des 2 côtés. Sans info, on ne peut pas garantir la correspondance.
+  if (a.variantColors.length === 0 || b.variantColors.length === 0) return null;
+  if (a.variantSizes.length === 0 || b.variantSizes.length === 0) return null;
 
-  // Mode STRICT : couleur ET taille doivent être identiques des 2 côtés.
-  if (sharedColors.length > 0 && sharedSizes.length > 0) {
-    return { confidence: 'STRONG', sharedColors, sharedSizes };
-  }
+  // Sets identiques — pas d'intersection partielle.
+  if (!setsEqual(a.variantColors, b.variantColors)) return null;
+  if (!setsEqual(a.variantSizes, b.variantSizes)) return null;
 
-  // Toute autre situation = pas de proposition (variant manquant, couleur OU taille différente).
-  return null;
+  return {
+    confidence: 'STRONG',
+    sharedColors: a.variantColors,
+    sharedSizes: a.variantSizes,
+  };
 }
 
 interface MatchResult {
