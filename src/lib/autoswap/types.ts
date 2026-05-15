@@ -11,6 +11,7 @@ export interface ZRParcel {
   productsDescription?: string;
   isReturn?: boolean;
   type?: string;
+  deliveryType?: string;
   customer?: {
     customerId?: string;
     name?: string;
@@ -23,6 +24,11 @@ export interface ZRParcel {
     cityTerritoryCode?: number;
     district?: string;
     districtTerritoryId?: string;
+    postalCode?: string;
+    country?: string;
+    coordinates?: { lat?: number; lng?: number };
+    hubId?: string;
+    hubName?: string;
   };
   state?: { id?: string; name?: string; description?: string };
   swap?: {
@@ -34,6 +40,29 @@ export interface ZRParcel {
     differentCityPrice?: number;
     isEligibleForSwap?: boolean;
   };
+}
+
+// Payload de swap conforme au schéma ZRExpress interne :
+// POST /api/v1.0/parcel-modification-requests/swap
+// Découvert via /swagger/internal-v1/swagger.json (CreateSwapParcelModificationRequestRequest)
+export interface SwapRequestPayload {
+  parcelId: string;                 // UUID du colis SOURCE (celui qu'on redirige)
+  amount?: number | null;
+  phone?: { number1?: string; number2?: string; number3?: string };
+  deliveryType?: string | null;
+  deliveryAddress?: {
+    street?: string | null;
+    city?: string | null;
+    cityTerritoryId: string;
+    district?: string | null;
+    districtTerritoryId: string;
+    postalCode?: string | null;
+    country?: string | null;
+    coordinates?: { lat?: number; lng?: number };
+  };
+  hubId?: string | null;
+  newCustomerName?: string | null;
+  newCustomerId?: string | null;
 }
 
 export interface NormalizedParcel {
@@ -55,10 +84,25 @@ export interface NormalizedParcel {
   district: string;
   // Client / montants
   customerName: string;
+  customerId: string | null;
   customerPhone: string;
+  customerPhones: { number1?: string; number2?: string; number3?: string };
   amount: number;
   returnPrice: number;
   deliveryPrice: number;
+  // Adresse complète (pour construire le payload de swap)
+  fullAddress: {
+    street: string | null;
+    city: string | null;
+    cityTerritoryId: string;
+    district: string | null;
+    districtTerritoryId: string;
+    postalCode: string | null;
+    country: string | null;
+    coordinates?: { lat?: number; lng?: number };
+  };
+  hubId: string | null;
+  deliveryType: string | null;
   // Statut
   stateName: string;
   // Eligibilité swap (uniquement pertinent côté source)
@@ -75,7 +119,7 @@ export type Confidence = 'EXACT' | 'STRONG' | 'WEAK';
 
 export interface MatchProposal {
   swappable: {
-    id: string;
+    id: string;          // UUID — utilisé comme parcelId dans le payload de swap
     tracking: string;
     customer: string;
     wilaya: string;
@@ -96,6 +140,24 @@ export interface MatchProposal {
     variantColor: string | null;
     variantSize: string | null;
     amount: number;
+    // Données complètes nécessaires pour construire le payload de swap.
+    // Pas affichées dans l'UI ; sérialisées dans la requête /execute.
+    swapPayload: {
+      phone: { number1?: string; number2?: string; number3?: string };
+      deliveryType: string | null;
+      deliveryAddress: {
+        street: string | null;
+        city: string | null;
+        cityTerritoryId: string;
+        district: string | null;
+        districtTerritoryId: string;
+        postalCode: string | null;
+        country: string | null;
+        coordinates?: { lat?: number; lng?: number };
+      };
+      hubId: string | null;
+      customerId: string | null;
+    };
   };
   confidence: Confidence;
   score: number;

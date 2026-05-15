@@ -136,11 +136,12 @@ function nameFingerprint(name: string): string {
 
 export function normalizeParcel(p: ZRParcel): NormalizedParcel {
   const parsed = parseProductsDescription(p.productsDescription || '');
-  const customerPhone =
-    p.customer?.phone?.number1 ||
-    p.customer?.phone?.number2 ||
-    p.customer?.phone?.number3 ||
-    '';
+  const phones = {
+    number1: p.customer?.phone?.number1,
+    number2: p.customer?.phone?.number2,
+    number3: p.customer?.phone?.number3,
+  };
+  const customerPhone = phones.number1 || phones.number2 || phones.number3 || '';
 
   return {
     id: p.id || '',
@@ -158,10 +159,24 @@ export function normalizeParcel(p: ZRParcel): NormalizedParcel {
     cityName: p.deliveryAddress?.city || '',
     district: p.deliveryAddress?.district || '',
     customerName: p.customer?.name || '',
+    customerId: p.customer?.customerId || null,
     customerPhone,
+    customerPhones: phones,
     amount: Number(p.amount ?? 0),
     returnPrice: Number(p.returnPrice ?? 0),
     deliveryPrice: Number(p.deliveryPrice ?? 0),
+    fullAddress: {
+      street: p.deliveryAddress?.street ?? null,
+      city: p.deliveryAddress?.city ?? null,
+      cityTerritoryId: p.deliveryAddress?.cityTerritoryId || '',
+      district: p.deliveryAddress?.district ?? null,
+      districtTerritoryId: p.deliveryAddress?.districtTerritoryId || '',
+      postalCode: p.deliveryAddress?.postalCode ?? null,
+      country: p.deliveryAddress?.country ?? null,
+      coordinates: p.deliveryAddress?.coordinates,
+    },
+    hubId: p.deliveryAddress?.hubId || null,
+    deliveryType: p.deliveryType ?? null,
     stateName: p.state?.name || '',
     swap: {
       isEligibleForSwap: !!p.swap?.isEligibleForSwap,
@@ -300,7 +315,21 @@ function formatMatched(values: string[]): string | null {
   return values.join(' / ');
 }
 
-function toProposalSide(p: NormalizedParcel, sharedColors: string[], sharedSizes: string[]) {
+function toSwappableSide(p: NormalizedParcel, sharedColors: string[], sharedSizes: string[]) {
+  return {
+    id: p.id,
+    tracking: p.trackingNumber,
+    customer: p.customerName,
+    wilaya: String(p.wilayaCode || ''),
+    city: p.cityName,
+    product: p.productName,
+    variantColor: formatMatched(sharedColors) || formatMatched(p.variantColors),
+    variantSize: formatMatched(sharedSizes) || formatMatched(p.variantSizes),
+    amount: p.amount,
+  };
+}
+
+function toTargetSide(p: NormalizedParcel, sharedColors: string[], sharedSizes: string[]) {
   return {
     id: p.id,
     tracking: p.trackingNumber,
@@ -309,11 +338,18 @@ function toProposalSide(p: NormalizedParcel, sharedColors: string[], sharedSizes
     wilaya: String(p.wilayaCode || ''),
     city: p.cityName,
     product: p.productName,
-    // Pour l'UI : montre les couleurs/tailles communes (qui ont matché).
-    // Fallback : toutes les couleurs/tailles du colis si rien n'a matché.
     variantColor: formatMatched(sharedColors) || formatMatched(p.variantColors),
     variantSize: formatMatched(sharedSizes) || formatMatched(p.variantSizes),
     amount: p.amount,
+    // Tout ce dont execute/route.ts a besoin pour construire le payload de swap.
+    // Ces champs ne sont pas affichés dans la UI mais sont préservés à travers le round-trip.
+    swapPayload: {
+      phone: p.customerPhones,
+      deliveryType: p.deliveryType,
+      deliveryAddress: p.fullAddress,
+      hubId: p.hubId,
+      customerId: p.customerId,
+    },
   };
 }
 
@@ -346,8 +382,8 @@ export function matchSwappables(allParcels: ZRParcel[]): MatchProposal[] {
     usedTargets.add(c.t.id);
 
     proposals.push({
-      swappable: toProposalSide(c.s, c.result.sharedColors, c.result.sharedSizes),
-      target: toProposalSide(c.t, c.result.sharedColors, c.result.sharedSizes),
+      swappable: toSwappableSide(c.s, c.result.sharedColors, c.result.sharedSizes),
+      target: toTargetSide(c.t, c.result.sharedColors, c.result.sharedSizes),
       confidence: c.result.confidence,
       score: c.result.score,
       same_city: c.result.sameCity,
