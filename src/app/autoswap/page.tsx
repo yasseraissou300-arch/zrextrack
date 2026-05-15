@@ -4,7 +4,7 @@ import AppLayout from '@/components/ui/AppLayout';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Repeat, Search, CheckCircle2, AlertTriangle, MapPin, TrendingUp,
-  Package, Filter, Loader2, ExternalLink, Copy, Check, Info,
+  Package, Filter, Loader2, ExternalLink, Info,
 } from 'lucide-react';
 import type { MatchProposal, PreviewResponse, Confidence } from '@/lib/autoswap/types';
 
@@ -26,26 +26,6 @@ const CONFIDENCE_META: Record<Confidence, { label: string; bg: string; text: str
   WEAK:   { label: 'À vérifier', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
 };
 
-function formatSwapInfo(p: MatchProposal): string {
-  const addr = p.target.swapPayload.deliveryAddress;
-  const phones = p.target.swapPayload.phone;
-  const phoneList = [phones.number1, phones.number2, phones.number3].filter(Boolean).join(' / ');
-  return [
-    `=== SWAP : ${p.swappable.tracking} → ${p.target.customer} ===`,
-    ``,
-    `📦 Colis à rediriger : ${p.swappable.tracking}`,
-    `📋 Produit : ${p.swappable.product} · ${p.swappable.variantColor || ''} · ${p.swappable.variantSize ? 'T.' + p.swappable.variantSize : ''}`,
-    ``,
-    `👤 Nouveau client : ${p.target.customer}`,
-    `📱 Téléphone : ${phoneList}`,
-    `📍 Adresse : ${addr.street || ''}, ${addr.district || ''}, ${addr.city || ''}`,
-    `🚚 Type livraison : ${p.target.swapPayload.deliveryType || 'home'}`,
-    `💵 Montant COD : ${p.target.amount.toFixed(0)} DA`,
-    ``,
-    `💰 Économie estimée : ${p.estimated_savings.toFixed(0)} DA`,
-  ].join('\n');
-}
-
 export default function AutoSwapPage() {
   const [token, setToken] = useState('');
   const [tenantId, setTenantId] = useState('');
@@ -55,7 +35,6 @@ export default function AutoSwapPage() {
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [filterConfidence, setFilterConfidence] = useState<'ALL' | Confidence>('ALL');
   const [onlySameCity, setOnlySameCity] = useState(false);
 
@@ -99,24 +78,6 @@ export default function AutoSwapPage() {
 
   const proposalKey = (p: MatchProposal) => `${p.swappable.id}::${p.target.id}`;
 
-  const copyToClipboard = async (p: MatchProposal) => {
-    const text = formatSwapInfo(p);
-    try {
-      await navigator.clipboard.writeText(text);
-      const key = proposalKey(p);
-      setCopiedKey(key);
-      setTimeout(() => setCopiedKey(k => (k === key ? null : k)), 2000);
-    } catch {
-      setError('Impossible de copier dans le presse-papier');
-    }
-  };
-
-  const openInZRExpress = (p: MatchProposal) => {
-    copyToClipboard(p);
-    // Lien direct vers la fiche du colis swappable — pas la liste générale.
-    window.open(parcelDetailUrl(p.swappable.id), '_blank', 'noopener,noreferrer');
-  };
-
   return (
     <AppLayout>
       <div className="max-w-screen-xl mx-auto px-6 py-6 space-y-6">
@@ -136,9 +97,9 @@ export default function AutoSwapPage() {
           <Info size={18} className="text-blue-600 shrink-0 mt-0.5" />
           <div className="text-sm text-blue-900">
             <strong>Mode copilote :</strong> ZRExpress n'autorise pas encore l'exécution des swaps via API externe.
-            AutoTim trouve automatiquement les matchs (produit + couleur + taille identiques), puis pour chaque swap tu cliques
-            <strong> « Ouvrir dans ZRExpress »</strong> — AutoTim copie automatiquement les infos du nouveau client dans ton presse-papier
-            et ouvre la page Swap. Tu colles, tu confirmes, c'est fait.
+            AutoTim trouve les matchs (produit + couleur + taille + quantité identiques) et te donne pour chaque match
+            <strong> deux liens directs</strong> : l'ancien colis et la nouvelle commande. Tu les ouvres côte à côte dans ZRExpress
+            et tu valides le swap.
           </div>
         </div>
 
@@ -234,7 +195,6 @@ export default function AutoSwapPage() {
                   <tbody className="divide-y divide-gray-100">
                     {filteredProposals.map((p) => {
                       const key = proposalKey(p);
-                      const wasCopied = copiedKey === key;
                       const meta = CONFIDENCE_META[p.confidence];
                       return (
                         <tr key={key} className="hover:bg-gray-50 align-top">
@@ -255,6 +215,7 @@ export default function AutoSwapPage() {
                             <div className="text-xs text-gray-500">
                               {p.swappable.variantColor && `${p.swappable.variantColor}`}
                               {p.swappable.variantSize && ` · T.${p.swappable.variantSize}`}
+                              {p.swappable.quantity > 1 && ` · ${p.swappable.quantity}×`}
                             </div>
                           </td>
                           <td className="px-4 py-3">
@@ -273,27 +234,27 @@ export default function AutoSwapPage() {
                             +{p.estimated_savings.toFixed(0)} DA
                           </td>
                           <td className="px-4 py-3">
-                            <div className="flex flex-col gap-1 items-stretch min-w-[160px]">
-                              <button
-                                onClick={() => openInZRExpress(p)}
+                            <div className="flex flex-col gap-1 items-stretch min-w-[180px]">
+                              <a
+                                href={parcelDetailUrl(p.swappable.id)}
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 className="flex items-center justify-center gap-1.5 text-xs bg-purple-600 hover:bg-purple-700 text-white font-medium px-3 py-1.5 rounded-md transition-colors"
-                                title="Copie les infos et ouvre la page Swap de ZRExpress"
+                                title="Ouvre la fiche du colis à rediriger dans ZRExpress"
                               >
                                 <ExternalLink size={12} />
-                                Ouvrir dans ZRExpress
-                              </button>
-                              <button
-                                onClick={() => copyToClipboard(p)}
-                                className={`flex items-center justify-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md transition-colors ${
-                                  wasCopied
-                                    ? 'bg-green-50 text-green-700 border border-green-200'
-                                    : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200'
-                                }`}
-                                title="Copie les infos du nouveau client dans le presse-papier"
+                                Voir l'ancien colis
+                              </a>
+                              <a
+                                href={parcelDetailUrl(p.target.id)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center justify-center gap-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white font-medium px-3 py-1.5 rounded-md transition-colors"
+                                title="Ouvre la fiche de la nouvelle commande dans ZRExpress"
                               >
-                                {wasCopied ? <Check size={12} /> : <Copy size={12} />}
-                                {wasCopied ? 'Copié ✓' : 'Copier infos'}
-                              </button>
+                                <ExternalLink size={12} />
+                                Voir la nouvelle commande
+                              </a>
                             </div>
                           </td>
                         </tr>
