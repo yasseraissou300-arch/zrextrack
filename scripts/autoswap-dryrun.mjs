@@ -1,90 +1,117 @@
-// AutoSwap dry-run : appelle l'API ZRExpress en live et produit la liste
-// des matchs de swap proposés. Pure lecture, aucune écriture, aucun POST swap.
+// AutoSwap dry-run v2 — parser à vocabulaire (couleurs + tailles).
+// Appelle ZRExpress en live, scanne les variantes via dictionnaire, produit
+// la liste des matchs auto-validables (STRONG) + ceux à vérifier (WEAK).
 //
 // Usage : node scripts/autoswap-dryrun.mjs [--json | --md]
-//   --md   : sortie Markdown (défaut)
-//   --json : sortie JSON brute (pour automation)
 
 import fs from 'node:fs';
 import path from 'node:path';
 
-// ── Chargement des credentials depuis .env.local ────────────────────────────
+// ── Env ─────────────────────────────────────────────────────────────────────
 function loadEnv() {
   const envPath = path.join(process.cwd(), '.env.local');
-  if (!fs.existsSync(envPath)) {
-    console.error('❌ .env.local introuvable. Créez-le avec ZREXPRESS_DEBUG_TOKEN et ZREXPRESS_DEBUG_TENANT.');
-    process.exit(1);
-  }
+  if (!fs.existsSync(envPath)) { console.error('❌ .env.local introuvable.'); process.exit(1); }
   for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
     const m = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.+?)\s*$/);
     if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^['"]|['"]$/g, '');
   }
 }
 loadEnv();
-
 const TOKEN = process.env.ZREXPRESS_DEBUG_TOKEN;
 const TENANT = process.env.ZREXPRESS_DEBUG_TENANT;
-const ZR_BASE = 'https://api.zrexpress.app/api/v1.0';
+if (!TOKEN || !TENANT) { console.error('❌ creds manquants'); process.exit(1); }
 
-if (!TOKEN || !TENANT) {
-  console.error('❌ ZREXPRESS_DEBUG_TOKEN ou ZREXPRESS_DEBUG_TENANT manquant dans .env.local');
-  process.exit(1);
+// ── Vocabulaire ─────────────────────────────────────────────────────────────
+const COLOR_ALIASES = {
+  noir: 'noir', noire: 'noir', black: 'noir',
+  blanc: 'blanc', blanche: 'blanc', white: 'blanc',
+  beige: 'beige', creme: 'beige', cream: 'beige',
+  bleu: 'bleu', bleue: 'bleu', blue: 'bleu', azur: 'bleu',
+  vert: 'vert', verte: 'vert', green: 'vert',
+  gris: 'gris', grise: 'gris', grey: 'gris', gray: 'gris',
+  marron: 'marron', brown: 'marron', chocolat: 'marron',
+  rouge: 'rouge', red: 'rouge',
+  jaune: 'jaune', yellow: 'jaune',
+  rose: 'rose', pink: 'rose',
+  violet: 'violet', mauve: 'violet', purple: 'violet',
+  orange: 'orange',
+  kaki: 'kaki', khaki: 'kaki', olive: 'kaki',
+  turquoise: 'turquoise',
+};
+const ALPHA_SIZES = new Set(['xs','s','m','l','xl','xxl','xxxl','xxxxl','2xl','3xl','4xl','5xl']);
+const NUMERIC_SIZE_RE = /^\d{2,3}$/;
+const JUNK_TOKENS = new Set(['taille','size','couleur','color','pour','avec','et','and','or','ou','de','du','des','le','la','les']);
+
+const clean = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[{}\[\]"]/g,'').trim();
+const tokenize = s => s.split(/[\s,/()\\\-]+/).map(clean).filter(t => t && !JUNK_TOKENS.has(t));
+
+function classify(tok) {
+  if (COLOR_ALIASES[tok]) return { type: 'color', v: COLOR_ALIASES[tok] };
+  if (ALPHA_SIZES.has(tok)) return { type: 'size', v: tok.toUpperCase() };
+  if (NUMERIC_SIZE_RE.test(tok)) return { type: 'size', v: tok };
+  return null;
 }
 
-// ── Fetch paginé de tous les colis ──────────────────────────────────────────
+function extractNameAndSku(raw) {
+  const m = raw.match(/^([^(:]+?)\(\s*([^)]+?)\s*\)/);
+  if (m) return { name: m[1].trim(), sku: clean(m[2]) };
+  return { name: (raw.split(/\s+:|:/)[0] || raw).trim(), sku: null };
+}
+
+function nameFingerprint(name) {
+  return tokenize(name)
+    .filter(t => !COLOR_ALIASES[t] && !ALPHA_SIZES.has(t) && !NUMERIC_SIZE_RE.test(t))
+    .map(t => t.replace(/^p[oa]ntalon$/, 'pantalon'))
+    .sort().join(' ');
+}
+
+function parseDesc(raw) {
+  const desc = (raw || '').trim();
+  if (!desc) return { name: '', sku: null, colors: [], sizes: [], nameFp: '', uuid: null };
+  const { name, sku } = extractNameAndSku(desc);
+  const colors = new Set(), sizes = new Set();
+  for (const t of tokenize(desc)) {
+    if (sku && t === sku) continue;
+    const c = classify(t);
+    if (c?.type === 'color') colors.add(c.v);
+    else if (c?.type === 'size') sizes.add(c.v);
+  }
+  return {
+    name, sku,
+    colors: [...colors].sort(),
+    sizes: [...sizes].sort(),
+    nameFp: nameFingerprint(name),
+    uuid: desc.match(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i)?.[0] || null,
+  };
+}
+
+// ── Fetch ───────────────────────────────────────────────────────────────────
 async function fetchAllParcels() {
   const all = [];
-  let pageNumber = 1;
-  const pageSize = 100;
-  let totalPages = 1;
-
-  while (pageNumber <= totalPages) {
-    const res = await fetch(`${ZR_BASE}/parcels/search`, {
+  let p = 1, tp = 1;
+  while (p <= tp) {
+    const r = await fetch('https://api.zrexpress.app/api/v1.0/parcels/search', {
       method: 'POST',
       headers: { 'X-Api-Key': TOKEN, 'X-Tenant': TENANT, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pageNumber, pageSize }),
+      body: JSON.stringify({ pageNumber: p, pageSize: 100 }),
     });
-    if (!res.ok) throw new Error(`ZRExpress ${res.status}: ${(await res.text()).slice(0, 200)}`);
-    const data = await res.json();
-    const items = data.items || data.content || data.data || data.parcels || (Array.isArray(data) ? data : []);
-    all.push(...items);
-    totalPages = data.totalPages ?? data.total_pages ?? 1;
-    process.stderr.write(`\rFetching page ${pageNumber}/${totalPages}... ${all.length} colis récupérés`);
-    pageNumber++;
-    if (pageNumber > 50) break;
+    const d = await r.json();
+    all.push(...(d.items || []));
+    tp = d.totalPages ?? 1;
+    process.stderr.write(`\rFetching page ${p}/${tp}... ${all.length} colis`);
+    p++;
+    if (p > 50) break;
   }
   process.stderr.write('\n');
   return all;
 }
 
-// ── Matcher (port JS du src/lib/autoswap/matcher.ts) ────────────────────────
-const DESC_RE = /^(?<name>[^(]+?)\(\s*(?<sku>[^)]+?)\s*\)\s*(?:\(\s*(?<color>[^,)]+?)\s*(?:,\s*(?<size>[^)]+?)\s*)?\))?[^:]*(?::\s*(?<uuid>[a-f0-9-]{36}))?/i;
-const UUID_RE = /[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i;
-
-const normKey = s => (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
-
-function parseDesc(raw) {
-  const desc = (raw || '').trim();
-  if (!desc) return { name: '', sku: null, color: null, size: null, uuid: null };
-  const m = desc.match(DESC_RE);
-  const fallbackUuid = desc.match(UUID_RE)?.[0] || null;
-  if (!m?.groups) return { name: desc.split('(')[0]?.trim() || desc, sku: null, color: null, size: null, uuid: fallbackUuid };
+function normalize(p) {
+  const v = parseDesc(p.productsDescription || '');
   return {
-    name: m.groups.name?.trim() || '',
-    sku: m.groups.sku ? normKey(m.groups.sku) : null,
-    color: m.groups.color ? normKey(m.groups.color) : null,
-    size: m.groups.size ? normKey(m.groups.size) : null,
-    uuid: m.groups.uuid || fallbackUuid,
-  };
-}
-
-function normalizeParcel(p) {
-  const parsed = parseDesc(p.productsDescription || '');
-  return {
-    id: p.id || '',
-    tracking: p.trackingNumber || '',
-    externalId: p.externalId || '',
-    uuid: parsed.uuid, sku: parsed.sku, name: parsed.name, color: parsed.color, size: parsed.size,
+    id: p.id, tracking: p.trackingNumber || '',
+    sku: v.sku, name: v.name, nameFp: v.nameFp, uuid: v.uuid,
+    colors: v.colors, sizes: v.sizes,
     cityId: p.deliveryAddress?.cityTerritoryId || '',
     wilayaCode: Number(p.deliveryAddress?.cityTerritoryCode ?? 0),
     cityName: p.deliveryAddress?.city || '',
@@ -94,7 +121,6 @@ function normalizeParcel(p) {
     returnPrice: Number(p.returnPrice ?? 0),
     deliveryPrice: Number(p.deliveryPrice ?? 0),
     state: p.state?.name || '',
-    stateDesc: p.state?.description || '',
     swap: {
       eligible: !!p.swap?.isEligibleForSwap,
       swappedAt: p.swap?.swappedAt ?? null,
@@ -105,128 +131,144 @@ function normalizeParcel(p) {
   };
 }
 
-function confidence(a, b) {
-  if (a.uuid && b.uuid && a.uuid === b.uuid) return 'EXACT';
-  if (a.sku && b.sku && a.sku === b.sku && a.color === b.color && a.size === b.size && a.color && a.size) return 'STRONG';
-  if (a.sku && b.sku && a.sku === b.sku) return 'WEAK';
-  return null;
+const inter = (a, b) => { const s = new Set(b); return a.filter(x => s.has(x)); };
+
+function matchProduct(a, b) {
+  if (a.uuid && b.uuid && a.uuid === b.uuid) {
+    return { conf: 'EXACT', sharedColors: inter(a.colors, b.colors), sharedSizes: inter(a.sizes, b.sizes) };
+  }
+  const sameSku = !!a.sku && a.sku === b.sku;
+  const sameName = !a.sku && !b.sku && !!a.nameFp && a.nameFp === b.nameFp;
+  if (!sameSku && !sameName) return null;
+  const sc = inter(a.colors, b.colors), sz = inter(a.sizes, b.sizes);
+  if (sc.length > 0 && sz.length > 0) return { conf: 'STRONG', sharedColors: sc, sharedSizes: sz };
+  return { conf: 'WEAK', sharedColors: sc, sharedSizes: sz };
 }
 
-function scorePair(s, t, conf) {
+const TARGET_STATES = new Set(['commande_recue', 'pret_a_expedier', 'appel_confirmation']);
+
+function scorePair(s, t, m) {
   const warnings = [];
-  const base = conf === 'EXACT' ? 100 : conf === 'STRONG' ? 90 : 60;
+  const base = m.conf === 'EXACT' ? 100 : m.conf === 'STRONG' ? 90 : 60;
   const sameCity = !!s.cityId && s.cityId === t.cityId;
   const sameWilaya = s.wilayaCode > 0 && s.wilayaCode === t.wilayaCode;
-  let geo = sameCity ? 30 : sameWilaya ? 10 : 0;
+  const geo = sameCity ? 30 : sameWilaya ? 10 : 0;
   let price = 0;
   if (s.amount > 0 && t.amount > 0) {
     const diff = Math.abs(s.amount - t.amount) / s.amount;
     if (diff < 0.1) price = 10;
     else if (diff > 0.3) warnings.push(`Écart prix : ${s.amount} → ${t.amount} DA`);
   }
-  if (conf === 'WEAK') warnings.push('Variante non confirmée');
+  if (m.conf === 'WEAK') {
+    const sHasV = s.colors.length || s.sizes.length;
+    const tHasV = t.colors.length || t.sizes.length;
+    if (sHasV && tHasV && m.sharedColors.length === 0) warnings.push(`Couleurs différentes : [${s.colors.join('/')}] vs [${t.colors.join('/')}]`);
+    else if (sHasV && tHasV && m.sharedSizes.length === 0) warnings.push(`Tailles différentes : [${s.sizes.join('/')}] vs [${t.sizes.join('/')}]`);
+    else if (!sHasV || !tHasV) warnings.push('Variante non détectée d\'un côté');
+  }
   if (!sameCity && !sameWilaya) warnings.push(`Wilaya différente : ${s.cityName} → ${t.cityName}`);
   if (s.swap.count > 0) warnings.push(`Déjà swappé ${s.swap.count}×`);
-  return { score: base + geo + price, sameCity, sameWilaya, warnings };
+  return { ...m, score: base + geo + price, sameCity, sameWilaya, warnings };
 }
 
-function estimateSavings(s, t, sameCity) {
+function savings(s, t, sameCity) {
   const fee = sameCity ? s.swap.sameCityPrice : s.swap.diffCityPrice;
   return Math.max(0, s.returnPrice + t.deliveryPrice - fee);
 }
 
-// États ZRExpress considérés comme "commande confirmée en attente d'expédition".
-// `appel_confirmation` (URL UI) n'existe pas côté API → on cible commande_recue + pret_a_expedier.
-const TARGET_STATES = new Set(['commande_recue', 'pret_a_expedier', 'appel_confirmation']);
-
-function matchSwappables(parcels) {
-  const norm = parcels.map(normalizeParcel);
+function match(parcels) {
+  const norm = parcels.map(normalize);
   const sources = norm.filter(p => p.swap.eligible && p.swap.swappedAt === null);
   const targets = norm.filter(p => TARGET_STATES.has(p.state));
-
-  const candidates = [];
-  for (const s of sources) {
-    for (const t of targets) {
-      const conf = confidence(s, t);
-      if (!conf) continue;
-      const sc = scorePair(s, t, conf);
-      candidates.push({ s, t, conf, ...sc });
-    }
+  const cands = [];
+  for (const s of sources) for (const t of targets) {
+    const m = matchProduct(s, t);
+    if (!m) continue;
+    cands.push({ s, t, ...scorePair(s, t, m) });
   }
-  candidates.sort((a, b) => b.score - a.score);
-
+  cands.sort((a, b) => b.score - a.score);
   const usedS = new Set(), usedT = new Set();
   const props = [];
-  for (const c of candidates) {
+  for (const c of cands) {
     if (usedS.has(c.s.id) || usedT.has(c.t.id)) continue;
     usedS.add(c.s.id); usedT.add(c.t.id);
+    const matchedColor = c.sharedColors.length ? c.sharedColors.join('/') : (c.s.colors.join('/') || null);
+    const matchedSize = c.sharedSizes.length ? c.sharedSizes.join('/') : (c.s.sizes.join('/') || null);
     props.push({
       confidence: c.conf, score: c.score, sameCity: c.sameCity, sameWilaya: c.sameWilaya,
-      savings: estimateSavings(c.s, c.t, c.sameCity), warnings: c.warnings,
-      source: { tracking: c.s.tracking, customer: c.s.customer, city: c.s.cityName, product: c.s.name, color: c.s.color, size: c.s.size, amount: c.s.amount, state: c.s.stateDesc },
-      target: { tracking: c.t.tracking, customer: c.t.customer, phone: c.t.phone, city: c.t.cityName, product: c.t.name, color: c.t.color, size: c.t.size, amount: c.t.amount },
+      savings: savings(c.s, c.t, c.sameCity), warnings: c.warnings,
+      matchedColor, matchedSize,
+      source: { tracking: c.s.tracking, customer: c.s.customer, city: c.s.cityName, product: c.s.name, colors: c.s.colors, sizes: c.s.sizes, amount: c.s.amount },
+      target: { tracking: c.t.tracking, customer: c.t.customer, phone: c.t.phone, city: c.t.cityName, product: c.t.name, colors: c.t.colors, sizes: c.t.sizes, amount: c.t.amount },
     });
   }
   return { sources: sources.length, targets: targets.length, props };
 }
 
-// ── Sortie ──────────────────────────────────────────────────────────────────
 function fmtMd(stats, props) {
   const byConf = props.reduce((a, p) => (a[p.confidence] = (a[p.confidence] || 0) + 1, a), { EXACT: 0, STRONG: 0, WEAK: 0 });
-  const totalSavings = props.reduce((sum, p) => sum + p.savings, 0);
+  const totalSavings = props.reduce((s, p) => s + p.savings, 0);
+  const strongSavings = props.filter(p => p.confidence !== 'WEAK').reduce((s, p) => s + p.savings, 0);
 
-  const lines = [];
-  lines.push('# AutoSwap — Liste des swaps proposés');
-  lines.push('');
-  lines.push(`**Date** : ${new Date().toISOString().slice(0, 19).replace('T', ' ')}`);
-  lines.push('');
-  lines.push('## Statistiques');
-  lines.push('');
-  lines.push(`- **Colis total scannés** : ${stats.total}`);
-  lines.push(`- **Colis swappables (annulés, encore en route)** : ${stats.sources}`);
-  lines.push(`- **Commandes confirmées en attente d'expédition** : ${stats.targets}`);
-  lines.push(`- **Matchs proposés** : ${props.length}`);
-  lines.push(`  - 🟢 EXACT (variante UUID identique) : ${byConf.EXACT}`);
-  lines.push(`  - 🔵 STRONG (SKU + couleur + taille) : ${byConf.STRONG}`);
-  lines.push(`  - 🟡 WEAK (SKU seul, variante différente) : ${byConf.WEAK}`);
-  lines.push(`- **Économies totales estimées** : ${totalSavings.toFixed(0)} DA`);
-  lines.push('');
-  if (props.length === 0) {
-    lines.push('## Aucun match trouvé');
-    lines.push('');
-    lines.push('Soit aucun colis n\'est éligible au swap actuellement (`isEligibleForSwap=true`), soit aucune commande confirmée en attente ne correspond aux produits annulés.');
-    return lines.join('\n');
+  const L = [];
+  L.push('# AutoSwap — Liste des swaps proposés (parser v2)');
+  L.push('');
+  L.push(`**Date** : ${new Date().toISOString().slice(0, 19).replace('T', ' ')}`);
+  L.push('');
+  L.push('## Statistiques');
+  L.push('');
+  L.push(`- Colis totaux : ${stats.total}`);
+  L.push(`- Swappables : **${stats.sources}**`);
+  L.push(`- Cibles confirmées : **${stats.targets}**`);
+  L.push(`- Matchs : **${props.length}**`);
+  L.push(`  - 🟢 EXACT : ${byConf.EXACT}`);
+  L.push(`  - 🔵 STRONG (couleur + taille auto-confirmées) : **${byConf.STRONG}** ⭐`);
+  L.push(`  - 🟡 WEAK (à vérifier) : ${byConf.WEAK}`);
+  L.push(`- Économies STRONG/EXACT : **${strongSavings.toFixed(0)} DA**`);
+  L.push(`- Économies totales possibles : ${totalSavings.toFixed(0)} DA`);
+  L.push('');
+
+  const strong = props.filter(p => p.confidence !== 'WEAK');
+  if (strong.length > 0) {
+    L.push('## 🔵 Auto-validables (STRONG / EXACT) — clic et c\'est swappé');
+    L.push('');
+    L.push('| # | Ancien colis | → Nouveau client | Produit · Variante | Wilaya | Économie |');
+    L.push('|---|--------------|------------------|--------------------|--------|----------|');
+    strong.forEach((p, i) => {
+      const v = [p.matchedColor, p.matchedSize && `T.${p.matchedSize}`].filter(Boolean).join(' · ') || '—';
+      const wil = p.sameCity ? `${p.source.city} ✓` : p.sameWilaya ? `${p.source.city} (même wil)` : `${p.source.city} → ${p.target.city}`;
+      L.push(`| ${i + 1} | \`${p.source.tracking}\` ${p.source.customer} | ${p.target.customer} \`${p.target.tracking}\` | ${p.source.product} · ${v} | ${wil} | **${p.savings.toFixed(0)} DA** |`);
+    });
+    L.push('');
   }
 
-  lines.push('## Propositions (triées par score)');
-  lines.push('');
-  lines.push('| # | Conf | Score | Colis annulé | → Nouveau client | Produit | Variante | Wilaya | Économie | Warnings |');
-  lines.push('|---|------|-------|--------------|------------------|---------|----------|--------|----------|----------|');
-  props.forEach((p, i) => {
-    const conf = p.confidence === 'EXACT' ? '🟢' : p.confidence === 'STRONG' ? '🔵' : '🟡';
-    const variant = [p.source.color, p.source.size && `T.${p.source.size}`].filter(Boolean).join(' / ');
-    const wilaya = p.sameCity ? `${p.source.city} ✓` : p.sameWilaya ? `${p.source.city} (même wilaya)` : `${p.source.city} → ${p.target.city}`;
-    const warn = p.warnings.length ? p.warnings.join(' · ') : '—';
-    lines.push(`| ${i + 1} | ${conf} ${p.confidence} | ${p.score} | \`${p.source.tracking}\` ${p.source.customer || ''} | ${p.target.customer || ''} \`${p.target.tracking}\` | ${p.source.product} | ${variant || '—'} | ${wilaya} | **${p.savings.toFixed(0)} DA** | ${warn} |`);
-  });
-  return lines.join('\n');
+  const weak = props.filter(p => p.confidence === 'WEAK');
+  if (weak.length > 0) {
+    L.push('## 🟡 À vérifier (WEAK)');
+    L.push('');
+    L.push('| # | Ancien | → Nouveau | Produit | Source | Target | Économie | Raison |');
+    L.push('|---|--------|-----------|---------|--------|--------|----------|--------|');
+    weak.forEach((p, i) => {
+      const vs = [p.source.colors.join('/'), p.source.sizes.join('/')].filter(Boolean).join(' · ') || '—';
+      const vt = [p.target.colors.join('/'), p.target.sizes.join('/')].filter(Boolean).join(' · ') || '—';
+      L.push(`| ${i + 1} | \`${p.source.tracking}\` | \`${p.target.tracking}\` | ${p.source.product} | ${vs} | ${vt} | ${p.savings.toFixed(0)} DA | ${p.warnings[0] || '—'} |`);
+    });
+  }
+  return L.join('\n');
 }
 
-// ── Main ────────────────────────────────────────────────────────────────────
 const mode = process.argv.includes('--json') ? 'json' : 'md';
-console.error('🔄 AutoSwap dry-run — fetching ZRExpress…');
+console.error('🔄 AutoSwap dry-run v2 — fetching ZRExpress…');
 const parcels = await fetchAllParcels();
-console.error(`✅ ${parcels.length} colis récupérés. Lancement du matcher…`);
-const { sources, targets, props } = matchSwappables(parcels);
-console.error(`✅ ${sources} swappables, ${targets} targets, ${props.length} matchs.\n`);
+console.error(`✅ ${parcels.length} colis. Matching…`);
+const { sources, targets, props } = match(parcels);
+console.error(`✅ ${sources} sources, ${targets} targets, ${props.length} matchs.\n`);
 
 if (mode === 'json') {
   console.log(JSON.stringify({ stats: { total: parcels.length, sources, targets, matches: props.length }, proposals: props }, null, 2));
 } else {
   const md = fmtMd({ total: parcels.length, sources, targets }, props);
   console.log(md);
-  // Sauvegarde aussi en fichier
-  const outPath = path.join(process.cwd(), 'autoswap-proposals.md');
-  fs.writeFileSync(outPath, md, 'utf8');
-  console.error(`\n📄 Rapport sauvegardé : ${outPath}`);
+  fs.writeFileSync(path.join(process.cwd(), 'autoswap-proposals.md'), md, 'utf8');
+  console.error(`\n📄 Rapport : autoswap-proposals.md`);
 }

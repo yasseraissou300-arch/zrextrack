@@ -1,6 +1,12 @@
 // Matcher AutoSwap : logique pure (sans I/O).
 // Reçoit deux listes de colis ZRExpress et produit des propositions de swap triées
 // par confiance puis par proximité géographique.
+//
+// Parser : approche par VOCABULAIRE (pas regex stricte). Les descriptions ZRExpress
+// sont très inconsistentes (virgules, slashes, ordre inversé, mots parasites, free
+// text). On scanne tous les tokens et on classifie chacun comme couleur ou taille
+// via des listes connues. Ça permet d'extraire la variante même quand le format
+// n'a aucune structure.
 
 import type {
   ZRParcel,
@@ -9,58 +15,123 @@ import type {
   Confidence,
 } from './types';
 
-// Parse "Nom Produit( SKU )( Couleur , Taille )XN : UUID - qty"
-// Tolérant aux variations d'espaces et aux variants partiels.
+// ── Vocabulaire ─────────────────────────────────────────────────────────────
+// Couleurs FR + EN. La valeur est le synonyme canonique (noir/noire → noir,
+// bleu/blue/bleue → bleu). Permet de matcher "blue" côté source avec "bleu" côté
+// target sans manipulation manuelle.
+const COLOR_ALIASES: Record<string, string> = {
+  noir: 'noir', noire: 'noir', black: 'noir',
+  blanc: 'blanc', blanche: 'blanc', white: 'blanc',
+  beige: 'beige', creme: 'beige', cream: 'beige',
+  bleu: 'bleu', bleue: 'bleu', blue: 'bleu', azur: 'bleu',
+  vert: 'vert', verte: 'vert', green: 'vert',
+  gris: 'gris', grise: 'gris', grey: 'gris', gray: 'gris',
+  marron: 'marron', brown: 'marron', chocolat: 'marron',
+  rouge: 'rouge', red: 'rouge',
+  jaune: 'jaune', yellow: 'jaune',
+  rose: 'rose', pink: 'rose',
+  violet: 'violet', mauve: 'violet', purple: 'violet',
+  orange: 'orange',
+  kaki: 'kaki', khaki: 'kaki', olive: 'kaki',
+  turquoise: 'turquoise',
+};
+
+// Tailles standards alpha. Les tailles numériques (38, 40, 42…) sont détectées
+// par regex `^\d{2,3}$`.
+const ALPHA_SIZES = new Set(['xs', 's', 'm', 'l', 'xl', 'xxl', 'xxxl', 'xxxxl', '2xl', '3xl', '4xl', '5xl']);
+const NUMERIC_SIZE_RE = /^\d{2,3}$/;
+
+// Mots parasites à ignorer (n'apportent ni couleur ni taille).
+const JUNK_TOKENS = new Set(['taille', 'size', 'couleur', 'color', 'pour', 'avec', 'et', 'and', 'or', 'ou', 'de', 'du', 'des', 'le', 'la', 'les']);
+
+// ── Parsing ─────────────────────────────────────────────────────────────────
+
 interface ParsedDescription {
   productName: string;
   productSkuCode: string | null;
-  variantColor: string | null;
-  variantSize: string | null;
+  variantColors: string[];   // toutes les couleurs détectées (multi-variants ok)
+  variantSizes: string[];    // toutes les tailles détectées
   productVariantId: string | null;
 }
 
-const DESCRIPTION_REGEX =
-  /^(?<name>[^(]+?)\(\s*(?<sku>[^)]+?)\s*\)\s*(?:\(\s*(?<color>[^,)]+?)\s*(?:,\s*(?<size>[^)]+?)\s*)?\))?[^:]*(?::\s*(?<uuid>[a-f0-9-]{36}))?/i;
-
 const UUID_REGEX = /[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i;
+
+// Extrait nom + SKU depuis "Nom Produit( SKU )" en tête de description.
+// Tolérant : si pas de parenthèses, le nom est tout le préfixe avant " :" ou ":".
+function extractNameAndSku(raw: string): { name: string; sku: string | null } {
+  // [1] = nom produit, [2] = SKU. Positional groups pour compat ES2017.
+  const m = raw.match(/^([^(:]+?)\(\s*([^)]+?)\s*\)/);
+  if (m) {
+    return { name: m[1].trim(), sku: cleanToken(m[2]) };
+  }
+  // Pas de parenthèses → free text. Prend tout avant " :" ou la chaîne entière.
+  const beforeColon = raw.split(/\s+:|:/)[0]?.trim() || raw.trim();
+  return { name: beforeColon, sku: null };
+}
+
+// Normalisation d'un token : minuscules, sans accents, sans accolades/parasites.
+function cleanToken(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[{}\[\]"]/g, '')
+    .trim();
+}
+
+// Découpe une chaîne en tokens : sépare sur tout sauf lettres et chiffres.
+function tokenize(s: string): string[] {
+  return s
+    .split(/[\s,/()\\\-]+/)
+    .map(t => cleanToken(t))
+    .filter(t => t.length > 0 && !JUNK_TOKENS.has(t));
+}
+
+function classifyToken(tok: string): { type: 'color' | 'size'; canonical: string } | null {
+  if (COLOR_ALIASES[tok]) return { type: 'color', canonical: COLOR_ALIASES[tok] };
+  if (ALPHA_SIZES.has(tok)) return { type: 'size', canonical: tok.toUpperCase() };
+  if (NUMERIC_SIZE_RE.test(tok)) return { type: 'size', canonical: tok };
+  return null;
+}
 
 export function parseProductsDescription(raw: string): ParsedDescription {
   const desc = (raw || '').trim();
   if (!desc) {
-    return { productName: '', productSkuCode: null, variantColor: null, variantSize: null, productVariantId: null };
+    return { productName: '', productSkuCode: null, variantColors: [], variantSizes: [], productVariantId: null };
   }
 
-  const match = desc.match(DESCRIPTION_REGEX);
-  // Fallback : extraction UUID seule si la regex principale échoue.
-  const uuidFallback = desc.match(UUID_REGEX)?.[0] ?? null;
+  const { name, sku } = extractNameAndSku(desc);
 
-  if (!match?.groups) {
-    return {
-      productName: desc.split('(')[0]?.trim() || desc,
-      productSkuCode: null,
-      variantColor: null,
-      variantSize: null,
-      productVariantId: uuidFallback,
-    };
+  // Scanne TOUS les tokens de la description (pas seulement ceux dans les parens).
+  // Permet de capter "Pontalon lain sport beige M" (free text) aussi bien que
+  // "( Beige, XL )" structuré.
+  const colors = new Set<string>();
+  const sizes = new Set<string>();
+  for (const tok of tokenize(desc)) {
+    // Saute le SKU lui-même pour éviter de le confondre avec une couleur/taille
+    if (sku && tok === sku) continue;
+    const cls = classifyToken(tok);
+    if (cls?.type === 'color') colors.add(cls.canonical);
+    else if (cls?.type === 'size') sizes.add(cls.canonical);
   }
 
   return {
-    productName: match.groups.name?.trim() || '',
-    productSkuCode: normalizeKey(match.groups.sku),
-    variantColor: match.groups.color ? normalizeKey(match.groups.color) : null,
-    variantSize: match.groups.size ? normalizeKey(match.groups.size) : null,
-    productVariantId: match.groups.uuid || uuidFallback,
+    productName: name,
+    productSkuCode: sku,
+    variantColors: [...colors].sort(),
+    variantSizes: [...sizes].sort(),
+    productVariantId: desc.match(UUID_REGEX)?.[0] || null,
   };
 }
 
-// Minuscules + sans accents + espaces normalisés. Utile pour comparer SKU/couleurs/tailles.
-function normalizeKey(raw: string | undefined | null): string {
-  return (raw || '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+// Fingerprint nom produit : normalise pour matcher 2 produits sans SKU.
+// "Pontalon lain sport" et "pantalon lain sport" → "pantalon lain sport".
+function nameFingerprint(name: string): string {
+  return tokenize(name)
+    .filter(t => !COLOR_ALIASES[t] && !ALPHA_SIZES.has(t) && !NUMERIC_SIZE_RE.test(t))
+    .map(t => t.replace(/^p[oa]ntalon$/, 'pantalon')) // correction faute fréquente "pontalon"
+    .sort()
+    .join(' ');
 }
 
 export function normalizeParcel(p: ZRParcel): NormalizedParcel {
@@ -78,8 +149,9 @@ export function normalizeParcel(p: ZRParcel): NormalizedParcel {
     productVariantId: parsed.productVariantId,
     productSkuCode: parsed.productSkuCode,
     productName: parsed.productName,
-    variantColor: parsed.variantColor,
-    variantSize: parsed.variantSize,
+    productNameFingerprint: nameFingerprint(parsed.productName),
+    variantColors: parsed.variantColors,
+    variantSizes: parsed.variantSizes,
     rawDescription: p.productsDescription || '',
     cityTerritoryId: p.deliveryAddress?.cityTerritoryId || '',
     wilayaCode: Number(p.deliveryAddress?.cityTerritoryCode ?? 0),
@@ -106,83 +178,121 @@ export function isSwappable(p: NormalizedParcel): boolean {
   return p.swap.isEligibleForSwap === true && p.swap.swappedAt === null;
 }
 
-// Vérifie qu'une commande est en attente d'expédition (cible candidate).
 // `appel_confirmation` (URL de l'UI ZRExpress) n'existe pas côté API : les vrais
-// états correspondants sont `commande_recue` et `pret_a_expedier`. On garde
-// `appel_confirmation` par défense au cas où ZRExpress l'introduirait plus tard.
+// états correspondants sont `commande_recue` et `pret_a_expedier`.
 const TARGET_STATES = new Set(['commande_recue', 'pret_a_expedier', 'appel_confirmation']);
 
 export function isTarget(p: NormalizedParcel): boolean {
   return TARGET_STATES.has(p.stateName);
 }
 
-// Détermine le niveau de confiance d'un match produit.
-// Renvoie null si aucun critère n'est rempli.
-function productConfidence(a: NormalizedParcel, b: NormalizedParcel): Confidence | null {
-  // EXACT : même UUID de variante
-  if (a.productVariantId && b.productVariantId && a.productVariantId === b.productVariantId) {
-    return 'EXACT';
-  }
-  // STRONG : même SKU + même couleur + même taille (tous présents)
-  if (
-    a.productSkuCode &&
-    b.productSkuCode &&
-    a.productSkuCode === b.productSkuCode &&
-    a.variantColor &&
-    b.variantColor &&
-    a.variantColor === b.variantColor &&
-    a.variantSize &&
-    b.variantSize &&
-    a.variantSize === b.variantSize
-  ) {
-    return 'STRONG';
-  }
-  // WEAK : même SKU uniquement (variante différente ou inconnue)
-  if (a.productSkuCode && b.productSkuCode && a.productSkuCode === b.productSkuCode) {
-    return 'WEAK';
-  }
-  return null;
+// ── Matching ────────────────────────────────────────────────────────────────
+
+function intersection<T>(a: T[], b: T[]): T[] {
+  const set = new Set(b);
+  return a.filter(x => set.has(x));
 }
 
-// Score d'une paire matchée. Plus haut = meilleur.
-function scorePair(swappable: NormalizedParcel, target: NormalizedParcel, confidence: Confidence): {
+// Détermine le niveau de confiance d'un match produit.
+// Retourne null si pas de match du tout.
+//
+// EXACT  → même UUID variante
+// STRONG → même produit (SKU ou nom-fingerprint) + intersection couleur ET taille non vide
+// WEAK   → même produit, mais infos variante manquantes ou différentes
+function productConfidence(a: NormalizedParcel, b: NormalizedParcel): {
+  confidence: Confidence;
+  sharedColors: string[];
+  sharedSizes: string[];
+} | null {
+  // EXACT par UUID
+  if (a.productVariantId && b.productVariantId && a.productVariantId === b.productVariantId) {
+    return {
+      confidence: 'EXACT',
+      sharedColors: intersection(a.variantColors, b.variantColors),
+      sharedSizes: intersection(a.variantSizes, b.variantSizes),
+    };
+  }
+
+  // Même produit : SKU identique OU (les deux sans SKU mais même fingerprint nom)
+  const sameSku = !!a.productSkuCode && a.productSkuCode === b.productSkuCode;
+  const sameName = !a.productSkuCode && !b.productSkuCode &&
+                   !!a.productNameFingerprint &&
+                   a.productNameFingerprint === b.productNameFingerprint;
+
+  if (!sameSku && !sameName) return null;
+
+  const sharedColors = intersection(a.variantColors, b.variantColors);
+  const sharedSizes = intersection(a.variantSizes, b.variantSizes);
+
+  // STRONG : variante confirmée des 2 côtés
+  if (sharedColors.length > 0 && sharedSizes.length > 0) {
+    return { confidence: 'STRONG', sharedColors, sharedSizes };
+  }
+
+  // STRONG aussi si UN seul des 2 côtés a la variante (info manquante sur l'autre
+  // mais pas contradictoire). Cas typique : free text vs structuré.
+  const aHasNoVariant = a.variantColors.length === 0 && a.variantSizes.length === 0;
+  const bHasNoVariant = b.variantColors.length === 0 && b.variantSizes.length === 0;
+  if (aHasNoVariant || bHasNoVariant) {
+    return { confidence: 'WEAK', sharedColors, sharedSizes };
+  }
+
+  // Variantes différentes des 2 côtés (vraie incompatibilité)
+  return { confidence: 'WEAK', sharedColors, sharedSizes };
+}
+
+interface MatchResult {
+  confidence: Confidence;
+  sharedColors: string[];
+  sharedSizes: string[];
   score: number;
   sameCity: boolean;
   sameWilaya: boolean;
   warnings: string[];
-} {
+}
+
+function scorePair(s: NormalizedParcel, t: NormalizedParcel, match: ReturnType<typeof productConfidence>): MatchResult {
+  if (!match) throw new Error('scorePair called without match');
   const warnings: string[] = [];
+  const base = match.confidence === 'EXACT' ? 100 : match.confidence === 'STRONG' ? 90 : 60;
 
-  // Base : niveau de confiance produit
-  const base = confidence === 'EXACT' ? 100 : confidence === 'STRONG' ? 90 : 60;
-
-  const sameCity = !!swappable.cityTerritoryId && swappable.cityTerritoryId === target.cityTerritoryId;
-  const sameWilaya = swappable.wilayaCode > 0 && swappable.wilayaCode === target.wilayaCode;
+  const sameCity = !!s.cityTerritoryId && s.cityTerritoryId === t.cityTerritoryId;
+  const sameWilaya = s.wilayaCode > 0 && s.wilayaCode === t.wilayaCode;
 
   let geoBonus = 0;
   if (sameCity) geoBonus = 30;
   else if (sameWilaya) geoBonus = 10;
 
-  // Bonus prix proche (<10% de différence)
   let priceBonus = 0;
-  if (swappable.amount > 0 && target.amount > 0) {
-    const diff = Math.abs(swappable.amount - target.amount) / swappable.amount;
+  if (s.amount > 0 && t.amount > 0) {
+    const diff = Math.abs(s.amount - t.amount) / s.amount;
     if (diff < 0.1) priceBonus = 10;
-    else if (diff > 0.3) warnings.push(`Écart de prix élevé : ${swappable.amount.toFixed(0)} → ${target.amount.toFixed(0)} DA`);
+    else if (diff > 0.3) warnings.push(`Écart de prix : ${s.amount.toFixed(0)} → ${t.amount.toFixed(0)} DA`);
   }
 
-  // Avertissements
-  if (confidence === 'WEAK') {
-    warnings.push('Variante non confirmée — vérifier taille/couleur manuellement');
+  // Warnings spécifiques selon le niveau
+  if (match.confidence === 'WEAK') {
+    const sHasVariant = s.variantColors.length > 0 || s.variantSizes.length > 0;
+    const tHasVariant = t.variantColors.length > 0 || t.variantSizes.length > 0;
+    if (sHasVariant && tHasVariant && match.sharedColors.length === 0) {
+      warnings.push(`Couleurs différentes : ${s.variantColors.join('/')} vs ${t.variantColors.join('/')}`);
+    } else if (sHasVariant && tHasVariant && match.sharedSizes.length === 0) {
+      warnings.push(`Tailles différentes : ${s.variantSizes.join('/')} vs ${t.variantSizes.join('/')}`);
+    } else if (!sHasVariant || !tHasVariant) {
+      warnings.push('Variante non détectée d\'un côté — vérifier');
+    }
   }
   if (!sameCity && !sameWilaya) {
-    warnings.push(`Wilaya différente : ${swappable.cityName} → ${target.cityName}`);
+    warnings.push(`Wilaya différente : ${s.cityName} → ${t.cityName}`);
   }
-  if (swappable.swap.count > 0) {
-    warnings.push(`Colis déjà swappé ${swappable.swap.count} fois`);
+  if (s.swap.count > 0) {
+    warnings.push(`Colis déjà swappé ${s.swap.count} fois`);
   }
 
   return {
+    confidence: match.confidence,
+    sharedColors: match.sharedColors,
+    sharedSizes: match.sharedSizes,
     score: base + geoBonus + priceBonus,
     sameCity,
     sameWilaya,
@@ -190,13 +300,20 @@ function scorePair(swappable: NormalizedParcel, target: NormalizedParcel, confid
   };
 }
 
-// Économies estimées : retour évité + nouvelle livraison évitée − frais de swap ZRExpress.
-function estimateSavings(swappable: NormalizedParcel, target: NormalizedParcel, sameCity: boolean): number {
-  const swapFee = sameCity ? swappable.swap.sameCityPrice : swappable.swap.differentCityPrice;
-  return Math.max(0, swappable.returnPrice + target.deliveryPrice - swapFee);
+function estimateSavings(s: NormalizedParcel, t: NormalizedParcel, sameCity: boolean): number {
+  const swapFee = sameCity ? s.swap.sameCityPrice : s.swap.differentCityPrice;
+  return Math.max(0, s.returnPrice + t.deliveryPrice - swapFee);
 }
 
-function toProposalSide(p: NormalizedParcel) {
+// Formate les couleurs/tailles partagées pour affichage UI.
+// Si une seule couleur/taille partagée → affiche celle-là (cas single-variant).
+// Sinon → joint avec /
+function formatMatched(values: string[]): string | null {
+  if (values.length === 0) return null;
+  return values.join(' / ');
+}
+
+function toProposalSide(p: NormalizedParcel, sharedColors: string[], sharedSizes: string[]) {
   return {
     id: p.id,
     tracking: p.trackingNumber,
@@ -205,35 +322,32 @@ function toProposalSide(p: NormalizedParcel) {
     wilaya: String(p.wilayaCode || ''),
     city: p.cityName,
     product: p.productName,
-    variantColor: p.variantColor,
-    variantSize: p.variantSize,
+    // Pour l'UI : montre les couleurs/tailles communes (qui ont matché).
+    // Fallback : toutes les couleurs/tailles du colis si rien n'a matché.
+    variantColor: formatMatched(sharedColors) || formatMatched(p.variantColors),
+    variantSize: formatMatched(sharedSizes) || formatMatched(p.variantSizes),
     amount: p.amount,
   };
 }
 
-// Point d'entrée principal du matcher.
-// Reçoit les listes brutes ZRExpress, normalise, filtre, matche, score, et résout
-// l'affectation 1-to-1 par algorithme glouton (meilleur score d'abord).
 export function matchSwappables(allParcels: ZRParcel[]): MatchProposal[] {
   const normalized = allParcels.map(normalizeParcel);
   const swappables = normalized.filter(isSwappable);
   const targets = normalized.filter(isTarget);
 
-  // Génère toutes les paires candidates (cartésien filtré).
-  type Candidate = { s: NormalizedParcel; t: NormalizedParcel; confidence: Confidence; score: number; sameCity: boolean; sameWilaya: boolean; warnings: string[] };
+  type Candidate = { s: NormalizedParcel; t: NormalizedParcel; result: MatchResult };
   const candidates: Candidate[] = [];
 
   for (const s of swappables) {
     for (const t of targets) {
-      const confidence = productConfidence(s, t);
-      if (!confidence) continue;
-      const { score, sameCity, sameWilaya, warnings } = scorePair(s, t, confidence);
-      candidates.push({ s, t, confidence, score, sameCity, sameWilaya, warnings });
+      const match = productConfidence(s, t);
+      if (!match) continue;
+      candidates.push({ s, t, result: scorePair(s, t, match) });
     }
   }
 
   // Tri par score desc — affectation gloutonne 1-to-1.
-  candidates.sort((a, b) => b.score - a.score);
+  candidates.sort((a, b) => b.result.score - a.result.score);
 
   const usedSources = new Set<string>();
   const usedTargets = new Set<string>();
@@ -245,21 +359,20 @@ export function matchSwappables(allParcels: ZRParcel[]): MatchProposal[] {
     usedTargets.add(c.t.id);
 
     proposals.push({
-      swappable: toProposalSide(c.s),
-      target: toProposalSide(c.t),
-      confidence: c.confidence,
-      score: c.score,
-      same_city: c.sameCity,
-      same_wilaya: c.sameWilaya,
-      estimated_savings: estimateSavings(c.s, c.t, c.sameCity),
-      warnings: c.warnings,
+      swappable: toProposalSide(c.s, c.result.sharedColors, c.result.sharedSizes),
+      target: toProposalSide(c.t, c.result.sharedColors, c.result.sharedSizes),
+      confidence: c.result.confidence,
+      score: c.result.score,
+      same_city: c.result.sameCity,
+      same_wilaya: c.result.sameWilaya,
+      estimated_savings: estimateSavings(c.s, c.t, c.result.sameCity),
+      warnings: c.result.warnings,
     });
   }
 
   return proposals;
 }
 
-// Helpers exposés pour les routes API (statistiques de scan).
 export function splitSourcesAndTargets(allParcels: ZRParcel[]): {
   swappables: NormalizedParcel[];
   targets: NormalizedParcel[];

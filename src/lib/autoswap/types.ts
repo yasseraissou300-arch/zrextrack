@@ -44,8 +44,9 @@ export interface NormalizedParcel {
   productVariantId: string | null;   // UUID extrait de productsDescription
   productSkuCode: string | null;     // ex "ayl" parsé depuis "( ayl )"
   productName: string;
-  variantColor: string | null;
-  variantSize: string | null;
+  productNameFingerprint: string;    // nom normalisé (sans couleurs/tailles) — sert quand SKU manque
+  variantColors: string[];           // canoniques (ex ['noir', 'beige']) — multi-variants possibles
+  variantSizes: string[];            // canoniques (ex ['M', 'XL', '42'])
   rawDescription: string;
   // Géographie
   cityTerritoryId: string;
