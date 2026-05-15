@@ -133,6 +133,8 @@ function normalize(p) {
 
 const inter = (a, b) => { const s = new Set(b); return a.filter(x => s.has(x)); };
 
+// Mode STRICT : on rejette tout match où couleur OU taille diffère (return null).
+// Seuls EXACT (UUID identique) et STRONG (couleur + taille communes) sont proposés.
 function matchProduct(a, b) {
   if (a.uuid && b.uuid && a.uuid === b.uuid) {
     return { conf: 'EXACT', sharedColors: inter(a.colors, b.colors), sharedSizes: inter(a.sizes, b.sizes) };
@@ -142,7 +144,7 @@ function matchProduct(a, b) {
   if (!sameSku && !sameName) return null;
   const sc = inter(a.colors, b.colors), sz = inter(a.sizes, b.sizes);
   if (sc.length > 0 && sz.length > 0) return { conf: 'STRONG', sharedColors: sc, sharedSizes: sz };
-  return { conf: 'WEAK', sharedColors: sc, sharedSizes: sz };
+  return null;
 }
 
 const TARGET_STATES = new Set(['commande_recue', 'pret_a_expedier', 'appel_confirmation']);
@@ -158,13 +160,6 @@ function scorePair(s, t, m) {
     const diff = Math.abs(s.amount - t.amount) / s.amount;
     if (diff < 0.1) price = 10;
     else if (diff > 0.3) warnings.push(`Écart prix : ${s.amount} → ${t.amount} DA`);
-  }
-  if (m.conf === 'WEAK') {
-    const sHasV = s.colors.length || s.sizes.length;
-    const tHasV = t.colors.length || t.sizes.length;
-    if (sHasV && tHasV && m.sharedColors.length === 0) warnings.push(`Couleurs différentes : [${s.colors.join('/')}] vs [${t.colors.join('/')}]`);
-    else if (sHasV && tHasV && m.sharedSizes.length === 0) warnings.push(`Tailles différentes : [${s.sizes.join('/')}] vs [${t.sizes.join('/')}]`);
-    else if (!sHasV || !tHasV) warnings.push('Variante non détectée d\'un côté');
   }
   if (!sameCity && !sameWilaya) warnings.push(`Wilaya différente : ${s.cityName} → ${t.cityName}`);
   if (s.swap.count > 0) warnings.push(`Déjà swappé ${s.swap.count}×`);
@@ -206,12 +201,11 @@ function match(parcels) {
 }
 
 function fmtMd(stats, props) {
-  const byConf = props.reduce((a, p) => (a[p.confidence] = (a[p.confidence] || 0) + 1, a), { EXACT: 0, STRONG: 0, WEAK: 0 });
+  const byConf = props.reduce((a, p) => (a[p.confidence] = (a[p.confidence] || 0) + 1, a), { EXACT: 0, STRONG: 0 });
   const totalSavings = props.reduce((s, p) => s + p.savings, 0);
-  const strongSavings = props.filter(p => p.confidence !== 'WEAK').reduce((s, p) => s + p.savings, 0);
 
   const L = [];
-  L.push('# AutoSwap — Liste des swaps proposés (parser v2)');
+  L.push('# AutoSwap — Liste des swaps proposés (mode strict)');
   L.push('');
   L.push(`**Date** : ${new Date().toISOString().slice(0, 19).replace('T', ' ')}`);
   L.push('');
@@ -220,40 +214,28 @@ function fmtMd(stats, props) {
   L.push(`- Colis totaux : ${stats.total}`);
   L.push(`- Swappables : **${stats.sources}**`);
   L.push(`- Cibles confirmées : **${stats.targets}**`);
-  L.push(`- Matchs : **${props.length}**`);
-  L.push(`  - 🟢 EXACT : ${byConf.EXACT}`);
-  L.push(`  - 🔵 STRONG (couleur + taille auto-confirmées) : **${byConf.STRONG}** ⭐`);
-  L.push(`  - 🟡 WEAK (à vérifier) : ${byConf.WEAK}`);
-  L.push(`- Économies STRONG/EXACT : **${strongSavings.toFixed(0)} DA**`);
-  L.push(`- Économies totales possibles : ${totalSavings.toFixed(0)} DA`);
+  L.push(`- Matchs proposés (produit + couleur + taille identiques) : **${props.length}**`);
+  L.push(`  - 🟢 EXACT (UUID variante) : ${byConf.EXACT}`);
+  L.push(`  - 🔵 STRONG (même nom + couleur + taille) : ${byConf.STRONG}`);
+  L.push(`- 💰 Économies totales : **${totalSavings.toFixed(0)} DA**`);
   L.push('');
 
-  const strong = props.filter(p => p.confidence !== 'WEAK');
-  if (strong.length > 0) {
-    L.push('## 🔵 Auto-validables (STRONG / EXACT) — clic et c\'est swappé');
+  if (props.length === 0) {
+    L.push('## Aucun match strict trouvé');
     L.push('');
-    L.push('| # | Ancien colis | → Nouveau client | Produit · Variante | Wilaya | Économie |');
-    L.push('|---|--------------|------------------|--------------------|--------|----------|');
-    strong.forEach((p, i) => {
-      const v = [p.matchedColor, p.matchedSize && `T.${p.matchedSize}`].filter(Boolean).join(' · ') || '—';
-      const wil = p.sameCity ? `${p.source.city} ✓` : p.sameWilaya ? `${p.source.city} (même wil)` : `${p.source.city} → ${p.target.city}`;
-      L.push(`| ${i + 1} | \`${p.source.tracking}\` ${p.source.customer} | ${p.target.customer} \`${p.target.tracking}\` | ${p.source.product} · ${v} | ${wil} | **${p.savings.toFixed(0)} DA** |`);
-    });
-    L.push('');
+    L.push('Aucune commande confirmée en attente n\'a exactement le même produit + couleur + taille qu\'un colis swappable.');
+    return L.join('\n');
   }
 
-  const weak = props.filter(p => p.confidence === 'WEAK');
-  if (weak.length > 0) {
-    L.push('## 🟡 À vérifier (WEAK)');
-    L.push('');
-    L.push('| # | Ancien | → Nouveau | Produit | Source | Target | Économie | Raison |');
-    L.push('|---|--------|-----------|---------|--------|--------|----------|--------|');
-    weak.forEach((p, i) => {
-      const vs = [p.source.colors.join('/'), p.source.sizes.join('/')].filter(Boolean).join(' · ') || '—';
-      const vt = [p.target.colors.join('/'), p.target.sizes.join('/')].filter(Boolean).join(' · ') || '—';
-      L.push(`| ${i + 1} | \`${p.source.tracking}\` | \`${p.target.tracking}\` | ${p.source.product} | ${vs} | ${vt} | ${p.savings.toFixed(0)} DA | ${p.warnings[0] || '—'} |`);
-    });
-  }
+  L.push('## Propositions de swap (tous auto-validés)');
+  L.push('');
+  L.push('| # | Ancien colis | → Nouveau client | Produit · Couleur · Taille | Wilaya | Économie |');
+  L.push('|---|--------------|------------------|----------------------------|--------|----------|');
+  props.forEach((p, i) => {
+    const v = [p.matchedColor, p.matchedSize && `T.${p.matchedSize}`].filter(Boolean).join(' · ') || '—';
+    const wil = p.sameCity ? `${p.source.city} ✓` : p.sameWilaya ? `${p.source.city} (même wil)` : `${p.source.city} → ${p.target.city}`;
+    L.push(`| ${i + 1} | \`${p.source.tracking}\` ${p.source.customer} | ${p.target.customer} \`${p.target.tracking}\` | ${p.source.product} · ${v} | ${wil} | **${p.savings.toFixed(0)} DA** |`);
+  });
   return L.join('\n');
 }
 

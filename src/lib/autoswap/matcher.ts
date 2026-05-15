@@ -194,17 +194,22 @@ function intersection<T>(a: T[], b: T[]): T[] {
 }
 
 // Détermine le niveau de confiance d'un match produit.
-// Retourne null si pas de match du tout.
+// Mode STRICT : un swap n'est proposé que si produit + couleur + taille sont identiques.
+// Tout ce qui diffère sur l'un de ces 3 critères → null (pas de proposition).
+// La wilaya n'est PAS un critère de filtrage (juste un bonus de score plus tard).
 //
-// EXACT  → même UUID variante
-// STRONG → même produit (SKU ou nom-fingerprint) + intersection couleur ET taille non vide
-// WEAK   → même produit, mais infos variante manquantes ou différentes
+// EXACT  → même UUID variante (cas idéal, rare en pratique)
+// STRONG → même produit (SKU ou nom-fingerprint) + couleur commune + taille commune
+//
+// Pas de tier WEAK exposé : si variant manquant d'un côté ou variantes contradictoires,
+// on rejette le match plutôt que de demander à l'humain de vérifier.
 function productConfidence(a: NormalizedParcel, b: NormalizedParcel): {
   confidence: Confidence;
   sharedColors: string[];
   sharedSizes: string[];
 } | null {
-  // EXACT par UUID
+  // EXACT par UUID — seule façon de bypasser le check couleur/taille
+  // car l'UUID encode déjà la variante exacte.
   if (a.productVariantId && b.productVariantId && a.productVariantId === b.productVariantId) {
     return {
       confidence: 'EXACT',
@@ -224,21 +229,13 @@ function productConfidence(a: NormalizedParcel, b: NormalizedParcel): {
   const sharedColors = intersection(a.variantColors, b.variantColors);
   const sharedSizes = intersection(a.variantSizes, b.variantSizes);
 
-  // STRONG : variante confirmée des 2 côtés
+  // Mode STRICT : couleur ET taille doivent être identiques des 2 côtés.
   if (sharedColors.length > 0 && sharedSizes.length > 0) {
     return { confidence: 'STRONG', sharedColors, sharedSizes };
   }
 
-  // STRONG aussi si UN seul des 2 côtés a la variante (info manquante sur l'autre
-  // mais pas contradictoire). Cas typique : free text vs structuré.
-  const aHasNoVariant = a.variantColors.length === 0 && a.variantSizes.length === 0;
-  const bHasNoVariant = b.variantColors.length === 0 && b.variantSizes.length === 0;
-  if (aHasNoVariant || bHasNoVariant) {
-    return { confidence: 'WEAK', sharedColors, sharedSizes };
-  }
-
-  // Variantes différentes des 2 côtés (vraie incompatibilité)
-  return { confidence: 'WEAK', sharedColors, sharedSizes };
+  // Toute autre situation = pas de proposition (variant manquant, couleur OU taille différente).
+  return null;
 }
 
 interface MatchResult {
@@ -270,18 +267,8 @@ function scorePair(s: NormalizedParcel, t: NormalizedParcel, match: ReturnType<t
     else if (diff > 0.3) warnings.push(`Écart de prix : ${s.amount.toFixed(0)} → ${t.amount.toFixed(0)} DA`);
   }
 
-  // Warnings spécifiques selon le niveau
-  if (match.confidence === 'WEAK') {
-    const sHasVariant = s.variantColors.length > 0 || s.variantSizes.length > 0;
-    const tHasVariant = t.variantColors.length > 0 || t.variantSizes.length > 0;
-    if (sHasVariant && tHasVariant && match.sharedColors.length === 0) {
-      warnings.push(`Couleurs différentes : ${s.variantColors.join('/')} vs ${t.variantColors.join('/')}`);
-    } else if (sHasVariant && tHasVariant && match.sharedSizes.length === 0) {
-      warnings.push(`Tailles différentes : ${s.variantSizes.join('/')} vs ${t.variantSizes.join('/')}`);
-    } else if (!sHasVariant || !tHasVariant) {
-      warnings.push('Variante non détectée d\'un côté — vérifier');
-    }
-  }
+  // En mode strict, plus de warning variante (impossible que ça arrive).
+  // On garde uniquement les infos contextuelles non bloquantes.
   if (!sameCity && !sameWilaya) {
     warnings.push(`Wilaya différente : ${s.cityName} → ${t.cityName}`);
   }
