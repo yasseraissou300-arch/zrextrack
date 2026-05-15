@@ -410,7 +410,10 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
   const [loading, setLoading] = useState(true);
   const [qrLoading, setQrLoading] = useState(false);
   const [creating, setCreating] = useState(false);
-  // Pairing code par numéro de téléphone (alternative au QR)
+  // Pairing par numéro WhatsApp.
+  // - Evolution v2.x+ : renvoie un vrai code à 8 caractères (pairingCode)
+  // - Evolution v1.x  : ne supporte pas → on bascule sur le QR avec le numéro
+  //   attendu affiché en label, puis on vérifie après connexion.
   const [phoneInput, setPhoneInput] = useState('');
   const [pairingCode, setPairingCode] = useState<string | null>(null);
   const [pairingLoading, setPairingLoading] = useState(false);
@@ -418,6 +421,9 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
   const [pairingDebug, setPairingDebug] = useState<unknown>(null);
   const [codeCopied, setCodeCopied] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
+  // Numéro attendu (entré par l'utilisateur), à comparer avec status.phone après connexion.
+  const [expectedPhone, setExpectedPhone] = useState<string | null>(null);
+  const [phoneMismatch, setPhoneMismatch] = useState<{ expected: string; actual: string } | null>(null);
   // Tracker la transition Déconnecté → Connecté pour afficher un toast/banner de succès
   const wasConnectedRef = React.useRef<boolean>(false);
 
@@ -445,26 +451,44 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
 
   // Poll for connection while QR OR pairing code is displayed.
   // Affiche un toast de succès uniquement lors de la transition déconnecté → connecté.
+  // Si un numéro attendu a été saisi, on vérifie qu'il correspond au numéro connecté.
   useEffect(() => {
     if ((!qr && !pairingCode) || status.connected) return;
     const timer = setInterval(async () => {
       const connected = await fetchStatus();
       if (connected && !wasConnectedRef.current) {
         wasConnectedRef.current = true;
-        toast.success(`${meta.label} connecté ! ✅`);
-        setQr(null);
-        setPairingCode(null);
-        setPairingError(null);
-        setPhoneInput('');
         clearInterval(timer);
       }
     }, 4000);
     return () => clearInterval(timer);
-  }, [qr, pairingCode, status.connected, fetchStatus, meta.label]);
+  }, [qr, pairingCode, status.connected, fetchStatus]);
+
+  // Quand la connexion devient effective, on récupère le numéro réel et on
+  // compare avec celui attendu. Si différence → warning visible mais non bloquant.
+  useEffect(() => {
+    if (!status.connected || !wasConnectedRef.current) return;
+    const actualPhone = (status.phone || '').replace(/[^0-9]/g, '');
+    if (expectedPhone && actualPhone && expectedPhone !== actualPhone) {
+      setPhoneMismatch({ expected: expectedPhone, actual: actualPhone });
+      toast.warning(`Connecté à un autre numéro (${actualPhone}, pas ${expectedPhone})`);
+    } else {
+      toast.success(`${meta.label} connecté ! ✅${actualPhone ? ` (+${actualPhone})` : ''}`);
+    }
+    setQr(null);
+    setPairingCode(null);
+    setPairingError(null);
+    setPairingDebug(null);
+    setPhoneInput('');
+    setExpectedPhone(null);
+  }, [status.connected, status.phone, expectedPhone, meta.label]);
 
   // Reset le tracker si l'utilisateur déconnecte plus tard
   useEffect(() => {
-    if (!status.connected) wasConnectedRef.current = false;
+    if (!status.connected) {
+      wasConnectedRef.current = false;
+      setPhoneMismatch(null);
+    }
   }, [status.connected]);
 
   const createInstance = async () => {
@@ -492,37 +516,55 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
     setPhoneInput('');
   };
 
-  // Demande un code à 8 caractères au backend pour pairer le compte WhatsApp
-  // via le numéro de téléphone (au lieu de scanner un QR).
-  // NB : on ne touche pas au QR existant tant qu'on n'a pas reçu un code valide,
-  // sinon le champ de saisie disparaîtrait pendant le chargement.
+  // Normalise un numéro algérien en format 213XXXXXXXXX pour comparaison fiable
+  // avec ce que renvoie Evolution une fois connecté.
+  const normalizePhoneClient = (raw: string): string => {
+    const c = (raw || '').replace(/[\s\-()+.]/g, '');
+    if (c.startsWith('213')) return c;
+    if (c.startsWith('00213')) return c.slice(2);
+    if (c.startsWith('0')) return '213' + c.slice(1);
+    if (c.length === 9) return '213' + c;
+    return c;
+  };
+
+  // Lance la connexion en spécifiant un numéro attendu.
+  // - Si Evolution v2.x+ → pairing code à 8 caractères
+  // - Si Evolution v1.x  → on récupère le QR et on mémorise le numéro pour
+  //   vérification après scan. Le QR fonctionne pour TOUT numéro WhatsApp ;
+  //   le numéro entré sert juste à vérifier que c'est bien la bonne ligne
+  //   qui s'est connectée.
   const fetchPairingCode = async () => {
-    const phone = phoneInput.trim();
-    if (!phone) {
+    const rawPhone = phoneInput.trim();
+    if (!rawPhone) {
       const msg = 'Entre ton numéro WhatsApp (ex : 0556172674)';
       setPairingError(msg);
       toast.error(msg);
       return;
     }
+    const normalized = normalizePhoneClient(rawPhone);
     setPairingLoading(true);
     setPairingError(null);
     setPairingDebug(null);
+    setPhoneMismatch(null);
     try {
-      const res = await fetch(`/api/ai-chatbot/whatsapp/qr?service=${serviceType}&number=${encodeURIComponent(phone)}&debug=1`);
+      const res = await fetch(`/api/ai-chatbot/whatsapp/qr?service=${serviceType}&number=${encodeURIComponent(rawPhone)}&debug=1`);
       const json = await res.json();
       if (json.pairingCode) {
+        // Cas idéal : Evolution v2.x+ a retourné un code à 8 caractères
         setPairingCode(json.pairingCode);
-        setQr(null); // on bascule sur l'affichage du code seulement maintenant
-        toast.success(`Code généré pour ${json.phone || phone}`);
+        setQr(null);
+        setExpectedPhone(normalized);
+        toast.success(`Code généré pour ${json.phone || rawPhone}`);
       } else if (json.connected) {
         toast.success('WhatsApp déjà connecté !');
         await fetchStatus();
-      } else if (json.pairingNotSupported) {
-        // Evolution API renvoie un QR au lieu du code → on bascule en mode QR
-        // proprement, avec un avertissement informatif (pas d'erreur rouge).
-        if (json.qr) setQr(json.qr);
-        setPairingError(json.notice || 'Le pairing par numéro n\'est pas supporté par cette instance Evolution. Scanne le QR à la place.');
-        setPhoneInput('');
+      } else if (json.pairingNotSupported && json.qr) {
+        // Evolution v1.x : on affiche le QR mais on garde le numéro attendu
+        // pour vérification après connexion. Pas d'erreur — c'est un mode normal.
+        setQr(json.qr);
+        setExpectedPhone(normalized);
+        setPairingError(null); // pas d'erreur rouge, le flux continue
+        toast.info(`Scanne le QR avec WhatsApp du numéro ${rawPhone}`);
       } else {
         const errMsg = json.error || 'Aucun code reçu — vérifie ton numéro et réessaie.';
         setPairingError(errMsg);
@@ -606,6 +648,16 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
           </button>
         ) : status.connected ? (
           <div className="space-y-2">
+            {/* Warning si le numéro connecté ne correspond pas à celui entré avant le scan */}
+            {phoneMismatch && (
+              <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 text-[11px] text-amber-800">
+                <AlertCircle size={12} className="shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <strong>Attention :</strong> tu attendais <span className="font-mono">+{phoneMismatch.expected}</span> mais c'est <span className="font-mono">+{phoneMismatch.actual}</span> qui s'est connecté.
+                </div>
+                <button onClick={() => setPhoneMismatch(null)} className="text-amber-400 hover:text-amber-600 text-sm leading-none">×</button>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm text-gray-700">
                 <Phone size={13} className="text-gray-400" />
@@ -689,6 +741,11 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
             {/* Zone QR (ou placeholder de bouton initial) */}
             {qr ? (
               <div className="flex flex-col items-center gap-2">
+                {expectedPhone && (
+                  <div className="w-full bg-blue-50 border border-blue-200 rounded-md px-2.5 py-1.5 text-[11px] text-blue-800 text-center">
+                    📱 Scanne ce QR avec le compte WhatsApp du <strong>+{expectedPhone}</strong>
+                  </div>
+                )}
                 <div className="bg-white p-2 border-2 border-gray-200 rounded-xl inline-block">
                   <img
                     src={qr}
