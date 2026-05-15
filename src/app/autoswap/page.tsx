@@ -220,10 +220,9 @@ export default function AutoSwapPage() {
                   onChange={e => setFilterConfidence(e.target.value as 'ALL' | Confidence)}
                   className="text-sm border border-gray-200 rounded-lg px-3 py-1.5"
                 >
-                  <option value="ALL">Toutes confiances ({preview.stats.matches_count})</option>
-                  <option value="EXACT">Exact ({preview.stats.by_confidence.EXACT})</option>
-                  <option value="STRONG">Fort ({preview.stats.by_confidence.STRONG})</option>
-                  <option value="WEAK">Faible ({preview.stats.by_confidence.WEAK})</option>
+                  <option value="ALL">Tous les matchs ({preview.stats.matches_count})</option>
+                  <option value="EXACT">Exact UUID ({preview.stats.by_confidence.EXACT})</option>
+                  <option value="STRONG">Couleur + taille confirmées ({preview.stats.by_confidence.STRONG})</option>
                 </select>
                 <label className="flex items-center gap-2 text-sm text-gray-700">
                   <input type="checkbox" checked={onlySameCity} onChange={e => setOnlySameCity(e.target.checked)} />
