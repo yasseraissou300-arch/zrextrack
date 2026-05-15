@@ -14,7 +14,11 @@ const TENANT_KEY = 'zrexpress_tenant';
 // ZRExpress restreint l'exécution des swaps via API key (403 ApiKeyNotAllowed).
 // AutoTim agit donc comme un copilote : il identifie les matchs et facilite
 // l'exécution manuelle dans l'UI ZRExpress avec liens directs et copie d'infos.
-const ZREXPRESS_SWAP_UI = 'https://app.zrexpress.app/parcel-swap';
+//
+// L'UI ZRExpress affiche la fiche d'un colis (avec bouton « Swap ») via :
+//   https://app.zrexpress.app/parcels/default/{parcelUuid}
+const parcelDetailUrl = (parcelUuid: string) =>
+  `https://app.zrexpress.app/parcels/default/${parcelUuid}`;
 
 const CONFIDENCE_META: Record<Confidence, { label: string; bg: string; text: string; border: string }> = {
   EXACT:  { label: 'Exact',  bg: 'bg-green-50',  text: 'text-green-700',  border: 'border-green-200' },
@@ -109,7 +113,8 @@ export default function AutoSwapPage() {
 
   const openInZRExpress = (p: MatchProposal) => {
     copyToClipboard(p);
-    window.open(ZREXPRESS_SWAP_UI, '_blank', 'noopener,noreferrer');
+    // Lien direct vers la fiche du colis swappable — pas la liste générale.
+    window.open(parcelDetailUrl(p.swappable.id), '_blank', 'noopener,noreferrer');
   };
 
   return (
