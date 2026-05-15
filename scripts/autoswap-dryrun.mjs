@@ -143,6 +143,30 @@ const setsEqual = (a, b) => {
   return a.every(x => s.has(x));
 };
 
+// Tailles interchangeables par produit (configuration métier)
+const SIZE_EQUIVALENCES = {
+  mrl: [['40','42','44'], ['46','48','50']],
+  'hijab miral': [['40','42','44'], ['46','48','50']],
+  spt: [['S','M'], ['L','XL'], ['XXL','XXXL']],
+  'pantalon lain sport': [['S','M'], ['L','XL'], ['XXL','XXXL']],
+  plin: [['S','M'], ['L','XL'], ['XXL','XXXL']],
+  'pantalon lain': [['S','M'], ['L','XL'], ['XXL','XXXL']],
+};
+
+function normalizeSize(productKey, size) {
+  if (!productKey) return size;
+  const groups = SIZE_EQUIVALENCES[productKey];
+  if (!groups) return size;
+  for (const g of groups) if (g.includes(size)) return g[0];
+  return size;
+}
+
+function getProductKey(p) {
+  if (p.sku && SIZE_EQUIVALENCES[p.sku]) return p.sku;
+  if (p.nameFp && SIZE_EQUIVALENCES[p.nameFp]) return p.nameFp;
+  return null;
+}
+
 // Mode STRICT : produit + géo autorisée + quantité + sets de couleurs ET
 // tailles IDENTIQUES. Pas d'intersection partielle.
 function matchProduct(a, b) {
@@ -158,7 +182,11 @@ function matchProduct(a, b) {
   if (a.colors.length === 0 || b.colors.length === 0) return null;
   if (a.sizes.length === 0 || b.sizes.length === 0) return null;
   if (!setsEqual(a.colors, b.colors)) return null;
-  if (!setsEqual(a.sizes, b.sizes)) return null;
+  // Normalisation par groupes de tailles équivalents avant comparaison
+  const productKey = getProductKey(a) || getProductKey(b);
+  const aSz = a.sizes.map(s => normalizeSize(productKey, s));
+  const bSz = b.sizes.map(s => normalizeSize(productKey, s));
+  if (!setsEqual(aSz, bSz)) return null;
   return { conf: 'STRONG', sharedColors: a.colors, sharedSizes: a.sizes };
 }
 

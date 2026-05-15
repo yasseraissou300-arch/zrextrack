@@ -250,6 +250,70 @@ function isGeoSwapAllowed(source: NormalizedParcel, target: NormalizedParcel): b
   return true;
 }
 
+// ── Tailles équivalentes par produit ────────────────────────────────────────
+// Configuration métier : certaines tailles sont interchangeables au sein d'un
+// même produit (ex : pour le hijab miral, les tailles 40/42/44 sont équivalentes).
+// La clé peut être un SKU normalisé ou un nameFingerprint, on essaie les 2.
+//
+// IMPORTANT : les tailles à l'intérieur d'un groupe doivent être identiques au
+// format retourné par classifyToken() — donc upper-case pour les alpha, et la
+// chaîne brute pour les numériques.
+const SIZE_EQUIVALENCES: Record<string, string[][]> = {
+  // Hijab miral (SKU "mrl")
+  mrl: [
+    ['40', '42', '44'],
+    ['46', '48', '50'],
+  ],
+  'hijab miral': [
+    ['40', '42', '44'],
+    ['46', '48', '50'],
+  ],
+  // Pantalon lain sport (SKU "spt")
+  spt: [
+    ['S', 'M'],
+    ['L', 'XL'],
+    ['XXL', 'XXXL'],
+  ],
+  'pantalon lain sport': [
+    ['S', 'M'],
+    ['L', 'XL'],
+    ['XXL', 'XXXL'],
+  ],
+  // Pantalon lain (SKU "plin")
+  plin: [
+    ['S', 'M'],
+    ['L', 'XL'],
+    ['XXL', 'XXXL'],
+  ],
+  'pantalon lain': [
+    ['S', 'M'],
+    ['L', 'XL'],
+    ['XXL', 'XXXL'],
+  ],
+};
+
+// Renvoie le représentant canonique d'une taille pour un produit donné.
+// Si la taille appartient à un groupe d'équivalence, on retourne le premier
+// élément du groupe (= représentant). Sinon on retourne la taille telle quelle.
+// Ex : normalizeSize('mrl', '42') → '40' ; normalizeSize('spt', 'XL') → 'L'.
+function normalizeSize(productKey: string | null, size: string): string {
+  if (!productKey) return size;
+  const groups = SIZE_EQUIVALENCES[productKey];
+  if (!groups) return size;
+  for (const group of groups) {
+    if (group.includes(size)) return group[0];
+  }
+  return size;
+}
+
+// Pour un colis donné, retourne la clé produit la plus précise disponible
+// (SKU si présent, sinon nameFingerprint). Sert au lookup des équivalences.
+function getProductKey(p: NormalizedParcel): string | null {
+  if (p.productSkuCode && SIZE_EQUIVALENCES[p.productSkuCode]) return p.productSkuCode;
+  if (p.productNameFingerprint && SIZE_EQUIVALENCES[p.productNameFingerprint]) return p.productNameFingerprint;
+  return null;
+}
+
 // ── Matching ────────────────────────────────────────────────────────────────
 
 // Égalité ensembliste : a et b contiennent exactement les mêmes éléments
@@ -310,14 +374,22 @@ function productConfidence(a: NormalizedParcel, b: NormalizedParcel): {
   if (a.variantColors.length === 0 || b.variantColors.length === 0) return null;
   if (a.variantSizes.length === 0 || b.variantSizes.length === 0) return null;
 
-  // Sets identiques — pas d'intersection partielle.
+  // Sets identiques sur les couleurs.
   if (!setsEqual(a.variantColors, b.variantColors)) return null;
-  if (!setsEqual(a.variantSizes, b.variantSizes)) return null;
+
+  // Tailles : on applique d'abord la table d'équivalence du produit
+  // (ex : pour hijab miral, 40/42/44 sont interchangeables) avant de comparer.
+  // Si SIZE_EQUIVALENCES connaît le produit, les tailles sont rabattues sur
+  // le représentant de leur groupe — sinon comparaison stricte.
+  const productKey = getProductKey(a) || getProductKey(b);
+  const aSizesNorm = a.variantSizes.map(s => normalizeSize(productKey, s));
+  const bSizesNorm = b.variantSizes.map(s => normalizeSize(productKey, s));
+  if (!setsEqual(aSizesNorm, bSizesNorm)) return null;
 
   return {
     confidence: 'STRONG',
     sharedColors: a.variantColors,
-    sharedSizes: a.variantSizes,
+    sharedSizes: a.variantSizes, // on garde l'affichage des tailles réelles (pas le canonique)
   };
 }
 
