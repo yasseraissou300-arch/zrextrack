@@ -6,7 +6,7 @@ import {
   Globe, Loader2, Save, RefreshCw, QrCode, Wifi, WifiOff,
   ChevronDown, ChevronUp, ExternalLink, Copy, Trash2, Sheet, AlertCircle,
   MessageSquare, Phone, User, BarChart3, TrendingUp, Users,
-  Sparkles, Bell, Image, Shield, Clock,
+  Sparkles, Bell, Image, Shield, Clock, Stethoscope, CheckCircle, XCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -576,15 +576,67 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
   );
 }
 
+// ─── Diagnostic types ─────────────────────────────────────────────────────────
+interface DiagnosticInstance {
+  service_type: string;
+  instance_name: string;
+  db_connected: boolean;
+  evolution_state: string | null;
+  webhook_url: string | null;
+  webhook_events: string[] | null;
+  webhook_matches_expected: boolean;
+  errors: string[];
+}
+interface DiagnosticConfig {
+  template_type: string;
+  is_active: boolean;
+  shop_name: string;
+  has_custom_prompt: boolean;
+  admin_whatsapp_set: boolean;
+  blocked_prefixes_count: number;
+}
+interface DiagnosticResult {
+  env: {
+    evolutionUrlSet: boolean;
+    evolutionKeySet: boolean;
+    appUrl: string;
+    expectedWebhookUrl: string;
+    aiKeys: { anthropic: boolean; gemini: boolean; groq: boolean };
+  };
+  instances: DiagnosticInstance[];
+  configs: DiagnosticConfig[];
+  issues: string[];
+  summary: string;
+}
+
 // ─── WhatsAppTab ──────────────────────────────────────────────────────────────
 function WhatsAppTab() {
   const [evolutionConfigured, setEvolutionConfigured] = useState(true);
+  const [diag, setDiag] = useState<DiagnosticResult | null>(null);
+  const [diagLoading, setDiagLoading] = useState(false);
+  const [diagOpen, setDiagOpen] = useState(false);
 
   useEffect(() => {
     fetch('/api/ai-chatbot/whatsapp/instance')
       .then(r => r.json())
       .then(json => setEvolutionConfigured(json.evolutionConfigured ?? false));
   }, []);
+
+  const runDiagnostic = async () => {
+    setDiagLoading(true);
+    setDiagOpen(true);
+    try {
+      const res = await fetch('/api/ai-chatbot/diagnostic');
+      const json = (await res.json()) as DiagnosticResult;
+      setDiag(json);
+      if (json.issues?.length === 0) toast.success('Diagnostic OK — aucun problème détecté.');
+      else toast.error(`${json.issues.length} problème(s) détecté(s) — voir le panneau.`);
+    } catch (e) {
+      toast.error(`Erreur diagnostic: ${e instanceof Error ? e.message : 'inconnue'}`);
+    } finally {
+      setDiagLoading(false);
+    }
+  };
 
   const appUrl = typeof window !== 'undefined' ? window.location.origin : '';
   const webhookUrl = `${appUrl}/api/ai-chatbot/webhook/whatsapp`;
@@ -609,10 +661,108 @@ function WhatsAppTab() {
         </div>
       )}
 
-      <div>
-        <h2 className="text-sm font-semibold text-gray-700">Connexions WhatsApp par service</h2>
-        <p className="text-xs text-gray-400 mt-0.5">Chaque service utilise un numéro WhatsApp indépendant et isolé.</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-700">Connexions WhatsApp par service</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Chaque service utilise un numéro WhatsApp indépendant et isolé.</p>
+        </div>
+        <button
+          onClick={runDiagnostic}
+          disabled={diagLoading}
+          className="shrink-0 flex items-center gap-1.5 text-xs font-medium border border-gray-200 hover:bg-gray-50 rounded-lg px-3 py-1.5 text-gray-700 disabled:opacity-50"
+          title="Vérifier l'état complet : Evolution API, webhook, instances, configs"
+        >
+          {diagLoading ? <Loader2 size={12} className="animate-spin" /> : <Stethoscope size={12} />}
+          Diagnostic
+        </button>
       </div>
+
+      {diagOpen && (
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Stethoscope size={14} className="text-gray-500" />
+              <h3 className="font-semibold text-sm text-gray-900">Résultat diagnostic</h3>
+            </div>
+            <button onClick={() => setDiagOpen(false)} className="text-xs text-gray-400 hover:text-gray-700">Fermer</button>
+          </div>
+
+          {!diag && diagLoading && (
+            <div className="flex items-center gap-2 text-sm text-gray-500 py-4">
+              <Loader2 size={14} className="animate-spin" /> Analyse en cours...
+            </div>
+          )}
+
+          {diag && (
+            <div className="space-y-3 text-xs">
+              <div className={`rounded-lg p-3 ${diag.issues.length === 0 ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-amber-50 border border-amber-200 text-amber-900'}`}>
+                <p className="font-semibold">{diag.summary}</p>
+              </div>
+
+              {diag.issues.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="font-semibold text-gray-700">Problèmes détectés :</p>
+                  <ul className="space-y-1">
+                    {diag.issues.map((iss, i) => (
+                      <li key={i} className="flex gap-2 items-start text-red-700">
+                        <XCircle size={12} className="shrink-0 mt-0.5" />
+                        <span>{iss}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div>
+                <p className="font-semibold text-gray-700 mb-1">Variables d'environnement :</p>
+                <ul className="space-y-0.5 ml-1">
+                  <li className="flex items-center gap-1.5">{diag.env.evolutionUrlSet ? <CheckCircle size={11} className="text-green-600" /> : <XCircle size={11} className="text-red-600" />} EVOLUTION_API_URL</li>
+                  <li className="flex items-center gap-1.5">{diag.env.evolutionKeySet ? <CheckCircle size={11} className="text-green-600" /> : <XCircle size={11} className="text-red-600" />} EVOLUTION_API_KEY</li>
+                  <li className="flex items-center gap-1.5">{diag.env.aiKeys.anthropic ? <CheckCircle size={11} className="text-green-600" /> : <XCircle size={11} className="text-gray-400" />} ANTHROPIC_API_KEY</li>
+                  <li className="flex items-center gap-1.5">{diag.env.aiKeys.gemini ? <CheckCircle size={11} className="text-green-600" /> : <XCircle size={11} className="text-gray-400" />} GEMINI_API_KEY</li>
+                  <li className="flex items-center gap-1.5">{diag.env.aiKeys.groq ? <CheckCircle size={11} className="text-green-600" /> : <XCircle size={11} className="text-gray-400" />} GROQ_API_KEY</li>
+                  <li className="text-gray-500 mt-1 break-all">Webhook attendu : <code>{diag.env.expectedWebhookUrl}</code></li>
+                </ul>
+              </div>
+
+              {diag.instances.length > 0 && (
+                <div>
+                  <p className="font-semibold text-gray-700 mb-1">Instances WhatsApp :</p>
+                  <div className="space-y-2">
+                    {diag.instances.map((inst, i) => (
+                      <div key={i} className="border border-gray-100 rounded-lg p-2 space-y-1">
+                        <p className="font-mono text-[11px] text-gray-600">{inst.instance_name} <span className="text-gray-400">({inst.service_type})</span></p>
+                        <ul className="space-y-0.5 ml-1">
+                          <li className="flex items-center gap-1.5">{inst.evolution_state === 'open' ? <CheckCircle size={11} className="text-green-600" /> : <XCircle size={11} className="text-red-600" />} État Evolution : <span className="font-mono">{inst.evolution_state ?? 'inconnu'}</span></li>
+                          <li className="flex items-center gap-1.5">{inst.webhook_matches_expected ? <CheckCircle size={11} className="text-green-600" /> : <XCircle size={11} className="text-red-600" />} Webhook correctement configuré</li>
+                          {inst.webhook_url && <li className="text-gray-500 ml-4 break-all">URL: <code>{inst.webhook_url}</code></li>}
+                          {inst.webhook_events && <li className="text-gray-500 ml-4">Events: <code>{inst.webhook_events.join(', ')}</code></li>}
+                          {inst.errors.length > 0 && <li className="text-red-600 ml-4">Erreurs: {inst.errors.join(' / ')}</li>}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {diag.configs.length > 0 && (
+                <div>
+                  <p className="font-semibold text-gray-700 mb-1">Configs chatbot :</p>
+                  <ul className="space-y-1">
+                    {diag.configs.map((c, i) => (
+                      <li key={i} className="flex items-center gap-1.5">
+                        {c.is_active ? <CheckCircle size={11} className="text-green-600" /> : <XCircle size={11} className="text-red-600" />}
+                        <span className="font-mono">{c.template_type}</span>
+                        <span className="text-gray-400">— {c.is_active ? 'active' : 'inactive'} · shop={c.shop_name}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {(['auto_confirmation', 'sav', 'tracking'] as WAServiceType[]).map(serviceType => (
         <ServiceConnectionBlock key={serviceType} serviceType={serviceType} />

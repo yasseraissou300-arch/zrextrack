@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
 
   if (!instance) {
     return NextResponse.json(
-      { error: 'Instance non créée. Cliquez sur "Lier le numéro" d'abord.' },
+      { error: 'Instance non créée. Cliquez sur "Lier le numéro" d\'abord.' },
       { status: 404 }
     );
   }
