@@ -10,7 +10,7 @@ interface AppLayoutProps {
 export default function AppLayout({ children }: AppLayoutProps) {
   return (
     <ChatbotProvider>
-      <div className="flex h-screen bg-gray-50 overflow-hidden">
+      <div className="flex h-screen bg-stone-50 overflow-hidden">
         <Sidebar />
         <main className="flex-1 overflow-y-auto scrollbar-thin">
           {children}

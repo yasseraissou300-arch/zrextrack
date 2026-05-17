@@ -137,7 +137,7 @@ function TemplatesTab() {
         const isSaving = saving === config.template_type;
 
         return (
-          <div key={config.template_type} className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${config.is_active ? `border-${meta.color}-200` : 'border-gray-100'}`}>
+          <div key={config.template_type} className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${config.is_active ? `border-${meta.color}-200` : 'border-stone-100'}`}>
             {/* Card header */}
             <div className="p-5 flex items-start gap-4">
               <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${colors.icon}`}>
@@ -167,7 +167,7 @@ function TemplatesTab() {
                 </button>
                 <button
                   onClick={() => setExpanded(isExpanded ? null : config.template_type)}
-                  className="p-2 hover:bg-gray-50 rounded-lg transition-colors"
+                  className="p-2 hover:bg-stone-50 rounded-lg transition-colors"
                 >
                   {isExpanded ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
                 </button>
@@ -176,7 +176,7 @@ function TemplatesTab() {
 
             {/* Config expand */}
             {isExpanded && (
-              <div className="border-t border-gray-100 p-5 space-y-4 bg-gray-50/50">
+              <div className="border-t border-stone-100 p-5 space-y-4 bg-stone-50/50">
 
                 {/* Custom prompt — FIRST so it's immediately visible */}
                 <div className="space-y-1.5 bg-white rounded-2xl border border-green-200 p-4">
@@ -207,7 +207,7 @@ function TemplatesTab() {
                     onChange={e => updateConfig(config.template_type, 'custom_prompt', e.target.value)}
                     placeholder={defaults[config.template_type] || 'Laissez vide pour utiliser le prompt Darija par défaut...'}
                     rows={10}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 resize-y font-mono text-gray-700"
+                    className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 resize-y font-mono text-gray-700"
                   />
                   <p className="text-[11px] text-gray-400">
                     Utilisez <code className="bg-gray-100 px-1 rounded">[NOM_BOUTIQUE]</code> pour insérer le nom de boutique.
@@ -222,7 +222,7 @@ function TemplatesTab() {
                     value={config.shop_name}
                     onChange={e => updateConfig(config.template_type, 'shop_name', e.target.value)}
                     placeholder="Ex: Boutique Yassin"
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
+                    className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   />
                   <p className="text-[11px] text-gray-400">Remplace [NOM_BOUTIQUE] dans le prompt</p>
                 </div>
@@ -239,7 +239,7 @@ function TemplatesTab() {
                       <button
                         key={lang.v}
                         onClick={() => updateConfig(config.template_type, 'language', lang.v)}
-                        className={`p-2.5 rounded-xl border text-left text-xs transition-colors ${config.language === lang.v ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-gray-300'}`}
+                        className={`p-2.5 rounded-xl border text-left text-xs transition-colors ${config.language === lang.v ? 'border-green-500 bg-green-50' : 'border-stone-200 hover:border-gray-300'}`}
                       >
                         <p className="font-medium text-gray-900">{lang.l}</p>
                         <p className="text-gray-400 text-[10px]">{lang.s}</p>
@@ -258,7 +258,7 @@ function TemplatesTab() {
                     value={config.google_sheets_url}
                     onChange={e => updateConfig(config.template_type, 'google_sheets_url', e.target.value)}
                     placeholder="https://hook.eu1.make.com/xxx ou https://n8n.yourdomain.com/webhook/..."
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 font-mono"
+                    className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 font-mono"
                   />
                   <p className="text-[11px] text-gray-400">Recevra un POST JSON avec : type, timestamp, nom, telephone, wilaya, produit</p>
                 </div>
@@ -273,7 +273,7 @@ function TemplatesTab() {
                     value={(config as TemplateConfig).admin_whatsapp ?? ''}
                     onChange={e => updateConfig(config.template_type, 'admin_whatsapp', e.target.value)}
                     placeholder="Ex: 213661234567"
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 font-mono"
+                    className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 font-mono"
                   />
                   <p className="text-[11px] text-gray-400">Reçoit un résumé WhatsApp dès qu'une commande est complète. Format : 213XXXXXXXXX</p>
                 </div>
@@ -288,7 +288,7 @@ function TemplatesTab() {
                     value={(config as TemplateConfig).media_url ?? ''}
                     onChange={e => updateConfig(config.template_type, 'media_url', e.target.value)}
                     placeholder="https://..."
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 font-mono"
+                    className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 font-mono"
                   />
                   <p className="text-[11px] text-gray-400">Envoyée automatiquement au premier message du client</p>
                 </div>
@@ -306,7 +306,7 @@ function TemplatesTab() {
                       updateConfig(config.template_type, 'blocked_prefixes', prefixes);
                     }}
                     placeholder="Ex: 213550, 213551 (séparés par virgule)"
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-400 font-mono"
+                    className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-400 font-mono"
                   />
                   <p className="text-[11px] text-gray-400">Le bot ignorera les messages de ces numéros (utile pour exclure concurrents ou tests)</p>
                 </div>
@@ -323,7 +323,7 @@ function TemplatesTab() {
                     max={48}
                     value={(config as TemplateConfig).human_pause_hours ?? 4}
                     onChange={e => updateConfig(config.template_type, 'human_pause_hours', parseInt(e.target.value) || 4)}
-                    className="w-32 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400"
+                    className="w-32 border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400"
                   />
                   <p className="text-[11px] text-gray-400">Quand vous répondez manuellement, le bot se met en pause pour X heures</p>
                 </div>
@@ -605,16 +605,16 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
 
   if (loading) {
     return (
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex justify-center">
+      <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-5 flex justify-center">
         <Loader2 size={20} className="animate-spin text-gray-400" />
       </div>
     );
   }
 
   return (
-    <div className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${status.connected ? meta.borderCls : 'border-gray-100'}`}>
+    <div className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${status.connected ? meta.borderCls : 'border-stone-100'}`}>
       {/* Header */}
-      <div className={`p-4 flex items-center gap-3 ${status.connected ? meta.headerConnectedCls : 'bg-gray-50 border-b border-gray-100'}`}>
+      <div className={`p-4 flex items-center gap-3 ${status.connected ? meta.headerConnectedCls : 'bg-stone-50 border-b border-stone-100'}`}>
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${meta.iconCls}`}>
           <Icon size={18} />
         </div>
@@ -686,7 +686,7 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
               className={`group flex items-center gap-3 px-5 py-3 rounded-xl border-2 transition-colors ${
                 codeCopied
                   ? 'bg-green-50 border-green-300 text-green-700'
-                  : 'bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-900'
+                  : 'bg-stone-50 border-stone-200 hover:bg-gray-100 text-gray-900'
               }`}
               title="Cliquer pour copier"
             >
@@ -746,7 +746,7 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
                     📱 Scanne ce QR avec le compte WhatsApp du <strong>+{expectedPhone}</strong>
                   </div>
                 )}
-                <div className="bg-white p-2 border-2 border-gray-200 rounded-xl inline-block">
+                <div className="bg-white p-2 border-2 border-stone-200 rounded-xl inline-block">
                   <img
                     src={qr}
                     alt={`QR Code ${meta.label}`}
@@ -770,7 +770,7 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
             )}
 
             {/* Option alternative : lier par numéro — toujours visible sous le QR */}
-            <div className="pt-3 border-t border-gray-100 space-y-2">
+            <div className="pt-3 border-t border-stone-100 space-y-2">
               <p className="text-[11px] text-gray-500 text-center font-medium">
                 Ou lier par numéro de téléphone
               </p>
@@ -782,7 +782,7 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
                   onChange={e => setPhoneInput(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && !pairingLoading && phoneInput.trim()) fetchPairingCode(); }}
                   disabled={pairingLoading}
-                  className="flex-1 text-sm px-2.5 py-1.5 border border-gray-200 rounded-md focus:outline-none focus:border-gray-400 disabled:bg-gray-50"
+                  className="flex-1 text-sm px-2.5 py-1.5 border border-stone-200 rounded-md focus:outline-none focus:border-gray-400 disabled:bg-stone-50"
                 />
                 <button
                   onClick={fetchPairingCode}
@@ -952,7 +952,7 @@ function WhatsAppTab() {
         <button
           onClick={runDiagnostic}
           disabled={diagLoading}
-          className="shrink-0 flex items-center gap-1.5 text-xs font-medium border border-gray-200 hover:bg-gray-50 rounded-lg px-3 py-1.5 text-gray-700 disabled:opacity-50"
+          className="shrink-0 flex items-center gap-1.5 text-xs font-medium border border-stone-200 hover:bg-stone-50 rounded-lg px-3 py-1.5 text-gray-700 disabled:opacity-50"
           title="Vérifier l'état complet : Evolution API, webhook, instances, configs"
         >
           {diagLoading ? <Loader2 size={12} className="animate-spin" /> : <Stethoscope size={12} />}
@@ -961,7 +961,7 @@ function WhatsAppTab() {
       </div>
 
       {diagOpen && (
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-3">
+        <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Stethoscope size={14} className="text-gray-500" />
@@ -1007,7 +1007,7 @@ function WhatsAppTab() {
                       <summary className="text-gray-500 cursor-pointer">Détails tentatives ({r.attempts.length})</summary>
                       <div className="mt-1 space-y-1 ml-2">
                         {r.attempts.map((a, j) => (
-                          <div key={j} className="text-gray-600 border-l-2 border-gray-200 pl-2">
+                          <div key={j} className="text-gray-600 border-l-2 border-stone-200 pl-2">
                             <p><span className="font-mono text-gray-500">{a.format}</span> → HTTP {a.status}</p>
                             <p className="text-[10px] text-gray-400 break-all">{a.response_snippet}</p>
                           </div>
@@ -1058,7 +1058,7 @@ function WhatsAppTab() {
                   <p className="font-semibold text-gray-700 mb-1">Instances WhatsApp :</p>
                   <div className="space-y-2">
                     {diag.instances.map((inst, i) => (
-                      <div key={i} className="border border-gray-100 rounded-lg p-2 space-y-1">
+                      <div key={i} className="border border-stone-100 rounded-lg p-2 space-y-1">
                         <p className="font-mono text-[11px] text-gray-600">{inst.instance_name} <span className="text-gray-400">({inst.service_type})</span></p>
                         <ul className="space-y-0.5 ml-1">
                           <li className="flex items-center gap-1.5">{inst.evolution_state === 'open' ? <CheckCircle size={11} className="text-green-600" /> : <XCircle size={11} className="text-red-600" />} État Evolution : <span className="font-mono">{inst.evolution_state ?? 'inconnu'}</span></li>
@@ -1097,19 +1097,19 @@ function WhatsAppTab() {
       ))}
 
       {/* Shared webhook URL info */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
+      <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-4 space-y-3">
         <div className="flex items-center gap-2">
           <ExternalLink size={13} className="text-gray-400" />
           <h3 className="font-semibold text-gray-900 text-sm">URL Webhook Evolution API</h3>
         </div>
         <p className="text-xs text-gray-400">Les 3 instances pointent vers ce webhook — le routage par service est automatique.</p>
         <div className="flex gap-2">
-          <code className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs text-gray-700 break-all">
+          <code className="flex-1 bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-xs text-gray-700 break-all">
             {webhookUrl}
           </code>
           <button
             onClick={() => { navigator.clipboard.writeText(webhookUrl); toast.success('Copié !'); }}
-            className="p-2 border border-gray-200 rounded-xl hover:bg-gray-50 shrink-0"
+            className="p-2 border border-stone-200 rounded-xl hover:bg-stone-50 shrink-0"
           >
             <Copy size={13} className="text-gray-500" />
           </button>
@@ -1181,7 +1181,7 @@ function FacebookTab() {
   return (
     <div className="space-y-4 max-w-2xl">
       {/* Status card */}
-      <div className={`rounded-2xl border p-5 flex items-center gap-4 ${connection?.connected ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
+      <div className={`rounded-2xl border p-5 flex items-center gap-4 ${connection?.connected ? 'bg-blue-50 border-blue-200' : 'bg-stone-50 border-stone-200'}`}>
         <div className={`w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden shrink-0 ${connection?.connected ? 'bg-blue-100' : 'bg-gray-100'}`}>
           {connection?.page_picture
             ? <img src={connection.page_picture} alt="" className="w-full h-full object-cover" />
@@ -1213,7 +1213,7 @@ function FacebookTab() {
                 key={page.id}
                 onClick={() => selectPage(page)}
                 disabled={selecting}
-                className="w-full flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-colors text-left disabled:opacity-50"
+                className="w-full flex items-center gap-3 p-3 rounded-xl border border-stone-200 hover:border-blue-400 hover:bg-blue-50 transition-colors text-left disabled:opacity-50"
               >
                 {page.picture
                   ? <img src={page.picture} alt="" className="w-9 h-9 rounded-xl object-cover shrink-0" />
@@ -1243,7 +1243,7 @@ function FacebookTab() {
 
       {/* Webhook info (visible once connected) */}
       {connection?.connected && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
+        <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-5 space-y-3">
           <h3 className="font-semibold text-gray-900 text-sm">Webhook Meta (configuré automatiquement)</h3>
           {[
             { label: 'URL du Webhook', value: webhookUrl },
@@ -1252,8 +1252,8 @@ function FacebookTab() {
             <div key={item.label} className="space-y-1">
               <p className="text-xs text-gray-500">{item.label}</p>
               <div className="flex gap-2">
-                <code className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs text-gray-700 break-all">{item.value}</code>
-                <button onClick={() => { navigator.clipboard.writeText(item.value); toast.success('Copié !'); }} className="p-2 border border-gray-200 rounded-xl hover:bg-gray-50">
+                <code className="flex-1 bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-xs text-gray-700 break-all">{item.value}</code>
+                <button onClick={() => { navigator.clipboard.writeText(item.value); toast.success('Copié !'); }} className="p-2 border border-stone-200 rounded-xl hover:bg-stone-50">
                   <Copy size={12} className="text-gray-500" />
                 </button>
               </div>
@@ -1345,7 +1345,7 @@ function GoogleSheetsTab() {
       </div>
 
       {/* Step 1 — Share with service account */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
+      <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-5 space-y-3">
         <div className="flex items-center gap-2 mb-1">
           <span className="w-6 h-6 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-xs font-bold shrink-0">1</span>
           <h3 className="font-semibold text-gray-900 text-sm">Partagez votre Sheet avec notre bot</h3>
@@ -1370,7 +1370,7 @@ function GoogleSheetsTab() {
       </div>
 
       {/* Step 2 — Paste Sheet URL per template */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+      <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-5 space-y-4">
         <div className="flex items-center gap-2 mb-1">
           <span className="w-6 h-6 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-xs font-bold shrink-0">2</span>
           <h3 className="font-semibold text-gray-900 text-sm">Collez l'URL de votre Sheet par template</h3>
@@ -1389,14 +1389,14 @@ function GoogleSheetsTab() {
                   className={`flex-1 border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 font-mono text-xs transition-colors ${
                     result === 'ok' ? 'border-green-400 bg-green-50 focus:ring-green-500/20' :
                     result === 'error' ? 'border-red-300 bg-red-50 focus:ring-red-500/20' :
-                    'border-gray-200 focus:ring-indigo-500/20 focus:border-indigo-400'
+                    'border-stone-200 focus:ring-indigo-500/20 focus:border-indigo-400'
                   }`}
                 />
                 <button
                   onClick={() => testConnection(type)}
                   disabled={testing === type || !sheetUrls[type]}
                   title="Tester la connexion"
-                  className="px-3 py-2.5 border border-gray-200 rounded-xl text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors shrink-0 flex items-center gap-1.5"
+                  className="px-3 py-2.5 border border-stone-200 rounded-xl text-xs font-medium text-gray-600 hover:bg-stone-50 disabled:opacity-50 transition-colors shrink-0 flex items-center gap-1.5"
                 >
                   {testing === type ? <Loader2 size={12} className="animate-spin" /> :
                    result === 'ok' ? <CheckCircle2 size={12} className="text-green-600" /> :
@@ -1420,11 +1420,11 @@ function GoogleSheetsTab() {
       </div>
 
       {/* Columns written */}
-      <div className="bg-gray-50 rounded-2xl p-4 space-y-2">
+      <div className="bg-stone-50 rounded-2xl p-4 space-y-2">
         <p className="text-xs font-semibold text-gray-600">Colonnes écrites automatiquement :</p>
         <div className="flex flex-wrap gap-2">
           {['Date', 'Client', 'Téléphone', 'Wilaya', 'Produit', 'Statut', 'Canal'].map(col => (
-            <span key={col} className="text-[11px] bg-white border border-gray-200 text-gray-600 px-2 py-1 rounded-lg font-mono">{col}</span>
+            <span key={col} className="text-[11px] bg-white border border-stone-200 text-gray-600 px-2 py-1 rounded-lg font-mono">{col}</span>
           ))}
         </div>
       </div>
@@ -1468,7 +1468,7 @@ function DonneesTab() {
     <div className="space-y-4">
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
-        <select value={filter} onChange={e => setFilter(e.target.value)} className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 bg-white">
+        <select value={filter} onChange={e => setFilter(e.target.value)} className="border border-stone-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 bg-white">
           <option value="">Tous les templates</option>
           <option value="auto_confirmation">Auto-Confirmation</option>
           <option value="sav">SAV & Réclamations</option>
@@ -1486,7 +1486,7 @@ function DonneesTab() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Total sessions', value: sessions.length, color: 'bg-gray-50 text-gray-700' },
+          { label: 'Total sessions', value: sessions.length, color: 'bg-stone-50 text-gray-700' },
           { label: 'Données complètes', value: sessions.filter(s => s.is_complete).length, color: 'bg-green-50 text-green-700' },
           { label: 'Envoyés Sheets', value: sessions.filter(s => s.sheets_sent).length, color: 'bg-blue-50 text-blue-700' },
         ].map(s => (
@@ -1498,7 +1498,7 @@ function DonneesTab() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden">
         {loading ? (
           <div className="flex justify-center py-16"><Loader2 size={20} className="animate-spin text-gray-400" /></div>
         ) : sessions.length === 0 ? (
@@ -1510,7 +1510,7 @@ function DonneesTab() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-100">
+              <thead className="bg-stone-50 border-b border-stone-100">
                 <tr>
                   {['Canal', 'Contact', 'Template', 'Données extraites', 'Statut', 'Date', ''].map(h => (
                     <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">{h}</th>
@@ -1521,7 +1521,7 @@ function DonneesTab() {
                 {sessions.map(session => {
                   const d = session.extracted_data;
                   return (
-                    <tr key={session.id} className="hover:bg-gray-50">
+                    <tr key={session.id} className="hover:bg-stone-50">
                       <td className="px-4 py-3">
                         <span className="flex items-center gap-1.5">
                           {CHANNEL_ICONS[session.channel] ?? null}
@@ -1629,7 +1629,7 @@ function AnalyticsTab() {
         ].map(kpi => {
           const Icon = kpi.icon;
           return (
-            <div key={kpi.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-start gap-3">
+            <div key={kpi.label} className="bg-white rounded-2xl border border-stone-100 shadow-sm p-4 flex items-start gap-3">
               <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${kpi.color}`}>
                 <Icon size={16} />
               </div>
@@ -1644,7 +1644,7 @@ function AnalyticsTab() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Conversations par jour (14 jours) */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-gray-900 flex items-center gap-2">
               <BarChart3 size={15} className="text-indigo-500" />
@@ -1671,7 +1671,7 @@ function AnalyticsTab() {
         </div>
 
         {/* Par template */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-5">
           <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <Bot size={15} className="text-purple-500" />
             Par template
@@ -1700,7 +1700,7 @@ function AnalyticsTab() {
         </div>
 
         {/* Top wilayas */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-5">
           <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <MapPin size={15} className="text-green-500" />
             Top Wilayas
@@ -1729,7 +1729,7 @@ function AnalyticsTab() {
         </div>
 
         {/* Actions */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+        <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-5 space-y-4">
           <h3 className="font-semibold text-gray-900 flex items-center gap-2">
             <RefreshCw size={15} className="text-orange-500" />
             Automatisations
@@ -1746,7 +1746,7 @@ function AnalyticsTab() {
               Lancer la relance maintenant
             </button>
           </div>
-          <div className="bg-gray-50 rounded-xl p-4 space-y-1">
+          <div className="bg-stone-50 rounded-xl p-4 space-y-1">
             <p className="text-xs font-semibold text-gray-600">Automatiser via Vercel Cron</p>
             <code className="text-[10px] text-gray-500 block font-mono bg-gray-100 rounded px-2 py-1">
               POST /api/ai-chatbot/relance (every 30min)

@@ -166,8 +166,8 @@ export default function OrdersTable() {
     <>
     <OrderDetailModal order={selectedOrder} onClose={() => setSelectedOrder(null)} onDeleted={() => fetchOrders(true)} />
 
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-      <div className="px-5 py-3.5 border-b border-gray-100 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+    <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-stone-100 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
         <div className="flex items-center gap-2">
           <h2 className="font-semibold text-gray-800 text-sm">Commandes récentes <span className="text-gray-400 font-normal">({total})</span></h2>
           {lastRefresh && <span className="text-[10px] text-gray-300 font-mono">{lastRefresh}</span>}
@@ -192,13 +192,13 @@ export default function OrdersTable() {
               value={search}
               onChange={e => { setSearch(e.target.value); setPage(1); }}
               placeholder="Rechercher..."
-              className="pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="pl-8 pr-3 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
             />
           </div>
           <select
             value={statusFilter}
             onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
-            className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none"
+            className="text-sm border border-stone-200 rounded-lg px-2 py-1.5 focus:outline-none"
           >
             <option value="all">Tous les statuts</option>
             <option value="en_preparation">En préparation</option>
@@ -211,7 +211,7 @@ export default function OrdersTable() {
           <select
             value={pageSize}
             onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
-            className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none text-gray-600"
+            className="text-sm border border-stone-200 rounded-lg px-2 py-1.5 focus:outline-none text-gray-600"
             title="Commandes par page"
           >
             <option value={10}>10 / page</option>
@@ -228,7 +228,7 @@ export default function OrdersTable() {
             <Wand2 size={12} className={reclassifying ? 'animate-spin' : ''} />
             {reclassifying ? 'Correction...' : 'Corriger statuts'}
           </button>
-          <button onClick={() => fetchOrders()} className="p-1.5 border border-gray-200 rounded-lg hover:bg-gray-50">
+          <button onClick={() => fetchOrders()} className="p-1.5 border border-stone-200 rounded-lg hover:bg-stone-50">
             <RefreshCw size={14} className="text-gray-500" />
           </button>
         </div>
@@ -237,7 +237,7 @@ export default function OrdersTable() {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-gray-100 bg-gray-50/60">
+            <tr className="border-b border-stone-100 bg-gray-50/60">
               <th className="px-4 py-2.5 w-10">
                 <input
                   type="checkbox"
@@ -257,7 +257,7 @@ export default function OrdersTable() {
               <th className="px-2 py-2.5 w-6"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-stone-50">
             {loading ? (
               <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400">Chargement...</td></tr>
             ) : orders.length === 0 ? (
@@ -278,7 +278,7 @@ export default function OrdersTable() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1.5">
-                    <span className="font-mono text-xs font-semibold text-blue-600">{order.tracking_number}</span>
+                    <span className="font-mono text-xs font-semibold text-violet-600">{order.tracking_number}</span>
                     <button
                       onClick={e => { e.stopPropagation(); copyTracking(order.tracking_number); }}
                       className="text-gray-300 hover:text-gray-500 transition-colors"
@@ -315,15 +315,15 @@ export default function OrdersTable() {
       </div>
 
       {totalPages > 1 && (
-        <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
+        <div className="px-4 py-3 border-t border-stone-100 flex items-center justify-between">
           <span className="text-sm text-gray-500">Page {page} / {totalPages}</span>
           <div className="flex gap-2">
             <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-              className="p-1.5 border rounded-lg disabled:opacity-40 hover:bg-gray-50">
+              className="p-1.5 border rounded-lg disabled:opacity-40 hover:bg-stone-50">
               <ChevronLeft size={14} />
             </button>
             <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-              className="p-1.5 border rounded-lg disabled:opacity-40 hover:bg-gray-50">
+              className="p-1.5 border rounded-lg disabled:opacity-40 hover:bg-stone-50">
               <ChevronRight size={14} />
             </button>
           </div>

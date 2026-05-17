@@ -39,17 +39,17 @@ export default function WhatsAppMessageLog() {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 h-full flex flex-col">
-      <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+    <div className="bg-white rounded-2xl shadow-sm border border-stone-100 h-full flex flex-col">
+      <div className="p-4 border-b border-stone-100 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <MessageSquare size={18} className="text-green-500" />
           <h2 className="font-semibold text-gray-900">Messages WhatsApp</h2>
         </div>
-        <button onClick={fetchMessages} className="p-1.5 hover:bg-gray-100 rounded-lg">
+        <button onClick={fetchMessages} className="p-1.5 hover:bg-stone-100 rounded-lg">
           <RefreshCw size={14} className="text-gray-400" />
         </button>
       </div>
-      <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
+      <div className="flex-1 overflow-y-auto divide-y divide-stone-50">
         {loading ? (
           <div className="flex items-center justify-center py-10 text-gray-400">Chargement...</div>
         ) : messages.length === 0 ? (
@@ -61,7 +61,7 @@ export default function WhatsAppMessageLog() {
           const cfg = statusConfig[msg.status] || statusConfig.en_attente;
           const Icon = cfg.icon;
           return (
-            <div key={msg.id} className="p-4 hover:bg-gray-50">
+            <div key={msg.id} className="p-4 hover:bg-stone-50">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">

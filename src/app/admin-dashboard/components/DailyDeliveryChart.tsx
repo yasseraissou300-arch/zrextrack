@@ -9,7 +9,7 @@ interface DayData { day: string; livrees: number; echecs: number; retours: numbe
 function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white border border-gray-100 rounded-xl shadow-lg p-3 min-w-[150px]">
+    <div className="bg-white border border-stone-100 rounded-xl shadow-lg p-3 min-w-[150px]">
       <p className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide">{label}</p>
       {payload.map((entry: any) => (
         <div key={entry.name} className="flex items-center justify-between gap-4 text-xs mb-1">
@@ -50,7 +50,7 @@ export default function DailyDeliveryChart() {
   }, []);
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm">
+    <div className="bg-white rounded-2xl border border-stone-100 p-5 shadow-sm">
       <div className="flex items-center justify-between mb-5">
         <div>
           <h2 className="text-sm font-semibold text-gray-800">Livraisons journalières</h2>

@@ -72,8 +72,8 @@ export default function AlertsPanel() {
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
+    <div className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-3.5 border-b border-stone-100">
         <div className="flex items-center gap-2">
           <AlertTriangle size={15} className="text-amber-500" />
           <h2 className="text-sm font-semibold text-gray-800">Commandes bloquées</h2>
@@ -88,7 +88,7 @@ export default function AlertsPanel() {
           Tout ignorer
         </button>
       </div>
-      <div className="divide-y divide-gray-50">
+      <div className="divide-y divide-stone-50">
         {visible.map((order) => {
           const s = getSeverity(order.hours, order.delivery_status || order.status || '');
           return (
