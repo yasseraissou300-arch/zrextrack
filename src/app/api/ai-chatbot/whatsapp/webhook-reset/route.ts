@@ -6,47 +6,109 @@ const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY || '';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://zrextrack.vercel.app';
 const WEBHOOK_URL = `${APP_URL}/api/ai-chatbot/webhook/whatsapp`;
 
-type ResetResult = {
-  instance_name: string;
-  service_type: string;
-  ok: boolean;
+const EVENTS = ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'];
+
+type AttemptResult = {
+  format: 'flat_snake' | 'nested_camel';
+  endpoint: string;
   status: number;
-  error?: string;
+  response_snippet: string;
 };
 
-async function setWebhook(instanceName: string): Promise<ResetResult> {
-  const url = `${EVOLUTION_URL}/webhook/set/${instanceName}`;
+type InstanceReset = {
+  instance_name: string;
+  service_type: string;
+  attempts: AttemptResult[];
+  final_url: string | null;
+  final_events: string[] | null;
+  verified: boolean;
+};
+
+async function postJson(url: string, body: object): Promise<{ status: number; text: string }> {
   try {
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: EVOLUTION_KEY },
-      body: JSON.stringify({
-        url: WEBHOOK_URL,
-        webhook_by_events: false,
-        webhook_base64: false,
-        events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
-      }),
+      body: JSON.stringify(body),
     });
-    let errBody = '';
-    if (!res.ok) {
-      errBody = await res.text().catch(() => '');
-    }
-    return {
-      instance_name: instanceName,
-      service_type: '',
-      ok: res.ok,
-      status: res.status,
-      error: res.ok ? undefined : errBody.slice(0, 200),
-    };
+    const text = await res.text().catch(() => '');
+    return { status: res.status, text };
   } catch (e) {
-    return {
-      instance_name: instanceName,
-      service_type: '',
-      ok: false,
-      status: 0,
-      error: e instanceof Error ? e.message : String(e),
-    };
+    return { status: 0, text: e instanceof Error ? e.message : String(e) };
   }
+}
+
+async function findWebhook(instanceName: string): Promise<{ url: string | null; events: string[] | null }> {
+  try {
+    const res = await fetch(`${EVOLUTION_URL}/webhook/find/${instanceName}`, {
+      headers: { apikey: EVOLUTION_KEY },
+    });
+    if (!res.ok) return { url: null, events: null };
+    const j = (await res.json()) as Record<string, unknown>;
+    // v1: flat { url, events, ... }
+    // v2: nested { webhook: { url, events, ... } } OR same flat
+    const inner = (j?.webhook as Record<string, unknown>) || j;
+    const url = (inner?.url as string) || null;
+    const events = (inner?.events as string[]) || null;
+    return { url, events };
+  } catch {
+    return { url: null, events: null };
+  }
+}
+
+async function resetOne(instanceName: string): Promise<Omit<InstanceReset, 'service_type'>> {
+  const attempts: AttemptResult[] = [];
+  const setUrl = `${EVOLUTION_URL}/webhook/set/${instanceName}`;
+
+  // Format A — flat snake_case (Evolution v1.x)
+  const bodyA = {
+    url: WEBHOOK_URL,
+    webhook_by_events: false,
+    webhook_base64: false,
+    events: EVENTS,
+  };
+  const a = await postJson(setUrl, bodyA);
+  attempts.push({
+    format: 'flat_snake',
+    endpoint: setUrl.replace(EVOLUTION_URL, '<base>'),
+    status: a.status,
+    response_snippet: a.text.slice(0, 300),
+  });
+
+  // Verify
+  let check = await findWebhook(instanceName);
+  let verified = check.url === WEBHOOK_URL && Array.isArray(check.events) && check.events.includes('MESSAGES_UPSERT');
+
+  // Format B — nested camelCase (Evolution v2.x) if A didn't take effect
+  if (!verified) {
+    const bodyB = {
+      webhook: {
+        enabled: true,
+        url: WEBHOOK_URL,
+        byEvents: false,
+        base64: false,
+        events: EVENTS,
+      },
+    };
+    const b = await postJson(setUrl, bodyB);
+    attempts.push({
+      format: 'nested_camel',
+      endpoint: setUrl.replace(EVOLUTION_URL, '<base>'),
+      status: b.status,
+      response_snippet: b.text.slice(0, 300),
+    });
+
+    check = await findWebhook(instanceName);
+    verified = check.url === WEBHOOK_URL && Array.isArray(check.events) && check.events.includes('MESSAGES_UPSERT');
+  }
+
+  return {
+    instance_name: instanceName,
+    attempts,
+    final_url: check.url,
+    final_events: check.events,
+    verified,
+  };
 }
 
 export async function POST(req: NextRequest) {
@@ -61,7 +123,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Optional ?service= filter to repair a single service only
   const filterService = req.nextUrl.searchParams.get('service');
 
   let query = supabase
@@ -82,20 +143,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No instances found for this user.' }, { status: 404 });
   }
 
-  const results: ResetResult[] = [];
+  const results: InstanceReset[] = [];
   for (const inst of instances) {
-    const r = await setWebhook(inst.instance_name);
-    r.service_type = inst.service_type;
-    results.push(r);
+    const r = await resetOne(inst.instance_name);
+    results.push({ ...r, service_type: inst.service_type });
   }
 
-  const successCount = results.filter(r => r.ok).length;
+  const verifiedCount = results.filter(r => r.verified).length;
 
   return NextResponse.json({
-    webhook_url: WEBHOOK_URL,
+    webhook_url_sent: WEBHOOK_URL,
+    app_url_used: APP_URL,
+    app_url_from_env: process.env.NEXT_PUBLIC_APP_URL || null,
     total: results.length,
-    success: successCount,
-    failed: results.length - successCount,
+    verified: verifiedCount,
+    failed: results.length - verifiedCount,
     results,
   });
 }
