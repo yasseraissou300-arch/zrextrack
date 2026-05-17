@@ -6,7 +6,7 @@ import {
   Globe, Loader2, Save, RefreshCw, QrCode, Wifi, WifiOff,
   ChevronDown, ChevronUp, ExternalLink, Copy, Trash2, Sheet, AlertCircle,
   MessageSquare, Phone, User, BarChart3, TrendingUp, Users,
-  Sparkles, Bell, Image, Shield, Clock, Stethoscope, CheckCircle, XCircle,
+  Sparkles, Bell, Image, Shield, Clock, Stethoscope, CheckCircle, XCircle, Wrench,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -850,6 +850,7 @@ function WhatsAppTab() {
   const [diag, setDiag] = useState<DiagnosticResult | null>(null);
   const [diagLoading, setDiagLoading] = useState(false);
   const [diagOpen, setDiagOpen] = useState(false);
+  const [repairing, setRepairing] = useState(false);
 
   useEffect(() => {
     fetch('/api/ai-chatbot/whatsapp/instance')
@@ -870,6 +871,25 @@ function WhatsAppTab() {
       toast.error(`Erreur diagnostic: ${e instanceof Error ? e.message : 'inconnue'}`);
     } finally {
       setDiagLoading(false);
+    }
+  };
+
+  const repairWebhooks = async () => {
+    setRepairing(true);
+    try {
+      const res = await fetch('/api/ai-chatbot/whatsapp/webhook-reset', { method: 'POST' });
+      const json = await res.json();
+      if (json.error) {
+        toast.error(json.error);
+      } else {
+        toast.success(`${json.success}/${json.total} webhook(s) ré-enregistré(s)`);
+        // Re-run diagnostic to verify
+        await runDiagnostic();
+      }
+    } catch (e) {
+      toast.error(`Erreur réparation: ${e instanceof Error ? e.message : 'inconnue'}`);
+    } finally {
+      setRepairing(false);
     }
   };
 
@@ -919,7 +939,18 @@ function WhatsAppTab() {
               <Stethoscope size={14} className="text-gray-500" />
               <h3 className="font-semibold text-sm text-gray-900">Résultat diagnostic</h3>
             </div>
-            <button onClick={() => setDiagOpen(false)} className="text-xs text-gray-400 hover:text-gray-700">Fermer</button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={repairWebhooks}
+                disabled={repairing || diagLoading}
+                className="flex items-center gap-1.5 text-xs font-medium bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg px-3 py-1.5"
+                title="Force le ré-enregistrement de tous les webhooks Evolution avec la bonne URL"
+              >
+                {repairing ? <Loader2 size={12} className="animate-spin" /> : <Wrench size={12} />}
+                Réparer les webhooks
+              </button>
+              <button onClick={() => setDiagOpen(false)} className="text-xs text-gray-400 hover:text-gray-700">Fermer</button>
+            </div>
           </div>
 
           {!diag && diagLoading && (
