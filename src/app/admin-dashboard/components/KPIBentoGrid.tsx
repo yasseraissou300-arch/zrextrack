@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { Package, CheckCircle2, Truck, TrendingUp, MessageSquare, RotateCcw, XCircle, Boxes } from 'lucide-react';
+import { Package, CheckCircle2, Truck, TrendingUp, MessageSquare, XCircle, Boxes, Sparkles } from 'lucide-react';
 import { SYNC_DONE_EVENT } from './DashboardHeader';
 
 interface KPIData {
@@ -49,88 +49,75 @@ export default function KPIBentoGrid() {
 
   const val = (n: number | undefined) => (n ?? 0).toLocaleString('fr-FR');
 
-  const cards = [
-    {
-      label: 'Total commandes',
-      value: val(kpis?.totalOrders),
-      icon: Package,
-      borderColor: 'border-l-blue-500',
-      iconColor: 'text-blue-500',
-      iconBg: 'bg-blue-50',
-    },
-    {
-      label: 'Livrées',
-      value: val(kpis?.delivered),
-      icon: CheckCircle2,
-      borderColor: 'border-l-green-500',
-      iconColor: 'text-green-600',
-      iconBg: 'bg-green-50',
-    },
-    {
-      label: "Livrées aujourd'hui",
-      value: val(kpis?.deliveredToday),
-      icon: CheckCircle2,
-      borderColor: 'border-l-teal-500',
-      iconColor: 'text-teal-600',
-      iconBg: 'bg-teal-50',
-    },
-    {
-      label: 'En préparation',
-      value: val(kpis?.enPreparation),
-      icon: Boxes,
-      borderColor: 'border-l-purple-400',
-      iconColor: 'text-purple-500',
-      iconBg: 'bg-purple-50',
-    },
-    {
-      label: 'En transit / livraison',
-      value: val(kpis?.inTransit),
-      icon: Truck,
-      borderColor: 'border-l-amber-500',
-      iconColor: 'text-amber-600',
-      iconBg: 'bg-amber-50',
-    },
-    {
-      label: 'Taux de livraison',
-      value: `${kpis?.deliveryRate ?? 0}%`,
-      icon: TrendingUp,
-      borderColor: 'border-l-indigo-500',
-      iconColor: 'text-indigo-600',
-      iconBg: 'bg-indigo-50',
-    },
-    {
-      label: 'Échecs',
-      value: val(kpis?.failed),
-      icon: XCircle,
-      borderColor: 'border-l-red-400',
-      iconColor: 'text-red-500',
-      iconBg: 'bg-red-50',
-    },
-    {
-      label: 'Messages WhatsApp',
-      value: val(kpis?.messagesSent),
-      icon: MessageSquare,
-      borderColor: 'border-l-green-400',
-      iconColor: 'text-green-500',
-      iconBg: 'bg-green-50',
-    },
+  // Hero KPI — taux de livraison (le plus parlant pour un e-commerce)
+  const heroValue = `${kpis?.deliveryRate ?? 0}%`;
+
+  // Cards secondaires
+  const secondaryCards: Array<{
+    label: string;
+    value: string;
+    icon: typeof Package;
+    iconColor: string;
+    iconBg: string;
+  }> = [
+    { label: 'Total commandes',       value: val(kpis?.totalOrders),     icon: Package,        iconColor: 'text-violet-600', iconBg: 'bg-violet-100' },
+    { label: 'Livrées',                value: val(kpis?.delivered),       icon: CheckCircle2,   iconColor: 'text-emerald-600', iconBg: 'bg-emerald-100' },
+    { label: "Livrées aujourd'hui",    value: val(kpis?.deliveredToday),  icon: Sparkles,       iconColor: 'text-teal-600',    iconBg: 'bg-teal-100' },
+    { label: 'En préparation',         value: val(kpis?.enPreparation),   icon: Boxes,          iconColor: 'text-amber-600',   iconBg: 'bg-amber-100' },
+    { label: 'En transit / livraison', value: val(kpis?.inTransit),       icon: Truck,          iconColor: 'text-blue-600',    iconBg: 'bg-blue-100' },
+    { label: 'Échecs',                 value: val(kpis?.failed),          icon: XCircle,        iconColor: 'text-rose-600',    iconBg: 'bg-rose-100' },
+    { label: 'Messages WhatsApp',      value: val(kpis?.messagesSent),    icon: MessageSquare,  iconColor: 'text-fuchsia-600', iconBg: 'bg-fuchsia-100' },
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-3">
-      {cards.map((card) => (
+    <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-4">
+      {/* HERO CARD — taux de livraison, gradient violet→fuchsia */}
+      <div
+        className="col-span-2 row-span-2 relative overflow-hidden rounded-3xl p-6 text-white shadow-xl shadow-violet-500/30 bg-gradient-to-br from-violet-500 via-violet-600 to-fuchsia-500"
+      >
+        {/* Decorative gradient orb */}
+        <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-white/10 blur-2xl pointer-events-none" />
+
+        <div className="relative flex flex-col h-full">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur-sm flex items-center justify-center">
+              <TrendingUp size={24} className="text-white" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-white/80">Taux de livraison</p>
+              <p className="text-[11px] text-white/60">Tous statuts confondus</p>
+            </div>
+          </div>
+
+          <div className="mt-auto">
+            <p className="text-5xl xl:text-6xl font-bold tabular-nums tracking-tight">
+              {loading ? <span className="text-white/30 animate-pulse">—</span> : heroValue}
+            </p>
+            <div className="mt-4 flex items-center gap-3 text-xs text-white/80">
+              <span className="px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-sm font-medium">
+                {val(kpis?.delivered)} livrées
+              </span>
+              <span className="text-white/40">·</span>
+              <span>sur {val(kpis?.totalOrders)} commandes</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* SECONDARY CARDS */}
+      {secondaryCards.map((card) => (
         <div
           key={card.label}
-          className={`bg-white rounded-xl border border-gray-100 border-l-4 ${card.borderColor} p-4 shadow-sm`}
+          className="group bg-white rounded-2xl border border-stone-100 p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
         >
-          <div className={`w-7 h-7 rounded-lg flex items-center justify-center mb-2.5 ${card.iconBg}`}>
-            <card.icon size={14} className={card.iconColor} />
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${card.iconBg} group-hover:scale-105 transition-transform`}>
+            <card.icon size={20} className={card.iconColor} />
           </div>
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5 leading-tight">
+          <p className="text-xs font-medium text-stone-500 mb-1 leading-tight">
             {card.label}
           </p>
-          <p className="text-xl font-bold text-gray-900 tabular-nums">
-            {loading ? <span className="text-gray-200 animate-pulse">—</span> : card.value}
+          <p className="text-2xl font-bold text-stone-900 tabular-nums tracking-tight">
+            {loading ? <span className="text-stone-200 animate-pulse">—</span> : card.value}
           </p>
         </div>
       ))}

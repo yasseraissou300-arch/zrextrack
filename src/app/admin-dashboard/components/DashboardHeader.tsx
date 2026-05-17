@@ -164,10 +164,10 @@ export default function DashboardHeader() {
         </div>
       </div>
     )}
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-gray-100">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-stone-100">
       <div>
-        <div className="flex items-center gap-2.5 mb-0.5">
-          <h1 className="text-xl font-bold text-gray-900 tracking-tight">
+        <div className="flex items-center gap-2.5 mb-1.5 flex-wrap">
+          <h1 className="text-3xl font-bold text-stone-900 tracking-tight">
             Tableau de bord
           </h1>
           {hasToken ? (
@@ -198,14 +198,14 @@ export default function DashboardHeader() {
             </button>
           )}
         </div>
-        <p className="text-xs text-gray-400">
+        <p className="text-sm text-stone-500">
           {lastSync ? (
             <>
-              Dernière sync : <span className="font-medium text-gray-600">{lastSync}</span>
-              {syncedCount !== null && <span className="text-gray-400"> · {syncedCount} commandes</span>}
+              Dernière sync : <span className="font-medium text-stone-700">{lastSync}</span>
+              {syncedCount !== null && <span className="text-stone-400"> · {syncedCount} commandes</span>}
             </>
           ) : (
-            <span className="text-gray-400">{hasToken ? 'Synchronisation en cours...' : 'Configurez votre token dans Sync ZREXpress'}</span>
+            <span className="text-stone-500">{hasToken ? 'Synchronisation en cours...' : 'Configurez votre token dans Sync ZREXpress'}</span>
           )}
         </p>
       </div>
@@ -216,10 +216,10 @@ export default function DashboardHeader() {
           disabled={syncing}
           className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
         >
-          <RefreshCw size={14} className={syncing ? 'animate-spin text-green-500' : ''} />
+          <RefreshCw size={14} className={syncing ? 'animate-spin text-violet-500' : ''} />
           {syncing ? 'Sync...' : 'Sync maintenant'}
         </button>
-        <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all active:scale-95 shadow-sm">
+        <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-stone-200 bg-white text-sm font-medium text-stone-700 hover:bg-stone-50 transition-all active:scale-95 shadow-sm">
           <Download size={14} />
           Exporter
         </button>
@@ -230,7 +230,7 @@ export default function DashboardHeader() {
           <Trash2 size={14} />
           Vider l'historique
         </button>
-        <button className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-green-500 text-white text-sm font-semibold hover:bg-green-600 transition-all active:scale-95 shadow-sm">
+        <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white text-sm font-semibold hover:shadow-lg hover:shadow-violet-500/30 transition-all active:scale-95 shadow-md shadow-violet-500/20">
           <Plus size={14} />
           Nouvelle commande
         </button>
