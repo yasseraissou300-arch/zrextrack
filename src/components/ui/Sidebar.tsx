@@ -6,8 +6,10 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Package, MessageSquare, BarChart3, Settings,
   ChevronLeft, ChevronRight, Truck, Bell, RefreshCw, Users, Trash2, Megaphone, Plug, MessageCircle, Bot, Repeat,
+  Sun, Moon,
 } from 'lucide-react';
 import { useChatbot } from '@/contexts/ChatbotContext';
+import { useTheme } from '@/contexts/ThemeContext';
 
 const navGroups = [
   {
@@ -45,30 +47,40 @@ const navGroups = [
   },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
+}
+
+export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
   const { toggle, isOpen } = useChatbot();
+  const { theme, toggle: toggleTheme } = useTheme();
+
+  // Reset collapsed when in mobile drawer mode
+  const isMobile = mobileOpen !== undefined && onMobileClose !== undefined;
+  const effectivelyCollapsed = isMobile ? false : collapsed;
 
   return (
     <aside
-      className={`relative flex flex-col bg-white border-r border-gray-200 transition-all duration-300 ease-in-out shrink-0 ${
-        collapsed ? 'w-[60px]' : 'w-[220px]'
+      className={`relative flex flex-col bg-white dark:bg-stone-900 border-r border-stone-200 dark:border-stone-800 transition-all duration-300 ease-in-out shrink-0 ${
+        effectivelyCollapsed ? 'w-[60px]' : 'w-[220px]'
       }`}
     >
       {/* Logo */}
       <div
-        className={`flex items-center border-b border-gray-100 min-h-[60px] ${
-          collapsed ? 'justify-center px-3' : 'gap-2.5 px-4'
+        className={`flex items-center border-b border-stone-100 dark:border-stone-800 min-h-[60px] ${
+          effectivelyCollapsed ? 'justify-center px-3' : 'gap-2.5 px-4'
         }`}
       >
         <div className="w-9 h-9 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-xl flex items-center justify-center shrink-0 shadow-md shadow-violet-500/25">
           <span className="text-white font-bold text-sm">Z</span>
         </div>
-        {!collapsed && (
+        {!effectivelyCollapsed && (
           <div className="flex flex-col leading-tight">
-            <span className="font-bold text-[15px] text-gray-900 tracking-tight">Autotim</span>
-            <span className="text-[10px] text-gray-400 font-medium tracking-wide uppercase">ZREXpress</span>
+            <span className="font-bold text-[15px] text-stone-900 dark:text-stone-100 tracking-tight">Autotim</span>
+            <span className="text-[10px] text-stone-400 dark:text-stone-500 font-medium tracking-wide uppercase">ZREXpress</span>
           </div>
         )}
       </div>
@@ -77,8 +89,8 @@ export default function Sidebar() {
       <nav className="flex-1 overflow-y-auto py-3 px-2">
         {navGroups.map((group) => (
           <div key={group.label} className="mb-5">
-            {!collapsed && (
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 px-2 mb-1.5">
+            {!effectivelyCollapsed && (
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400 dark:text-stone-500 px-2 mb-1.5">
                 {group.label}
               </p>
             )}
@@ -90,20 +102,21 @@ export default function Sidebar() {
                   <li key={item.label}>
                     <Link
                       href={item.href}
-                      title={collapsed ? item.label : undefined}
+                      onClick={onMobileClose}
+                      title={effectivelyCollapsed ? item.label : undefined}
                       className={`group relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
                         isActive
-                          ? 'bg-violet-50 text-violet-700'
-                          : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'
-                      } ${collapsed ? 'justify-center' : ''}`}
+                          ? 'bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-300'
+                          : 'text-stone-500 hover:bg-stone-50 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100'
+                      } ${effectivelyCollapsed ? 'justify-center' : ''}`}
                     >
-                      {isActive && !collapsed && (
+                      {isActive && !effectivelyCollapsed && (
                         <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-violet-500 rounded-r-full" />
                       )}
                       <Icon size={17} className="shrink-0" />
-                      {!collapsed && <span className="truncate">{item.label}</span>}
-                      {collapsed && (
-                        <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-md">
+                      {!effectivelyCollapsed && <span className="truncate">{item.label}</span>}
+                      {effectivelyCollapsed && (
+                        <div className="absolute left-full ml-2 px-2 py-1 bg-stone-800 dark:bg-stone-700 text-white text-xs rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-md">
                           {item.label}
                         </div>
                       )}
@@ -117,27 +130,42 @@ export default function Sidebar() {
       </nav>
 
       {/* Bottom */}
-      <div className="border-t border-gray-100 p-2 space-y-0.5">
+      <div className="border-t border-stone-100 dark:border-stone-800 p-2 space-y-0.5">
+        {/* Theme toggle */}
+        <button
+          onClick={toggleTheme}
+          title={effectivelyCollapsed ? (theme === 'dark' ? 'Mode clair' : 'Mode sombre') : undefined}
+          className={`group relative w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium text-stone-500 hover:bg-stone-50 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100 transition-all duration-150 ${effectivelyCollapsed ? 'justify-center' : ''}`}
+        >
+          {theme === 'dark' ? <Sun size={17} className="shrink-0" /> : <Moon size={17} className="shrink-0" />}
+          {!effectivelyCollapsed && <span className="truncate">{theme === 'dark' ? 'Mode clair' : 'Mode sombre'}</span>}
+          {effectivelyCollapsed && (
+            <div className="absolute left-full ml-2 px-2 py-1 bg-stone-800 dark:bg-stone-700 text-white text-xs rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-md">
+              {theme === 'dark' ? 'Mode clair' : 'Mode sombre'}
+            </div>
+          )}
+        </button>
+
         {/* Chatbot button */}
         <button
           onClick={toggle}
-          title={collapsed ? 'Assistant IA' : undefined}
+          title={effectivelyCollapsed ? 'Assistant IA' : undefined}
           className={`group relative w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
             isOpen
-              ? 'bg-violet-50 text-violet-700'
-              : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'
-          } ${collapsed ? 'justify-center' : ''}`}
+              ? 'bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-300'
+              : 'text-stone-500 hover:bg-stone-50 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100'
+          } ${effectivelyCollapsed ? 'justify-center' : ''}`}
         >
-          {isOpen && !collapsed && (
+          {isOpen && !effectivelyCollapsed && (
             <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-violet-500 rounded-r-full" />
           )}
           <div className="relative shrink-0">
             <MessageCircle size={17} />
-            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-violet-500 rounded-full border border-white" />
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-violet-500 rounded-full border border-white dark:border-stone-900" />
           </div>
-          {!collapsed && <span className="truncate">Assistant IA</span>}
-          {collapsed && (
-            <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-md">
+          {!effectivelyCollapsed && <span className="truncate">Assistant IA</span>}
+          {effectivelyCollapsed && (
+            <div className="absolute left-full ml-2 px-2 py-1 bg-stone-800 dark:bg-stone-700 text-white text-xs rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-md">
               Assistant IA
             </div>
           )}
@@ -145,28 +173,31 @@ export default function Sidebar() {
 
         <Link
           href="/parametres"
-          title={collapsed ? 'Paramètres' : undefined}
-          className={`group relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-50 hover:text-gray-800 transition-all duration-150 ${
-            collapsed ? 'justify-center' : ''
+          onClick={onMobileClose}
+          title={effectivelyCollapsed ? 'Paramètres' : undefined}
+          className={`group relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium text-stone-500 hover:bg-stone-50 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100 transition-all duration-150 ${
+            effectivelyCollapsed ? 'justify-center' : ''
           }`}
         >
           <Settings size={17} className="shrink-0" />
-          {!collapsed && <span>Paramètres</span>}
-          {collapsed && (
-            <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-md">
+          {!effectivelyCollapsed && <span>Paramètres</span>}
+          {effectivelyCollapsed && (
+            <div className="absolute left-full ml-2 px-2 py-1 bg-stone-800 dark:bg-stone-700 text-white text-xs rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-md">
               Paramètres
             </div>
           )}
         </Link>
       </div>
 
-      {/* Collapse toggle */}
-      <button
-        onClick={() => setCollapsed(!collapsed)}
-        className="absolute -right-3 top-[68px] w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-sm hover:bg-gray-50 transition-colors z-10"
-      >
-        {collapsed ? <ChevronRight size={12} className="text-gray-500" /> : <ChevronLeft size={12} className="text-gray-500" />}
-      </button>
+      {/* Collapse toggle — hidden on mobile drawer */}
+      {!isMobile && (
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="hidden md:flex absolute -right-3 top-[68px] w-6 h-6 bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-full items-center justify-center shadow-sm hover:bg-stone-50 dark:hover:bg-stone-700 transition-colors z-10"
+        >
+          {collapsed ? <ChevronRight size={12} className="text-stone-500 dark:text-stone-400" /> : <ChevronLeft size={12} className="text-stone-500 dark:text-stone-400" />}
+        </button>
+      )}
     </aside>
   );
 }

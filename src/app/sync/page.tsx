@@ -33,7 +33,7 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string; bo
   en_livraison: { label: 'En livraison',     color: 'text-amber-700',  bg: 'bg-amber-50',  border: 'border-amber-200' },
   livre:        { label: 'Livré',            color: 'text-green-700',  bg: 'bg-green-50',  border: 'border-green-200' },
   echec:        { label: 'Échec livraison',  color: 'text-red-700',    bg: 'bg-red-50',    border: 'border-red-200' },
-  retourne:     { label: 'Retourné',         color: 'text-gray-600',   bg: 'bg-gray-50',   border: 'border-stone-200' },
+  retourne:     { label: 'Retourné',         color: 'text-gray-600 dark:text-stone-300',   bg: 'bg-gray-50',   border: 'border-stone-200 dark:border-stone-700' },
 };
 
 interface SyncResult {
@@ -167,8 +167,8 @@ export default function SyncPage() {
             <RefreshCw size={20} className="text-green-600" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Sync ZREXpress</h1>
-            <p className="text-sm text-gray-500">Importez vos commandes et configurez vos messages automatiques</p>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-stone-100">Sync ZREXpress</h1>
+            <p className="text-sm text-gray-500 dark:text-stone-400">Importez vos commandes et configurez vos messages automatiques</p>
           </div>
         </div>
 
@@ -176,15 +176,15 @@ export default function SyncPage() {
           <div className="lg:col-span-2 space-y-5">
 
             {/* Clé API */}
-            <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-6">
+            <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 p-6">
               <div className="flex items-center gap-2 mb-4">
-                <Key size={18} className="text-gray-500" />
-                <h2 className="font-semibold text-gray-900">Clé API ZREXpress</h2>
+                <Key size={18} className="text-gray-500 dark:text-stone-400" />
+                <h2 className="font-semibold text-gray-900 dark:text-stone-100">Clé API ZREXpress</h2>
                 {tokenSaved && (
                   <span className="ml-auto text-xs bg-green-100 text-green-700 font-medium px-2 py-0.5 rounded-full">✓ Enregistrée</span>
                 )}
               </div>
-              <p className="text-sm text-gray-500 mb-4">
+              <p className="text-sm text-gray-500 dark:text-stone-400 mb-4">
                 Collez votre <strong>secretKey</strong> et <strong>tenantId</strong> depuis{' '}
                 <a href="https://app.zrexpress.app/api-rest/tokens" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
                   app.zrexpress.app → API Rest → Jetons API
@@ -192,21 +192,21 @@ export default function SyncPage() {
               </p>
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Secret Key</label>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-stone-300 mb-1">Secret Key</label>
                   <div className="relative">
                     <input type={showToken ? 'text' : 'password'} value={token} onChange={e => setToken(e.target.value)}
                       placeholder="zZhWCuWz..."
-                      className="w-full border border-stone-200 rounded-xl px-4 py-3 pr-12 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-400" />
-                    <button onClick={() => setShowToken(!showToken)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-4 py-3 pr-12 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-400" />
+                    <button onClick={() => setShowToken(!showToken)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-stone-500 hover:text-gray-600 dark:text-stone-300">
                       {showToken ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Tenant ID</label>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-stone-300 mb-1">Tenant ID</label>
                   <input type="text" value={tenantId} onChange={e => setTenantId(e.target.value)}
                     placeholder="3da412b7-5c9e-..."
-                    className="w-full border border-stone-200 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-400" />
+                    className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-400" />
                 </div>
               </div>
               <div className="flex gap-3 mt-4">
@@ -221,16 +221,16 @@ export default function SyncPage() {
             </div>
 
             {/* Sync */}
-            <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-6">
+            <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 p-6">
               <div className="flex items-center gap-2 mb-4">
-                <Package size={18} className="text-gray-500" />
-                <h2 className="font-semibold text-gray-900">Synchronisation</h2>
+                <Package size={18} className="text-gray-500 dark:text-stone-400" />
+                <h2 className="font-semibold text-gray-900 dark:text-stone-100">Synchronisation</h2>
               </div>
-              <p className="text-sm text-gray-500 mb-4">
+              <p className="text-sm text-gray-500 dark:text-stone-400 mb-4">
                 Importe toutes vos commandes ZREXpress. Les statuts sont mis à jour et les messages WhatsApp envoyés automatiquement à chaque changement.
               </p>
               <button onClick={runSync} disabled={loading || !token.trim() || !tenantId.trim()}
-                className="w-full flex items-center justify-center gap-3 bg-gradient-to-br from-violet-500 to-fuchsia-500 hover:shadow-lg hover:shadow-violet-500/30 shadow-md shadow-violet-500/20 disabled:bg-gray-200 disabled:text-gray-400 text-white font-semibold py-4 rounded-xl transition-colors text-base disabled:cursor-not-allowed">
+                className="w-full flex items-center justify-center gap-3 bg-gradient-to-br from-violet-500 to-fuchsia-500 hover:shadow-lg hover:shadow-violet-500/30 shadow-md shadow-violet-500/20 disabled:bg-gray-200 disabled:text-gray-400 dark:text-stone-500 text-white font-semibold py-4 rounded-xl transition-colors text-base disabled:cursor-not-allowed">
                 <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
                 {loading ? 'Synchronisation en cours...' : 'Synchroniser maintenant'}
               </button>
@@ -255,24 +255,24 @@ export default function SyncPage() {
             </div>
 
             {/* Templates WhatsApp */}
-            <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-6">
+            <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 p-6">
               <div className="flex items-center gap-2 mb-1">
                 <MessageSquare size={18} className="text-green-500" />
-                <h2 className="font-semibold text-gray-900">Templates WhatsApp</h2>
-                <span className="ml-auto text-xs text-gray-400">Envoyés automatiquement à chaque changement de statut</span>
+                <h2 className="font-semibold text-gray-900 dark:text-stone-100">Templates WhatsApp</h2>
+                <span className="ml-auto text-xs text-gray-400 dark:text-stone-500">Envoyés automatiquement à chaque changement de statut</span>
               </div>
-              <p className="text-xs text-gray-400 mb-4">
-                Variables disponibles : <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">{'{client}'}</code>{' '}
-                <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">{'{tracking}'}</code>{' '}
-                <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">{'{wilaya}'}</code>{' '}
-                <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">{'{lien}'}</code>
+              <p className="text-xs text-gray-400 dark:text-stone-500 mb-4">
+                Variables disponibles : <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 dark:text-stone-300">{'{client}'}</code>{' '}
+                <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 dark:text-stone-300">{'{tracking}'}</code>{' '}
+                <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 dark:text-stone-300">{'{wilaya}'}</code>{' '}
+                <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 dark:text-stone-300">{'{lien}'}</code>
               </p>
 
               {/* Onglets statuts + toggles ON/OFF */}
               <div className="space-y-2 mb-4">
                 {Object.entries(STATUS_META).map(([key, meta]) => (
                   <div key={key} className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all ${
-                    activeTemplate === key ? `${meta.bg} ${meta.border}` : 'bg-gray-50 border-stone-200'
+                    activeTemplate === key ? `${meta.bg} ${meta.border}` : 'bg-gray-50 border-stone-200 dark:border-stone-700'
                   }`}>
                     {/* Toggle ON/OFF */}
                     <button
@@ -282,7 +282,7 @@ export default function SyncPage() {
                         notifyEnabled[key] ? 'bg-green-500' : 'bg-gray-300'
                       }`}
                     >
-                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-stone-900 shadow transition-transform duration-200 ${
                         notifyEnabled[key] ? 'translate-x-4' : 'translate-x-0'
                       }`} />
                     </button>
@@ -290,7 +290,7 @@ export default function SyncPage() {
                     <button
                       onClick={() => setActiveTemplate(key)}
                       className={`flex-1 text-left text-xs font-medium transition-colors ${
-                        activeTemplate === key ? meta.color : 'text-gray-500'
+                        activeTemplate === key ? meta.color : 'text-gray-500 dark:text-stone-400'
                       } ${!notifyEnabled[key] ? 'opacity-40 line-through' : ''}`}
                     >
                       {meta.label}
@@ -298,7 +298,7 @@ export default function SyncPage() {
                     {notifyEnabled[key] ? (
                       <span className="text-[10px] font-semibold text-green-600 bg-green-100 px-1.5 py-0.5 rounded-full">ON</span>
                     ) : (
-                      <span className="text-[10px] font-semibold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">OFF</span>
+                      <span className="text-[10px] font-semibold text-gray-400 dark:text-stone-500 bg-gray-100 px-1.5 py-0.5 rounded-full">OFF</span>
                     )}
                   </div>
                 ))}
@@ -307,23 +307,23 @@ export default function SyncPage() {
               {/* Éditeur */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1.5">✏️ Modifier le message</label>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-stone-400 mb-1.5">✏️ Modifier le message</label>
                   <textarea
                     value={templates[activeTemplate] || ''}
                     onChange={e => setTemplates(prev => ({ ...prev, [activeTemplate]: e.target.value }))}
                     rows={8}
-                    className="w-full border border-stone-200 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-400 resize-none leading-relaxed"
+                    className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-400 resize-none leading-relaxed"
                     placeholder="Entrez votre message..."
                   />
                   <button onClick={() => resetTemplate(activeTemplate)}
-                    className="mt-2 flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors">
+                    className="mt-2 flex items-center gap-1.5 text-xs text-gray-400 dark:text-stone-500 hover:text-gray-600 dark:text-stone-300 transition-colors">
                     <RotateCcw size={11} />
                     Réinitialiser par défaut
                   </button>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1.5">👁 Aperçu (données test)</label>
-                  <div className="border border-stone-200 rounded-xl px-4 py-3 text-sm bg-gray-50 whitespace-pre-wrap leading-relaxed min-h-[180px] text-gray-700 font-sans">
+                  <label className="block text-xs font-medium text-gray-500 dark:text-stone-400 mb-1.5">👁 Aperçu (données test)</label>
+                  <div className="border border-stone-200 dark:border-stone-700 rounded-xl px-4 py-3 text-sm bg-gray-50 whitespace-pre-wrap leading-relaxed min-h-[180px] text-gray-700 dark:text-stone-200 font-sans">
                     {previewTemplate(templates[activeTemplate] || '')}
                   </div>
                 </div>
@@ -346,8 +346,8 @@ export default function SyncPage() {
 
           {/* Colonne droite */}
           <div className="space-y-4">
-            <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-6">
-              <h2 className="font-semibold text-gray-900 mb-4">Comment ça marche</h2>
+            <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 p-6">
+              <h2 className="font-semibold text-gray-900 dark:text-stone-100 mb-4">Comment ça marche</h2>
               <div className="space-y-3">
                 {[
                   { step: '1', text: 'Entrez votre secretKey et tenantId' },
@@ -357,21 +357,21 @@ export default function SyncPage() {
                 ].map(s => (
                   <div key={s.step} className="flex items-start gap-3">
                     <span className="w-6 h-6 rounded-full bg-green-100 text-green-700 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">{s.step}</span>
-                    <span className="text-sm text-gray-600">{s.text}</span>
+                    <span className="text-sm text-gray-600 dark:text-stone-300">{s.text}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-6">
+            <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 p-6">
               <div className="flex items-center gap-2 mb-4">
-                <Clock size={16} className="text-gray-400" />
-                <h2 className="font-semibold text-gray-900">Historique</h2>
+                <Clock size={16} className="text-gray-400 dark:text-stone-500" />
+                <h2 className="font-semibold text-gray-900 dark:text-stone-100">Historique</h2>
               </div>
               {history.length === 0 ? (
                 <div className="text-center py-6">
                   <Clock size={28} className="mx-auto mb-2 text-gray-200" />
-                  <p className="text-sm text-gray-400">Aucune sync effectuée</p>
+                  <p className="text-sm text-gray-400 dark:text-stone-500">Aucune sync effectuée</p>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -381,10 +381,10 @@ export default function SyncPage() {
                         ? <CheckCircle2 size={14} className="text-green-500 flex-shrink-0 mt-0.5" />
                         : <AlertTriangle size={14} className="text-red-400 flex-shrink-0 mt-0.5" />}
                       <div className="flex-1 min-w-0">
-                        <p className="text-gray-700 font-medium truncate">
+                        <p className="text-gray-700 dark:text-stone-200 font-medium truncate">
                           {h.status === 'success' ? `${h.synced} commandes` : 'Erreur'}
                         </p>
-                        <p className="text-gray-400">{formatDate(h.date)}</p>
+                        <p className="text-gray-400 dark:text-stone-500">{formatDate(h.date)}</p>
                       </div>
                     </div>
                   ))}

@@ -52,29 +52,29 @@ function TemplateCard({
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden">
+    <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm overflow-hidden">
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-5 py-4 hover:bg-stone-50 transition-colors"
+        className="w-full flex items-center justify-between px-5 py-4 hover:bg-stone-50 dark:hover:bg-stone-800 transition-colors"
       >
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
             <MessageSquare size={15} className="text-green-600" />
           </div>
-          <span className="font-semibold text-gray-900">{template.name}</span>
-          <span className="text-xs text-gray-400 font-mono">{template.key}</span>
+          <span className="font-semibold text-gray-900 dark:text-stone-100">{template.name}</span>
+          <span className="text-xs text-gray-400 dark:text-stone-500 font-mono">{template.key}</span>
         </div>
-        {open ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+        {open ? <ChevronUp size={16} className="text-gray-400 dark:text-stone-500" /> : <ChevronDown size={16} className="text-gray-400 dark:text-stone-500" />}
       </button>
 
       {open && (
-        <div className="border-t border-stone-100 p-5 space-y-4">
+        <div className="border-t border-stone-100 dark:border-stone-800 p-5 space-y-4">
           <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
             {LANG_TABS.map(l => (
               <button
                 key={l.id}
                 onClick={() => setLang(l.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${lang === l.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${lang === l.id ? 'bg-white dark:bg-stone-900 text-gray-900 dark:text-stone-100 shadow-sm' : 'text-gray-500 dark:text-stone-400 hover:text-gray-700 dark:text-stone-200'}`}
               >
                 {l.label}
               </button>
@@ -98,14 +98,14 @@ function TemplateCard({
             onChange={e => setForm(f => ({ ...f, [lang]: e.target.value }))}
             rows={5}
             dir={langCfg.dir as any}
-            className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
+            className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
           />
 
           {content && (
             <div>
-              <p className="text-xs text-gray-400 mb-1">Aperçu</p>
+              <p className="text-xs text-gray-400 dark:text-stone-500 mb-1">Aperçu</p>
               <div
-                className="bg-green-50 border border-green-100 rounded-xl p-4 text-sm text-gray-800 whitespace-pre-line leading-relaxed"
+                className="bg-green-50 border border-green-100 rounded-xl p-4 text-sm text-gray-800 dark:text-stone-100 whitespace-pre-line leading-relaxed"
                 dir={langCfg.dir as any}
               >
                 {content
@@ -120,7 +120,7 @@ function TemplateCard({
           <div className="flex gap-2">
             <button
               onClick={handleReset}
-              className="flex items-center gap-1.5 text-xs px-3 py-2 border border-stone-200 rounded-lg hover:bg-stone-50 text-gray-500"
+              className="flex items-center gap-1.5 text-xs px-3 py-2 border border-stone-200 dark:border-stone-700 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800 text-gray-500 dark:text-stone-400"
             >
               <RotateCcw size={12} /> Réinitialiser
             </button>
@@ -172,11 +172,11 @@ export default function ParametresPage() {
       <div className="max-w-screen-lg mx-auto px-6 py-6 space-y-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center">
-            <Settings size={20} className="text-gray-600" />
+            <Settings size={20} className="text-gray-600 dark:text-stone-300" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Paramètres</h1>
-            <p className="text-sm text-gray-500">Personnalisez vos templates WhatsApp en 3 langues</p>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-stone-100">Paramètres</h1>
+            <p className="text-sm text-gray-500 dark:text-stone-400">Personnalisez vos templates WhatsApp en 3 langues</p>
           </div>
         </div>
 
@@ -195,7 +195,7 @@ export default function ParametresPage() {
 
         {loading ? (
           <div className="flex justify-center py-20">
-            <Loader2 size={24} className="animate-spin text-gray-400" />
+            <Loader2 size={24} className="animate-spin text-gray-400 dark:text-stone-500" />
           </div>
         ) : (
           <div className="space-y-3">

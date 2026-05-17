@@ -72,23 +72,23 @@ export default function AlertsPanel() {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-3.5 border-b border-stone-100">
+    <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-3.5 border-b border-stone-100 dark:border-stone-800">
         <div className="flex items-center gap-2">
           <AlertTriangle size={15} className="text-amber-500" />
-          <h2 className="text-sm font-semibold text-gray-800">Commandes bloquées</h2>
+          <h2 className="text-sm font-semibold text-gray-800 dark:text-stone-100">Commandes bloquées</h2>
           <span className="bg-amber-100 text-amber-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
             {visible.length}
           </span>
         </div>
         <button
           onClick={() => setDismissed(orders.map(o => o.id))}
-          className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+          className="text-xs text-gray-400 dark:text-stone-500 hover:text-gray-600 dark:text-stone-300 transition-colors"
         >
           Tout ignorer
         </button>
       </div>
-      <div className="divide-y divide-stone-50">
+      <div className="divide-y divide-stone-50 dark:divide-stone-800">
         {visible.map((order) => {
           const s = getSeverity(order.hours, order.delivery_status || order.status || '');
           return (
@@ -96,18 +96,18 @@ export default function AlertsPanel() {
               <div className={`absolute left-0 top-0 bottom-0 w-1 ${s.bar}`} />
               <div className="flex-1 min-w-0 pl-1">
                 <div className="flex flex-wrap items-center gap-2 mb-0.5">
-                  <span className="text-sm font-semibold text-gray-800 font-mono">{order.tracking_number || order.tracking}</span>
-                  <span className="text-sm text-gray-500">{order.customer_name || order.client}</span>
-                  {order.wilaya && <span className="text-xs text-gray-400">{order.wilaya}</span>}
+                  <span className="text-sm font-semibold text-gray-800 dark:text-stone-100 font-mono">{order.tracking_number || order.tracking}</span>
+                  <span className="text-sm text-gray-500 dark:text-stone-400">{order.customer_name || order.client}</span>
+                  {order.wilaya && <span className="text-xs text-gray-400 dark:text-stone-500">{order.wilaya}</span>}
                   <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${s.badge}`}>{s.label}</span>
                 </div>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 dark:text-stone-400">
                   {STATUS_LABEL[order.delivery_status || order.status || ''] || order.delivery_status || order.status} · Sans mise à jour depuis <strong>{order.hours}h</strong>
                 </p>
               </div>
               <button
                 onClick={() => setDismissed(d => [...d, order.id])}
-                className="p-1.5 rounded-lg text-gray-300 hover:text-gray-500 hover:bg-white transition-all"
+                className="p-1.5 rounded-lg text-gray-300 dark:text-stone-600 hover:text-gray-500 dark:text-stone-400 hover:bg-white dark:bg-stone-900 transition-all"
               >
                 <X size={13} />
               </button>

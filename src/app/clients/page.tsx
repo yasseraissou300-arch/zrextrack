@@ -45,18 +45,18 @@ export default function ClientsPage() {
             <Users size={20} className="text-purple-600" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Clients</h1>
-            <p className="text-sm text-gray-500">Tous vos clients extraits des commandes</p>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-stone-100">Clients</h1>
+            <p className="text-sm text-gray-500 dark:text-stone-400">Tous vos clients extraits des commandes</p>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-stone-100">
-            <h2 className="font-semibold text-gray-900">Liste clients ({clients.length})</h2>
+        <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 overflow-hidden">
+          <div className="px-6 py-4 border-b border-stone-100 dark:border-stone-800">
+            <h2 className="font-semibold text-gray-900 dark:text-stone-100">Liste clients ({clients.length})</h2>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
+              <thead className="bg-gray-50 text-xs text-gray-500 dark:text-stone-400 uppercase">
                 <tr>
                   <th className="px-4 py-3 text-left">Client</th>
                   <th className="px-4 py-3 text-left">WhatsApp</th>
@@ -65,16 +65,16 @@ export default function ClientsPage() {
                   <th className="px-4 py-3 text-center">Livrées</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-stone-50">
+              <tbody className="divide-y divide-stone-50 dark:divide-stone-800">
                 {loading ? (
-                  <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">Chargement...</td></tr>
+                  <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 dark:text-stone-500">Chargement...</td></tr>
                 ) : clients.length === 0 ? (
-                  <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">Aucun client — ajoutez des commandes d'abord</td></tr>
+                  <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 dark:text-stone-500">Aucun client — ajoutez des commandes d'abord</td></tr>
                 ) : clients.map((c, i) => (
-                  <tr key={i} className="hover:bg-stone-50">
-                    <td className="px-4 py-3 font-medium text-gray-900">{c.client}</td>
-                    <td className="px-4 py-3 text-gray-500">{c.whatsapp || '—'}</td>
-                    <td className="px-4 py-3 text-gray-500">{c.wilaya || '—'}</td>
+                  <tr key={i} className="hover:bg-stone-50 dark:hover:bg-stone-800">
+                    <td className="px-4 py-3 font-medium text-gray-900 dark:text-stone-100">{c.client}</td>
+                    <td className="px-4 py-3 text-gray-500 dark:text-stone-400">{c.whatsapp || '—'}</td>
+                    <td className="px-4 py-3 text-gray-500 dark:text-stone-400">{c.wilaya || '—'}</td>
                     <td className="px-4 py-3 text-center">
                       <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full">{c.total}</span>
                     </td>

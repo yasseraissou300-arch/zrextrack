@@ -94,11 +94,11 @@ export default function ChatbotDrawer() {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col w-[370px] max-h-[580px] bg-white rounded-2xl shadow-2xl border border-stone-200 overflow-hidden animate-in slide-in-from-bottom-4 fade-in duration-200">
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col w-[370px] max-h-[580px] bg-white dark:bg-stone-900 rounded-2xl shadow-2xl border border-stone-200 dark:border-stone-700 overflow-hidden animate-in slide-in-from-bottom-4 fade-in duration-200">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-green-600 to-emerald-500 text-white shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center">
+          <div className="w-8 h-8 bg-white dark:bg-stone-900/20 rounded-xl flex items-center justify-center">
             <Bot size={16} />
           </div>
           <div>
@@ -113,20 +113,20 @@ export default function ChatbotDrawer() {
           <button
             onClick={resetChat}
             title="Nouvelle conversation"
-            className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
+            className="p-1.5 hover:bg-white dark:bg-stone-900/20 rounded-lg transition-colors"
           >
             <RotateCcw size={13} />
           </button>
-          <button onClick={close} className="p-1.5 hover:bg-white/20 rounded-lg transition-colors">
+          <button onClick={close} className="p-1.5 hover:bg-white dark:bg-stone-900/20 rounded-lg transition-colors">
             <X size={14} />
           </button>
         </div>
       </div>
 
       {/* Channel badge */}
-      <div className="flex items-center gap-1.5 px-4 py-2 bg-gray-50 border-b border-stone-100 shrink-0">
-        <Globe size={11} className="text-gray-400" />
-        <span className="text-[11px] text-gray-500 font-medium">Chat Web · ZREXpress</span>
+      <div className="flex items-center gap-1.5 px-4 py-2 bg-gray-50 border-b border-stone-100 dark:border-stone-800 shrink-0">
+        <Globe size={11} className="text-gray-400 dark:text-stone-500" />
+        <span className="text-[11px] text-gray-500 dark:text-stone-400 font-medium">Chat Web · ZREXpress</span>
       </div>
 
       {/* Messages */}
@@ -142,7 +142,7 @@ export default function ChatbotDrawer() {
               className={`max-w-[82%] px-3.5 py-2.5 rounded-2xl text-sm whitespace-pre-wrap leading-relaxed ${
                 msg.role === 'user'
                   ? 'bg-green-600 text-white rounded-br-sm'
-                  : 'bg-gray-100 text-gray-800 rounded-bl-sm'
+                  : 'bg-gray-100 text-gray-800 dark:text-stone-100 rounded-bl-sm'
               }`}
             >
               {msg.content}
@@ -157,7 +157,7 @@ export default function ChatbotDrawer() {
               <button
                 key={a.label}
                 onClick={() => sendMessage(a.msg)}
-                className="text-[11px] px-2.5 py-1.5 bg-white border border-stone-200 text-gray-600 rounded-full hover:border-green-400 hover:text-green-700 hover:bg-green-50 transition-all"
+                className="text-[11px] px-2.5 py-1.5 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 text-gray-600 dark:text-stone-300 rounded-full hover:border-green-400 hover:text-green-700 hover:bg-green-50 transition-all"
               >
                 {a.label}
               </button>
@@ -181,14 +181,14 @@ export default function ChatbotDrawer() {
       </div>
 
       {/* Input */}
-      <div className="border-t border-stone-100 p-3 flex items-center gap-2 shrink-0">
+      <div className="border-t border-stone-100 dark:border-stone-800 p-3 flex items-center gap-2 shrink-0">
         <input
           ref={inputRef}
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
           placeholder="Écrivez votre message..."
-          className="flex-1 text-sm bg-gray-50 border border-stone-200 rounded-xl px-3.5 py-2.5 outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-green-400 transition-all"
+          className="flex-1 text-sm bg-gray-50 border border-stone-200 dark:border-stone-700 rounded-xl px-3.5 py-2.5 outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-green-400 transition-all"
           disabled={loading}
           dir="auto"
         />

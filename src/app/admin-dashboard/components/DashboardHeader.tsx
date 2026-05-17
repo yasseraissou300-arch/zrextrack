@@ -131,24 +131,24 @@ export default function DashboardHeader() {
     <>
     {showClearModal && (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-        <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
+        <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 bg-red-100 rounded-xl flex items-center justify-center shrink-0">
               <AlertTriangle size={20} className="text-red-600" />
             </div>
             <div>
-              <h3 className="font-bold text-gray-900">Vider l'historique</h3>
-              <p className="text-xs text-gray-500">Cette action est irréversible</p>
+              <h3 className="font-bold text-gray-900 dark:text-stone-100">Vider l'historique</h3>
+              <p className="text-xs text-gray-500 dark:text-stone-400">Cette action est irréversible</p>
             </div>
           </div>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600 dark:text-stone-300">
             Toutes vos commandes seront définitivement supprimées. Cette action ne peut pas être annulée.
           </p>
           <div className="flex gap-3 pt-1">
             <button
               onClick={() => setShowClearModal(false)}
               disabled={clearing}
-              className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 dark:text-stone-300 hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
               Annuler
             </button>
@@ -164,10 +164,10 @@ export default function DashboardHeader() {
         </div>
       </div>
     )}
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-stone-100">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-stone-100 dark:border-stone-800">
       <div>
         <div className="flex items-center gap-2.5 mb-1.5 flex-wrap">
-          <h1 className="text-3xl font-bold text-stone-900 tracking-tight">
+          <h1 className="text-3xl font-bold text-stone-900 dark:text-stone-100 tracking-tight">
             Tableau de bord
           </h1>
           {hasToken ? (
@@ -188,7 +188,7 @@ export default function DashboardHeader() {
               className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full border transition-all ${
                 autoSyncEnabled
                   ? 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100'
-                  : 'bg-gray-100 text-gray-400 border-gray-200 hover:bg-gray-200'
+                  : 'bg-gray-100 text-gray-400 dark:text-stone-500 border-gray-200 hover:bg-gray-200'
               }`}
             >
               {autoSyncEnabled
@@ -198,14 +198,14 @@ export default function DashboardHeader() {
             </button>
           )}
         </div>
-        <p className="text-sm text-stone-500">
+        <p className="text-sm text-stone-500 dark:text-stone-400 dark:text-stone-500">
           {lastSync ? (
             <>
-              Dernière sync : <span className="font-medium text-stone-700">{lastSync}</span>
-              {syncedCount !== null && <span className="text-stone-400"> · {syncedCount} commandes</span>}
+              Dernière sync : <span className="font-medium text-stone-700 dark:text-stone-200">{lastSync}</span>
+              {syncedCount !== null && <span className="text-stone-400 dark:text-stone-500"> · {syncedCount} commandes</span>}
             </>
           ) : (
-            <span className="text-stone-500">{hasToken ? 'Synchronisation en cours...' : 'Configurez votre token dans Sync ZREXpress'}</span>
+            <span className="text-stone-500 dark:text-stone-400 dark:text-stone-500">{hasToken ? 'Synchronisation en cours...' : 'Configurez votre token dans Sync ZREXpress'}</span>
           )}
         </p>
       </div>
@@ -214,12 +214,12 @@ export default function DashboardHeader() {
         <button
           onClick={() => runSync(false)}
           disabled={syncing}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 bg-white dark:bg-stone-900 text-sm font-medium text-gray-700 dark:text-stone-200 hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
         >
           <RefreshCw size={14} className={syncing ? 'animate-spin text-violet-500' : ''} />
           {syncing ? 'Sync...' : 'Sync maintenant'}
         </button>
-        <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-stone-200 bg-white text-sm font-medium text-stone-700 hover:bg-stone-50 transition-all active:scale-95 shadow-sm">
+        <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 text-sm font-medium text-stone-700 dark:text-stone-200 hover:bg-stone-50 dark:hover:bg-stone-800 transition-all active:scale-95 shadow-sm">
           <Download size={14} />
           Exporter
         </button>

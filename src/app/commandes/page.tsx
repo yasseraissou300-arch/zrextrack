@@ -13,8 +13,8 @@ export default function CommandesPage() {
             <Package size={20} className="text-blue-600" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Commandes</h1>
-            <p className="text-sm text-gray-500">Toutes vos commandes ZREXpress</p>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-stone-100">Commandes</h1>
+            <p className="text-sm text-gray-500 dark:text-stone-400">Toutes vos commandes ZREXpress</p>
           </div>
         </div>
         <OrdersTable />
