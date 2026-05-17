@@ -121,12 +121,12 @@ export default function AutoSwapPage() {
       <div className="max-w-screen-xl mx-auto px-6 py-6 space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
-            <Repeat size={20} className="text-purple-600" />
+          <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-xl flex items-center justify-center shadow-md shadow-violet-500/25">
+            <Repeat size={20} className="text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">AutoSwap</h1>
-            <p className="text-sm text-gray-500">Détecte les swaps possibles et facilite l'exécution dans ZRExpress</p>
+            <h1 className="text-3xl font-bold text-stone-900 tracking-tight">AutoSwap</h1>
+            <p className="text-sm text-stone-500">Détecte les swaps possibles et facilite l'exécution dans ZRExpress</p>
           </div>
         </div>
 
@@ -150,7 +150,7 @@ export default function AutoSwapPage() {
         )}
 
         {/* Historique des swaps — stats cumulatives */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <History size={16} className="text-gray-500" />
@@ -192,10 +192,10 @@ export default function AutoSwapPage() {
               </div>
 
               {/* Sous-répartition par état */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2 border-t border-gray-100">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2 border-t border-stone-100">
                 <BreakdownItem icon={<Truck size={12} />} label="En cours" value={swapStats.in_progress} color="text-blue-700 bg-blue-50" />
                 <BreakdownItem icon={<XCircle size={12} />} label="Échec / retour" value={swapStats.failed} color="text-red-700 bg-red-50" />
-                <BreakdownItem icon={<Info size={12} />} label="Statut inconnu" value={swapStats.unknown} color="text-gray-600 bg-gray-50" />
+                <BreakdownItem icon={<Info size={12} />} label="Statut inconnu" value={swapStats.unknown} color="text-gray-600 bg-stone-50" />
                 <BreakdownItem icon={<CheckCircle2 size={12} />} label="Livrées" value={swapStats.delivered} color="text-green-700 bg-green-50" />
               </div>
             </>
@@ -205,7 +205,7 @@ export default function AutoSwapPage() {
         </div>
 
         {/* Scan action */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-6">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
               <h2 className="font-semibold text-gray-900">Scanner les opportunités de swap</h2>
@@ -214,7 +214,7 @@ export default function AutoSwapPage() {
             <button
               onClick={runScan}
               disabled={scanning || !credentialsReady}
-              className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium px-5 py-2.5 rounded-lg transition-colors"
+              className="flex items-center gap-2 bg-gradient-to-br from-violet-500 to-fuchsia-500 hover:shadow-lg hover:shadow-violet-500/30 disabled:from-stone-300 disabled:to-stone-300 disabled:shadow-none disabled:cursor-not-allowed text-white font-semibold px-5 py-2.5 rounded-xl transition-all active:scale-95 shadow-md shadow-violet-500/20"
             >
               {scanning ? <Loader2 size={18} className="animate-spin" /> : <Search size={18} />}
               {scanning ? 'Analyse en cours…' : 'Scanner pour swaps'}
@@ -241,12 +241,12 @@ export default function AutoSwapPage() {
 
         {/* Filters */}
         {preview && preview.proposals.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex items-center gap-3 flex-wrap">
+          <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-4 flex items-center gap-3 flex-wrap">
             <Filter size={16} className="text-gray-400" />
             <select
               value={filterConfidence}
               onChange={e => setFilterConfidence(e.target.value as 'ALL' | Confidence)}
-              className="text-sm border border-gray-200 rounded-lg px-3 py-1.5"
+              className="text-sm border border-stone-200 rounded-lg px-3 py-1.5"
             >
               <option value="ALL">Tous les matchs ({preview.stats.matches_count})</option>
               <option value="EXACT">Exact UUID ({preview.stats.by_confidence.EXACT})</option>
@@ -262,7 +262,7 @@ export default function AutoSwapPage() {
         {/* Proposals table */}
         {preview && (
           preview.proposals.length === 0 ? (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
+            <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-12 text-center">
               <Package size={36} className="mx-auto text-gray-300 mb-3" />
               <h3 className="font-semibold text-gray-900 mb-1">Aucun match trouvé</h3>
               <p className="text-sm text-gray-500">
@@ -272,10 +272,10 @@ export default function AutoSwapPage() {
               </p>
             </div>
           ) : (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b border-gray-100">
+                  <thead className="bg-stone-50 border-b border-stone-100">
                     <tr className="text-left text-gray-600">
                       <th className="px-4 py-3">Colis à rediriger</th>
                       <th className="px-4 py-3">→ Nouveau client</th>
@@ -285,12 +285,12 @@ export default function AutoSwapPage() {
                       <th className="px-4 py-3 text-center">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-stone-100">
                     {filteredProposals.map((p) => {
                       const key = proposalKey(p);
                       const meta = CONFIDENCE_META[p.confidence];
                       return (
-                        <tr key={key} className="hover:bg-gray-50 align-top">
+                        <tr key={key} className="hover:bg-stone-50 align-top">
                           <td className="px-4 py-3">
                             <div className="font-mono text-xs text-gray-900">{p.swappable.tracking}</div>
                             <div className="text-xs text-gray-500 mt-0.5">{p.swappable.customer || '—'}</div>
@@ -332,7 +332,7 @@ export default function AutoSwapPage() {
                                 href={parcelDetailUrl(p.swappable.id)}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center justify-center gap-1.5 text-xs bg-purple-600 hover:bg-purple-700 text-white font-medium px-3 py-1.5 rounded-md transition-colors"
+                                className="flex items-center justify-center gap-1.5 text-xs bg-violet-600 hover:bg-violet-700 text-white font-medium px-3 py-1.5 rounded-md transition-colors"
                                 title="Ouvre la fiche du colis à rediriger dans ZRExpress"
                               >
                                 <ExternalLink size={12} />
@@ -378,7 +378,7 @@ function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label:
     green:  'bg-green-50 text-green-700',
   };
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+    <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-4">
       <div className="flex items-center gap-2 mb-2">
         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${palette[color]}`}>{icon}</div>
         <span className="text-xs text-gray-500">{label}</span>

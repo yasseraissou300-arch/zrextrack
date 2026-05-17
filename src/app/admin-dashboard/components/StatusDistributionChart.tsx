@@ -8,7 +8,7 @@ const STATUS_CONFIG = [
   { key: 'livre',          name: 'Livrées',        color: '#22c55e' },
   { key: 'en_transit',     name: 'En transit',     color: '#3b82f6' },
   { key: 'en_livraison',   name: 'En livraison',   color: '#f59e0b' },
-  { key: 'en_preparation', name: 'En préparation', color: '#a78bfa' },
+  { key: 'en_preparation', name: 'En préparation', color: '#8b5cf6' },
   { key: 'echec',          name: 'Échecs',         color: '#ef4444' },
   { key: 'retourne',       name: 'Retournées',     color: '#94a3b8' },
 ];
@@ -18,7 +18,7 @@ function CustomTooltip({ active, payload }: any) {
   const item = payload[0];
   const total = item.payload.total;
   return (
-    <div className="bg-white border border-gray-100 rounded-xl shadow-lg p-3">
+    <div className="bg-white border border-stone-100 rounded-xl shadow-lg p-3">
       <div className="flex items-center gap-2 text-sm mb-1">
         <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.payload.color }} />
         <span className="font-medium text-gray-800">{item.name}</span>
@@ -63,7 +63,7 @@ export default function StatusDistributionChart() {
   const total = data.reduce((s, d) => s + d.value, 0);
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-5 h-full shadow-sm">
+    <div className="bg-white rounded-2xl border border-stone-100 p-5 h-full shadow-sm">
       <div className="mb-4">
         <h2 className="text-sm font-semibold text-gray-800">Répartition des statuts</h2>
         <p className="text-xs text-gray-400 mt-0.5">
