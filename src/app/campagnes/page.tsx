@@ -32,7 +32,7 @@ const STATUS_OPTIONS = [
 const VARIABLE_HINTS = ['{{client}}', '{{tracking}}', '{{wilaya}}', '{{cod}}'];
 
 const CAMPAIGN_STATUS_CONFIG = {
-  brouillon: { label: 'Brouillon', bg: 'bg-gray-100 text-gray-600', icon: Clock },
+  brouillon: { label: 'Brouillon', bg: 'bg-gray-100 text-gray-600 dark:text-stone-300', icon: Clock },
   en_cours: { label: 'En cours', bg: 'bg-blue-100 text-blue-700', icon: Loader2 },
   termine: { label: 'Terminé', bg: 'bg-green-100 text-green-700', icon: CheckCircle },
   annule: { label: 'Annulé', bg: 'bg-red-100 text-red-600', icon: XCircle },
@@ -43,7 +43,7 @@ function Modal({ open, onClose, children }: { open: boolean; onClose: () => void
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <div className="relative bg-white dark:bg-stone-900 rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         {children}
       </div>
     </div>
@@ -96,29 +96,29 @@ function CreateModal({ open, onClose, onCreate }: {
             <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
               <Megaphone size={16} className="text-green-600" />
             </div>
-            <h2 className="font-bold text-gray-900">Nouvelle campagne</h2>
+            <h2 className="font-bold text-gray-900 dark:text-stone-100">Nouvelle campagne</h2>
           </div>
-          <button onClick={handleClose} className="p-1.5 hover:bg-stone-100 rounded-lg">
-            <X size={16} className="text-gray-500" />
+          <button onClick={handleClose} className="p-1.5 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-lg">
+            <X size={16} className="text-gray-500 dark:text-stone-400" />
           </button>
         </div>
 
         <div className="space-y-1">
-          <label className="block text-xs font-medium text-gray-600">Nom de la campagne</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-stone-300">Nom de la campagne</label>
           <input
             value={name}
             onChange={e => setName(e.target.value)}
             placeholder="ex: Promo Ramadan, Relance échecs..."
-            className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+            className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
           />
         </div>
 
         <div className="space-y-1">
-          <label className="block text-xs font-medium text-gray-600">Audience (statut des commandes)</label>
+          <label className="block text-xs font-medium text-gray-600 dark:text-stone-300">Audience (statut des commandes)</label>
           <select
             value={audienceStatus}
             onChange={e => setAudienceStatus(e.target.value)}
-            className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
+            className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white dark:bg-stone-900"
           >
             {STATUS_OPTIONS.map(o => (
               <option key={o.value} value={o.value}>{o.label}</option>
@@ -127,23 +127,23 @@ function CreateModal({ open, onClose, onCreate }: {
         </div>
 
         <div className="space-y-1">
-          <label className="block text-xs font-medium text-gray-600">
+          <label className="block text-xs font-medium text-gray-600 dark:text-stone-300">
             <span className="flex items-center gap-1.5"><ImageIcon size={12} /> Media (optionnel — image, PDF, audio)</span>
           </label>
           <input
             value={mediaUrl}
             onChange={e => setMediaUrl(e.target.value)}
             placeholder="https://... URL publique d'une image, PDF ou audio"
-            className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+            className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
           />
           {mediaUrl && (
-            <p className="text-xs text-gray-400">Le media sera envoyé avec le message comme légende.</p>
+            <p className="text-xs text-gray-400 dark:text-stone-500">Le media sera envoyé avec le message comme légende.</p>
           )}
         </div>
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="block text-xs font-medium text-gray-600">Message</label>
+            <label className="block text-xs font-medium text-gray-600 dark:text-stone-300">Message</label>
             <div className="flex gap-1.5">
               {VARIABLE_HINTS.map(v => (
                 <button
@@ -162,14 +162,14 @@ function CreateModal({ open, onClose, onCreate }: {
             placeholder="السلام عليكم {{client}} 👋&#10;طردك رقم {{tracking}} وصل!&#10;شكرا على ثقتك 🙏"
             rows={5}
             dir="rtl"
-            className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
+            className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
           />
         </div>
 
         {template && (
           <div className="space-y-1">
-            <p className="text-xs text-gray-400">Aperçu</p>
-            <div className="bg-green-50 border border-green-100 rounded-xl p-4 text-sm text-gray-800 whitespace-pre-line text-right leading-relaxed" dir="rtl">
+            <p className="text-xs text-gray-400 dark:text-stone-500">Aperçu</p>
+            <div className="bg-green-50 border border-green-100 rounded-xl p-4 text-sm text-gray-800 dark:text-stone-100 whitespace-pre-line text-right leading-relaxed" dir="rtl">
               {previewText}
             </div>
           </div>
@@ -178,7 +178,7 @@ function CreateModal({ open, onClose, onCreate }: {
         <div className="flex gap-2 pt-2">
           <button
             onClick={handleClose}
-            className="flex-1 border border-stone-200 rounded-xl py-2.5 text-sm font-medium text-gray-600 hover:bg-stone-50"
+            className="flex-1 border border-stone-200 dark:border-stone-700 rounded-xl py-2.5 text-sm font-medium text-gray-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800"
           >
             Annuler
           </button>
@@ -210,11 +210,11 @@ function CampaignCard({ campaign, onDelete, onSend, onView }: {
     : null;
 
   return (
-    <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-5 space-y-4 hover:shadow-md transition-shadow">
+    <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5 space-y-4 hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-gray-900 truncate">{campaign.name}</h3>
-          <p className="text-xs text-gray-400 mt-0.5">
+          <h3 className="font-semibold text-gray-900 dark:text-stone-100 truncate">{campaign.name}</h3>
+          <p className="text-xs text-gray-400 dark:text-stone-500 mt-0.5">
             {new Date(campaign.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
           </p>
         </div>
@@ -225,12 +225,12 @@ function CampaignCard({ campaign, onDelete, onSend, onView }: {
       </div>
 
       <div className="bg-gray-50 rounded-xl p-3">
-        <p className="text-xs text-gray-500 line-clamp-2 text-right leading-relaxed" dir="rtl">
+        <p className="text-xs text-gray-500 dark:text-stone-400 line-clamp-2 text-right leading-relaxed" dir="rtl">
           {campaign.message_template}
         </p>
       </div>
 
-      <div className="flex items-center gap-3 text-xs text-gray-500">
+      <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-stone-400">
         <span className="flex items-center gap-1">
           <Users size={12} />
           {audienceLabel}
@@ -247,7 +247,7 @@ function CampaignCard({ campaign, onDelete, onSend, onView }: {
               </span>
             )}
             {successRate !== null && (
-              <span className="ml-auto text-gray-400">{successRate}%</span>
+              <span className="ml-auto text-gray-400 dark:text-stone-500">{successRate}%</span>
             )}
           </>
         )}
@@ -256,7 +256,7 @@ function CampaignCard({ campaign, onDelete, onSend, onView }: {
       <div className="flex gap-2 pt-1">
         <button
           onClick={() => onView(campaign.id)}
-          className="flex items-center gap-1.5 text-xs px-3 py-2 border border-stone-200 rounded-lg hover:bg-stone-50 text-gray-600"
+          className="flex items-center gap-1.5 text-xs px-3 py-2 border border-stone-200 dark:border-stone-700 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800 text-gray-600 dark:text-stone-300"
         >
           Détails <ChevronRight size={12} />
         </button>
@@ -310,39 +310,39 @@ function DetailModal({ campaignId, open, onClose }: { campaignId: string | null;
     <Modal open={open} onClose={onClose}>
       <div className="p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="font-bold text-gray-900">Détails de la campagne</h2>
-          <button onClick={onClose} className="p-1.5 hover:bg-stone-100 rounded-lg">
-            <X size={16} className="text-gray-500" />
+          <h2 className="font-bold text-gray-900 dark:text-stone-100">Détails de la campagne</h2>
+          <button onClick={onClose} className="p-1.5 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-lg">
+            <X size={16} className="text-gray-500 dark:text-stone-400" />
           </button>
         </div>
         {loading ? (
-          <div className="flex justify-center py-12"><Loader2 size={24} className="animate-spin text-gray-400" /></div>
+          <div className="flex justify-center py-12"><Loader2 size={24} className="animate-spin text-gray-400 dark:text-stone-500" /></div>
         ) : !data ? (
-          <p className="text-center text-gray-400 py-8">Aucune donnée</p>
+          <p className="text-center text-gray-400 dark:text-stone-500 py-8">Aucune donnée</p>
         ) : (
           <>
             <div className="grid grid-cols-3 gap-3">
               <div className="bg-gray-50 rounded-xl p-3 text-center">
-                <p className="text-xl font-bold text-gray-900">{data.campaign.total_count}</p>
-                <p className="text-xs text-gray-500 mt-0.5">Total</p>
+                <p className="text-xl font-bold text-gray-900 dark:text-stone-100">{data.campaign.total_count}</p>
+                <p className="text-xs text-gray-500 dark:text-stone-400 mt-0.5">Total</p>
               </div>
               <div className="bg-green-50 rounded-xl p-3 text-center">
                 <p className="text-xl font-bold text-green-700">{data.campaign.sent_count}</p>
-                <p className="text-xs text-gray-500 mt-0.5">Envoyés</p>
+                <p className="text-xs text-gray-500 dark:text-stone-400 mt-0.5">Envoyés</p>
               </div>
               <div className="bg-red-50 rounded-xl p-3 text-center">
                 <p className="text-xl font-bold text-red-600">{data.campaign.failed_count}</p>
-                <p className="text-xs text-gray-500 mt-0.5">Échecs</p>
+                <p className="text-xs text-gray-500 dark:text-stone-400 mt-0.5">Échecs</p>
               </div>
             </div>
-            <div className="max-h-80 overflow-y-auto divide-y divide-stone-50 rounded-xl border border-stone-100">
+            <div className="max-h-80 overflow-y-auto divide-y divide-stone-50 dark:divide-stone-800 rounded-xl border border-stone-100 dark:border-stone-800">
               {data.recipients.length === 0 ? (
-                <p className="text-center text-gray-400 py-8 text-sm">Aucun destinataire</p>
+                <p className="text-center text-gray-400 dark:text-stone-500 py-8 text-sm">Aucun destinataire</p>
               ) : data.recipients.map((r: any) => (
                 <div key={r.id} className="p-3 flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{r.client}</p>
-                    <p className="text-xs text-gray-400">{r.phone} {r.tracking && `· ${r.tracking}`}</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-stone-100 truncate">{r.client}</p>
+                    <p className="text-xs text-gray-400 dark:text-stone-500">{r.phone} {r.tracking && `· ${r.tracking}`}</p>
                   </div>
                   <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${statusCfg[r.status] || statusCfg.en_attente}`}>
                     {r.status === 'envoye' ? 'Envoyé' : r.status === 'echec' ? 'Échec' : 'Attente'}
@@ -415,8 +415,8 @@ export default function CampagnesPage() {
               <Megaphone size={20} className="text-green-600" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Campagnes</h1>
-              <p className="text-sm text-gray-500">Envois groupés WhatsApp ciblés</p>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-stone-100">Campagnes</h1>
+              <p className="text-sm text-gray-500 dark:text-stone-400">Envois groupés WhatsApp ciblés</p>
             </div>
           </div>
           <button
@@ -443,12 +443,12 @@ export default function CampagnesPage() {
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 size={24} className="animate-spin text-gray-400" />
+            <Loader2 size={24} className="animate-spin text-gray-400 dark:text-stone-500" />
           </div>
         ) : campaigns.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+          <div className="flex flex-col items-center justify-center py-20 text-gray-400 dark:text-stone-500">
             <Megaphone size={40} className="mb-3 opacity-20" />
-            <p className="text-base font-medium text-gray-500">Aucune campagne</p>
+            <p className="text-base font-medium text-gray-500 dark:text-stone-400">Aucune campagne</p>
             <p className="text-sm mt-1">Crée ta première campagne WhatsApp</p>
             <button
               onClick={() => setCreateOpen(true)}
@@ -461,7 +461,7 @@ export default function CampagnesPage() {
           <div className="space-y-6">
             {brouillons.length > 0 && (
               <div className="space-y-3">
-                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Prêtes à envoyer ({brouillons.length})</h2>
+                <h2 className="text-sm font-semibold text-gray-500 dark:text-stone-400 uppercase tracking-wide">Prêtes à envoyer ({brouillons.length})</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                   {brouillons.map(c => (
                     <CampaignCard
@@ -477,7 +477,7 @@ export default function CampagnesPage() {
             )}
             {terminees.length > 0 && (
               <div className="space-y-3">
-                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Historique ({terminees.length})</h2>
+                <h2 className="text-sm font-semibold text-gray-500 dark:text-stone-400 uppercase tracking-wide">Historique ({terminees.length})</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                   {terminees.map(c => (
                     <CampaignCard

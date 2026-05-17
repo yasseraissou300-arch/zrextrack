@@ -49,10 +49,8 @@ export default function KPIBentoGrid() {
 
   const val = (n: number | undefined) => (n ?? 0).toLocaleString('fr-FR');
 
-  // Hero KPI — taux de livraison (le plus parlant pour un e-commerce)
   const heroValue = `${kpis?.deliveryRate ?? 0}%`;
 
-  // Cards secondaires
   const secondaryCards: Array<{
     label: string;
     value: string;
@@ -60,22 +58,22 @@ export default function KPIBentoGrid() {
     iconColor: string;
     iconBg: string;
   }> = [
-    { label: 'Total commandes',       value: val(kpis?.totalOrders),     icon: Package,        iconColor: 'text-violet-600', iconBg: 'bg-violet-100' },
-    { label: 'Livrées',                value: val(kpis?.delivered),       icon: CheckCircle2,   iconColor: 'text-emerald-600', iconBg: 'bg-emerald-100' },
-    { label: "Livrées aujourd'hui",    value: val(kpis?.deliveredToday),  icon: Sparkles,       iconColor: 'text-teal-600',    iconBg: 'bg-teal-100' },
-    { label: 'En préparation',         value: val(kpis?.enPreparation),   icon: Boxes,          iconColor: 'text-amber-600',   iconBg: 'bg-amber-100' },
-    { label: 'En transit / livraison', value: val(kpis?.inTransit),       icon: Truck,          iconColor: 'text-blue-600',    iconBg: 'bg-blue-100' },
-    { label: 'Échecs',                 value: val(kpis?.failed),          icon: XCircle,        iconColor: 'text-rose-600',    iconBg: 'bg-rose-100' },
-    { label: 'Messages WhatsApp',      value: val(kpis?.messagesSent),    icon: MessageSquare,  iconColor: 'text-fuchsia-600', iconBg: 'bg-fuchsia-100' },
+    { label: 'Total commandes',       value: val(kpis?.totalOrders),     icon: Package,        iconColor: 'text-violet-600 dark:text-violet-300',  iconBg: 'bg-violet-100 dark:bg-violet-500/15' },
+    { label: 'Livrées',                value: val(kpis?.delivered),       icon: CheckCircle2,   iconColor: 'text-emerald-600 dark:text-emerald-300', iconBg: 'bg-emerald-100 dark:bg-emerald-500/15' },
+    { label: "Livrées aujourd'hui",    value: val(kpis?.deliveredToday),  icon: Sparkles,       iconColor: 'text-teal-600 dark:text-teal-300',       iconBg: 'bg-teal-100 dark:bg-teal-500/15' },
+    { label: 'En préparation',         value: val(kpis?.enPreparation),   icon: Boxes,          iconColor: 'text-amber-600 dark:text-amber-300',     iconBg: 'bg-amber-100 dark:bg-amber-500/15' },
+    { label: 'En transit / livraison', value: val(kpis?.inTransit),       icon: Truck,          iconColor: 'text-blue-600 dark:text-blue-300',       iconBg: 'bg-blue-100 dark:bg-blue-500/15' },
+    { label: 'Échecs',                 value: val(kpis?.failed),          icon: XCircle,        iconColor: 'text-rose-600 dark:text-rose-300',       iconBg: 'bg-rose-100 dark:bg-rose-500/15' },
+    { label: 'Messages WhatsApp',      value: val(kpis?.messagesSent),    icon: MessageSquare,  iconColor: 'text-fuchsia-600 dark:text-fuchsia-300', iconBg: 'bg-fuchsia-100 dark:bg-fuchsia-500/15' },
   ];
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-4">
       {/* HERO CARD — taux de livraison, gradient violet→fuchsia */}
       <div
-        className="col-span-2 row-span-2 relative overflow-hidden rounded-3xl p-6 text-white shadow-xl shadow-violet-500/30 bg-gradient-to-br from-violet-500 via-violet-600 to-fuchsia-500"
+        className="col-span-2 row-span-2 relative overflow-hidden rounded-3xl p-6 text-white shadow-xl shadow-violet-500/30 bg-gradient-to-br from-violet-500 via-violet-600 to-fuchsia-500 animate-slide-up"
+        style={{ animationDelay: '0ms', animationFillMode: 'backwards' }}
       >
-        {/* Decorative gradient orb */}
         <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-white/10 blur-2xl pointer-events-none" />
 
         <div className="relative flex flex-col h-full">
@@ -104,20 +102,21 @@ export default function KPIBentoGrid() {
         </div>
       </div>
 
-      {/* SECONDARY CARDS */}
-      {secondaryCards.map((card) => (
+      {/* SECONDARY CARDS — staggered animation */}
+      {secondaryCards.map((card, idx) => (
         <div
           key={card.label}
-          className="group bg-white rounded-2xl border border-stone-100 p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+          className="group bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 animate-slide-up"
+          style={{ animationDelay: `${50 + idx * 40}ms`, animationFillMode: 'backwards' }}
         >
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${card.iconBg} group-hover:scale-105 transition-transform`}>
             <card.icon size={20} className={card.iconColor} />
           </div>
-          <p className="text-xs font-medium text-stone-500 mb-1 leading-tight">
+          <p className="text-xs font-medium text-stone-500 dark:text-stone-400 mb-1 leading-tight">
             {card.label}
           </p>
-          <p className="text-2xl font-bold text-stone-900 tabular-nums tracking-tight">
-            {loading ? <span className="text-stone-200 animate-pulse">—</span> : card.value}
+          <p className="text-2xl font-bold text-stone-900 dark:text-stone-100 tabular-nums tracking-tight">
+            {loading ? <span className="text-stone-200 dark:text-stone-700 animate-pulse">—</span> : card.value}
           </p>
         </div>
       ))}

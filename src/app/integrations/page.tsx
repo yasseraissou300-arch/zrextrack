@@ -85,49 +85,49 @@ function ConnectModal({ platform, onClose, onConnect }: {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <div className="relative bg-white dark:bg-stone-900 rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="p-6 space-y-5">
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 ${platform.color} rounded-xl flex items-center justify-center`}>
               <platform.icon size={20} className="text-white" />
             </div>
             <div>
-              <h2 className="font-bold text-gray-900">Connecter {platform.name}</h2>
-              <p className="text-xs text-gray-500">{platform.description}</p>
+              <h2 className="font-bold text-gray-900 dark:text-stone-100">Connecter {platform.name}</h2>
+              <p className="text-xs text-gray-500 dark:text-stone-400">{platform.description}</p>
             </div>
           </div>
 
           {platform.webhookPath && (
             <div className="bg-gray-50 rounded-xl p-4 space-y-2">
-              <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">URL Webhook</p>
+              <p className="text-xs font-semibold text-gray-600 dark:text-stone-300 uppercase tracking-wide">URL Webhook</p>
               <div className="flex gap-2">
-                <code className="flex-1 text-xs text-gray-700 break-all">{webhookUrl}</code>
+                <code className="flex-1 text-xs text-gray-700 dark:text-stone-200 break-all">{webhookUrl}</code>
                 <button onClick={() => copy(webhookUrl)} className="p-1.5 hover:bg-gray-200 rounded-lg shrink-0">
-                  <Copy size={13} className="text-gray-500" />
+                  <Copy size={13} className="text-gray-500 dark:text-stone-400" />
                 </button>
               </div>
             </div>
           )}
 
           <div className="space-y-1">
-            <label className="text-xs font-medium text-gray-600">{platform.identifierLabel}</label>
+            <label className="text-xs font-medium text-gray-600 dark:text-stone-300">{platform.identifierLabel}</label>
             <input
               value={identifier}
               onChange={e => setIdentifier(e.target.value)}
               placeholder={platform.identifierPlaceholder}
-              className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+              className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
             />
           </div>
 
           {platform.id !== 'google_sheets' && (
             <div className="space-y-1">
-              <label className="text-xs font-medium text-gray-600">Clé secrète (optionnel)</label>
+              <label className="text-xs font-medium text-gray-600 dark:text-stone-300">Clé secrète (optionnel)</label>
               <input
                 value={secret}
                 onChange={e => setSecret(e.target.value)}
                 placeholder="Pour valider la signature du webhook"
                 type="password"
-                className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
               />
             </div>
           )}
@@ -143,7 +143,7 @@ function ConnectModal({ platform, onClose, onConnect }: {
           </div>
 
           <div className="flex gap-2">
-            <button onClick={onClose} className="flex-1 border border-stone-200 rounded-xl py-2.5 text-sm font-medium text-gray-600 hover:bg-stone-50">
+            <button onClick={onClose} className="flex-1 border border-stone-200 dark:border-stone-700 rounded-xl py-2.5 text-sm font-medium text-gray-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800">
               Annuler
             </button>
             {!platform.comingSoon && (
@@ -212,26 +212,26 @@ export default function IntegrationsPage() {
             <Plug size={20} className="text-indigo-600" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Intégrations</h1>
-            <p className="text-sm text-gray-500">Connectez vos plateformes e-commerce pour synchroniser les commandes automatiquement</p>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-stone-100">Intégrations</h1>
+            <p className="text-sm text-gray-500 dark:text-stone-400">Connectez vos plateformes e-commerce pour synchroniser les commandes automatiquement</p>
           </div>
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-20"><Loader2 size={24} className="animate-spin text-gray-400" /></div>
+          <div className="flex justify-center py-20"><Loader2 size={24} className="animate-spin text-gray-400 dark:text-stone-500" /></div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {PLATFORMS.map(platform => {
               const connected = getIntegration(platform.id);
               return (
-                <div key={platform.id} className={`bg-white rounded-2xl border shadow-sm p-5 space-y-4 ${connected ? 'border-green-200' : 'border-stone-100'}`}>
+                <div key={platform.id} className={`bg-white dark:bg-stone-900 rounded-2xl border shadow-sm p-5 space-y-4 ${connected ? 'border-green-200' : 'border-stone-100 dark:border-stone-800'}`}>
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
                       <div className={`w-10 h-10 ${platform.color} rounded-xl flex items-center justify-center`}>
                         <platform.icon size={20} className="text-white" />
                       </div>
                       <div>
-                        <p className="font-semibold text-gray-900">{platform.name}</p>
+                        <p className="font-semibold text-gray-900 dark:text-stone-100">{platform.name}</p>
                         {platform.comingSoon && (
                           <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">Bientôt</span>
                         )}
@@ -242,16 +242,16 @@ export default function IntegrationsPage() {
                         <CheckCircle size={11} /> Connecté
                       </span>
                     ) : (
-                      <span className="flex items-center gap-1 text-xs font-medium text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
+                      <span className="flex items-center gap-1 text-xs font-medium text-gray-400 dark:text-stone-500 bg-gray-100 px-2 py-1 rounded-full">
                         <XCircle size={11} /> Non connecté
                       </span>
                     )}
                   </div>
 
-                  <p className="text-xs text-gray-500">{platform.description}</p>
+                  <p className="text-xs text-gray-500 dark:text-stone-400">{platform.description}</p>
 
                   {connected && (
-                    <div className="bg-gray-50 rounded-xl p-3 space-y-1 text-xs text-gray-500">
+                    <div className="bg-gray-50 rounded-xl p-3 space-y-1 text-xs text-gray-500 dark:text-stone-400">
                       <p><span className="font-medium">Boutique:</span> {connected.identifier}</p>
                       <p><span className="font-medium">Commandes sync:</span> {connected.orders_synced}</p>
                       {connected.last_sync && (
@@ -284,12 +284,12 @@ export default function IntegrationsPage() {
           </div>
         )}
 
-        <div className="bg-gray-50 rounded-2xl border border-stone-100 p-5 space-y-3">
+        <div className="bg-gray-50 rounded-2xl border border-stone-100 dark:border-stone-800 p-5 space-y-3">
           <div className="flex items-center gap-2">
-            <Package size={16} className="text-gray-500" />
-            <p className="font-semibold text-gray-700">Comment ça fonctionne</p>
+            <Package size={16} className="text-gray-500 dark:text-stone-400" />
+            <p className="font-semibold text-gray-700 dark:text-stone-200">Comment ça fonctionne</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-gray-500">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-gray-500 dark:text-stone-400">
             {[
               { n: '1', t: 'Connecter', d: 'Renseignez votre boutique et configurez le webhook dans votre plateforme.' },
               { n: '2', t: 'Sync automatique', d: 'Chaque nouvelle commande est automatiquement importée dans Autotim.' },
@@ -298,7 +298,7 @@ export default function IntegrationsPage() {
               <div key={item.n} className="flex items-start gap-2.5">
                 <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center shrink-0">{item.n}</span>
                 <div>
-                  <p className="font-medium text-gray-700">{item.t}</p>
+                  <p className="font-medium text-gray-700 dark:text-stone-200">{item.t}</p>
                   <p className="mt-0.5">{item.d}</p>
                 </div>
               </div>

@@ -156,19 +156,19 @@ function ConnexionTab() {
     setConnected(j.connected || false); setPhone(j.phone || '');
   };
 
-  if (connected === null) return <div className="flex items-center justify-center py-20"><Loader2 size={24} className="animate-spin text-gray-400" /></div>;
+  if (connected === null) return <div className="flex items-center justify-center py-20"><Loader2 size={24} className="animate-spin text-gray-400 dark:text-stone-500" /></div>;
 
   return (
     <div className="max-w-xl space-y-6">
       {/* Statut */}
-      <div className={`rounded-2xl p-5 border-2 ${connected ? 'border-green-200 bg-green-50' : 'border-stone-200 bg-gray-50'}`}>
+      <div className={`rounded-2xl p-5 border-2 ${connected ? 'border-green-200 bg-green-50' : 'border-stone-200 dark:border-stone-700 bg-gray-50'}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${connected ? 'bg-green-500' : qr ? 'bg-amber-400' : 'bg-gray-300'}`}>
               <MessageSquare size={20} className="text-white" />
             </div>
             <div>
-              <p className="font-semibold text-gray-900">WhatsApp</p>
+              <p className="font-semibold text-gray-900 dark:text-stone-100">WhatsApp</p>
               <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${connected ? 'bg-green-100 text-green-700' : qr ? 'bg-amber-100 text-amber-700' : busy ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'}`}>
                 {connected ? <><Wifi size={12} /> Connecté</> : qr ? <><Loader2 size={12} className="animate-spin" /> En attente du scan...</> : busy ? <><Loader2 size={12} className="animate-spin" /> Connexion...</> : <><WifiOff size={12} /> Déconnecté</>}
               </span>
@@ -176,8 +176,8 @@ function ConnexionTab() {
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={handleCheckStatus} className="p-1.5 border border-stone-200 rounded-lg hover:bg-white">
-              <RefreshCw size={14} className="text-gray-400" />
+            <button onClick={handleCheckStatus} className="p-1.5 border border-stone-200 dark:border-stone-700 rounded-lg hover:bg-white dark:bg-stone-900">
+              <RefreshCw size={14} className="text-gray-400 dark:text-stone-500" />
             </button>
             {connected && (
               <button onClick={handleDisconnect} className="text-xs px-3 py-1.5 border border-red-200 text-red-600 rounded-lg hover:bg-red-50">
@@ -190,18 +190,18 @@ function ConnexionTab() {
 
       {/* QR Code */}
       {!connected && (
-        <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-5 space-y-4">
+        <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5 space-y-4">
           <div className="flex items-center gap-2">
-            <QrCode size={16} className="text-gray-500" />
-            <h3 className="font-semibold text-gray-900">Connecter WhatsApp</h3>
+            <QrCode size={16} className="text-gray-500 dark:text-stone-400" />
+            <h3 className="font-semibold text-gray-900 dark:text-stone-100">Connecter WhatsApp</h3>
           </div>
 
           {qr ? (
             <div className="flex flex-col items-center gap-3">
-              <img src={qr} alt="QR Code WhatsApp" className="w-56 h-56 rounded-xl border border-stone-200" />
-              <p className="text-xs text-gray-500 text-center">Ouvre WhatsApp → <strong>Appareils liés</strong> → scanne ce QR</p>
+              <img src={qr} alt="QR Code WhatsApp" className="w-56 h-56 rounded-xl border border-stone-200 dark:border-stone-700" />
+              <p className="text-xs text-gray-500 dark:text-stone-400 text-center">Ouvre WhatsApp → <strong>Appareils liés</strong> → scanne ce QR</p>
               <p className="text-xs text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg">QR expire en 20 secondes — rafraichis si expiré</p>
-              <button onClick={handleRefreshQr} disabled={busy} className="flex items-center gap-1.5 text-sm px-3 py-1.5 border border-stone-200 rounded-lg hover:bg-stone-50 disabled:opacity-50">
+              <button onClick={handleRefreshQr} disabled={busy} className="flex items-center gap-1.5 text-sm px-3 py-1.5 border border-stone-200 dark:border-stone-700 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800 disabled:opacity-50">
                 <RefreshCw size={13} /> Nouveau QR
               </button>
             </div>
@@ -326,13 +326,13 @@ function EnvoyerTab() {
       )}
 
       {/* Filtre situation */}
-      <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-4 space-y-3">
+      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-4 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-medium text-gray-700">Situation :</span>
+          <span className="text-sm font-medium text-gray-700 dark:text-stone-200">Situation :</span>
           <div className="flex flex-wrap gap-2">
             {SITUATION_FILTERS.map(f => (
               <button key={f.value} onClick={() => { setSituationFilter(f.value); setPage(1); setSelected(new Set()); }}
-                className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${situationFilter === f.value ? 'bg-green-600 text-white border-green-600' : 'border-stone-200 text-gray-600 hover:border-green-400 hover:text-green-600'}`}>
+                className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${situationFilter === f.value ? 'bg-green-600 text-white border-green-600' : 'border-stone-200 dark:border-stone-700 text-gray-600 dark:text-stone-300 hover:border-green-400 hover:text-green-600'}`}>
                 {f.label}
               </button>
             ))}
@@ -340,18 +340,18 @@ function EnvoyerTab() {
         </div>
         {/* Sous-filtre wilaya */}
         {situationFilter === 'en cours de livraison' && (
-          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-stone-100">
-            <div className="flex items-center gap-1 text-xs font-medium text-gray-500">
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-stone-100 dark:border-stone-800">
+            <div className="flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-stone-400">
               <Filter size={11} /> Wilaya :
             </div>
             <div className="flex flex-wrap gap-1.5">
               <button onClick={() => setSubSituationFilter('')}
-                className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${subSituationFilter === '' ? 'bg-blue-600 text-white border-blue-600' : 'border-stone-200 text-gray-500 hover:border-blue-400 hover:text-blue-600'}`}>
+                className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${subSituationFilter === '' ? 'bg-blue-600 text-white border-blue-600' : 'border-stone-200 dark:border-stone-700 text-gray-500 dark:text-stone-400 hover:border-blue-400 hover:text-blue-600'}`}>
                 Toutes
               </button>
               {SUB_SITUATIONS.map(w => (
                 <button key={w} onClick={() => setSubSituationFilter(w)}
-                  className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${subSituationFilter === w ? 'bg-blue-600 text-white border-blue-600' : 'border-stone-200 text-gray-500 hover:border-blue-400 hover:text-blue-600'}`}>
+                  className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${subSituationFilter === w ? 'bg-blue-600 text-white border-blue-600' : 'border-stone-200 dark:border-stone-700 text-gray-500 dark:text-stone-400 hover:border-blue-400 hover:text-blue-600'}`}>
                   {w}
                 </button>
               ))}
@@ -361,22 +361,22 @@ function EnvoyerTab() {
       </div>
 
       {/* Templates */}
-      <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-5 space-y-4">
-        <div className="flex items-center gap-2"><MessageSquare size={16} className="text-green-500" /><h3 className="font-semibold text-gray-900">Template (Darija)</h3></div>
+      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5 space-y-4">
+        <div className="flex items-center gap-2"><MessageSquare size={16} className="text-green-500" /><h3 className="font-semibold text-gray-900 dark:text-stone-100">Template (Darija)</h3></div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {TEMPLATES.map(t => (
             <button key={t.id} onClick={() => setTemplateId(t.id)}
-              className={`text-xs px-3 py-2 rounded-xl border text-left font-medium transition-colors ${templateId === t.id ? 'border-green-500 bg-green-50 text-green-700' : 'border-stone-200 text-gray-600 hover:border-gray-300'}`}>
+              className={`text-xs px-3 py-2 rounded-xl border text-left font-medium transition-colors ${templateId === t.id ? 'border-green-500 bg-green-50 text-green-700' : 'border-stone-200 dark:border-stone-700 text-gray-600 dark:text-stone-300 hover:border-gray-300'}`}>
               {t.label}
             </button>
           ))}
         </div>
         {templateId === 'custom' ? (
-          <textarea value={customText} onChange={e => setCustomText(e.target.value)} placeholder="كتب رسالتك..." rows={4} dir="rtl" className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+          <textarea value={customText} onChange={e => setCustomText(e.target.value)} placeholder="كتب رسالتك..." rows={4} dir="rtl" className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
         ) : (
           <div>
-            <p className="text-xs text-gray-400 mb-1">{orders.length > 0 ? 'Apercu (premier client)' : 'Apercu (exemple)'}</p>
-            <div className="bg-green-50 rounded-xl p-4 text-sm text-gray-800 whitespace-pre-line border border-green-100 text-right leading-relaxed" dir="rtl">
+            <p className="text-xs text-gray-400 dark:text-stone-500 mb-1">{orders.length > 0 ? 'Apercu (premier client)' : 'Apercu (exemple)'}</p>
+            <div className="bg-green-50 rounded-xl p-4 text-sm text-gray-800 dark:text-stone-100 whitespace-pre-line border border-green-100 text-right leading-relaxed" dir="rtl">
               {template.text(previewOrder)}
             </div>
           </div>
@@ -384,19 +384,19 @@ function EnvoyerTab() {
       </div>
 
       {/* Test de message */}
-      <div className="bg-white rounded-2xl border border-blue-100 shadow-sm p-5 space-y-3">
+      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-blue-100 shadow-sm p-5 space-y-3">
         <div className="flex items-center gap-2">
           <Smartphone size={16} className="text-blue-500" />
-          <h3 className="font-semibold text-gray-900">Tester la reception</h3>
+          <h3 className="font-semibold text-gray-900 dark:text-stone-100">Tester la reception</h3>
           <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-medium">Test</span>
         </div>
-        <p className="text-xs text-gray-500">Entre un numero pour verifier que le message arrive bien avant d'envoyer en masse.</p>
+        <p className="text-xs text-gray-500 dark:text-stone-400">Entre un numero pour verifier que le message arrive bien avant d'envoyer en masse.</p>
         <div className="flex gap-2">
           <input
             value={testPhone}
             onChange={e => setTestPhone(e.target.value)}
             placeholder="ex: 0770 12 34 56"
-            className="flex-1 border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button onClick={sendTest} disabled={!testPhone || sendingTest || !connected}
             className="flex items-center gap-1.5 text-sm px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 font-medium shrink-0">
@@ -431,12 +431,12 @@ function EnvoyerTab() {
       </div>
 
       {/* Table des destinataires */}
-      <div className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-stone-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-stone-100 dark:border-stone-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2 flex-wrap">
-            <Users size={16} className="text-gray-500" />
-            <h3 className="font-semibold text-gray-900">Destinataires</h3>
-            <span className="text-xs text-gray-400">({subSituationFilter ? displayedOrders.length : total} commandes{subSituationFilter ? ` — ${subSituationFilter}` : ''})</span>
+            <Users size={16} className="text-gray-500 dark:text-stone-400" />
+            <h3 className="font-semibold text-gray-900 dark:text-stone-100">Destinataires</h3>
+            <span className="text-xs text-gray-400 dark:text-stone-500">({subSituationFilter ? displayedOrders.length : total} commandes{subSituationFilter ? ` — ${subSituationFilter}` : ''})</span>
             {selected.size > 0 && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">{selected.size} selectionne(s)</span>}
           </div>
           <button onClick={sendMessages} disabled={sending || selected.size === 0 || !connected}
@@ -446,7 +446,7 @@ function EnvoyerTab() {
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
+            <thead className="bg-gray-50 text-xs text-gray-500 dark:text-stone-400 uppercase">
               <tr>
                 <th className="px-4 py-3"><input type="checkbox" checked={ordersWithPhone.length > 0 && ordersWithPhone.every(o => selected.has(o.id))} onChange={toggleAll} className="rounded" /></th>
                 <th className="px-4 py-3 text-left">Client</th>
@@ -456,22 +456,22 @@ function EnvoyerTab() {
                 <th className="px-4 py-3 text-left">Telephone</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-stone-50">
+            <tbody className="divide-y divide-stone-50 dark:divide-stone-800">
               {loadingOrders ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Chargement...</td></tr>
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 dark:text-stone-500">Chargement...</td></tr>
               ) : displayedOrders.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Aucune commande</td></tr>
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 dark:text-stone-500">Aucune commande</td></tr>
               ) : displayedOrders.map(order => {
                 const hasPhone = !!(order.customer_whatsapp && order.customer_whatsapp.length > 5);
                 return (
-                  <tr key={order.id} className={`transition-colors ${hasPhone ? 'hover:bg-stone-50 cursor-pointer' : 'opacity-40'}`}
+                  <tr key={order.id} className={`transition-colors ${hasPhone ? 'hover:bg-stone-50 dark:hover:bg-stone-800 cursor-pointer' : 'opacity-40'}`}
                     onClick={() => { if (!hasPhone) return; setSelected(s => { const n = new Set(s); n.has(order.id) ? n.delete(order.id) : n.add(order.id); return n; }); }}>
                     <td className="px-4 py-3"><input type="checkbox" checked={selected.has(order.id)} disabled={!hasPhone} readOnly className="rounded" /></td>
-                    <td className="px-4 py-3 font-medium text-gray-900">{order.customer_name || '—'}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-gray-600">{order.tracking_number}</td>
-                    <td className="px-4 py-3 text-xs"><span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{order.situation || statusToLabel(order.delivery_status)}</span></td>
-                    <td className="px-4 py-3 text-gray-500">{order.wilaya || '—'}</td>
-                    <td className="px-4 py-3 text-gray-500">{order.customer_whatsapp || <span className="text-red-400 text-xs">Aucun</span>}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900 dark:text-stone-100">{order.customer_name || '—'}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-gray-600 dark:text-stone-300">{order.tracking_number}</td>
+                    <td className="px-4 py-3 text-xs"><span className="bg-gray-100 text-gray-600 dark:text-stone-300 px-2 py-0.5 rounded-full">{order.situation || statusToLabel(order.delivery_status)}</span></td>
+                    <td className="px-4 py-3 text-gray-500 dark:text-stone-400">{order.wilaya || '—'}</td>
+                    <td className="px-4 py-3 text-gray-500 dark:text-stone-400">{order.customer_whatsapp || <span className="text-red-400 text-xs">Aucun</span>}</td>
                   </tr>
                 );
               })}
@@ -479,11 +479,11 @@ function EnvoyerTab() {
           </table>
         </div>
         {totalPages > 1 && !subSituationFilter && (
-          <div className="px-4 py-3 border-t border-stone-100 flex items-center justify-between">
-            <span className="text-sm text-gray-500">Page {page} / {totalPages}</span>
+          <div className="px-4 py-3 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between">
+            <span className="text-sm text-gray-500 dark:text-stone-400">Page {page} / {totalPages}</span>
             <div className="flex gap-2">
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-1.5 border rounded-lg disabled:opacity-40 hover:bg-stone-50"><ChevronLeft size={14} /></button>
-              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-1.5 border rounded-lg disabled:opacity-40 hover:bg-stone-50"><ChevronRight size={14} /></button>
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-1.5 border rounded-lg disabled:opacity-40 hover:bg-stone-50 dark:hover:bg-stone-800"><ChevronLeft size={14} /></button>
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-1.5 border rounded-lg disabled:opacity-40 hover:bg-stone-50 dark:hover:bg-stone-800"><ChevronRight size={14} /></button>
             </div>
           </div>
         )}
@@ -568,11 +568,11 @@ function HistoriqueTab() {
         </div>
       )}
 
-      <div className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-stone-100 flex items-center justify-between gap-3 flex-wrap">
+      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-stone-100 dark:border-stone-800 flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2">
-            <History size={16} className="text-gray-500" />
-            <h3 className="font-semibold text-gray-900">Historique des messages</h3>
+            <History size={16} className="text-gray-500 dark:text-stone-400" />
+            <h3 className="font-semibold text-gray-900 dark:text-stone-100">Historique des messages</h3>
             {echecCount > 0 && <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-0.5 rounded-full">{echecCount} echec</span>}
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -588,22 +588,22 @@ function HistoriqueTab() {
             )}
             <button
               onClick={() => setFilterEchec(f => !f)}
-              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl border font-medium transition-colors ${filterEchec ? 'bg-red-600 text-white border-red-600' : 'border-stone-200 text-gray-600 hover:border-red-400 hover:text-red-600'}`}
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl border font-medium transition-colors ${filterEchec ? 'bg-red-600 text-white border-red-600' : 'border-stone-200 dark:border-stone-700 text-gray-600 dark:text-stone-300 hover:border-red-400 hover:text-red-600'}`}
             >
               <AlertCircle size={12} />
               Echec seulement
             </button>
-            <button onClick={fetchMessages} className="p-1.5 hover:bg-stone-100 rounded-lg">
-              <RefreshCw size={14} className="text-gray-400" />
+            <button onClick={fetchMessages} className="p-1.5 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-lg">
+              <RefreshCw size={14} className="text-gray-400 dark:text-stone-500" />
             </button>
           </div>
         </div>
 
-        <div className="divide-y divide-stone-50">
+        <div className="divide-y divide-stone-50 dark:divide-stone-800">
           {loading ? (
-            <div className="flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-gray-400" /></div>
+            <div className="flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-gray-400 dark:text-stone-500" /></div>
           ) : displayed.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+            <div className="flex flex-col items-center justify-center py-12 text-gray-400 dark:text-stone-500">
               <MessageSquare size={32} className="mb-2 opacity-30" />
               <p className="text-sm">{filterEchec ? 'Aucun message en echec' : 'Aucun message envoye'}</p>
             </div>
@@ -611,19 +611,19 @@ function HistoriqueTab() {
             const cfg = statusConfig[msg.status] || statusConfig.en_attente;
             const isResending = resending.has(msg.id);
             return (
-              <div key={msg.id} className={`p-4 hover:bg-stone-50 ${msg.status === 'echec' ? 'border-l-2 border-red-300' : ''}`}>
+              <div key={msg.id} className={`p-4 hover:bg-stone-50 dark:hover:bg-stone-800 ${msg.status === 'echec' ? 'border-l-2 border-red-300' : ''}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="font-medium text-gray-900 text-sm">{msg.customer_name}</span>
-                      <span className="text-xs text-gray-400">{msg.customer_whatsapp}</span>
-                      {msg.tracking_number && <span className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">{msg.tracking_number}</span>}
+                      <span className="font-medium text-gray-900 dark:text-stone-100 text-sm">{msg.customer_name}</span>
+                      <span className="text-xs text-gray-400 dark:text-stone-500">{msg.customer_whatsapp}</span>
+                      {msg.tracking_number && <span className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-500 dark:text-stone-400">{msg.tracking_number}</span>}
                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg.bg}`}>{cfg.label}</span>
                     </div>
-                    <p className="text-xs text-gray-500 line-clamp-2 whitespace-pre-line text-right" dir="rtl">{msg.message}</p>
+                    <p className="text-xs text-gray-500 dark:text-stone-400 line-clamp-2 whitespace-pre-line text-right" dir="rtl">{msg.message}</p>
                   </div>
                   <div className="flex flex-col items-end gap-2 shrink-0">
-                    <span className="text-[10px] text-gray-400">{new Date(msg.sent_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                    <span className="text-[10px] text-gray-400 dark:text-stone-500">{new Date(msg.sent_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                     {msg.status === 'echec' && (
                       <button
                         onClick={() => resend(msg)}
@@ -734,7 +734,7 @@ function BotIATab() {
 
   const promptPlaceholder = DEFAULT_PROMPTS[settings.language] || DEFAULT_PROMPTS.darija;
 
-  if (loading) return <div className="flex justify-center py-20"><Loader2 size={24} className="animate-spin text-gray-400" /></div>;
+  if (loading) return <div className="flex justify-center py-20"><Loader2 size={24} className="animate-spin text-gray-400 dark:text-stone-500" /></div>;
 
   return (
     <div className="max-w-2xl space-y-5">
@@ -753,14 +753,14 @@ function BotIATab() {
       </div>
 
       {/* Activation */}
-      <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-5 flex items-center justify-between">
+      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${settings.ai_enabled ? 'bg-purple-100' : 'bg-gray-100'}`}>
-            <Bot size={20} className={settings.ai_enabled ? 'text-purple-600' : 'text-gray-400'} />
+            <Bot size={20} className={settings.ai_enabled ? 'text-purple-600' : 'text-gray-400 dark:text-stone-500'} />
           </div>
           <div>
-            <p className="font-semibold text-gray-900">Bot IA (Gemini)</p>
-            <p className="text-xs text-gray-500">Répond automatiquement aux messages sans numéro de tracking</p>
+            <p className="font-semibold text-gray-900 dark:text-stone-100">Bot IA (Gemini)</p>
+            <p className="text-xs text-gray-500 dark:text-stone-400">Répond automatiquement aux messages sans numéro de tracking</p>
           </div>
         </div>
         <button
@@ -769,46 +769,46 @@ function BotIATab() {
         >
           {settings.ai_enabled
             ? <ToggleRight size={36} className="text-purple-600" />
-            : <ToggleLeft size={36} className="text-gray-300" />
+            : <ToggleLeft size={36} className="text-gray-300 dark:text-stone-600" />
           }
         </button>
       </div>
 
       {/* Webhook URL */}
-      <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-5 space-y-3">
+      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5 space-y-3">
         <div className="flex items-center gap-2">
           <Zap size={16} className="text-amber-500" />
-          <h3 className="font-semibold text-gray-900">URL Webhook</h3>
+          <h3 className="font-semibold text-gray-900 dark:text-stone-100">URL Webhook</h3>
           <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-medium">À configurer dans Green API</span>
         </div>
-        <p className="text-xs text-gray-500">Colle cette URL dans ton tableau de bord Green API → <strong>Notifications</strong>.</p>
+        <p className="text-xs text-gray-500 dark:text-stone-400">Colle cette URL dans ton tableau de bord Green API → <strong>Notifications</strong>.</p>
         <div className="flex gap-2">
-          <code className="flex-1 bg-gray-50 border border-stone-200 rounded-xl px-3 py-2.5 text-xs text-gray-700 break-all">
+          <code className="flex-1 bg-gray-50 border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-xs text-gray-700 dark:text-stone-200 break-all">
             {webhookUrl}
           </code>
           <button
             onClick={copyWebhook}
-            className="flex items-center gap-1.5 text-sm px-3 py-2.5 border border-stone-200 rounded-xl hover:bg-stone-50 shrink-0"
+            className="flex items-center gap-1.5 text-sm px-3 py-2.5 border border-stone-200 dark:border-stone-700 rounded-xl hover:bg-stone-50 dark:hover:bg-stone-800 shrink-0"
           >
-            <Copy size={14} className="text-gray-500" />
+            <Copy size={14} className="text-gray-500 dark:text-stone-400" />
           </button>
         </div>
       </div>
 
       {/* Facebook Messenger */}
-      <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-5 space-y-3">
+      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5 space-y-3">
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
             <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 fill-white"><path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.3 2.246.464 3.443.464 6.627 0 12-4.974 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.131 3.259L19.752 8l-6.561 6.963z"/></svg>
           </div>
-          <h3 className="font-semibold text-gray-900">Facebook Messenger</h3>
+          <h3 className="font-semibold text-gray-900 dark:text-stone-100">Facebook Messenger</h3>
           <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">Omnicanal</span>
         </div>
-        <p className="text-xs text-gray-500">Connectez votre Page Facebook pour recevoir et répondre automatiquement aux messages Messenger.</p>
+        <p className="text-xs text-gray-500 dark:text-stone-400">Connectez votre Page Facebook pour recevoir et répondre automatiquement aux messages Messenger.</p>
         <div className="space-y-2.5">
           <div className="bg-gray-50 rounded-xl p-3 space-y-2">
-            <p className="text-xs font-semibold text-gray-600">URL Webhook Facebook :</p>
-            <code className="block text-xs text-gray-700 break-all">{typeof window !== 'undefined' ? window.location.origin : ''}/api/facebook/webhook</code>
+            <p className="text-xs font-semibold text-gray-600 dark:text-stone-300">URL Webhook Facebook :</p>
+            <code className="block text-xs text-gray-700 dark:text-stone-200 break-all">{typeof window !== 'undefined' ? window.location.origin : ''}/api/facebook/webhook</code>
           </div>
           <div className="bg-amber-50 rounded-xl p-3 space-y-1.5">
             <p className="text-xs font-semibold text-amber-800">Variables d'environnement requises :</p>
@@ -843,16 +843,16 @@ function BotIATab() {
       </div>
 
       {/* Google Sheets Export */}
-      <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-5 space-y-3">
+      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5 space-y-3">
         <div className="flex items-center gap-2">
           <svg viewBox="0 0 24 24" className="w-4 h-4 fill-green-600"><path d="M19.5 3h-15A1.5 1.5 0 003 4.5v15A1.5 1.5 0 004.5 21h15a1.5 1.5 0 001.5-1.5v-15A1.5 1.5 0 0019.5 3zm-10 13.5H7.5V15H9.5v1.5zm0-3H7.5V12H9.5v1.5zm0-3H7.5V9H9.5v1.5zm4 6h-2V15h2v1.5zm0-3h-2V12h2v1.5zm0-3h-2V9h2v1.5zm3.5 6H15V15h2v1.5zm0-3H15V12h2v1.5zm0-3H15V9h2v1.5z"/></svg>
-          <h3 className="font-semibold text-gray-900">Export Google Sheets</h3>
+          <h3 className="font-semibold text-gray-900 dark:text-stone-100">Export Google Sheets</h3>
           <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full font-medium">Commandes & Réclamations</span>
         </div>
-        <p className="text-xs text-gray-500">Chaque commande validée et chaque réclamation reçue via le chatbot sont automatiquement envoyées vers votre Google Sheets via un webhook.</p>
+        <p className="text-xs text-gray-500 dark:text-stone-400">Chaque commande validée et chaque réclamation reçue via le chatbot sont automatiquement envoyées vers votre Google Sheets via un webhook.</p>
         <div className="bg-gray-50 rounded-xl p-3 space-y-2">
-          <p className="text-xs font-semibold text-gray-600">Variable d'environnement :</p>
-          <code className="block text-xs text-gray-700">GOOGLE_SHEETS_WEBHOOK_URL=https://hooks.zapier.com/...</code>
+          <p className="text-xs font-semibold text-gray-600 dark:text-stone-300">Variable d'environnement :</p>
+          <code className="block text-xs text-gray-700 dark:text-stone-200">GOOGLE_SHEETS_WEBHOOK_URL=https://hooks.zapier.com/...</code>
         </div>
         <div className="bg-green-50 rounded-xl p-3 space-y-1.5">
           <p className="text-xs font-semibold text-green-800">Comment configurer avec Make.com ou n8n :</p>
@@ -872,10 +872,10 @@ function BotIATab() {
       </div>
 
       {/* Language */}
-      <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-5 space-y-3">
+      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5 space-y-3">
         <div className="flex items-center gap-2">
           <Globe size={16} className="text-blue-500" />
-          <h3 className="font-semibold text-gray-900">Langue du bot</h3>
+          <h3 className="font-semibold text-gray-900 dark:text-stone-100">Langue du bot</h3>
         </div>
         <div className="grid grid-cols-3 gap-2">
           {[
@@ -886,42 +886,42 @@ function BotIATab() {
             <button
               key={l.value}
               onClick={() => setSettings(s => ({ ...s, language: l.value as any, system_prompt: s.system_prompt }))}
-              className={`p-3 rounded-xl border text-left transition-colors ${settings.language === l.value ? 'border-blue-500 bg-blue-50' : 'border-stone-200 hover:border-gray-300'}`}
+              className={`p-3 rounded-xl border text-left transition-colors ${settings.language === l.value ? 'border-blue-500 bg-blue-50' : 'border-stone-200 dark:border-stone-700 hover:border-gray-300'}`}
             >
-              <p className="text-sm font-medium text-gray-900">{l.label}</p>
-              <p className="text-xs text-gray-400">{l.sub}</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-stone-100">{l.label}</p>
+              <p className="text-xs text-gray-400 dark:text-stone-500">{l.sub}</p>
             </button>
           ))}
         </div>
       </div>
 
       {/* System prompt */}
-      <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-5 space-y-3">
+      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Bot size={16} className="text-purple-500" />
-            <h3 className="font-semibold text-gray-900">Prompt système</h3>
+            <h3 className="font-semibold text-gray-900 dark:text-stone-100">Prompt système</h3>
           </div>
           <button
             onClick={() => setSettings(s => ({ ...s, system_prompt: '' }))}
-            className="text-xs text-gray-400 hover:text-gray-600"
+            className="text-xs text-gray-400 dark:text-stone-500 hover:text-gray-600 dark:text-stone-300"
           >
             Réinitialiser
           </button>
         </div>
-        <p className="text-xs text-gray-500">Laisse vide pour utiliser le prompt par défaut de la langue sélectionnée.</p>
+        <p className="text-xs text-gray-500 dark:text-stone-400">Laisse vide pour utiliser le prompt par défaut de la langue sélectionnée.</p>
         <textarea
           value={settings.system_prompt}
           onChange={e => setSettings(s => ({ ...s, system_prompt: e.target.value }))}
           placeholder={promptPlaceholder}
           rows={6}
-          className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-gray-700"
+          className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-gray-700 dark:text-stone-200"
         />
       </div>
 
       {/* Logique bot explication */}
-      <div className="bg-gray-50 rounded-2xl border border-stone-100 p-4 space-y-2">
-        <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Logique du bot</p>
+      <div className="bg-gray-50 rounded-2xl border border-stone-100 dark:border-stone-800 p-4 space-y-2">
+        <p className="text-xs font-semibold text-gray-600 dark:text-stone-300 uppercase tracking-wide">Logique du bot</p>
         <div className="space-y-1.5">
           {[
             { step: '1', text: 'Message reçu avec numéro de tracking → répond avec statut commande', color: 'bg-green-500' },
@@ -930,24 +930,24 @@ function BotIATab() {
           ].map(item => (
             <div key={item.step} className="flex items-start gap-2.5">
               <span className={`w-5 h-5 rounded-full ${item.color} text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5`}>{item.step}</span>
-              <p className="text-xs text-gray-600">{item.text}</p>
+              <p className="text-xs text-gray-600 dark:text-stone-300">{item.text}</p>
             </div>
           ))}
         </div>
       </div>
 
       {/* Test chatbot */}
-      <div className="bg-white rounded-2xl border border-purple-100 shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-purple-100 shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-purple-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 bg-purple-100 rounded-lg flex items-center justify-center">
               <Bot size={14} className="text-purple-600" />
             </div>
-            <h3 className="font-semibold text-gray-900">Tester le chatbot</h3>
+            <h3 className="font-semibold text-gray-900 dark:text-stone-100">Tester le chatbot</h3>
             <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">Simulation réelle</span>
           </div>
           {testChat.length > 0 && (
-            <button onClick={() => setTestChat([])} className="text-xs text-gray-400 hover:text-gray-600">
+            <button onClick={() => setTestChat([])} className="text-xs text-gray-400 dark:text-stone-500 hover:text-gray-600 dark:text-stone-300">
               Effacer
             </button>
           )}
@@ -975,7 +975,7 @@ function BotIATab() {
         {/* Chat window */}
         <div className="mx-4 mb-3 h-64 overflow-y-auto bg-gray-50 rounded-xl p-3 space-y-3 flex flex-col">
           {testChat.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
+            <div className="flex-1 flex flex-col items-center justify-center text-gray-400 dark:text-stone-500">
               <Bot size={28} className="mb-2 opacity-30" />
               <p className="text-xs">Écris un message ou utilise les suggestions</p>
             </div>
@@ -987,12 +987,12 @@ function BotIATab() {
                     ? 'bg-green-500 text-white rounded-br-sm'
                     : msg.type === 'error'
                     ? 'bg-red-50 text-red-700 border border-red-200 rounded-bl-sm'
-                    : 'bg-white text-gray-800 shadow-sm border border-stone-100 rounded-bl-sm'
+                    : 'bg-white dark:bg-stone-900 text-gray-800 dark:text-stone-100 shadow-sm border border-stone-100 dark:border-stone-800 rounded-bl-sm'
                 }`} dir={msg.role === 'bot' ? 'auto' : 'auto'}>
                   {msg.role === 'bot' && (
                     <div className="flex items-center gap-1.5 mb-1.5">
                       <Bot size={11} className={msg.type === 'error' ? 'text-red-500' : msg.type === 'tracking' ? 'text-green-500' : 'text-purple-500'} />
-                      <span className="text-[10px] font-medium text-gray-400">
+                      <span className="text-[10px] font-medium text-gray-400 dark:text-stone-500">
                         {msg.type === 'tracking' ? 'Tracking trouvé' : msg.type === 'tracking_not_found' ? 'Tracking introuvable' : msg.type === 'ai' ? 'Réponse IA' : msg.type === 'fallback' ? 'Fallback' : 'Erreur'}
                       </span>
                     </div>
@@ -1004,9 +1004,9 @@ function BotIATab() {
           )}
           {testing && (
             <div className="flex justify-start">
-              <div className="bg-white border border-stone-100 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm flex items-center gap-2">
+              <div className="bg-white dark:bg-stone-900 border border-stone-100 dark:border-stone-800 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm flex items-center gap-2">
                 <Loader2 size={13} className="animate-spin text-purple-500" />
-                <span className="text-xs text-gray-400">Le bot réfléchit...</span>
+                <span className="text-xs text-gray-400 dark:text-stone-500">Le bot réfléchit...</span>
               </div>
             </div>
           )}
@@ -1019,7 +1019,7 @@ function BotIATab() {
             onChange={e => setTestInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendTest()}
             placeholder="Ex: ZR-123456 ou وين طردي؟"
-            className="flex-1 border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="flex-1 border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
             dir="auto"
           />
           <button
@@ -1058,11 +1058,11 @@ export default function MessagesPage() {
       <div className="max-w-screen-xl mx-auto px-6 py-6 space-y-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center"><MessageSquare size={20} className="text-green-600" /></div>
-          <div><h1 className="text-xl font-bold text-gray-900">Messages WhatsApp</h1><p className="text-sm text-gray-500">Envoyer des notifications en darija a tes clients</p></div>
+          <div><h1 className="text-xl font-bold text-gray-900 dark:text-stone-100">Messages WhatsApp</h1><p className="text-sm text-gray-500 dark:text-stone-400">Envoyer des notifications en darija a tes clients</p></div>
         </div>
         <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
           {TABS.map(t => { const Icon = t.icon; return (
-            <button key={t.id} onClick={() => setTab(t.id)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === t.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+            <button key={t.id} onClick={() => setTab(t.id)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === t.id ? 'bg-white dark:bg-stone-900 text-gray-900 dark:text-stone-100 shadow-sm' : 'text-gray-500 dark:text-stone-400 hover:text-gray-700 dark:text-stone-200'}`}>
               <Icon size={15} />{t.label}
               {t.id === 'bot' && <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />}
             </button>

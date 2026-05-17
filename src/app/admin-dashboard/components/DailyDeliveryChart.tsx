@@ -9,15 +9,15 @@ interface DayData { day: string; livrees: number; echecs: number; retours: numbe
 function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white border border-stone-100 rounded-xl shadow-lg p-3 min-w-[150px]">
-      <p className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide">{label}</p>
+    <div className="bg-white dark:bg-stone-900 border border-stone-100 dark:border-stone-800 rounded-xl shadow-lg p-3 min-w-[150px]">
+      <p className="text-xs font-semibold text-gray-400 dark:text-stone-500 mb-2 uppercase tracking-wide">{label}</p>
       {payload.map((entry: any) => (
         <div key={entry.name} className="flex items-center justify-between gap-4 text-xs mb-1">
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
-            <span className="text-gray-500">{entry.name}</span>
+            <span className="text-gray-500 dark:text-stone-400">{entry.name}</span>
           </span>
-          <span className="font-bold tabular-nums text-gray-800">{entry.value}</span>
+          <span className="font-bold tabular-nums text-gray-800 dark:text-stone-100">{entry.value}</span>
         </div>
       ))}
     </div>
@@ -50,20 +50,20 @@ export default function DailyDeliveryChart() {
   }, []);
 
   return (
-    <div className="bg-white rounded-2xl border border-stone-100 p-5 shadow-sm">
+    <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 p-5 shadow-sm">
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h2 className="text-sm font-semibold text-gray-800">Livraisons journalières</h2>
-          <p className="text-xs text-gray-400 mt-0.5">7 derniers jours</p>
+          <h2 className="text-sm font-semibold text-gray-800 dark:text-stone-100">Livraisons journalières</h2>
+          <p className="text-xs text-gray-400 dark:text-stone-500 mt-0.5">7 derniers jours</p>
         </div>
-        <div className="flex items-center gap-3 text-xs text-gray-400">
+        <div className="flex items-center gap-3 text-xs text-gray-400 dark:text-stone-500">
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-green-500" />Livrées</span>
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-amber-400" />Échecs</span>
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-gray-300" />Retours</span>
         </div>
       </div>
       {loading ? (
-        <div className="h-[220px] flex items-center justify-center text-gray-300 text-sm">Chargement...</div>
+        <div className="h-[220px] flex items-center justify-center text-gray-300 dark:text-stone-600 text-sm">Chargement...</div>
       ) : (
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={data} barSize={14} barGap={2}>

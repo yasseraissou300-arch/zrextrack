@@ -38,7 +38,7 @@ export default function LivraisonsPage() {
     en_livraison: 'bg-amber-100 text-amber-700',
     livre: 'bg-green-100 text-green-700',
     echec: 'bg-red-100 text-red-700',
-    retourne: 'bg-gray-100 text-gray-600',
+    retourne: 'bg-gray-100 text-gray-600 dark:text-stone-300',
   };
 
   const statusLabel: Record<string, string> = {
@@ -56,8 +56,8 @@ export default function LivraisonsPage() {
             <Truck size={20} className="text-amber-600" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Livraisons</h1>
-            <p className="text-sm text-gray-500">Suivi des livraisons en cours</p>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-stone-100">Livraisons</h1>
+            <p className="text-sm text-gray-500 dark:text-stone-400">Suivi des livraisons en cours</p>
           </div>
         </div>
 
@@ -69,21 +69,21 @@ export default function LivraisonsPage() {
             { label: 'Échecs', value: stats.echec, icon: XCircle, color: 'red' },
             { label: 'Retournées', value: stats.retourne, icon: Clock, color: 'gray' },
           ].map(s => (
-            <div key={s.label} className="bg-white rounded-2xl p-4 shadow-sm border border-stone-100">
-              <p className="text-2xl font-bold text-gray-900">{loading ? '—' : s.value}</p>
-              <p className="text-sm text-gray-500 mt-1">{s.label}</p>
+            <div key={s.label} className="bg-white dark:bg-stone-900 rounded-2xl p-4 shadow-sm border border-stone-100 dark:border-stone-800">
+              <p className="text-2xl font-bold text-gray-900 dark:text-stone-100">{loading ? '—' : s.value}</p>
+              <p className="text-sm text-gray-500 dark:text-stone-400 mt-1">{s.label}</p>
             </div>
           ))}
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-stone-100">
-            <h2 className="font-semibold text-gray-900">Détail des livraisons</h2>
+        <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 overflow-hidden">
+          <div className="px-6 py-4 border-b border-stone-100 dark:border-stone-800">
+            <h2 className="font-semibold text-gray-900 dark:text-stone-100">Détail des livraisons</h2>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
+              <thead className="bg-gray-50 text-xs text-gray-500 dark:text-stone-400 uppercase">
                 <tr>
                   <th className="px-4 py-3 text-left">Tracking</th>
                   <th className="px-4 py-3 text-left">Client</th>
@@ -93,23 +93,23 @@ export default function LivraisonsPage() {
                   <th className="px-4 py-3 text-left">Mise à jour</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-stone-50">
+              <tbody className="divide-y divide-stone-50 dark:divide-stone-800">
                 {loading ? (
-                  <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Chargement...</td></tr>
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 dark:text-stone-500">Chargement...</td></tr>
                 ) : orders.length === 0 ? (
-                  <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Aucune livraison trouvée</td></tr>
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 dark:text-stone-500">Aucune livraison trouvée</td></tr>
                 ) : orders.map(o => (
-                  <tr key={o.id} className="hover:bg-stone-50">
+                  <tr key={o.id} className="hover:bg-stone-50 dark:hover:bg-stone-800">
                     <td className="px-4 py-3 font-mono text-xs font-medium">{o.tracking_number}</td>
                     <td className="px-4 py-3 font-medium">{o.customer_name}</td>
-                    <td className="px-4 py-3 text-gray-500">{o.wilaya || '—'}</td>
+                    <td className="px-4 py-3 text-gray-500 dark:text-stone-400">{o.wilaya || '—'}</td>
                     <td className="px-4 py-3">
                       <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${statusBadge[o.delivery_status] || ''}`}>
                         {statusLabel[o.delivery_status] || o.delivery_status}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-center">{o.attempts ?? 0}</td>
-                    <td className="px-4 py-3 text-gray-400 text-xs">
+                    <td className="px-4 py-3 text-gray-400 dark:text-stone-500 text-xs">
                       {o.last_update ? new Date(o.last_update).toLocaleDateString('fr-FR') : '—'}
                     </td>
                   </tr>

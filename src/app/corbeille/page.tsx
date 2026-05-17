@@ -22,7 +22,7 @@ const STATUS_BADGE: Record<string, string> = {
   en_livraison:   'bg-amber-100 text-amber-700',
   livre:          'bg-green-100 text-green-700',
   echec:          'bg-red-100 text-red-700',
-  retourne:       'bg-gray-100 text-gray-600',
+  retourne:       'bg-gray-100 text-gray-600 dark:text-stone-300',
 };
 const STATUS_LABEL: Record<string, string> = {
   en_preparation: 'En préparation', en_transit: 'En transit', en_livraison: 'En livraison',
@@ -118,28 +118,28 @@ export default function CorbeillePage() {
             <Trash2 size={20} className="text-red-500" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Corbeille</h1>
-            <p className="text-sm text-gray-400">Commandes supprimées — restaurez-les ou supprimez définitivement</p>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-stone-100">Corbeille</h1>
+            <p className="text-sm text-gray-400 dark:text-stone-500">Commandes supprimées — restaurez-les ou supprimez définitivement</p>
           </div>
-          <button onClick={fetchDeleted} className="ml-auto p-2 rounded-lg border border-stone-200 hover:bg-stone-50 transition-colors">
-            <RefreshCw size={15} className={`text-gray-500 ${loading ? 'animate-spin' : ''}`} />
+          <button onClick={fetchDeleted} className="ml-auto p-2 rounded-lg border border-stone-200 dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-800 transition-colors">
+            <RefreshCw size={15} className={`text-gray-500 dark:text-stone-400 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
 
         {/* Toolbar */}
-        <div className="bg-white rounded-xl border border-stone-100 shadow-sm overflow-hidden">
-          <div className="px-4 py-3 border-b border-stone-100 flex flex-wrap gap-3 items-center justify-between">
+        <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-100 dark:border-stone-800 shadow-sm overflow-hidden">
+          <div className="px-4 py-3 border-b border-stone-100 dark:border-stone-800 flex flex-wrap gap-3 items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="relative">
-                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-stone-500" />
                 <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher..."
-                  className="pl-8 pr-3 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 w-48" />
+                  className="pl-8 pr-3 py-1.5 text-sm border border-stone-200 dark:border-stone-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 w-48" />
               </div>
-              <span className="text-xs text-gray-400">{filtered.length} commande(s)</span>
+              <span className="text-xs text-gray-400 dark:text-stone-500">{filtered.length} commande(s)</span>
             </div>
             {selected.size > 0 && (
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-gray-500">{selected.size} sélectionnée(s)</span>
+                <span className="text-xs font-medium text-gray-500 dark:text-stone-400">{selected.size} sélectionnée(s)</span>
                 <button onClick={handleRestore} disabled={working}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-50 border border-green-200 text-green-700 text-xs font-semibold hover:bg-green-100 transition-colors disabled:opacity-50">
                   <RotateCcw size={12} />Restaurer
@@ -156,50 +156,50 @@ export default function CorbeillePage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-stone-100 bg-gray-50/60">
+                <tr className="border-b border-stone-100 dark:border-stone-800 bg-gray-50/60">
                   <th className="px-4 py-2.5 w-10">
                     <input type="checkbox" checked={selected.size === filtered.length && filtered.length > 0}
                       onChange={toggleAll} className="rounded border-gray-300" />
                   </th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Tracking</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Client</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Produit</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Wilaya</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Statut</th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-semibold text-gray-400 uppercase tracking-wider">COD</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Supprimé le</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-400 dark:text-stone-500 uppercase tracking-wider">Tracking</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-400 dark:text-stone-500 uppercase tracking-wider">Client</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-400 dark:text-stone-500 uppercase tracking-wider">Produit</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-400 dark:text-stone-500 uppercase tracking-wider">Wilaya</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-400 dark:text-stone-500 uppercase tracking-wider">Statut</th>
+                  <th className="px-4 py-2.5 text-right text-[10px] font-semibold text-gray-400 dark:text-stone-500 uppercase tracking-wider">COD</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-400 dark:text-stone-500 uppercase tracking-wider">Supprimé le</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-stone-50">
+              <tbody className="divide-y divide-stone-50 dark:divide-stone-800">
                 {loading ? (
-                  <tr><td colSpan={8} className="px-4 py-10 text-center text-gray-300">Chargement...</td></tr>
+                  <tr><td colSpan={8} className="px-4 py-10 text-center text-gray-300 dark:text-stone-600">Chargement...</td></tr>
                 ) : filtered.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="px-4 py-16 text-center">
                       <Trash2 size={32} className="mx-auto mb-3 text-gray-200" />
-                      <p className="text-gray-400 text-sm">La corbeille est vide</p>
+                      <p className="text-gray-400 dark:text-stone-500 text-sm">La corbeille est vide</p>
                     </td>
                   </tr>
                 ) : filtered.map(order => (
-                  <tr key={order.id} className="hover:bg-stone-50/60 transition-colors">
+                  <tr key={order.id} className="hover:bg-stone-50 dark:hover:bg-stone-800/60 transition-colors">
                     <td className="px-4 py-3">
                       <input type="checkbox" checked={selected.has(order.id)} onChange={() => toggleSelect(order.id)} className="rounded border-gray-300" />
                     </td>
                     <td className="px-4 py-3">
-                      <span className="font-mono text-xs font-semibold text-gray-500">{order.tracking_number}</span>
+                      <span className="font-mono text-xs font-semibold text-gray-500 dark:text-stone-400">{order.tracking_number}</span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{order.customer_name || '—'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-500 max-w-[140px] truncate">{order.product_name || '—'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{order.wilaya || '—'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-stone-300">{order.customer_name || '—'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-500 dark:text-stone-400 max-w-[140px] truncate">{order.product_name || '—'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-stone-300">{order.wilaya || '—'}</td>
                     <td className="px-4 py-3">
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_BADGE[order.delivery_status] || 'bg-gray-100 text-gray-500'}`}>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_BADGE[order.delivery_status] || 'bg-gray-100 text-gray-500 dark:text-stone-400'}`}>
                         {STATUS_LABEL[order.delivery_status] || order.delivery_status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right text-sm font-medium text-gray-600">
+                    <td className="px-4 py-3 text-right text-sm font-medium text-gray-600 dark:text-stone-300">
                       {order.cod ? `${Number(order.cod).toLocaleString('fr-DZ')} DA` : '—'}
                     </td>
-                    <td className="px-4 py-3 text-xs text-gray-400">{formatDate(order.deleted_at)}</td>
+                    <td className="px-4 py-3 text-xs text-gray-400 dark:text-stone-500">{formatDate(order.deleted_at)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -207,7 +207,7 @@ export default function CorbeillePage() {
           </div>
 
           {filtered.length > 0 && (
-            <div className="px-4 py-3 border-t border-stone-100 flex items-center gap-2 text-xs text-amber-600 bg-amber-50">
+            <div className="px-4 py-3 border-t border-stone-100 dark:border-stone-800 flex items-center gap-2 text-xs text-amber-600 bg-amber-50">
               <AlertTriangle size={12} />
               La suppression définitive est irréversible. Restaurez d'abord les commandes importantes.
             </div>
