@@ -69,7 +69,7 @@ export default function LivraisonsPage() {
             { label: 'Échecs', value: stats.echec, icon: XCircle, color: 'red' },
             { label: 'Retournées', value: stats.retourne, icon: Clock, color: 'gray' },
           ].map(s => (
-            <div key={s.label} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div key={s.label} className="bg-white rounded-2xl p-4 shadow-sm border border-stone-100">
               <p className="text-2xl font-bold text-gray-900">{loading ? '—' : s.value}</p>
               <p className="text-sm text-gray-500 mt-1">{s.label}</p>
             </div>
@@ -77,8 +77,8 @@ export default function LivraisonsPage() {
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100">
+        <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden">
+          <div className="px-6 py-4 border-b border-stone-100">
             <h2 className="font-semibold text-gray-900">Détail des livraisons</h2>
           </div>
           <div className="overflow-x-auto">
@@ -93,13 +93,13 @@ export default function LivraisonsPage() {
                   <th className="px-4 py-3 text-left">Mise à jour</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-stone-50">
                 {loading ? (
                   <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Chargement...</td></tr>
                 ) : orders.length === 0 ? (
                   <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Aucune livraison trouvée</td></tr>
                 ) : orders.map(o => (
-                  <tr key={o.id} className="hover:bg-gray-50">
+                  <tr key={o.id} className="hover:bg-stone-50">
                     <td className="px-4 py-3 font-mono text-xs font-medium">{o.tracking_number}</td>
                     <td className="px-4 py-3 font-medium">{o.customer_name}</td>
                     <td className="px-4 py-3 text-gray-500">{o.wilaya || '—'}</td>

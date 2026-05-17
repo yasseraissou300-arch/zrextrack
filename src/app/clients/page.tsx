@@ -50,8 +50,8 @@ export default function ClientsPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100">
+        <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden">
+          <div className="px-6 py-4 border-b border-stone-100">
             <h2 className="font-semibold text-gray-900">Liste clients ({clients.length})</h2>
           </div>
           <div className="overflow-x-auto">
@@ -65,13 +65,13 @@ export default function ClientsPage() {
                   <th className="px-4 py-3 text-center">Livrées</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-stone-50">
                 {loading ? (
                   <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">Chargement...</td></tr>
                 ) : clients.length === 0 ? (
                   <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">Aucun client — ajoutez des commandes d'abord</td></tr>
                 ) : clients.map((c, i) => (
-                  <tr key={i} className="hover:bg-gray-50">
+                  <tr key={i} className="hover:bg-stone-50">
                     <td className="px-4 py-3 font-medium text-gray-900">{c.client}</td>
                     <td className="px-4 py-3 text-gray-500">{c.whatsapp || '—'}</td>
                     <td className="px-4 py-3 text-gray-500">{c.wilaya || '—'}</td>

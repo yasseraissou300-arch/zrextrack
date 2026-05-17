@@ -121,19 +121,19 @@ export default function CorbeillePage() {
             <h1 className="text-xl font-bold text-gray-900">Corbeille</h1>
             <p className="text-sm text-gray-400">Commandes supprimées — restaurez-les ou supprimez définitivement</p>
           </div>
-          <button onClick={fetchDeleted} className="ml-auto p-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+          <button onClick={fetchDeleted} className="ml-auto p-2 rounded-lg border border-stone-200 hover:bg-stone-50 transition-colors">
             <RefreshCw size={15} className={`text-gray-500 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
 
         {/* Toolbar */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100 flex flex-wrap gap-3 items-center justify-between">
+        <div className="bg-white rounded-xl border border-stone-100 shadow-sm overflow-hidden">
+          <div className="px-4 py-3 border-b border-stone-100 flex flex-wrap gap-3 items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="relative">
                 <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher..."
-                  className="pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 w-48" />
+                  className="pl-8 pr-3 py-1.5 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 w-48" />
               </div>
               <span className="text-xs text-gray-400">{filtered.length} commande(s)</span>
             </div>
@@ -156,7 +156,7 @@ export default function CorbeillePage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50/60">
+                <tr className="border-b border-stone-100 bg-gray-50/60">
                   <th className="px-4 py-2.5 w-10">
                     <input type="checkbox" checked={selected.size === filtered.length && filtered.length > 0}
                       onChange={toggleAll} className="rounded border-gray-300" />
@@ -170,7 +170,7 @@ export default function CorbeillePage() {
                   <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Supprimé le</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-stone-50">
                 {loading ? (
                   <tr><td colSpan={8} className="px-4 py-10 text-center text-gray-300">Chargement...</td></tr>
                 ) : filtered.length === 0 ? (
@@ -181,7 +181,7 @@ export default function CorbeillePage() {
                     </td>
                   </tr>
                 ) : filtered.map(order => (
-                  <tr key={order.id} className="hover:bg-gray-50/60 transition-colors">
+                  <tr key={order.id} className="hover:bg-stone-50/60 transition-colors">
                     <td className="px-4 py-3">
                       <input type="checkbox" checked={selected.has(order.id)} onChange={() => toggleSelect(order.id)} className="rounded border-gray-300" />
                     </td>
@@ -207,7 +207,7 @@ export default function CorbeillePage() {
           </div>
 
           {filtered.length > 0 && (
-            <div className="px-4 py-3 border-t border-gray-100 flex items-center gap-2 text-xs text-amber-600 bg-amber-50">
+            <div className="px-4 py-3 border-t border-stone-100 flex items-center gap-2 text-xs text-amber-600 bg-amber-50">
               <AlertTriangle size={12} />
               La suppression définitive est irréversible. Restaurez d'abord les commandes importantes.
             </div>

@@ -56,7 +56,7 @@ export default function RapportsPage() {
             { label: 'Retours', value: stats.retourne, icon: RotateCcw, color: 'gray' },
             { label: 'Taux livraison', value: `${stats.rate || 0}%`, icon: TrendingUp, color: 'indigo' },
           ].map(s => (
-            <div key={s.label} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div key={s.label} className="bg-white rounded-2xl p-4 shadow-sm border border-stone-100">
               <p className="text-2xl font-bold text-gray-900">{loading ? '—' : s.value ?? 0}</p>
               <p className="text-sm text-gray-500 mt-1">{s.label}</p>
             </div>
@@ -64,7 +64,7 @@ export default function RapportsPage() {
         </div>
 
         {/* Top wilayas */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-6">
           <h2 className="font-semibold text-gray-900 mb-4">Top Wilayas</h2>
           {loading ? <p className="text-gray-400">Chargement...</p> : byWilaya.length === 0 ? (
             <p className="text-gray-400">Aucune donnée disponible</p>

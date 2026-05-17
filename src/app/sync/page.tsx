@@ -33,7 +33,7 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string; bo
   en_livraison: { label: 'En livraison',     color: 'text-amber-700',  bg: 'bg-amber-50',  border: 'border-amber-200' },
   livre:        { label: 'Livré',            color: 'text-green-700',  bg: 'bg-green-50',  border: 'border-green-200' },
   echec:        { label: 'Échec livraison',  color: 'text-red-700',    bg: 'bg-red-50',    border: 'border-red-200' },
-  retourne:     { label: 'Retourné',         color: 'text-gray-600',   bg: 'bg-gray-50',   border: 'border-gray-200' },
+  retourne:     { label: 'Retourné',         color: 'text-gray-600',   bg: 'bg-gray-50',   border: 'border-stone-200' },
 };
 
 interface SyncResult {
@@ -176,7 +176,7 @@ export default function SyncPage() {
           <div className="lg:col-span-2 space-y-5">
 
             {/* Clé API */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Key size={18} className="text-gray-500" />
                 <h2 className="font-semibold text-gray-900">Clé API ZREXpress</h2>
@@ -196,7 +196,7 @@ export default function SyncPage() {
                   <div className="relative">
                     <input type={showToken ? 'text' : 'password'} value={token} onChange={e => setToken(e.target.value)}
                       placeholder="zZhWCuWz..."
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-12 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-400" />
+                      className="w-full border border-stone-200 rounded-xl px-4 py-3 pr-12 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-400" />
                     <button onClick={() => setShowToken(!showToken)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                       {showToken ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
@@ -206,7 +206,7 @@ export default function SyncPage() {
                   <label className="block text-xs font-medium text-gray-600 mb-1">Tenant ID</label>
                   <input type="text" value={tenantId} onChange={e => setTenantId(e.target.value)}
                     placeholder="3da412b7-5c9e-..."
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-400" />
+                    className="w-full border border-stone-200 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-400" />
                 </div>
               </div>
               <div className="flex gap-3 mt-4">
@@ -221,7 +221,7 @@ export default function SyncPage() {
             </div>
 
             {/* Sync */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Package size={18} className="text-gray-500" />
                 <h2 className="font-semibold text-gray-900">Synchronisation</h2>
@@ -230,7 +230,7 @@ export default function SyncPage() {
                 Importe toutes vos commandes ZREXpress. Les statuts sont mis à jour et les messages WhatsApp envoyés automatiquement à chaque changement.
               </p>
               <button onClick={runSync} disabled={loading || !token.trim() || !tenantId.trim()}
-                className="w-full flex items-center justify-center gap-3 bg-green-500 hover:bg-green-600 disabled:bg-gray-200 disabled:text-gray-400 text-white font-semibold py-4 rounded-xl transition-colors text-base disabled:cursor-not-allowed">
+                className="w-full flex items-center justify-center gap-3 bg-gradient-to-br from-violet-500 to-fuchsia-500 hover:shadow-lg hover:shadow-violet-500/30 shadow-md shadow-violet-500/20 disabled:bg-gray-200 disabled:text-gray-400 text-white font-semibold py-4 rounded-xl transition-colors text-base disabled:cursor-not-allowed">
                 <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
                 {loading ? 'Synchronisation en cours...' : 'Synchroniser maintenant'}
               </button>
@@ -255,7 +255,7 @@ export default function SyncPage() {
             </div>
 
             {/* Templates WhatsApp */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-6">
               <div className="flex items-center gap-2 mb-1">
                 <MessageSquare size={18} className="text-green-500" />
                 <h2 className="font-semibold text-gray-900">Templates WhatsApp</h2>
@@ -272,7 +272,7 @@ export default function SyncPage() {
               <div className="space-y-2 mb-4">
                 {Object.entries(STATUS_META).map(([key, meta]) => (
                   <div key={key} className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all ${
-                    activeTemplate === key ? `${meta.bg} ${meta.border}` : 'bg-gray-50 border-gray-200'
+                    activeTemplate === key ? `${meta.bg} ${meta.border}` : 'bg-gray-50 border-stone-200'
                   }`}>
                     {/* Toggle ON/OFF */}
                     <button
@@ -312,7 +312,7 @@ export default function SyncPage() {
                     value={templates[activeTemplate] || ''}
                     onChange={e => setTemplates(prev => ({ ...prev, [activeTemplate]: e.target.value }))}
                     rows={8}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-400 resize-none leading-relaxed"
+                    className="w-full border border-stone-200 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-400 resize-none leading-relaxed"
                     placeholder="Entrez votre message..."
                   />
                   <button onClick={() => resetTemplate(activeTemplate)}
@@ -323,7 +323,7 @@ export default function SyncPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1.5">👁 Aperçu (données test)</label>
-                  <div className="border border-gray-200 rounded-xl px-4 py-3 text-sm bg-gray-50 whitespace-pre-wrap leading-relaxed min-h-[180px] text-gray-700 font-sans">
+                  <div className="border border-stone-200 rounded-xl px-4 py-3 text-sm bg-gray-50 whitespace-pre-wrap leading-relaxed min-h-[180px] text-gray-700 font-sans">
                     {previewTemplate(templates[activeTemplate] || '')}
                   </div>
                 </div>
@@ -346,7 +346,7 @@ export default function SyncPage() {
 
           {/* Colonne droite */}
           <div className="space-y-4">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-6">
               <h2 className="font-semibold text-gray-900 mb-4">Comment ça marche</h2>
               <div className="space-y-3">
                 {[
@@ -363,7 +363,7 @@ export default function SyncPage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="bg-white rounded-2xl shadow-sm border border-stone-100 p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Clock size={16} className="text-gray-400" />
                 <h2 className="font-semibold text-gray-900">Historique</h2>

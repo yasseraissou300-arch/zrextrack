@@ -115,7 +115,7 @@ function ConnectModal({ platform, onClose, onConnect }: {
               value={identifier}
               onChange={e => setIdentifier(e.target.value)}
               placeholder={platform.identifierPlaceholder}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
             />
           </div>
 
@@ -127,7 +127,7 @@ function ConnectModal({ platform, onClose, onConnect }: {
                 onChange={e => setSecret(e.target.value)}
                 placeholder="Pour valider la signature du webhook"
                 type="password"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
               />
             </div>
           )}
@@ -143,7 +143,7 @@ function ConnectModal({ platform, onClose, onConnect }: {
           </div>
 
           <div className="flex gap-2">
-            <button onClick={onClose} className="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50">
+            <button onClick={onClose} className="flex-1 border border-stone-200 rounded-xl py-2.5 text-sm font-medium text-gray-600 hover:bg-stone-50">
               Annuler
             </button>
             {!platform.comingSoon && (
@@ -224,7 +224,7 @@ export default function IntegrationsPage() {
             {PLATFORMS.map(platform => {
               const connected = getIntegration(platform.id);
               return (
-                <div key={platform.id} className={`bg-white rounded-2xl border shadow-sm p-5 space-y-4 ${connected ? 'border-green-200' : 'border-gray-100'}`}>
+                <div key={platform.id} className={`bg-white rounded-2xl border shadow-sm p-5 space-y-4 ${connected ? 'border-green-200' : 'border-stone-100'}`}>
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
                       <div className={`w-10 h-10 ${platform.color} rounded-xl flex items-center justify-center`}>
@@ -284,7 +284,7 @@ export default function IntegrationsPage() {
           </div>
         )}
 
-        <div className="bg-gray-50 rounded-2xl border border-gray-100 p-5 space-y-3">
+        <div className="bg-gray-50 rounded-2xl border border-stone-100 p-5 space-y-3">
           <div className="flex items-center gap-2">
             <Package size={16} className="text-gray-500" />
             <p className="font-semibold text-gray-700">Comment ça fonctionne</p>

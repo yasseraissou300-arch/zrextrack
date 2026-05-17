@@ -38,12 +38,12 @@ export default function AlertesPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
+        <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden">
+          <div className="px-6 py-4 border-b border-stone-100 flex items-center gap-2">
             <AlertTriangle size={16} className="text-red-500" />
             <h2 className="font-semibold text-gray-900">Commandes problématiques ({alerts.length})</h2>
           </div>
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-stone-50">
             {loading ? (
               <div className="px-6 py-8 text-center text-gray-400">Chargement...</div>
             ) : alerts.length === 0 ? (
@@ -52,7 +52,7 @@ export default function AlertesPage() {
                 <p>Aucune alerte — tout va bien ! 🎉</p>
               </div>
             ) : alerts.map(o => (
-              <div key={o.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50">
+              <div key={o.id} className="px-6 py-4 flex items-center justify-between hover:bg-stone-50">
                 <div>
                   <div className="flex items-center gap-2">
                     <XCircle size={14} className={o.delivery_status === 'echec' ? 'text-red-500' : 'text-gray-400'} />
