@@ -190,38 +190,39 @@ async function callGemini(systemPrompt: string, messages: ClaudeMessage[]): Prom
 
 // ─── GROQ call (free tier, OpenAI-compatible) ─────────────────────────────────
 async function callGroq(systemPrompt: string, messages: ClaudeMessage[]): Promise<ClaudeResult> {
-    if (!GROQ_KEY) return { text: null, tokens: 0 };
-    try {
-          const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-                  method: 'POST',
-                  headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${GROQ_KEY}`,
-                  },
-                  body: JSON.stringify({
-                            model: 'llama-3.1-8b-instant',
-                            max_tokens: 600,
-                            temperature: 0.7,
-                            messages: [
-                              { role: 'system', content: systemPrompt },
-                                        ...messages.slice(-10).map(m => ({ role: m.role, content: m.content })),
-                                      ],
-                  }),
-          });
-          if (!res.ok) {
-                  const err = await res.text();
-                  console.error('[GROQ] Error:', res.status, err);
-                  return { text: null, tokens: 0 };
-          }
-          const json = await res.json();
-          const text = json.choices?.[0]?.message?.content ?? null;
-          const tokens = (json.usage?.prompt_tokens ?? 0) + (json.usage?.completion_tokens ?? 0);
-          return { text, tokens };
-    } catch (e) {
-          console.error('[GROQ] Exception:', e);
-          return { text: null, tokens: 0 };
+  if (!GROQ_KEY) return { text: null, tokens: 0 };
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${GROQ_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'llama-3.1-8b-instant',
+        max_tokens: 600,
+        temperature: 0.7,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...messages.slice(-10).map(m => ({ role: m.role, content: m.content })),
+        ],
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      console.error('[GROQ] Error:', res.status, err);
+      return { text: null, tokens: 0 };
     }
+    const json = await res.json();
+    const text = json.choices?.[0]?.message?.content ?? null;
+    const tokens = (json.usage?.prompt_tokens ?? 0) + (json.usage?.completion_tokens ?? 0);
+    return { text, tokens };
+  } catch (e) {
+    console.error('[GROQ] Exception:', e);
+    return { text: null, tokens: 0 };
+  }
 }
+
 // ─── Claude call (primary) ─────────────────────────────────────────────────────
 async function callClaude(systemPrompt: string, messages: ClaudeMessage[]): Promise<ClaudeResult> {
   if (!ANTHROPIC_KEY) return { text: null, tokens: 0 };
@@ -255,18 +256,18 @@ async function callClaude(systemPrompt: string, messages: ClaudeMessage[]): Prom
   }
 }
 
-// ─── AI call with automatic fallback Claude → Gemini ─────────────────────────
+// ─── AI call with automatic fallback Claude → Gemini → GROQ ──────────────────
 async function callAI(systemPrompt: string, messages: ClaudeMessage[]): Promise<ClaudeResult> {
   // Try Claude first
   const claudeResult = await callClaude(systemPrompt, messages);
   if (claudeResult.text) return claudeResult;
   // Fallback to Gemini
   console.log('[AI] Claude failed, trying Gemini fallback...');
-    const geminiResult = await callGemini(systemPrompt, messages);
-    if (geminiResult.text) return geminiResult;
-    // Final fallback to GROQ
-    console.log('[AI] Gemini failed, trying GROQ fallback...');
-    return callGroq(systemPrompt, messages);
+  const geminiResult = await callGemini(systemPrompt, messages);
+  if (geminiResult.text) return geminiResult;
+  // Final fallback to GROQ
+  console.log('[AI] Gemini failed, trying GROQ fallback...');
+  return callGroq(systemPrompt, messages);
 }
 
 function extractData(text: string): Record<string, string> | null {
@@ -344,9 +345,11 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    console.log('[WEBHOOK IN]', body.event, body.instance, body.data?.key?.remoteJid);
 
     const event: string = body.event || '';
     if (event !== 'MESSAGES_UPSERT' && event !== 'messages.upsert') {
+      console.log('[WEBHOOK SKIP] non-message event:', event);
       return NextResponse.json({ ok: true });
     }
 
@@ -358,30 +361,37 @@ export async function POST(req: NextRequest) {
     const contactName: string = msgData.pushName || '';
 
     if (!text.trim() || remoteJid.includes('@g.us') || !instanceName) {
+      console.log('[WEBHOOK SKIP] filter: hasText=', !!text.trim(), 'isGroup=', remoteJid.includes('@g.us'), 'instance=', instanceName);
       return NextResponse.json({ ok: true });
     }
 
     const supabase = createServiceClient();
 
     // Route to user + service via instance_name
-    const { data: waInstance } = await supabase
+    const { data: waInstance, error: waErr } = await supabase
       .from('whatsapp_instances')
       .select('user_id, service_type')
       .eq('instance_name', instanceName)
       .single();
-    if (!waInstance) return NextResponse.json({ ok: true });
+    if (!waInstance) {
+      console.log('[WEBHOOK SKIP] no whatsapp_instances row for instance=', instanceName, 'err=', waErr?.message);
+      return NextResponse.json({ ok: true });
+    }
     const userId = waInstance.user_id;
     const serviceType: string = waInstance.service_type || 'auto_confirmation';
 
     // Load config for the specific service that received the message
-    const { data: config } = await supabase
+    const { data: config, error: cfgErr } = await supabase
       .from('chatbot_configs')
       .select('*')
       .eq('user_id', userId)
       .eq('template_type', serviceType)
       .eq('is_active', true)
       .single();
-    if (!config) return NextResponse.json({ ok: true });
+    if (!config) {
+      console.log('[WEBHOOK SKIP] no active chatbot_config for user=', userId, 'template_type=', serviceType, 'err=', cfgErr?.message);
+      return NextResponse.json({ ok: true });
+    }
 
     // Load existing session
     const { data: existingSession } = await supabase
@@ -394,6 +404,7 @@ export async function POST(req: NextRequest) {
 
     // ─── Skip bot's own outgoing messages echoed back by Evolution API ──────────
     if (fromMe) {
+      console.log('[WEBHOOK SKIP] fromMe true (own echo)');
       return NextResponse.json({ ok: true });
     }
 
@@ -401,18 +412,21 @@ export async function POST(req: NextRequest) {
     const blockedPrefixes: string[] = config.blocked_prefixes ?? [];
     const cleanJid = remoteJid.replace('@s.whatsapp.net', '');
     if (blockedPrefixes.length > 0 && blockedPrefixes.some((p: string) => cleanJid.startsWith(p))) {
+      console.log('[WEBHOOK SKIP] blocked prefix for jid=', cleanJid);
       return NextResponse.json({ ok: true });
     }
 
     // ─── Human pause check ─────────────────────────────────────────────────────
     if (existingSession?.human_pause_until) {
       if (Date.now() < new Date(existingSession.human_pause_until).getTime()) {
+        console.log('[WEBHOOK SKIP] human_pause active until', existingSession.human_pause_until);
         return NextResponse.json({ ok: true });
       }
     }
 
     // ─── Already handed over to human ─────────────────────────────────────────
     if (existingSession?.human_handover) {
+      console.log('[WEBHOOK SKIP] human_handover already true for jid=', remoteJid);
       return NextResponse.json({ ok: true });
     }
 
