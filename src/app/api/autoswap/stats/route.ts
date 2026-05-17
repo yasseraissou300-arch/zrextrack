@@ -21,10 +21,17 @@ export async function GET() {
     .eq('status', 'success');
 
   // Gracefully handle missing table — return zeroed stats so the UI can show
-  // an empty state instead of an error. Postgres code 42P01 = "undefined_table".
+  // an empty state instead of an error.
+  //  - Postgres code 42P01 = "undefined_table" (raw SQL error)
+  //  - PostgREST code PGRST205 = "Could not find the table in the schema cache"
   if (swapErr) {
     const code = (swapErr as { code?: string }).code;
-    if (code === '42P01' || /relation .* does not exist/i.test(swapErr.message)) {
+    const isMissingTable =
+      code === '42P01' ||
+      code === 'PGRST205' ||
+      /relation .* does not exist/i.test(swapErr.message) ||
+      /could not find the table/i.test(swapErr.message);
+    if (isMissingTable) {
       return NextResponse.json({
         total_swaps: 0,
         delivered: 0,
