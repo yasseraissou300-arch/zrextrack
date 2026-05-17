@@ -35,3 +35,14 @@ jest-test-results.json
 
 # Optional: if using TurboRepo or monorepo
 turbo/
+
+# Local env (secrets — never commit)
+.env.local
+.env.*.local
+
+# AutoSwap dry-run outputs (contiennent des données clients)
+autoswap-proposals.md
+autoswap-proposals.json
+
+# Claude Code local state (worktrees, settings)
+.claude/

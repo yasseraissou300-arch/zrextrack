@@ -7,7 +7,7 @@ export const maxDuration = 60;
 const EVOLUTION_URL = process.env.EVOLUTION_API_URL || '';
 const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY || '';
 
-// Extract QR from any Evolution API response shape (handles string, object, URL, base64)
+// Extract QR (image base64/URL) from any Evolution API response shape.
 function extractQr(json: unknown): string | null {
   const j = json as Record<string, unknown>;
   const qrcode = j?.qrcode;
@@ -20,9 +20,30 @@ function extractQr(json: unknown): string | null {
     (j?.base64 as string) ??
     (typeof j?.qr === 'string' ? (j.qr as string) : null) ??
     (j?.qr as Record<string, string>)?.base64 ??
-    (j?.pairingCode as string) ??
     null
   );
+}
+
+// Extract the 8-letter pairing code (e.g., "ABCD-EFGH") if Evolution returned one.
+// This is separate from extractQr() because a pairing code is a string the user
+// types into WhatsApp, not an image they scan.
+function extractPairingCode(json: unknown): string | null {
+  const j = json as Record<string, unknown>;
+  const code = (j?.pairingCode as string)
+    ?? ((j?.qrcode as Record<string, unknown>)?.pairingCode as string)
+    ?? null;
+  return code || null;
+}
+
+// Normalise an Algerian phone number to international format expected by Evolution.
+// "0XXXXXXXXX" → "213XXXXXXXXX", "+213..." → "213...", "9-digit" → "213..."
+function normalizePhone(raw: string): string {
+  const clean = (raw || '').replace(/[\s\-()+.]/g, '');
+  if (clean.startsWith('213')) return clean;
+  if (clean.startsWith('00213')) return clean.slice(2);
+  if (clean.startsWith('0')) return '213' + clean.slice(1);
+  if (clean.length === 9) return '213' + clean;
+  return clean;
 }
 
 export async function GET(req: NextRequest) {
@@ -32,6 +53,12 @@ export async function GET(req: NextRequest) {
 
   const serviceType = req.nextUrl.searchParams.get('service') || 'auto_confirmation';
   const debug = req.nextUrl.searchParams.get('debug') === '1';
+  // Si un numéro est fourni, on demande un code de pairing à 8 caractères
+  // à entrer dans WhatsApp (au lieu de scanner un QR). Plus pratique quand
+  // l'utilisateur est sur le même téléphone que l'app.
+  const rawPhone = req.nextUrl.searchParams.get('number') || '';
+  const phone = rawPhone ? normalizePhone(rawPhone) : '';
+  const wantPairingCode = phone.length >= 11; // 213 + 9 chiffres minimum
 
   const { data: instance } = await supabase
     .from('whatsapp_instances')
@@ -96,15 +123,109 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 2. Try to get QR from existing instance
+    // 2. Try to get QR (or pairing code if a phone number was provided) from existing instance.
+    // Evolution API supports several patterns depending on version :
+    //   a) GET /instance/connect/{name}?number=PHONE → returns pairingCode
+    //   b) POST /instance/connect/{name} { number: PHONE } → idem
+    //   c) POST /instance/pairing-code/{name} { number: PHONE } → dedicated endpoint
+    // On essaie chaque format en cascade et on remonte la première réponse exploitable.
+
+    let connectJson: unknown = null;
+
+    if (wantPairingCode) {
+      // Format A — GET avec query (le plus répandu)
+      const urlA = `${EVOLUTION_URL}/instance/connect/${instance.instance_name}?number=${encodeURIComponent(phone)}`;
+      const resA = await fetch(urlA, { headers }).catch(() => null);
+      debugLog.attemptA = { url: urlA.replace(EVOLUTION_URL, '<base>'), status: resA?.status ?? 'fetch_failed' };
+
+      let unsupported = false;
+      if (resA?.ok) {
+        connectJson = await resA.json().catch(() => null);
+        debugLog.attemptA_body = connectJson;
+        // Cas observé sur Evolution v1.x : la réponse contient `pairingCode: null`
+        // EN MÊME TEMPS QU'un QR valide. Signe explicite que la feature n'existe
+        // pas dans cette version (au lieu d'absence du champ). Court-circuit.
+        const j = connectJson as Record<string, unknown> | null;
+        if (j && Object.prototype.hasOwnProperty.call(j, 'pairingCode') && j.pairingCode === null) {
+          unsupported = true;
+        }
+      }
+
+      // Si pas de signal explicite d'incompatibilité, on essaie les autres formats.
+      if (!unsupported && !extractPairingCode(connectJson)) {
+        // Format B — POST avec body
+        const urlB = `${EVOLUTION_URL}/instance/connect/${instance.instance_name}`;
+        const resB = await fetch(urlB, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', apikey: EVOLUTION_KEY },
+          body: JSON.stringify({ number: phone }),
+        }).catch(() => null);
+        debugLog.attemptB = { url: urlB.replace(EVOLUTION_URL, '<base>'), status: resB?.status ?? 'fetch_failed' };
+        if (resB?.ok) {
+          const bJson = await resB.json().catch(() => null);
+          debugLog.attemptB_body = bJson;
+          if (extractPairingCode(bJson)) connectJson = bJson;
+        }
+
+        // Format C — endpoint dédié pairing-code
+        if (!extractPairingCode(connectJson)) {
+          const urlC = `${EVOLUTION_URL}/instance/pairing-code/${instance.instance_name}`;
+          const resC = await fetch(urlC, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', apikey: EVOLUTION_KEY },
+            body: JSON.stringify({ number: phone }),
+          }).catch(() => null);
+          debugLog.attemptC = { url: urlC.replace(EVOLUTION_URL, '<base>'), status: resC?.status ?? 'fetch_failed' };
+          if (resC?.ok) {
+            const cJson = await resC.json().catch(() => null);
+            debugLog.attemptC_body = cJson;
+            if (extractPairingCode(cJson)) connectJson = cJson;
+          }
+        }
+      }
+
+      const pairingCode = extractPairingCode(connectJson);
+      if (pairingCode) {
+        const formatted = pairingCode.length === 8 && !pairingCode.includes('-')
+          ? `${pairingCode.slice(0, 4)}-${pairingCode.slice(4)}`
+          : pairingCode;
+        return NextResponse.json({ pairingCode: formatted, phone, connected: false });
+      }
+
+      // Cas attendu : Evolution v1.x renvoie le QR au lieu du code de pairing.
+      // On bascule automatiquement et on signale au frontend que la feature
+      // n'est pas supportée — sans erreur dure.
+      const fallbackQr = extractQr(connectJson);
+      if (unsupported || fallbackQr) {
+        let qrData: string | null = null;
+        if (fallbackQr) {
+          if (fallbackQr.startsWith('data:')) qrData = fallbackQr;
+          else if (fallbackQr.startsWith('http')) qrData = fallbackQr;
+          else qrData = `data:image/png;base64,${fallbackQr}`;
+        }
+        return NextResponse.json({
+          qr: qrData,
+          connected: false,
+          pairingNotSupported: true,
+          notice: 'Cette version d\'Evolution API ne supporte pas le pairing par numéro. Scanne le QR avec ton téléphone.',
+        });
+      }
+
+      return NextResponse.json({
+        error: 'Impossible de joindre Evolution API. Vérifie la configuration côté serveur.',
+        debug: debugLog,
+      }, { status: 502 });
+    }
+
+    // ── Mode QR classique (pas de numéro fourni) ──────────────────────────
     const connectRes = await fetch(
       `${EVOLUTION_URL}/instance/connect/${instance.instance_name}`,
       { headers }
     ).catch(() => null);
-
     debugLog.connectStatus = connectRes?.status ?? 'fetch_failed';
-    const connectJson = connectRes?.ok ? await connectRes.json() : null;
+    connectJson = connectRes?.ok ? await connectRes.json() : null;
     debugLog.connectJson = connectJson;
+
     let qr = connectJson ? extractQr(connectJson) : null;
 
     // 3. Instance not found (404) or no QR → create it fresh (no webhook to avoid Evolution API 400 when events array is absent)
