@@ -6,28 +6,31 @@
 
 @layer base {
   :root {
-    --background: 0 0% 97%;
-    --foreground: 222 14% 12%;
+    /* Warm off-white base (stone palette) — Mercury / Cash App vibe */
+    --background: 30 10% 97%;
+    --foreground: 24 10% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 222 14% 12%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --primary: 142 72% 29%;
+    --card-foreground: 24 10% 10%;
+    --border: 30 9% 91%;
+    --input: 30 9% 91%;
+    /* Primary: Vercel-like violet-500 (#8B5CF6) */
+    --primary: 262 83% 58%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 13% 95%;
-    --secondary-foreground: 222 14% 25%;
-    --muted: 220 13% 95%;
-    --muted-foreground: 220 9% 46%;
-    --accent: 142 72% 96%;
-    --accent-foreground: 142 72% 20%;
+    --secondary: 30 9% 95%;
+    --secondary-foreground: 24 10% 25%;
+    --muted: 30 9% 95%;
+    --muted-foreground: 24 6% 46%;
+    /* Accent: violet-50 / violet-700 */
+    --accent: 262 100% 96%;
+    --accent-foreground: 262 68% 35%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
-    --success: 142 72% 29%;
+    --success: 142 72% 38%;
     --success-foreground: 0 0% 100%;
-    --ring: 142 72% 29%;
-    --radius: 0.5rem;
+    --ring: 262 83% 58%;
+    --radius: 0.75rem;
   }
 }
 

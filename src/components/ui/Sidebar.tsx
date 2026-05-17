@@ -62,7 +62,7 @@ export default function Sidebar() {
           collapsed ? 'justify-center px-3' : 'gap-2.5 px-4'
         }`}
       >
-        <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center shrink-0">
+        <div className="w-9 h-9 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-xl flex items-center justify-center shrink-0 shadow-md shadow-violet-500/25">
           <span className="text-white font-bold text-sm">Z</span>
         </div>
         {!collapsed && (
@@ -93,12 +93,12 @@ export default function Sidebar() {
                       title={collapsed ? item.label : undefined}
                       className={`group relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
                         isActive
-                          ? 'bg-green-50 text-green-700'
+                          ? 'bg-violet-50 text-violet-700'
                           : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'
                       } ${collapsed ? 'justify-center' : ''}`}
                     >
                       {isActive && !collapsed && (
-                        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-green-500 rounded-r-full" />
+                        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-violet-500 rounded-r-full" />
                       )}
                       <Icon size={17} className="shrink-0" />
                       {!collapsed && <span className="truncate">{item.label}</span>}
@@ -124,16 +124,16 @@ export default function Sidebar() {
           title={collapsed ? 'Assistant IA' : undefined}
           className={`group relative w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
             isOpen
-              ? 'bg-green-50 text-green-700'
+              ? 'bg-violet-50 text-violet-700'
               : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800'
           } ${collapsed ? 'justify-center' : ''}`}
         >
           {isOpen && !collapsed && (
-            <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-green-500 rounded-r-full" />
+            <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-violet-500 rounded-r-full" />
           )}
           <div className="relative shrink-0">
             <MessageCircle size={17} />
-            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-white" />
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-violet-500 rounded-full border border-white" />
           </div>
           {!collapsed && <span className="truncate">Assistant IA</span>}
           {collapsed && (
