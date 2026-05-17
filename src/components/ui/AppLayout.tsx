@@ -23,11 +23,11 @@ export default function AppLayout({ children }: AppLayoutProps) {
             className="p-2 -ml-2 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-700 dark:text-stone-300"
             aria-label="Ouvrir le menu"
           >
-            <Menu size={20} />
+            <Menu size={18} />
           </button>
           <div className="ml-3 flex items-center gap-2">
-            <div className="w-7 h-7 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-lg flex items-center justify-center shadow-sm shadow-violet-500/30">
-              <span className="text-white font-bold text-xs">Z</span>
+            <div className="w-6 h-6 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-md flex items-center justify-center shadow-sm shadow-violet-500/30">
+              <span className="text-white font-bold text-[10px]">Z</span>
             </div>
             <span className="font-bold text-stone-900 dark:text-stone-100 text-sm tracking-tight">Autotim</span>
           </div>
@@ -54,7 +54,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
               className="absolute top-3 -right-3 w-7 h-7 rounded-full bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 shadow-md flex items-center justify-center text-stone-600 dark:text-stone-300"
               aria-label="Fermer le menu"
             >
-              <X size={14} />
+              <X size={12} />
             </button>
           </div>
         </div>
