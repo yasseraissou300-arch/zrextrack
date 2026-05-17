@@ -844,6 +844,30 @@ interface DiagnosticResult {
   summary: string;
 }
 
+interface RepairAttempt {
+  format: string;
+  endpoint: string;
+  status: number;
+  response_snippet: string;
+}
+interface RepairInstance {
+  instance_name: string;
+  service_type: string;
+  attempts: RepairAttempt[];
+  final_url: string | null;
+  final_events: string[] | null;
+  verified: boolean;
+}
+interface RepairResult {
+  webhook_url_sent: string;
+  app_url_used: string;
+  app_url_from_env: string | null;
+  total: number;
+  verified: number;
+  failed: number;
+  results: RepairInstance[];
+}
+
 // ─── WhatsAppTab ──────────────────────────────────────────────────────────────
 function WhatsAppTab() {
   const [evolutionConfigured, setEvolutionConfigured] = useState(true);
@@ -851,6 +875,7 @@ function WhatsAppTab() {
   const [diagLoading, setDiagLoading] = useState(false);
   const [diagOpen, setDiagOpen] = useState(false);
   const [repairing, setRepairing] = useState(false);
+  const [repairResult, setRepairResult] = useState<RepairResult | null>(null);
 
   useEffect(() => {
     fetch('/api/ai-chatbot/whatsapp/instance')
@@ -876,14 +901,17 @@ function WhatsAppTab() {
 
   const repairWebhooks = async () => {
     setRepairing(true);
+    setRepairResult(null);
     try {
       const res = await fetch('/api/ai-chatbot/whatsapp/webhook-reset', { method: 'POST' });
       const json = await res.json();
       if (json.error) {
         toast.error(json.error);
       } else {
-        toast.success(`${json.success}/${json.total} webhook(s) ré-enregistré(s)`);
-        // Re-run diagnostic to verify
+        const r = json as RepairResult;
+        setRepairResult(r);
+        if (r.verified === r.total) toast.success(`${r.verified}/${r.total} webhook(s) vérifiés OK`);
+        else toast.error(`Seulement ${r.verified}/${r.total} webhook(s) vérifiés — voir les détails`);
         await runDiagnostic();
       }
     } catch (e) {
@@ -959,6 +987,39 @@ function WhatsAppTab() {
             </div>
           )}
 
+          {repairResult && (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 space-y-2 text-xs">
+              <p className="font-semibold text-blue-900">Résultat réparation — {repairResult.verified}/{repairResult.total} vérifié(s)</p>
+              <div className="text-blue-800 space-y-0.5">
+                <p>URL envoyée à Evolution : <code className="break-all">{repairResult.webhook_url_sent}</code></p>
+                <p>NEXT_PUBLIC_APP_URL : <code>{repairResult.app_url_from_env ?? '(non défini → fallback)'}</code></p>
+              </div>
+              <div className="space-y-1.5">
+                {repairResult.results.map((r, i) => (
+                  <div key={i} className="border border-blue-100 bg-white rounded p-2">
+                    <p className="font-mono text-[11px] flex items-center gap-1.5">
+                      {r.verified ? <CheckCircle size={11} className="text-green-600" /> : <XCircle size={11} className="text-red-600" />}
+                      {r.instance_name} <span className="text-gray-400">({r.service_type})</span>
+                    </p>
+                    <p className="text-gray-600 mt-1">Après réparation → URL: <code className="break-all">{r.final_url ?? 'aucun'}</code></p>
+                    <p className="text-gray-600">Events: <code>{r.final_events ? r.final_events.join(', ') : 'aucun'}</code></p>
+                    <details className="mt-1">
+                      <summary className="text-gray-500 cursor-pointer">Détails tentatives ({r.attempts.length})</summary>
+                      <div className="mt-1 space-y-1 ml-2">
+                        {r.attempts.map((a, j) => (
+                          <div key={j} className="text-gray-600 border-l-2 border-gray-200 pl-2">
+                            <p><span className="font-mono text-gray-500">{a.format}</span> → HTTP {a.status}</p>
+                            <p className="text-[10px] text-gray-400 break-all">{a.response_snippet}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {diag && (
             <div className="space-y-3 text-xs">
               <div className={`rounded-lg p-3 ${diag.issues.length === 0 ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-amber-50 border border-amber-200 text-amber-900'}`}>
@@ -987,7 +1048,8 @@ function WhatsAppTab() {
                   <li className="flex items-center gap-1.5">{diag.env.aiKeys.anthropic ? <CheckCircle size={11} className="text-green-600" /> : <XCircle size={11} className="text-gray-400" />} ANTHROPIC_API_KEY</li>
                   <li className="flex items-center gap-1.5">{diag.env.aiKeys.gemini ? <CheckCircle size={11} className="text-green-600" /> : <XCircle size={11} className="text-gray-400" />} GEMINI_API_KEY</li>
                   <li className="flex items-center gap-1.5">{diag.env.aiKeys.groq ? <CheckCircle size={11} className="text-green-600" /> : <XCircle size={11} className="text-gray-400" />} GROQ_API_KEY</li>
-                  <li className="text-gray-500 mt-1 break-all">Webhook attendu : <code>{diag.env.expectedWebhookUrl}</code></li>
+                  <li className="text-gray-500 mt-1 break-all">NEXT_PUBLIC_APP_URL : <code>{diag.env.appUrl}</code></li>
+                  <li className="text-gray-500 break-all">Webhook attendu : <code>{diag.env.expectedWebhookUrl}</code></li>
                 </ul>
               </div>
 
