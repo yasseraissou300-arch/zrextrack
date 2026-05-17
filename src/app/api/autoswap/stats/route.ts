@@ -20,8 +20,23 @@ export async function GET() {
     .eq('user_id', user.id)
     .eq('status', 'success');
 
+  // Gracefully handle missing table — return zeroed stats so the UI can show
+  // an empty state instead of an error. Postgres code 42P01 = "undefined_table".
   if (swapErr) {
-    return NextResponse.json({ error: swapErr.message }, { status: 500 });
+    const code = (swapErr as { code?: string }).code;
+    if (code === '42P01' || /relation .* does not exist/i.test(swapErr.message)) {
+      return NextResponse.json({
+        total_swaps: 0,
+        delivered: 0,
+        failed: 0,
+        in_progress: 0,
+        unknown: 0,
+        delivery_rate: 0,
+        total_savings: 0,
+        note: 'autoswap_log table not found — run supabase_autoswap.sql migration.',
+      });
+    }
+    return NextResponse.json({ error: swapErr.message, code }, { status: 500 });
   }
 
   const totalSwaps = swaps?.length ?? 0;

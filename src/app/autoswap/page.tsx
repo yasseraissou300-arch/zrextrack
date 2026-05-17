@@ -50,6 +50,7 @@ export default function AutoSwapPage() {
 
   const [swapStats, setSwapStats] = useState<SwapStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [statsError, setStatsError] = useState<string | null>(null);
 
   useEffect(() => {
     const t = localStorage.getItem(STORAGE_KEY) || '';
@@ -61,12 +62,19 @@ export default function AutoSwapPage() {
 
   const fetchSwapStats = async () => {
     setStatsLoading(true);
+    setStatsError(null);
     try {
       const res = await fetch('/api/autoswap/stats');
+      const json = await res.json().catch(() => ({} as Record<string, unknown>));
       if (res.ok) {
-        const json = (await res.json()) as SwapStats;
-        setSwapStats(json);
+        setSwapStats(json as SwapStats);
+      } else {
+        const errMsg = (json as { error?: string; code?: string }).error || `HTTP ${res.status}`;
+        const code = (json as { code?: string }).code;
+        setStatsError(code ? `${errMsg} (code ${code})` : errMsg);
       }
+    } catch (e) {
+      setStatsError(e instanceof Error ? e.message : 'Erreur réseau');
     } finally {
       setStatsLoading(false);
     }
@@ -159,7 +167,16 @@ export default function AutoSwapPage() {
             </button>
           </div>
 
-          {statsLoading && !swapStats ? (
+          {statsError ? (
+            <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
+              <strong>Erreur :</strong> {statsError}
+              {/relation.*autoswap_log.*does not exist/i.test(statsError) && (
+                <p className="mt-1 text-xs text-red-600">
+                  La table <code>autoswap_log</code> n'existe pas. Exécute le fichier <code>supabase_autoswap.sql</code> dans Supabase → SQL Editor.
+                </p>
+              )}
+            </div>
+          ) : statsLoading && !swapStats ? (
             <div className="text-sm text-gray-400 py-2">Chargement des statistiques…</div>
           ) : swapStats && swapStats.total_swaps === 0 ? (
             <div className="text-sm text-gray-500 py-2">
