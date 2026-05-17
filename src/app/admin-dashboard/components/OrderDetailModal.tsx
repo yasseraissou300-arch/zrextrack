@@ -29,7 +29,7 @@ const STATUS_CONFIG: Record<string, { label: string; badge: string; bg: string; 
   en_livraison:   { label: 'En livraison',    badge: 'bg-amber-100 text-amber-700',  bg: 'bg-amber-50',  border: 'border-amber-200' },
   livre:          { label: 'Livré ✓',         badge: 'bg-green-100 text-green-700',  bg: 'bg-green-50',  border: 'border-green-200' },
   echec:          { label: 'Échec',           badge: 'bg-red-100 text-red-700',      bg: 'bg-red-50',    border: 'border-red-200' },
-  retourne:       { label: 'Retourné',        badge: 'bg-gray-100 text-gray-600',    bg: 'bg-gray-50',   border: 'border-gray-200' },
+  retourne:       { label: 'Retourné',        badge: 'bg-gray-100 text-gray-600',    bg: 'bg-gray-50',   border: 'border-stone-200' },
 };
 
 const STEPS = ['en_preparation', 'en_transit', 'en_livraison', 'livre'];
@@ -109,14 +109,14 @@ export default function OrderDetailModal({ order, onClose, onDeleted }: Props) {
               href={trackingUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="p-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors"
+              className="p-2 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 transition-colors"
               title="Voir page de suivi"
             >
               <ExternalLink size={14} className="text-gray-500" />
             </a>
             <button
               onClick={onClose}
-              className="p-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors"
+              className="p-2 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 transition-colors"
             >
               <X size={14} className="text-gray-500" />
             </button>
@@ -139,7 +139,7 @@ export default function OrderDetailModal({ order, onClose, onDeleted }: Props) {
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 text-xs font-bold transition-all ${
                           isDone ? 'bg-green-500 border-green-500 text-white'
                             : isActive ? 'bg-white border-green-500 text-green-600'
-                            : 'bg-white border-gray-200 text-gray-300'
+                            : 'bg-white border-stone-200 text-gray-300'
                         }`}>
                           {isDone ? '✓' : idx + 1}
                         </div>
@@ -214,7 +214,7 @@ export default function OrderDetailModal({ order, onClose, onDeleted }: Props) {
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-between border-t border-gray-100 pt-3">
+          <div className="flex items-center justify-between border-t border-stone-100 pt-3">
             <div className="flex items-center gap-1.5 text-xs text-gray-400">
               <Clock size={11} />
               Mis à jour le <span className="font-medium text-gray-600 ml-1">{formatDate(order.last_update)}</span>

@@ -52,10 +52,10 @@ function TemplateCard({
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <div className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden">
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
+        className="w-full flex items-center justify-between px-5 py-4 hover:bg-stone-50 transition-colors"
       >
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
@@ -68,7 +68,7 @@ function TemplateCard({
       </button>
 
       {open && (
-        <div className="border-t border-gray-100 p-5 space-y-4">
+        <div className="border-t border-stone-100 p-5 space-y-4">
           <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
             {LANG_TABS.map(l => (
               <button
@@ -98,7 +98,7 @@ function TemplateCard({
             onChange={e => setForm(f => ({ ...f, [lang]: e.target.value }))}
             rows={5}
             dir={langCfg.dir as any}
-            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+            className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
           />
 
           {content && (
@@ -120,7 +120,7 @@ function TemplateCard({
           <div className="flex gap-2">
             <button
               onClick={handleReset}
-              className="flex items-center gap-1.5 text-xs px-3 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-500"
+              className="flex items-center gap-1.5 text-xs px-3 py-2 border border-stone-200 rounded-lg hover:bg-stone-50 text-gray-500"
             >
               <RotateCcw size={12} /> Réinitialiser
             </button>

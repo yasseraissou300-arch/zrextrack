@@ -161,7 +161,7 @@ function ConnexionTab() {
   return (
     <div className="max-w-xl space-y-6">
       {/* Statut */}
-      <div className={`rounded-2xl p-5 border-2 ${connected ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+      <div className={`rounded-2xl p-5 border-2 ${connected ? 'border-green-200 bg-green-50' : 'border-stone-200 bg-gray-50'}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${connected ? 'bg-green-500' : qr ? 'bg-amber-400' : 'bg-gray-300'}`}>
@@ -176,7 +176,7 @@ function ConnexionTab() {
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={handleCheckStatus} className="p-1.5 border border-gray-200 rounded-lg hover:bg-white">
+            <button onClick={handleCheckStatus} className="p-1.5 border border-stone-200 rounded-lg hover:bg-white">
               <RefreshCw size={14} className="text-gray-400" />
             </button>
             {connected && (
@@ -190,7 +190,7 @@ function ConnexionTab() {
 
       {/* QR Code */}
       {!connected && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+        <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-5 space-y-4">
           <div className="flex items-center gap-2">
             <QrCode size={16} className="text-gray-500" />
             <h3 className="font-semibold text-gray-900">Connecter WhatsApp</h3>
@@ -198,10 +198,10 @@ function ConnexionTab() {
 
           {qr ? (
             <div className="flex flex-col items-center gap-3">
-              <img src={qr} alt="QR Code WhatsApp" className="w-56 h-56 rounded-xl border border-gray-200" />
+              <img src={qr} alt="QR Code WhatsApp" className="w-56 h-56 rounded-xl border border-stone-200" />
               <p className="text-xs text-gray-500 text-center">Ouvre WhatsApp → <strong>Appareils liés</strong> → scanne ce QR</p>
               <p className="text-xs text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg">QR expire en 20 secondes — rafraichis si expiré</p>
-              <button onClick={handleRefreshQr} disabled={busy} className="flex items-center gap-1.5 text-sm px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50">
+              <button onClick={handleRefreshQr} disabled={busy} className="flex items-center gap-1.5 text-sm px-3 py-1.5 border border-stone-200 rounded-lg hover:bg-stone-50 disabled:opacity-50">
                 <RefreshCw size={13} /> Nouveau QR
               </button>
             </div>
@@ -326,13 +326,13 @@ function EnvoyerTab() {
       )}
 
       {/* Filtre situation */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
+      <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-4 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-medium text-gray-700">Situation :</span>
           <div className="flex flex-wrap gap-2">
             {SITUATION_FILTERS.map(f => (
               <button key={f.value} onClick={() => { setSituationFilter(f.value); setPage(1); setSelected(new Set()); }}
-                className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${situationFilter === f.value ? 'bg-green-600 text-white border-green-600' : 'border-gray-200 text-gray-600 hover:border-green-400 hover:text-green-600'}`}>
+                className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${situationFilter === f.value ? 'bg-green-600 text-white border-green-600' : 'border-stone-200 text-gray-600 hover:border-green-400 hover:text-green-600'}`}>
                 {f.label}
               </button>
             ))}
@@ -340,18 +340,18 @@ function EnvoyerTab() {
         </div>
         {/* Sous-filtre wilaya */}
         {situationFilter === 'en cours de livraison' && (
-          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100">
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-stone-100">
             <div className="flex items-center gap-1 text-xs font-medium text-gray-500">
               <Filter size={11} /> Wilaya :
             </div>
             <div className="flex flex-wrap gap-1.5">
               <button onClick={() => setSubSituationFilter('')}
-                className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${subSituationFilter === '' ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 text-gray-500 hover:border-blue-400 hover:text-blue-600'}`}>
+                className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${subSituationFilter === '' ? 'bg-blue-600 text-white border-blue-600' : 'border-stone-200 text-gray-500 hover:border-blue-400 hover:text-blue-600'}`}>
                 Toutes
               </button>
               {SUB_SITUATIONS.map(w => (
                 <button key={w} onClick={() => setSubSituationFilter(w)}
-                  className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${subSituationFilter === w ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 text-gray-500 hover:border-blue-400 hover:text-blue-600'}`}>
+                  className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${subSituationFilter === w ? 'bg-blue-600 text-white border-blue-600' : 'border-stone-200 text-gray-500 hover:border-blue-400 hover:text-blue-600'}`}>
                   {w}
                 </button>
               ))}
@@ -361,18 +361,18 @@ function EnvoyerTab() {
       </div>
 
       {/* Templates */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+      <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-5 space-y-4">
         <div className="flex items-center gap-2"><MessageSquare size={16} className="text-green-500" /><h3 className="font-semibold text-gray-900">Template (Darija)</h3></div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {TEMPLATES.map(t => (
             <button key={t.id} onClick={() => setTemplateId(t.id)}
-              className={`text-xs px-3 py-2 rounded-xl border text-left font-medium transition-colors ${templateId === t.id ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
+              className={`text-xs px-3 py-2 rounded-xl border text-left font-medium transition-colors ${templateId === t.id ? 'border-green-500 bg-green-50 text-green-700' : 'border-stone-200 text-gray-600 hover:border-gray-300'}`}>
               {t.label}
             </button>
           ))}
         </div>
         {templateId === 'custom' ? (
-          <textarea value={customText} onChange={e => setCustomText(e.target.value)} placeholder="كتب رسالتك..." rows={4} dir="rtl" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+          <textarea value={customText} onChange={e => setCustomText(e.target.value)} placeholder="كتب رسالتك..." rows={4} dir="rtl" className="w-full border border-stone-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
         ) : (
           <div>
             <p className="text-xs text-gray-400 mb-1">{orders.length > 0 ? 'Apercu (premier client)' : 'Apercu (exemple)'}</p>
@@ -396,7 +396,7 @@ function EnvoyerTab() {
             value={testPhone}
             onChange={e => setTestPhone(e.target.value)}
             placeholder="ex: 0770 12 34 56"
-            className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button onClick={sendTest} disabled={!testPhone || sendingTest || !connected}
             className="flex items-center gap-1.5 text-sm px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 font-medium shrink-0">
@@ -431,8 +431,8 @@ function EnvoyerTab() {
       </div>
 
       {/* Table des destinataires */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-gray-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+      <div className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-stone-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2 flex-wrap">
             <Users size={16} className="text-gray-500" />
             <h3 className="font-semibold text-gray-900">Destinataires</h3>
@@ -456,7 +456,7 @@ function EnvoyerTab() {
                 <th className="px-4 py-3 text-left">Telephone</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-stone-50">
               {loadingOrders ? (
                 <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Chargement...</td></tr>
               ) : displayedOrders.length === 0 ? (
@@ -464,7 +464,7 @@ function EnvoyerTab() {
               ) : displayedOrders.map(order => {
                 const hasPhone = !!(order.customer_whatsapp && order.customer_whatsapp.length > 5);
                 return (
-                  <tr key={order.id} className={`transition-colors ${hasPhone ? 'hover:bg-gray-50 cursor-pointer' : 'opacity-40'}`}
+                  <tr key={order.id} className={`transition-colors ${hasPhone ? 'hover:bg-stone-50 cursor-pointer' : 'opacity-40'}`}
                     onClick={() => { if (!hasPhone) return; setSelected(s => { const n = new Set(s); n.has(order.id) ? n.delete(order.id) : n.add(order.id); return n; }); }}>
                     <td className="px-4 py-3"><input type="checkbox" checked={selected.has(order.id)} disabled={!hasPhone} readOnly className="rounded" /></td>
                     <td className="px-4 py-3 font-medium text-gray-900">{order.customer_name || '—'}</td>
@@ -479,11 +479,11 @@ function EnvoyerTab() {
           </table>
         </div>
         {totalPages > 1 && !subSituationFilter && (
-          <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
+          <div className="px-4 py-3 border-t border-stone-100 flex items-center justify-between">
             <span className="text-sm text-gray-500">Page {page} / {totalPages}</span>
             <div className="flex gap-2">
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-1.5 border rounded-lg disabled:opacity-40 hover:bg-gray-50"><ChevronLeft size={14} /></button>
-              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-1.5 border rounded-lg disabled:opacity-40 hover:bg-gray-50"><ChevronRight size={14} /></button>
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-1.5 border rounded-lg disabled:opacity-40 hover:bg-stone-50"><ChevronLeft size={14} /></button>
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-1.5 border rounded-lg disabled:opacity-40 hover:bg-stone-50"><ChevronRight size={14} /></button>
             </div>
           </div>
         )}
@@ -568,8 +568,8 @@ function HistoriqueTab() {
         </div>
       )}
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-gray-100 flex items-center justify-between gap-3 flex-wrap">
+      <div className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-stone-100 flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2">
             <History size={16} className="text-gray-500" />
             <h3 className="font-semibold text-gray-900">Historique des messages</h3>
@@ -588,18 +588,18 @@ function HistoriqueTab() {
             )}
             <button
               onClick={() => setFilterEchec(f => !f)}
-              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl border font-medium transition-colors ${filterEchec ? 'bg-red-600 text-white border-red-600' : 'border-gray-200 text-gray-600 hover:border-red-400 hover:text-red-600'}`}
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl border font-medium transition-colors ${filterEchec ? 'bg-red-600 text-white border-red-600' : 'border-stone-200 text-gray-600 hover:border-red-400 hover:text-red-600'}`}
             >
               <AlertCircle size={12} />
               Echec seulement
             </button>
-            <button onClick={fetchMessages} className="p-1.5 hover:bg-gray-100 rounded-lg">
+            <button onClick={fetchMessages} className="p-1.5 hover:bg-stone-100 rounded-lg">
               <RefreshCw size={14} className="text-gray-400" />
             </button>
           </div>
         </div>
 
-        <div className="divide-y divide-gray-50">
+        <div className="divide-y divide-stone-50">
           {loading ? (
             <div className="flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-gray-400" /></div>
           ) : displayed.length === 0 ? (
@@ -611,7 +611,7 @@ function HistoriqueTab() {
             const cfg = statusConfig[msg.status] || statusConfig.en_attente;
             const isResending = resending.has(msg.id);
             return (
-              <div key={msg.id} className={`p-4 hover:bg-gray-50 ${msg.status === 'echec' ? 'border-l-2 border-red-300' : ''}`}>
+              <div key={msg.id} className={`p-4 hover:bg-stone-50 ${msg.status === 'echec' ? 'border-l-2 border-red-300' : ''}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -753,7 +753,7 @@ function BotIATab() {
       </div>
 
       {/* Activation */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center justify-between">
+      <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-5 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${settings.ai_enabled ? 'bg-purple-100' : 'bg-gray-100'}`}>
             <Bot size={20} className={settings.ai_enabled ? 'text-purple-600' : 'text-gray-400'} />
@@ -775,7 +775,7 @@ function BotIATab() {
       </div>
 
       {/* Webhook URL */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
+      <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-5 space-y-3">
         <div className="flex items-center gap-2">
           <Zap size={16} className="text-amber-500" />
           <h3 className="font-semibold text-gray-900">URL Webhook</h3>
@@ -783,12 +783,12 @@ function BotIATab() {
         </div>
         <p className="text-xs text-gray-500">Colle cette URL dans ton tableau de bord Green API → <strong>Notifications</strong>.</p>
         <div className="flex gap-2">
-          <code className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-gray-700 break-all">
+          <code className="flex-1 bg-gray-50 border border-stone-200 rounded-xl px-3 py-2.5 text-xs text-gray-700 break-all">
             {webhookUrl}
           </code>
           <button
             onClick={copyWebhook}
-            className="flex items-center gap-1.5 text-sm px-3 py-2.5 border border-gray-200 rounded-xl hover:bg-gray-50 shrink-0"
+            className="flex items-center gap-1.5 text-sm px-3 py-2.5 border border-stone-200 rounded-xl hover:bg-stone-50 shrink-0"
           >
             <Copy size={14} className="text-gray-500" />
           </button>
@@ -796,7 +796,7 @@ function BotIATab() {
       </div>
 
       {/* Facebook Messenger */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
+      <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-5 space-y-3">
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
             <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 fill-white"><path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.3 2.246.464 3.443.464 6.627 0 12-4.974 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.131 3.259L19.752 8l-6.561 6.963z"/></svg>
@@ -843,7 +843,7 @@ function BotIATab() {
       </div>
 
       {/* Google Sheets Export */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
+      <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-5 space-y-3">
         <div className="flex items-center gap-2">
           <svg viewBox="0 0 24 24" className="w-4 h-4 fill-green-600"><path d="M19.5 3h-15A1.5 1.5 0 003 4.5v15A1.5 1.5 0 004.5 21h15a1.5 1.5 0 001.5-1.5v-15A1.5 1.5 0 0019.5 3zm-10 13.5H7.5V15H9.5v1.5zm0-3H7.5V12H9.5v1.5zm0-3H7.5V9H9.5v1.5zm4 6h-2V15h2v1.5zm0-3h-2V12h2v1.5zm0-3h-2V9h2v1.5zm3.5 6H15V15h2v1.5zm0-3H15V12h2v1.5zm0-3H15V9h2v1.5z"/></svg>
           <h3 className="font-semibold text-gray-900">Export Google Sheets</h3>
@@ -872,7 +872,7 @@ function BotIATab() {
       </div>
 
       {/* Language */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
+      <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-5 space-y-3">
         <div className="flex items-center gap-2">
           <Globe size={16} className="text-blue-500" />
           <h3 className="font-semibold text-gray-900">Langue du bot</h3>
@@ -886,7 +886,7 @@ function BotIATab() {
             <button
               key={l.value}
               onClick={() => setSettings(s => ({ ...s, language: l.value as any, system_prompt: s.system_prompt }))}
-              className={`p-3 rounded-xl border text-left transition-colors ${settings.language === l.value ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
+              className={`p-3 rounded-xl border text-left transition-colors ${settings.language === l.value ? 'border-blue-500 bg-blue-50' : 'border-stone-200 hover:border-gray-300'}`}
             >
               <p className="text-sm font-medium text-gray-900">{l.label}</p>
               <p className="text-xs text-gray-400">{l.sub}</p>
@@ -896,7 +896,7 @@ function BotIATab() {
       </div>
 
       {/* System prompt */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
+      <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-5 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Bot size={16} className="text-purple-500" />
@@ -915,12 +915,12 @@ function BotIATab() {
           onChange={e => setSettings(s => ({ ...s, system_prompt: e.target.value }))}
           placeholder={promptPlaceholder}
           rows={6}
-          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-gray-700"
+          className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-gray-700"
         />
       </div>
 
       {/* Logique bot explication */}
-      <div className="bg-gray-50 rounded-2xl border border-gray-100 p-4 space-y-2">
+      <div className="bg-gray-50 rounded-2xl border border-stone-100 p-4 space-y-2">
         <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Logique du bot</p>
         <div className="space-y-1.5">
           {[
@@ -987,7 +987,7 @@ function BotIATab() {
                     ? 'bg-green-500 text-white rounded-br-sm'
                     : msg.type === 'error'
                     ? 'bg-red-50 text-red-700 border border-red-200 rounded-bl-sm'
-                    : 'bg-white text-gray-800 shadow-sm border border-gray-100 rounded-bl-sm'
+                    : 'bg-white text-gray-800 shadow-sm border border-stone-100 rounded-bl-sm'
                 }`} dir={msg.role === 'bot' ? 'auto' : 'auto'}>
                   {msg.role === 'bot' && (
                     <div className="flex items-center gap-1.5 mb-1.5">
@@ -1004,7 +1004,7 @@ function BotIATab() {
           )}
           {testing && (
             <div className="flex justify-start">
-              <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm flex items-center gap-2">
+              <div className="bg-white border border-stone-100 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm flex items-center gap-2">
                 <Loader2 size={13} className="animate-spin text-purple-500" />
                 <span className="text-xs text-gray-400">Le bot réfléchit...</span>
               </div>
@@ -1019,7 +1019,7 @@ function BotIATab() {
             onChange={e => setTestInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendTest()}
             placeholder="Ex: ZR-123456 ou وين طردي؟"
-            className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="flex-1 border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
             dir="auto"
           />
           <button

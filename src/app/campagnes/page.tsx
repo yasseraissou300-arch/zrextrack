@@ -98,7 +98,7 @@ function CreateModal({ open, onClose, onCreate }: {
             </div>
             <h2 className="font-bold text-gray-900">Nouvelle campagne</h2>
           </div>
-          <button onClick={handleClose} className="p-1.5 hover:bg-gray-100 rounded-lg">
+          <button onClick={handleClose} className="p-1.5 hover:bg-stone-100 rounded-lg">
             <X size={16} className="text-gray-500" />
           </button>
         </div>
@@ -109,7 +109,7 @@ function CreateModal({ open, onClose, onCreate }: {
             value={name}
             onChange={e => setName(e.target.value)}
             placeholder="ex: Promo Ramadan, Relance échecs..."
-            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
           />
         </div>
 
@@ -118,7 +118,7 @@ function CreateModal({ open, onClose, onCreate }: {
           <select
             value={audienceStatus}
             onChange={e => setAudienceStatus(e.target.value)}
-            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+            className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white"
           >
             {STATUS_OPTIONS.map(o => (
               <option key={o.value} value={o.value}>{o.label}</option>
@@ -134,7 +134,7 @@ function CreateModal({ open, onClose, onCreate }: {
             value={mediaUrl}
             onChange={e => setMediaUrl(e.target.value)}
             placeholder="https://... URL publique d'une image, PDF ou audio"
-            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
           />
           {mediaUrl && (
             <p className="text-xs text-gray-400">Le media sera envoyé avec le message comme légende.</p>
@@ -162,7 +162,7 @@ function CreateModal({ open, onClose, onCreate }: {
             placeholder="السلام عليكم {{client}} 👋&#10;طردك رقم {{tracking}} وصل!&#10;شكرا على ثقتك 🙏"
             rows={5}
             dir="rtl"
-            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+            className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
           />
         </div>
 
@@ -178,7 +178,7 @@ function CreateModal({ open, onClose, onCreate }: {
         <div className="flex gap-2 pt-2">
           <button
             onClick={handleClose}
-            className="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50"
+            className="flex-1 border border-stone-200 rounded-xl py-2.5 text-sm font-medium text-gray-600 hover:bg-stone-50"
           >
             Annuler
           </button>
@@ -210,7 +210,7 @@ function CampaignCard({ campaign, onDelete, onSend, onView }: {
     : null;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4 hover:shadow-md transition-shadow">
+    <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-5 space-y-4 hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-gray-900 truncate">{campaign.name}</h3>
@@ -256,7 +256,7 @@ function CampaignCard({ campaign, onDelete, onSend, onView }: {
       <div className="flex gap-2 pt-1">
         <button
           onClick={() => onView(campaign.id)}
-          className="flex items-center gap-1.5 text-xs px-3 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600"
+          className="flex items-center gap-1.5 text-xs px-3 py-2 border border-stone-200 rounded-lg hover:bg-stone-50 text-gray-600"
         >
           Détails <ChevronRight size={12} />
         </button>
@@ -311,7 +311,7 @@ function DetailModal({ campaignId, open, onClose }: { campaignId: string | null;
       <div className="p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="font-bold text-gray-900">Détails de la campagne</h2>
-          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg">
+          <button onClick={onClose} className="p-1.5 hover:bg-stone-100 rounded-lg">
             <X size={16} className="text-gray-500" />
           </button>
         </div>
@@ -335,7 +335,7 @@ function DetailModal({ campaignId, open, onClose }: { campaignId: string | null;
                 <p className="text-xs text-gray-500 mt-0.5">Échecs</p>
               </div>
             </div>
-            <div className="max-h-80 overflow-y-auto divide-y divide-gray-50 rounded-xl border border-gray-100">
+            <div className="max-h-80 overflow-y-auto divide-y divide-stone-50 rounded-xl border border-stone-100">
               {data.recipients.length === 0 ? (
                 <p className="text-center text-gray-400 py-8 text-sm">Aucun destinataire</p>
               ) : data.recipients.map((r: any) => (
