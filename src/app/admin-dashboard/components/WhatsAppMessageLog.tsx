@@ -53,14 +53,14 @@ export default function WhatsAppMessageLog() {
         {loading ? (
           <div className="flex items-center justify-center py-10 text-gray-400 dark:text-stone-500">Chargement...</div>
         ) : messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
-            <div className="relative mb-4">
-              <div className="absolute inset-0 bg-gradient-to-br from-violet-200 to-fuchsia-200 dark:from-violet-500/20 dark:to-fuchsia-500/20 blur-2xl rounded-full" />
-              <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-100 to-fuchsia-100 dark:from-violet-500/15 dark:to-fuchsia-500/15 flex items-center justify-center">
-                <MessageSquare size={28} className="text-violet-500 dark:text-violet-300" />
+          <div className="flex flex-col items-center justify-center py-10 px-6 text-center">
+            <div className="relative mb-3">
+              <div className="absolute inset-0 bg-gradient-to-br from-violet-200 to-fuchsia-200 dark:from-violet-500/20 dark:to-fuchsia-500/20 blur-xl rounded-full" />
+              <div className="relative w-12 h-12 rounded-xl bg-gradient-to-br from-violet-100 to-fuchsia-100 dark:from-violet-500/15 dark:to-fuchsia-500/15 flex items-center justify-center">
+                <MessageSquare size={20} className="text-violet-500 dark:text-violet-300" />
               </div>
             </div>
-            <p className="text-sm font-medium text-stone-700 dark:text-stone-200 mb-1">Aucun message envoyé</p>
+            <p className="text-sm font-medium text-stone-700 dark:text-stone-200 mb-0.5">Aucun message envoyé</p>
             <p className="text-xs text-stone-400 dark:text-stone-500">Les notifications WhatsApp apparaîtront ici</p>
           </div>
         ) : messages.map(msg => {

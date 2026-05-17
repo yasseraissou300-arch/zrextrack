@@ -263,11 +263,11 @@ export default function OrdersTable() {
             ) : orders.length === 0 ? (
               <tr>
                 <td colSpan={10} className="px-4 py-12 text-center">
-                  <div className="flex flex-col items-center gap-3">
+                  <div className="flex flex-col items-center gap-2.5">
                     <div className="relative">
                       <div className="absolute inset-0 bg-gradient-to-br from-violet-200 to-fuchsia-200 dark:from-violet-500/20 dark:to-fuchsia-500/20 blur-xl rounded-full" />
-                      <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-100 to-fuchsia-100 dark:from-violet-500/15 dark:to-fuchsia-500/15 flex items-center justify-center">
-                        <Search size={24} className="text-violet-500 dark:text-violet-300" />
+                      <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-violet-100 to-fuchsia-100 dark:from-violet-500/15 dark:to-fuchsia-500/15 flex items-center justify-center">
+                        <Search size={18} className="text-violet-500 dark:text-violet-300" />
                       </div>
                     </div>
                     <div>

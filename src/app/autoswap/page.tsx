@@ -121,11 +121,11 @@ export default function AutoSwapPage() {
       <div className="max-w-screen-xl mx-auto px-6 py-6 space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-xl flex items-center justify-center shadow-md shadow-violet-500/25">
-            <Repeat size={20} className="text-white" />
+          <div className="w-9 h-9 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-lg flex items-center justify-center shadow-sm shadow-violet-500/25">
+            <Repeat size={16} className="text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-stone-900 dark:text-stone-100 tracking-tight">AutoSwap</h1>
+            <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100 tracking-tight">AutoSwap</h1>
             <p className="text-sm text-stone-500 dark:text-stone-400 dark:text-stone-500">Détecte les swaps possibles et facilite l'exécution dans ZRExpress</p>
           </div>
         </div>

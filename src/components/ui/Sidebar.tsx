@@ -74,8 +74,8 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
           effectivelyCollapsed ? 'justify-center px-3' : 'gap-2.5 px-4'
         }`}
       >
-        <div className="w-9 h-9 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-xl flex items-center justify-center shrink-0 shadow-md shadow-violet-500/25">
-          <span className="text-white font-bold text-sm">Z</span>
+        <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-lg flex items-center justify-center shrink-0 shadow-sm shadow-violet-500/25">
+          <span className="text-white font-bold text-xs">Z</span>
         </div>
         {!effectivelyCollapsed && (
           <div className="flex flex-col leading-tight">
@@ -113,7 +113,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
                       {isActive && !effectivelyCollapsed && (
                         <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-violet-500 rounded-r-full" />
                       )}
-                      <Icon size={17} className="shrink-0" />
+                      <Icon size={15} className="shrink-0" />
                       {!effectivelyCollapsed && <span className="truncate">{item.label}</span>}
                       {effectivelyCollapsed && (
                         <div className="absolute left-full ml-2 px-2 py-1 bg-stone-800 dark:bg-stone-700 text-white text-xs rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-md">
@@ -137,7 +137,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
           title={effectivelyCollapsed ? (theme === 'dark' ? 'Mode clair' : 'Mode sombre') : undefined}
           className={`group relative w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium text-stone-500 hover:bg-stone-50 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100 transition-all duration-150 ${effectivelyCollapsed ? 'justify-center' : ''}`}
         >
-          {theme === 'dark' ? <Sun size={17} className="shrink-0" /> : <Moon size={17} className="shrink-0" />}
+          {theme === 'dark' ? <Sun size={15} className="shrink-0" /> : <Moon size={15} className="shrink-0" />}
           {!effectivelyCollapsed && <span className="truncate">{theme === 'dark' ? 'Mode clair' : 'Mode sombre'}</span>}
           {effectivelyCollapsed && (
             <div className="absolute left-full ml-2 px-2 py-1 bg-stone-800 dark:bg-stone-700 text-white text-xs rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-md">
@@ -160,8 +160,8 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
             <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-violet-500 rounded-r-full" />
           )}
           <div className="relative shrink-0">
-            <MessageCircle size={17} />
-            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-violet-500 rounded-full border border-white dark:border-stone-900" />
+            <MessageCircle size={15} />
+            <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-violet-500 rounded-full border border-white dark:border-stone-900" />
           </div>
           {!effectivelyCollapsed && <span className="truncate">Assistant IA</span>}
           {effectivelyCollapsed && (
@@ -179,7 +179,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
             effectivelyCollapsed ? 'justify-center' : ''
           }`}
         >
-          <Settings size={17} className="shrink-0" />
+          <Settings size={15} className="shrink-0" />
           {!effectivelyCollapsed && <span>Paramètres</span>}
           {effectivelyCollapsed && (
             <div className="absolute left-full ml-2 px-2 py-1 bg-stone-800 dark:bg-stone-700 text-white text-xs rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-md">

@@ -71,28 +71,28 @@ export default function KPIBentoGrid() {
     <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-4">
       {/* HERO CARD — taux de livraison, gradient violet→fuchsia */}
       <div
-        className="col-span-2 row-span-2 relative overflow-hidden rounded-3xl p-6 text-white shadow-xl shadow-violet-500/30 bg-gradient-to-br from-violet-500 via-violet-600 to-fuchsia-500 animate-slide-up"
+        className="col-span-2 row-span-2 relative overflow-hidden rounded-2xl p-5 text-white shadow-lg shadow-violet-500/25 bg-gradient-to-br from-violet-500 via-violet-600 to-fuchsia-500 animate-slide-up"
         style={{ animationDelay: '0ms', animationFillMode: 'backwards' }}
       >
-        <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-white/10 blur-2xl pointer-events-none" />
+        <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 blur-2xl pointer-events-none" />
 
         <div className="relative flex flex-col h-full">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur-sm flex items-center justify-center">
-              <TrendingUp size={24} className="text-white" />
+          <div className="flex items-center gap-2.5 mb-5">
+            <div className="w-10 h-10 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center">
+              <TrendingUp size={18} className="text-white" />
             </div>
             <div>
-              <p className="text-sm font-medium text-white/80">Taux de livraison</p>
-              <p className="text-[11px] text-white/60">Tous statuts confondus</p>
+              <p className="text-sm font-medium text-white/80 leading-tight">Taux de livraison</p>
+              <p className="text-[10px] text-white/60">Tous statuts confondus</p>
             </div>
           </div>
 
           <div className="mt-auto">
-            <p className="text-5xl xl:text-6xl font-bold tabular-nums tracking-tight">
+            <p className="text-4xl xl:text-5xl font-bold tabular-nums tracking-tight">
               {loading ? <span className="text-white/30 animate-pulse">—</span> : heroValue}
             </p>
-            <div className="mt-4 flex items-center gap-3 text-xs text-white/80">
-              <span className="px-2.5 py-1 rounded-full bg-white/15 backdrop-blur-sm font-medium">
+            <div className="mt-3 flex items-center gap-2 text-[11px] text-white/80">
+              <span className="px-2 py-0.5 rounded-full bg-white/15 backdrop-blur-sm font-medium">
                 {val(kpis?.delivered)} livrées
               </span>
               <span className="text-white/40">·</span>
@@ -106,16 +106,16 @@ export default function KPIBentoGrid() {
       {secondaryCards.map((card, idx) => (
         <div
           key={card.label}
-          className="group bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 animate-slide-up"
+          className="group bg-white dark:bg-stone-900 rounded-xl border border-stone-100 dark:border-stone-800 p-3.5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 animate-slide-up"
           style={{ animationDelay: `${50 + idx * 40}ms`, animationFillMode: 'backwards' }}
         >
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${card.iconBg} group-hover:scale-105 transition-transform`}>
-            <card.icon size={20} className={card.iconColor} />
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2.5 ${card.iconBg} group-hover:scale-105 transition-transform`}>
+            <card.icon size={15} className={card.iconColor} />
           </div>
-          <p className="text-xs font-medium text-stone-500 dark:text-stone-400 mb-1 leading-tight">
+          <p className="text-[11px] font-medium text-stone-500 dark:text-stone-400 mb-0.5 leading-tight">
             {card.label}
           </p>
-          <p className="text-2xl font-bold text-stone-900 dark:text-stone-100 tabular-nums tracking-tight">
+          <p className="text-xl font-bold text-stone-900 dark:text-stone-100 tabular-nums tracking-tight">
             {loading ? <span className="text-stone-200 dark:text-stone-700 animate-pulse">—</span> : card.value}
           </p>
         </div>

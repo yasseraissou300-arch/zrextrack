@@ -167,7 +167,7 @@ export default function DashboardHeader() {
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-stone-100 dark:border-stone-800">
       <div>
         <div className="flex items-center gap-2.5 mb-1.5 flex-wrap">
-          <h1 className="text-3xl font-bold text-stone-900 dark:text-stone-100 tracking-tight">
+          <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100 tracking-tight">
             Tableau de bord
           </h1>
           {hasToken ? (
