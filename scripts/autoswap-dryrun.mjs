@@ -223,8 +223,9 @@ function savings(s, t, sameCity) {
 
 function match(parcels) {
   const norm = parcels.map(normalize);
-  // Max 2 swaps par colis (règle ZRExpress)
-  const sources = norm.filter(p => p.swap.eligible && p.swap.swappedAt === null && p.swap.count < MAX_SWAP_COUNT);
+  // Règle ZRExpress : max 2 swaps par colis. swappedAt est rempli après le
+  // 1er swap mais le colis reste swappable jusqu'à count=2 — ne pas filtrer dessus.
+  const sources = norm.filter(p => p.swap.eligible && p.swap.count < MAX_SWAP_COUNT);
   const targets = norm.filter(p => TARGET_STATES.has(p.state));
   const cands = [];
   for (const s of sources) for (const t of targets) {

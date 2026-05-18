@@ -223,12 +223,17 @@ const RESTRICTED_WILAYAS = new Set<number>([
 ]);
 
 // Vérifie qu'un colis est éligible côté source (swap possible).
-// L'API ZRExpress positionne isEligibleForSwap=true uniquement pour les états
+//
+// L'API ZRExpress positionne `isEligibleForSwap=true` uniquement pour les états
 // « Ne répond pas 3 » ou « Commande annulée » — on délègue ce check à l'API.
-// On ajoute en local le filtre du nombre de swaps (max 2 par colis).
+//
+// `swap.count` est le nombre de swaps déjà effectués sur ce colis. ZRExpress
+// limite à 2 swaps par colis ; on inclut donc count=0 (jamais swappé) ET
+// count=1 (swappé une fois, encore éligible pour un 2e swap). On NE filtre PAS
+// sur `swappedAt` car ce champ est rempli après le 1er swap mais le colis reste
+// swappable jusqu'à count=2 (vérifié sur 8 colis count=1 du pool live).
 export function isSwappable(p: NormalizedParcel): boolean {
   return p.swap.isEligibleForSwap === true
-    && p.swap.swappedAt === null
     && p.swap.count < MAX_SWAP_COUNT;
 }
 
