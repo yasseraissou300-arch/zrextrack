@@ -256,18 +256,45 @@ async function callClaude(systemPrompt: string, messages: ClaudeMessage[]): Prom
   }
 }
 
-// ─── AI call with automatic fallback Claude → Gemini → GROQ ──────────────────
-async function callAI(systemPrompt: string, messages: ClaudeMessage[]): Promise<ClaudeResult> {
-  // Try Claude first
-  const claudeResult = await callClaude(systemPrompt, messages);
-  if (claudeResult.text) return claudeResult;
-  // Fallback to Gemini
-  console.log('[AI] Claude failed, trying Gemini fallback...');
-  const geminiResult = await callGemini(systemPrompt, messages);
-  if (geminiResult.text) return geminiResult;
-  // Final fallback to GROQ
-  console.log('[AI] Gemini failed, trying GROQ fallback...');
-  return callGroq(systemPrompt, messages);
+// ─── AI cascade per template_type ────────────────────────────────────────────
+// Choix du modèle adapté au dialecte. Observation utilisateur :
+//   - Claude tend à répondre en arabe standard, marocain ou moyen-oriental
+//   - Gemini 2.0 Flash donne de meilleurs résultats en darija algérienne
+// Pour le SAV (sensible : ton, empathie, formules locales) → Gemini en premier.
+// Pour les autres templates → on garde Claude qui reste correct sur le côté
+// transactionnel (collecte de Nom/Téléphone/Wilaya).
+type AIFn = (sp: string, msgs: ClaudeMessage[]) => Promise<ClaudeResult>;
+
+const CASCADE_DEFAULT: { name: string; fn: AIFn }[] = [
+  { name: 'Claude', fn: callClaude },
+  { name: 'Gemini', fn: callGemini },
+  { name: 'GROQ',   fn: callGroq   },
+];
+
+const CASCADE_BY_TEMPLATE: Record<string, { name: string; fn: AIFn }[]> = {
+  // SAV : Gemini en premier pour la darija algérienne authentique
+  sav: [
+    { name: 'Gemini', fn: callGemini },
+    { name: 'Claude', fn: callClaude },
+    { name: 'GROQ',   fn: callGroq   },
+  ],
+};
+
+async function callAI(
+  systemPrompt: string,
+  messages: ClaudeMessage[],
+  templateType?: string,
+): Promise<ClaudeResult> {
+  const cascade = (templateType && CASCADE_BY_TEMPLATE[templateType]) || CASCADE_DEFAULT;
+  for (const { name, fn } of cascade) {
+    const result = await fn(systemPrompt, messages);
+    if (result.text) {
+      console.log(`[AI] ${name} answered (template=${templateType ?? 'default'})`);
+      return result;
+    }
+    console.log(`[AI] ${name} failed, trying next in cascade...`);
+  }
+  return { text: null, tokens: 0 };
 }
 
 function extractData(text: string): Record<string, string> | null {
@@ -494,7 +521,7 @@ export async function POST(req: NextRequest) {
     }
 
     conversation.push({ role: 'user', content: text });
-    const { text: aiReply, tokens: newTokens } = await callAI(systemPrompt, conversation);
+    const { text: aiReply, tokens: newTokens } = await callAI(systemPrompt, conversation, config.template_type);
 
     const newFailureCount = aiReply ? 0 : failureCount + 1;
     const updatedTokens = totalTokens + newTokens;
