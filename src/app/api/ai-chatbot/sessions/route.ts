@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from('ai_chat_sessions')
-    .select('id, channel, contact_id, contact_name, template_type, extracted_data, is_complete, sheets_sent, created_at, updated_at')
+    .select('id, channel, contact_id, contact_name, template_type, extracted_data, is_complete, sheets_sent, resolution, resolved_at, created_at, updated_at')
     .eq('user_id', user.id)
     .order('updated_at', { ascending: false })
     .limit(limit);
