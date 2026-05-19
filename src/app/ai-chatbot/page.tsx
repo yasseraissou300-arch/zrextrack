@@ -29,6 +29,9 @@ interface Session {
   id: string; channel: string; contact_id: string; contact_name: string;
   template_type: string; extracted_data: Record<string, string>;
   is_complete: boolean; sheets_sent: boolean; updated_at: string;
+  // Résolution SAV (null tant que l'opérateur n'a pas validé)
+  resolution?: 'exchange' | 'refund' | 'resolved' | null;
+  resolved_at?: string | null;
 }
 
 // ─── Template metadata ────────────────────────────────────────────────────────
@@ -1770,15 +1773,65 @@ function AnalyticsTab() {
 }
 
 // ─── ReclamationsTab ──────────────────────────────────────────────────────────
-// Tableau dédié au SAV : agrège les sessions template=sav avec leurs données
-// extraites (commande + réclamation) + infos client (nom + téléphone + canal).
-// Permet filtre par statut, recherche texte, export CSV.
+// Tableau dédié au SAV. Workflow opérateur :
+//   1. Voit les réclamations terminées (bot a fini de collecter commande+description)
+//   2. Le tableau enrichit chaque ligne avec les données ZRExpress réelles
+//      (statut colis, vraies coordonnées client) via /reclamations/lookup
+//   3. L'opérateur valide une résolution via 3 boutons :
+//        - Échange     → ai_chat_sessions.resolution='exchange' + WhatsApp auto
+//        - Remboursement → resolution='refund' + WhatsApp auto
+//        - Résolu      → resolution='resolved' + WhatsApp auto
+//   4. Une fois résolue, la ligne affiche un badge avec la date de résolution
+//      et les boutons sont remplacés par un statut figé.
+
+interface ZREnrichment {
+  matchedBy: 'tracking' | 'externalId' | 'phone' | null;
+  parcel: {
+    id: string;
+    tracking: string;
+    state: string;
+    amount: number;
+    customerName: string;
+    customerPhone: string;
+    city: string;
+    wilayaCode: number;
+  } | null;
+}
+
+// Mapping state ZRExpress → badge UI
+function zrStateLabel(state: string): { label: string; cls: string } {
+  const s = (state || '').toLowerCase();
+  if (s.includes('livre') || s === 'delivered') return { label: 'Livré', cls: 'bg-green-100 text-green-700' };
+  if (s.includes('retour')) return { label: 'Retourné', cls: 'bg-red-100 text-red-700' };
+  if (s.includes('echec') || s.includes('annul')) return { label: 'Échec', cls: 'bg-red-100 text-red-700' };
+  if (s.includes('livr')) return { label: 'En livraison', cls: 'bg-blue-100 text-blue-700' };
+  if (s.includes('transit') || s.includes('dispatch') || s.includes('expedi')) return { label: 'En transit', cls: 'bg-blue-100 text-blue-700' };
+  if (s.includes('pret') || s.includes('confirm')) return { label: 'Prêt à expédier', cls: 'bg-amber-100 text-amber-700' };
+  return { label: state || 'Inconnu', cls: 'bg-stone-100 text-gray-600 dark:text-stone-300' };
+}
+
+const RESOLUTION_META: Record<string, { label: string; cls: string; emoji: string }> = {
+  exchange: { label: 'Échange validé', cls: 'bg-purple-100 text-purple-700', emoji: '🔄' },
+  refund:   { label: 'Remboursement validé', cls: 'bg-emerald-100 text-emerald-700', emoji: '💰' },
+  resolved: { label: 'Résolu',                cls: 'bg-stone-100 text-gray-700 dark:text-stone-200', emoji: '✓' },
+};
+
 function ReclamationsTab() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'complete' | 'pending'>('all');
+  // Par défaut : seulement les réclamations où le bot a fini de collecter les infos
+  const [statusFilter, setStatusFilter] = useState<'all' | 'complete' | 'pending'>('complete');
+  const [resolvedFilter, setResolvedFilter] = useState<'pending' | 'resolved' | 'all'>('pending');
   const [selected, setSelected] = useState<Session | null>(null);
+
+  // Enrichissement ZRExpress : Map<sessionId, ZREnrichment>
+  const [enrichments, setEnrichments] = useState<Record<string, ZREnrichment>>({});
+  const [enrichLoading, setEnrichLoading] = useState(false);
+  const [enrichError, setEnrichError] = useState<string | null>(null);
+
+  // Actions de résolution
+  const [resolving, setResolving] = useState<string | null>(null);
 
   const fetchSessions = useCallback(async () => {
     setLoading(true);
@@ -1789,7 +1842,48 @@ function ReclamationsTab() {
     setLoading(false);
   }, []);
 
+  // Enrichissement ZRExpress en batch (1 appel pour tout le tableau)
+  const fetchEnrichments = useCallback(async (sess: Session[]) => {
+    const token = localStorage.getItem('zrexpress_token') || '';
+    const tenantId = localStorage.getItem('zrexpress_tenant') || '';
+    if (!token || !tenantId) {
+      setEnrichError('Clé API ZRExpress non configurée — va sur /sync pour la saisir');
+      return;
+    }
+    setEnrichLoading(true);
+    setEnrichError(null);
+    try {
+      const items = sess.map(s => ({
+        sessionId: s.id,
+        commande: s.extracted_data?.commande ?? null,
+        phone: (s.contact_id || '').replace('@s.whatsapp.net', ''),
+      }));
+      const res = await fetch('/api/ai-chatbot/reclamations/lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, tenantId, items }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+      const map: Record<string, ZREnrichment> = {};
+      for (const r of (json.results || [])) {
+        map[r.sessionId] = { matchedBy: r.matchedBy, parcel: r.parcel };
+      }
+      setEnrichments(map);
+    } catch (e: any) {
+      setEnrichError(e?.message || 'Erreur enrichissement ZRExpress');
+    } finally {
+      setEnrichLoading(false);
+    }
+  }, []);
+
   useEffect(() => { fetchSessions(); }, [fetchSessions]);
+
+  // Lance l'enrichissement quand les sessions arrivent
+  useEffect(() => {
+    if (sessions.length > 0) fetchEnrichments(sessions);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessions.length]);
 
   const deleteSession = async (id: string) => {
     if (!confirm('Supprimer cette réclamation ?')) return;
@@ -1798,9 +1892,42 @@ function ReclamationsTab() {
     toast.success('Réclamation supprimée');
   };
 
+  // Valide une résolution : appelle le backend qui met à jour la DB + envoie le WhatsApp
+  const resolveReclamation = async (session: Session, resolution: 'exchange' | 'refund' | 'resolved') => {
+    const label = RESOLUTION_META[resolution].label;
+    if (!confirm(`Valider « ${label} » pour ${session.contact_name || 'ce client'} ?\nUn message WhatsApp de confirmation sera envoyé automatiquement.`)) return;
+    setResolving(session.id);
+    try {
+      const res = await fetch('/api/ai-chatbot/reclamations/resolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: session.id, resolution }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+
+      // Met à jour la session locale pour refléter la résolution sans refetch
+      setSessions(prev => prev.map(s => s.id === session.id
+        ? { ...s, resolution, resolved_at: new Date().toISOString() }
+        : s));
+
+      if (json.whatsapp === 'sent') {
+        toast.success(`${label} ✓ — message WhatsApp envoyé`);
+      } else {
+        toast.warning(`${label} enregistré ✓ — mais WhatsApp non envoyé (${json.whatsapp_error || 'raison inconnue'})`);
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'Erreur lors de la validation');
+    } finally {
+      setResolving(null);
+    }
+  };
+
   const filtered = sessions.filter(s => {
     if (statusFilter === 'complete' && !s.is_complete) return false;
     if (statusFilter === 'pending' && s.is_complete) return false;
+    if (resolvedFilter === 'pending' && s.resolution) return false;
+    if (resolvedFilter === 'resolved' && !s.resolution) return false;
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     const d = s.extracted_data || {};
@@ -1861,9 +1988,14 @@ function ReclamationsTab() {
           />
         </div>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as 'all' | 'complete' | 'pending')} className="border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-stone-900">
-          <option value="all">Tous statuts</option>
-          <option value="complete">Complètes</option>
-          <option value="pending">En cours</option>
+          <option value="complete">Terminées (par défaut)</option>
+          <option value="pending">En cours uniquement</option>
+          <option value="all">Toutes</option>
+        </select>
+        <select value={resolvedFilter} onChange={e => setResolvedFilter(e.target.value as 'pending' | 'resolved' | 'all')} className="border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-stone-900">
+          <option value="pending">À traiter</option>
+          <option value="resolved">Résolues</option>
+          <option value="all">Toutes</option>
         </select>
         <button
           onClick={exportCSV}
@@ -1904,10 +2036,23 @@ function ReclamationsTab() {
           </div>
         ) : (
           <div className="overflow-x-auto">
+            {/* Bannière ZRExpress en cours d'enrichissement / erreur */}
+            {enrichLoading && (
+              <div className="bg-blue-50 border-b border-blue-100 px-4 py-2 text-[11px] text-blue-700 flex items-center gap-2">
+                <Loader2 size={11} className="animate-spin" />
+                Récupération des données ZRExpress…
+              </div>
+            )}
+            {enrichError && (
+              <div className="bg-amber-50 border-b border-amber-100 px-4 py-2 text-[11px] text-amber-800 flex items-center gap-2">
+                <AlertCircle size={11} />
+                {enrichError}
+              </div>
+            )}
             <table className="w-full text-sm">
               <thead className="bg-stone-50 dark:bg-stone-800 border-b border-stone-100 dark:border-stone-700">
                 <tr>
-                  {['Date', 'Client', 'Canal', 'N° commande', 'Réclamation', 'Statut', ''].map(h => (
+                  {['Date', 'Client', 'N° commande', 'Réclamation', 'Statut ZR', 'Résolution', 'Actions'].map(h => (
                     <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-stone-400 uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
@@ -1916,10 +2061,17 @@ function ReclamationsTab() {
                 {filtered.map(session => {
                   const d = session.extracted_data || {};
                   const phone = (session.contact_id || '').replace('@s.whatsapp.net', '');
+                  const enrich = enrichments[session.id];
+                  const isResolved = !!session.resolution;
+                  const isResolving = resolving === session.id;
                   return (
                     <tr key={session.id} className="hover:bg-stone-50 dark:hover:bg-stone-800 align-top">
                       <td className="px-4 py-3 text-[11px] text-gray-500 dark:text-stone-400 whitespace-nowrap">
                         {new Date(session.updated_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                        <div className="flex items-center gap-1 mt-0.5 text-gray-400 dark:text-stone-500">
+                          {CHANNEL_ICONS[session.channel] ?? null}
+                          <span className="capitalize">{session.channel}</span>
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         <p className="font-medium text-gray-900 dark:text-stone-100 text-xs flex items-center gap-1.5">
@@ -1927,12 +2079,12 @@ function ReclamationsTab() {
                           {session.contact_name || '—'}
                         </p>
                         <p className="text-[10px] text-gray-400 dark:text-stone-500 font-mono mt-0.5 ml-[18px]">{phone}</p>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="flex items-center gap-1 text-[11px] capitalize text-gray-600 dark:text-stone-300">
-                          {CHANNEL_ICONS[session.channel] ?? null}
-                          {session.channel}
-                        </span>
+                        {/* Affiche le vrai nom ZRExpress si différent (parfois plus complet) */}
+                        {enrich?.parcel?.customerName && enrich.parcel.customerName !== session.contact_name && (
+                          <p className="text-[10px] text-blue-600 mt-0.5 ml-[18px]" title="Nom enregistré chez ZRExpress">
+                            ZR: {enrich.parcel.customerName}
+                          </p>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         {d.commande ? (
@@ -1940,6 +2092,10 @@ function ReclamationsTab() {
                             {d.commande}
                           </span>
                         ) : <span className="text-[10px] text-gray-300 dark:text-stone-600">non fourni</span>}
+                        {/* Indique comment ZR a été matché */}
+                        {enrich?.parcel && enrich.matchedBy === 'phone' && (
+                          <p className="text-[9px] text-amber-600 mt-1">↳ trouvé via téléphone</p>
+                        )}
                       </td>
                       <td className="px-4 py-3 max-w-md">
                         {d.reclamation ? (
@@ -1949,30 +2105,108 @@ function ReclamationsTab() {
                         ) : <span className="text-[10px] text-amber-600">Conversation en cours…</span>}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex flex-col gap-1">
-                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full w-fit ${session.is_complete ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                            {session.is_complete ? '✓ Complète' : '… En cours'}
-                          </span>
-                          {session.sheets_sent && <span className="text-[10px] font-medium px-2 py-0.5 rounded-full w-fit bg-blue-100 text-blue-700">Sheets ✓</span>}
-                        </div>
+                        {enrich?.parcel ? (
+                          <div className="space-y-1">
+                            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full w-fit inline-block ${zrStateLabel(enrich.parcel.state).cls}`}>
+                              {zrStateLabel(enrich.parcel.state).label}
+                            </span>
+                            <p className="text-[10px] text-gray-500 dark:text-stone-400">{enrich.parcel.city || '—'}</p>
+                            <a
+                              href={`https://app.zrexpress.app/parcels/default/${enrich.parcel.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[10px] text-blue-600 hover:underline flex items-center gap-0.5"
+                            >
+                              <ExternalLink size={9} />
+                              {enrich.parcel.tracking}
+                            </a>
+                          </div>
+                        ) : enrichLoading ? (
+                          <Loader2 size={12} className="animate-spin text-gray-300 dark:text-stone-600" />
+                        ) : (
+                          <span className="text-[10px] text-stone-400">Non trouvé</span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex gap-1">
-                          <button
-                            onClick={() => setSelected(session)}
-                            className="p-1.5 hover:bg-stone-100 dark:hover:bg-stone-700 text-gray-500 dark:text-stone-400 rounded-lg"
-                            title="Voir les détails"
-                          >
-                            <MessageSquare size={12} />
-                          </button>
-                          <button
-                            onClick={() => deleteSession(session.id)}
-                            className="p-1.5 hover:bg-red-50 text-red-400 rounded-lg"
-                            title="Supprimer"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
+                        {isResolved && session.resolution && RESOLUTION_META[session.resolution] ? (
+                          <div className="flex flex-col gap-0.5">
+                            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full w-fit ${RESOLUTION_META[session.resolution].cls}`}>
+                              {RESOLUTION_META[session.resolution].emoji} {RESOLUTION_META[session.resolution].label}
+                            </span>
+                            {session.resolved_at && (
+                              <p className="text-[10px] text-gray-400 dark:text-stone-500">
+                                {new Date(session.resolved_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-amber-600">À traiter</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {isResolved ? (
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => setSelected(session)}
+                              className="p-1.5 hover:bg-stone-100 dark:hover:bg-stone-700 text-gray-500 dark:text-stone-400 rounded-lg"
+                              title="Voir les détails"
+                            >
+                              <MessageSquare size={12} />
+                            </button>
+                            <button
+                              onClick={() => deleteSession(session.id)}
+                              className="p-1.5 hover:bg-red-50 text-red-400 rounded-lg"
+                              title="Supprimer"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col gap-1 min-w-[140px]">
+                            <button
+                              onClick={() => resolveReclamation(session, 'exchange')}
+                              disabled={isResolving}
+                              className="flex items-center justify-center gap-1 text-[10px] font-medium px-2 py-1 bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 rounded-md disabled:opacity-50"
+                              title="Validation de l'échange + envoi WhatsApp au client"
+                            >
+                              {isResolving ? <Loader2 size={10} className="animate-spin" /> : '🔄'}
+                              Échange
+                            </button>
+                            <button
+                              onClick={() => resolveReclamation(session, 'refund')}
+                              disabled={isResolving}
+                              className="flex items-center justify-center gap-1 text-[10px] font-medium px-2 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-md disabled:opacity-50"
+                              title="Validation du remboursement + envoi WhatsApp au client"
+                            >
+                              {isResolving ? <Loader2 size={10} className="animate-spin" /> : '💰'}
+                              Remboursement
+                            </button>
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => resolveReclamation(session, 'resolved')}
+                                disabled={isResolving}
+                                className="flex-1 flex items-center justify-center gap-1 text-[10px] font-medium px-2 py-1 bg-stone-50 text-gray-700 dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-700 border border-stone-200 dark:border-stone-700 rounded-md disabled:opacity-50"
+                                title="Résolu sans échange ni remboursement"
+                              >
+                                ✓
+                              </button>
+                              <button
+                                onClick={() => setSelected(session)}
+                                className="p-1 hover:bg-stone-100 dark:hover:bg-stone-700 text-gray-500 dark:text-stone-400 rounded-md border border-stone-200 dark:border-stone-700"
+                                title="Détails"
+                              >
+                                <MessageSquare size={10} />
+                              </button>
+                              <button
+                                onClick={() => deleteSession(session.id)}
+                                className="p-1 hover:bg-red-50 text-red-400 rounded-md border border-stone-200 dark:border-stone-700"
+                                title="Supprimer"
+                              >
+                                <Trash2 size={10} />
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );
