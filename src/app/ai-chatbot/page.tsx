@@ -1769,8 +1769,281 @@ function AnalyticsTab() {
   );
 }
 
+// ─── ReclamationsTab ──────────────────────────────────────────────────────────
+// Tableau dédié au SAV : agrège les sessions template=sav avec leurs données
+// extraites (commande + réclamation) + infos client (nom + téléphone + canal).
+// Permet filtre par statut, recherche texte, export CSV.
+function ReclamationsTab() {
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'complete' | 'pending'>('all');
+  const [selected, setSelected] = useState<Session | null>(null);
+
+  const fetchSessions = useCallback(async () => {
+    setLoading(true);
+    const params = new URLSearchParams({ limit: '200', template: 'sav' });
+    const res = await fetch(`/api/ai-chatbot/sessions?${params}`);
+    const json = await res.json();
+    setSessions(json.data || []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchSessions(); }, [fetchSessions]);
+
+  const deleteSession = async (id: string) => {
+    if (!confirm('Supprimer cette réclamation ?')) return;
+    await fetch('/api/ai-chatbot/sessions', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+    setSessions(prev => prev.filter(s => s.id !== id));
+    toast.success('Réclamation supprimée');
+  };
+
+  const filtered = sessions.filter(s => {
+    if (statusFilter === 'complete' && !s.is_complete) return false;
+    if (statusFilter === 'pending' && s.is_complete) return false;
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    const d = s.extracted_data || {};
+    return [
+      s.contact_name,
+      s.contact_id,
+      d.reclamation,
+      d.commande,
+    ].some(v => (v || '').toLowerCase().includes(q));
+  });
+
+  const exportCSV = () => {
+    if (filtered.length === 0) { toast.error('Rien à exporter'); return; }
+    const header = ['Date', 'Canal', 'Nom client', 'Téléphone', 'N° commande', 'Réclamation', 'Statut'];
+    const rows = filtered.map(s => {
+      const d = s.extracted_data || {};
+      const phone = (s.contact_id || '').replace('@s.whatsapp.net', '');
+      return [
+        new Date(s.updated_at).toLocaleString('fr-FR'),
+        s.channel,
+        s.contact_name || '',
+        phone,
+        d.commande || '',
+        (d.reclamation || '').replace(/\n/g, ' '),
+        s.is_complete ? 'Complète' : 'En cours',
+      ];
+    });
+    // Escape CSV : double les guillemets et entoure si la cellule en contient
+    const esc = (v: string) => `"${String(v).replace(/"/g, '""')}"`;
+    const csv = [header, ...rows].map(r => r.map(esc).join(',')).join('\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }); // BOM pour Excel
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `reclamations-sav-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`${filtered.length} réclamation${filtered.length > 1 ? 's' : ''} exportée${filtered.length > 1 ? 's' : ''}`);
+  };
+
+  const CHANNEL_ICONS: Record<string, React.ReactNode> = {
+    whatsapp: <Phone size={11} className="text-green-600" />,
+    facebook: <svg viewBox="0 0 24 24" className="w-3 h-3 fill-blue-600"><path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.3 2.246.464 3.443.464 6.627 0 12-4.974 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.131 3.259L19.752 8l-6.561 6.963z" /></svg>,
+    web: <Globe size={11} className="text-purple-600" />,
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Toolbar */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Rechercher (nom, téléphone, commande, mot-clé...)"
+            className="w-full pl-3 pr-3 py-2 text-sm border border-stone-200 dark:border-stone-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 bg-white dark:bg-stone-900"
+          />
+        </div>
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as 'all' | 'complete' | 'pending')} className="border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-stone-900">
+          <option value="all">Tous statuts</option>
+          <option value="complete">Complètes</option>
+          <option value="pending">En cours</option>
+        </select>
+        <button
+          onClick={exportCSV}
+          disabled={filtered.length === 0}
+          className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <Sheet size={12} />
+          Exporter CSV
+        </button>
+        <button onClick={fetchSessions} className="p-2 hover:bg-gray-100 rounded-lg">
+          <RefreshCw size={14} className={`text-gray-400 dark:text-stone-500 ${loading ? 'animate-spin' : ''}`} />
+        </button>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: 'Total réclamations', value: sessions.length, color: 'bg-amber-50 text-amber-700' },
+          { label: 'Complètes', value: sessions.filter(s => s.is_complete).length, color: 'bg-green-50 text-green-700' },
+          { label: 'En cours', value: sessions.filter(s => !s.is_complete).length, color: 'bg-stone-50 text-gray-700 dark:text-stone-200' },
+        ].map(s => (
+          <div key={s.label} className={`rounded-2xl p-4 text-center ${s.color}`}>
+            <p className="text-2xl font-bold">{s.value}</p>
+            <p className="text-xs mt-0.5 opacity-80">{s.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Table */}
+      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm overflow-hidden">
+        {loading ? (
+          <div className="flex justify-center py-16"><Loader2 size={20} className="animate-spin text-gray-400 dark:text-stone-500" /></div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-gray-400 dark:text-stone-500">
+            <HeadphonesIcon size={32} className="mb-2 opacity-30" />
+            <p className="text-sm">{sessions.length === 0 ? 'Aucune réclamation pour l\'instant' : 'Aucun résultat pour ces filtres'}</p>
+            <p className="text-xs mt-1">{sessions.length === 0 ? 'Les réclamations SAV apparaîtront ici dès qu\'un client écrira' : 'Essaie d\'élargir la recherche'}</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-stone-50 dark:bg-stone-800 border-b border-stone-100 dark:border-stone-700">
+                <tr>
+                  {['Date', 'Client', 'Canal', 'N° commande', 'Réclamation', 'Statut', ''].map(h => (
+                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-stone-400 uppercase tracking-wide">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50 dark:divide-stone-800">
+                {filtered.map(session => {
+                  const d = session.extracted_data || {};
+                  const phone = (session.contact_id || '').replace('@s.whatsapp.net', '');
+                  return (
+                    <tr key={session.id} className="hover:bg-stone-50 dark:hover:bg-stone-800 align-top">
+                      <td className="px-4 py-3 text-[11px] text-gray-500 dark:text-stone-400 whitespace-nowrap">
+                        {new Date(session.updated_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-gray-900 dark:text-stone-100 text-xs flex items-center gap-1.5">
+                          <User size={11} className="text-gray-400 dark:text-stone-500" />
+                          {session.contact_name || '—'}
+                        </p>
+                        <p className="text-[10px] text-gray-400 dark:text-stone-500 font-mono mt-0.5 ml-[18px]">{phone}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="flex items-center gap-1 text-[11px] capitalize text-gray-600 dark:text-stone-300">
+                          {CHANNEL_ICONS[session.channel] ?? null}
+                          {session.channel}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {d.commande ? (
+                          <span className="font-mono text-xs bg-stone-100 dark:bg-stone-800 px-2 py-1 rounded-md text-gray-800 dark:text-stone-100">
+                            {d.commande}
+                          </span>
+                        ) : <span className="text-[10px] text-gray-300 dark:text-stone-600">non fourni</span>}
+                      </td>
+                      <td className="px-4 py-3 max-w-md">
+                        {d.reclamation ? (
+                          <p className="text-xs text-gray-700 dark:text-stone-200 leading-relaxed line-clamp-3 whitespace-pre-line">
+                            {d.reclamation}
+                          </p>
+                        ) : <span className="text-[10px] text-amber-600">Conversation en cours…</span>}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col gap-1">
+                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full w-fit ${session.is_complete ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                            {session.is_complete ? '✓ Complète' : '… En cours'}
+                          </span>
+                          {session.sheets_sent && <span className="text-[10px] font-medium px-2 py-0.5 rounded-full w-fit bg-blue-100 text-blue-700">Sheets ✓</span>}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => setSelected(session)}
+                            className="p-1.5 hover:bg-stone-100 dark:hover:bg-stone-700 text-gray-500 dark:text-stone-400 rounded-lg"
+                            title="Voir les détails"
+                          >
+                            <MessageSquare size={12} />
+                          </button>
+                          <button
+                            onClick={() => deleteSession(session.id)}
+                            className="p-1.5 hover:bg-red-50 text-red-400 rounded-lg"
+                            title="Supprimer"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Modale détails (extracted_data complet) */}
+      {selected && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelected(null)}>
+          <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-xl max-w-lg w-full p-5 space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="font-semibold text-gray-900 dark:text-stone-100">Détails réclamation</h3>
+                <p className="text-xs text-gray-400 dark:text-stone-500 mt-0.5">
+                  {new Date(selected.updated_at).toLocaleString('fr-FR')}
+                </p>
+              </div>
+              <button onClick={() => setSelected(null)} className="text-gray-400 hover:text-gray-700 dark:hover:text-stone-200">
+                <XCircle size={18} />
+              </button>
+            </div>
+            <div className="space-y-3 text-sm">
+              <Row label="Client" value={selected.contact_name || '—'} />
+              <Row label="Téléphone" value={(selected.contact_id || '').replace('@s.whatsapp.net', '')} mono />
+              <Row label="Canal" value={selected.channel} />
+              <Row label="N° commande" value={selected.extracted_data?.commande || 'non fourni'} mono />
+              <div>
+                <p className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-stone-500 mb-1">Réclamation</p>
+                <p className="text-sm text-gray-800 dark:text-stone-100 leading-relaxed whitespace-pre-line bg-stone-50 dark:bg-stone-800 rounded-lg p-3">
+                  {selected.extracted_data?.reclamation || 'En cours de collecte par le bot…'}
+                </p>
+              </div>
+              {/* Champs supplémentaires éventuels (si le prompt en extrait d'autres) */}
+              {Object.entries(selected.extracted_data || {}).filter(([k]) => !['commande', 'reclamation'].includes(k)).length > 0 && (
+                <div>
+                  <p className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-stone-500 mb-1">Autres données</p>
+                  <div className="text-xs space-y-1 bg-stone-50 dark:bg-stone-800 rounded-lg p-3">
+                    {Object.entries(selected.extracted_data || {})
+                      .filter(([k]) => !['commande', 'reclamation'].includes(k))
+                      .map(([k, v]) => (
+                        <div key={k} className="flex gap-2">
+                          <span className="text-gray-500 dark:text-stone-400 capitalize min-w-[80px]">{k} :</span>
+                          <span className="text-gray-800 dark:text-stone-100">{String(v)}</span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="flex gap-3">
+      <span className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-stone-500 min-w-[80px] mt-1">{label}</span>
+      <span className={`text-sm text-gray-800 dark:text-stone-100 ${mono ? 'font-mono' : ''}`}>{value}</span>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
-type Tab = 'templates' | 'whatsapp' | 'facebook' | 'googlesheets' | 'donnees' | 'analytics';
+type Tab = 'templates' | 'whatsapp' | 'facebook' | 'googlesheets' | 'donnees' | 'reclamations' | 'analytics';
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'templates', label: 'Templates IA', icon: <Bot size={14} /> },
@@ -1778,6 +2051,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'facebook', label: 'Facebook', icon: <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-current"><path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.3 2.246.464 3.443.464 6.627 0 12-4.974 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.131 3.259L19.752 8l-6.561 6.963z" /></svg> },
   { id: 'googlesheets', label: 'Google Sheets', icon: <Sheet size={14} /> },
   { id: 'donnees', label: 'Données extraites', icon: <MessageSquare size={14} /> },
+  { id: 'reclamations', label: 'Réclamations SAV', icon: <HeadphonesIcon size={14} /> },
   { id: 'analytics', label: 'Analytiques', icon: <BarChart3 size={14} /> },
 ];
 
@@ -1824,6 +2098,7 @@ export default function AIChatbotPage() {
         {activeTab === 'facebook' && <FacebookTab />}
         {activeTab === 'googlesheets' && <GoogleSheetsTab />}
         {activeTab === 'donnees' && <DonneesTab />}
+        {activeTab === 'reclamations' && <ReclamationsTab />}
         {activeTab === 'analytics' && <AnalyticsTab />}
       </div>
     </AppLayout>
