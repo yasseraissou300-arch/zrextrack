@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 
 interface WASettings { instance_id: string; api_token: string; connected: boolean; phone: string; }
 interface Order { id: string; tracking_number: string; customer_name: string; customer_whatsapp: string; situation: string; wilaya: string; delivery_status: string; cod: number; }
-interface MsgLog { id: string; tracking_number: string; customer_name: string; customer_whatsapp: string; message: string; status: 'envoye' | 'echec' | 'en_attente'; sent_at: string; }
+interface MsgLog { id: string; tracking_number: string; customer_name: string; customer_whatsapp: string; message: string; status: 'envoye' | 'echec' | 'en_attente'; sent_at: string; error_message?: string | null; }
 
 const MOCK_ORDER: Order = {
   id: 'preview', tracking_number: 'ZR-000000', customer_name: 'محمد',
@@ -499,6 +499,11 @@ function HistoriqueTab() {
   const [resending, setResending] = useState<Set<string>>(new Set());
   const [resendingAll, setResendingAll] = useState(false);
 
+  // Statut live de la connexion WhatsApp — affiché en bannière pour expliquer
+  // au user *pourquoi* ses envois échouent avant qu'il ne clique « renvoyer ».
+  const [waStatus, setWaStatus] = useState<{ connected: boolean; status: string } | null>(null);
+  const [statusChecking, setStatusChecking] = useState(false);
+
   const fetchMessages = useCallback(async () => {
     setLoading(true);
     const res = await fetch('/api/messages?pageSize=200');
@@ -507,7 +512,23 @@ function HistoriqueTab() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchMessages(); }, [fetchMessages]);
+  const checkWaStatus = useCallback(async () => {
+    setStatusChecking(true);
+    try {
+      const res = await fetch('/api/whatsapp/status');
+      const json = await res.json();
+      setWaStatus({ connected: !!json.connected, status: json.status || 'unknown' });
+    } catch {
+      setWaStatus({ connected: false, status: 'unreachable' });
+    } finally {
+      setStatusChecking(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchMessages();
+    checkWaStatus();
+  }, [fetchMessages, checkWaStatus]);
 
   const resend = async (msg: MsgLog) => {
     setResending(s => new Set(s).add(msg.id));
@@ -519,7 +540,7 @@ function HistoriqueTab() {
     const json = await res.json();
     if (json.error) toast.error(json.error);
     else if (json.sent > 0) { toast.success('Message renvoyé !'); fetchMessages(); }
-    else toast.error('Echec du renvoi');
+    else toast.error(`Echec du renvoi${json.results?.[0]?.error ? ' : ' + json.results[0].error : ''}`);
     setResending(s => { const n = new Set(s); n.delete(msg.id); return n; });
   };
 
@@ -534,8 +555,16 @@ function HistoriqueTab() {
       body: JSON.stringify({ recipients }),
     });
     const json = await res.json();
-    if (json.error) toast.error(json.error);
-    else { toast.success(`${json.sent} message(s) renvoyé(s)`); fetchMessages(); }
+    if (json.code === 'NOT_CONNECTED') {
+      // Erreur claire avec hint : on garde l'info visible, pas juste un toast éphémère
+      toast.error(`${json.error}${json.hint ? '\n' + json.hint : ''}`, { duration: 8000 });
+      checkWaStatus(); // refresh la bannière
+    } else if (json.error) {
+      toast.error(json.error);
+    } else {
+      toast.success(`${json.sent}/${failed.length} message(s) renvoyé(s)${json.failed > 0 ? ` — ${json.failed} échec(s)` : ''}`);
+      fetchMessages();
+    }
     setResendingAll(false);
   };
 
@@ -550,6 +579,43 @@ function HistoriqueTab() {
 
   return (
     <div className="space-y-4">
+      {/* Bannière statut connexion WhatsApp — diagnostic principal du « pourquoi
+          mes messages échouent ». Si la session WA est déconnectée, ne pas
+          essayer de renvoyer en masse — ça générera juste 200 échecs de plus. */}
+      {waStatus && !waStatus.connected && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <AlertCircle size={18} className="text-amber-600 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-amber-800">WhatsApp déconnecté — c'est pour ça que tes messages échouent</p>
+              <p className="text-xs text-amber-700 mt-0.5">État backend : <code className="font-mono">{waStatus.status}</code>. Reconnecte WhatsApp avant de renvoyer.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button onClick={checkWaStatus} disabled={statusChecking} className="p-2 hover:bg-amber-100 rounded-lg disabled:opacity-50" title="Vérifier à nouveau">
+              <RefreshCw size={14} className={`text-amber-700 ${statusChecking ? 'animate-spin' : ''}`} />
+            </button>
+            <a
+              href="?tab=connexion"
+              className="text-sm px-4 py-2 bg-amber-600 text-white rounded-xl hover:bg-amber-700 font-medium"
+            >
+              Reconnecter
+            </a>
+          </div>
+        </div>
+      )}
+      {waStatus?.connected && (
+        <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2 flex items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2 text-green-700">
+            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+            WhatsApp connecté ✓
+          </div>
+          <button onClick={checkWaStatus} disabled={statusChecking} className="text-green-600 hover:text-green-800" title="Rafraîchir">
+            <RefreshCw size={11} className={statusChecking ? 'animate-spin' : ''} />
+          </button>
+        </div>
+      )}
+
       {/* Bannière échecs */}
       {echecCount > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center justify-between gap-3">
@@ -621,6 +687,14 @@ function HistoriqueTab() {
                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg.bg}`}>{cfg.label}</span>
                     </div>
                     <p className="text-xs text-gray-500 dark:text-stone-400 line-clamp-2 whitespace-pre-line text-right" dir="rtl">{msg.message}</p>
+                    {/* Raison de l'échec — visible directement sur la ligne, plus
+                        besoin de cliquer Renvoyer pour comprendre pourquoi */}
+                    {msg.status === 'echec' && msg.error_message && (
+                      <p className="text-[11px] text-red-600 mt-1 font-medium flex items-start gap-1">
+                        <AlertCircle size={10} className="mt-0.5 shrink-0" />
+                        <span className="break-all">{msg.error_message}</span>
+                      </p>
+                    )}
                   </div>
                   <div className="flex flex-col items-end gap-2 shrink-0">
                     <span className="text-[10px] text-gray-400 dark:text-stone-500">{new Date(msg.sent_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
