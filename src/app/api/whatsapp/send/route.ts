@@ -59,7 +59,15 @@ async function getReadyInstance(userId: string): Promise<{ instance: Instance | 
   return { instance: row };
 }
 
-async function sendOne(instanceName: string, phone: string, text: string): Promise<{ ok: boolean; error?: string }> {
+// « Connection Closed » est le pattern d'erreur Evolution quand son socket
+// Baileys est mort en arrière-plan alors que connectionState dit encore « open ».
+// On le détecte spécifiquement pour court-circuiter la boucle et afficher un
+// message d'action clair au lieu de spammer 200 lignes du même error texte.
+function isSessionDead(errText: string): boolean {
+  return /Connection Closed/i.test(errText) || /Connection Failure/i.test(errText) || /precondition/i.test(errText);
+}
+
+async function sendOne(instanceName: string, phone: string, text: string): Promise<{ ok: boolean; error?: string; sessionDead?: boolean }> {
   try {
     const res = await fetch(`${EVOLUTION_URL}/message/sendText/${instanceName}`, {
       method: 'POST',
@@ -68,7 +76,14 @@ async function sendOne(instanceName: string, phone: string, text: string): Promi
     });
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
-      return { ok: false, error: `Evolution HTTP ${res.status}: ${errText.slice(0, 200)}` };
+      const dead = isSessionDead(errText);
+      return {
+        ok: false,
+        error: dead
+          ? 'Session WhatsApp expirée (Connection Closed) — reconnecte le QR'
+          : `Evolution HTTP ${res.status}: ${errText.slice(0, 200)}`,
+        sessionDead: dead,
+      };
     }
     return { ok: true };
   } catch (e: any) {
@@ -104,6 +119,8 @@ export async function POST(request: NextRequest) {
   }
 
   const results = [];
+  let sessionDeadDetected = false;
+
   for (const r of recipients) {
     const to = normalizePhone(r.whatsapp);
     let status: 'envoye' | 'echec' = 'echec';
@@ -111,10 +128,28 @@ export async function POST(request: NextRequest) {
 
     if (!to || to.length < 11) {
       errorMsg = `Numéro invalide : "${r.whatsapp}"`;
+    } else if (sessionDeadDetected) {
+      // Inutile de continuer à appeler Evolution si on sait que la session
+      // est morte — chaque appel ajoute juste de la latence.
+      errorMsg = 'Session WhatsApp expirée — annulé (reconnecte d\'abord)';
     } else {
       const send = await sendOne(instance.instance_name, to, r.message || '');
-      if (send.ok) status = 'envoye';
-      else errorMsg = send.error || 'Echec envoi (raison inconnue)';
+      if (send.ok) {
+        status = 'envoye';
+      } else {
+        errorMsg = send.error || 'Echec envoi (raison inconnue)';
+        if (send.sessionDead) {
+          sessionDeadDetected = true;
+          // Synchronise l'état DB avec la réalité : Evolution dit « open »
+          // mais Baileys est mort → on marque l'instance comme déconnectée
+          // pour que la bannière du frontend bascule en orange.
+          await supabase
+            .from('whatsapp_instances')
+            .update({ connected: false, updated_at: new Date().toISOString() })
+            .eq('user_id', user.id)
+            .eq('service_type', DEFAULT_SERVICE);
+        }
+      }
     }
 
     await supabase.from('messages').insert({
@@ -133,5 +168,13 @@ export async function POST(request: NextRequest) {
 
   const sent = results.filter(r => r.status === 'envoye').length;
   const failed = results.filter(r => r.status === 'echec').length;
-  return NextResponse.json({ sent, failed, results });
+  return NextResponse.json({
+    sent,
+    failed,
+    results,
+    ...(sessionDeadDetected && {
+      sessionDead: true,
+      hint: 'Session WhatsApp expirée côté Evolution. Va dans Connexion → Déconnecter → rescanne le QR, puis renvoie.',
+    }),
+  });
 }
