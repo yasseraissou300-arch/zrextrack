@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { ANTI_SPAM, randomThrottle, sleep, varyMessage, remainingDailyQuota } from '@/lib/whatsapp/anti-spam';
 
 // Envoie un message WhatsApp via Evolution API en utilisant l'instance
 // « auto_confirmation » de l'utilisateur (la même que celle de l'onglet
@@ -118,36 +119,87 @@ export async function POST(request: NextRequest) {
     }, { status: 503 });
   }
 
-  const results = [];
-  let sessionDeadDetected = false;
+  // ── ANTI-SPAM : plafond journalier glissant ─────────────────────────────
+  // On compte les envois RÉUSSIS des 24 dernières heures. Si on dépasse, on
+  // refuse le batch entièrement plutôt que de risquer la suspension du numéro.
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { count: sentToday } = await supabase
+    .from('messages')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .eq('status', 'envoye')
+    .gte('sent_at', since);
 
-  for (const r of recipients) {
+  const remaining = remainingDailyQuota(sentToday ?? 0);
+  if (remaining <= 0) {
+    return NextResponse.json({
+      error: `Plafond journalier atteint (${ANTI_SPAM.DAILY_LIMIT} messages/24h)`,
+      code: 'DAILY_LIMIT_REACHED',
+      hint: 'Cette limite protège ton numéro WhatsApp d\'être suspendu pour spam. Attends que la fenêtre glissante de 24h se libère.',
+      sent: 0,
+      failed: 0,
+      sentToday: sentToday ?? 0,
+      dailyLimit: ANTI_SPAM.DAILY_LIMIT,
+      results: [],
+    }, { status: 429 });
+  }
+  // Si le batch dépasse le quota restant, on prévient et on coupe.
+  const willSend = Math.min(recipients.length, remaining);
+  const skippedForQuota = recipients.length - willSend;
+
+  interface SendResult {
+    tracking: string;
+    client: string;
+    status: 'envoye' | 'echec';
+    error: string;
+  }
+  const results: SendResult[] = [];
+  let sessionDeadDetected = false;
+  let consecutiveErrors = 0;
+  let circuitBroken = false;
+
+  for (let i = 0; i < recipients.length; i++) {
+    const r = recipients[i];
     const to = normalizePhone(r.whatsapp);
     let status: 'envoye' | 'echec' = 'echec';
     let errorMsg = '';
 
-    if (!to || to.length < 11) {
+    if (i >= willSend) {
+      errorMsg = `Quota journalier dépassé (${ANTI_SPAM.DAILY_LIMIT}/24h) — non envoyé`;
+    } else if (!to || to.length < 11) {
       errorMsg = `Numéro invalide : "${r.whatsapp}"`;
     } else if (sessionDeadDetected) {
-      // Inutile de continuer à appeler Evolution si on sait que la session
-      // est morte — chaque appel ajoute juste de la latence.
       errorMsg = 'Session WhatsApp expirée — annulé (reconnecte d\'abord)';
+    } else if (circuitBroken) {
+      errorMsg = `Circuit ouvert (${ANTI_SPAM.MAX_CONSECUTIVE_ERRORS} échecs consécutifs) — batch arrêté pour protéger le numéro`;
     } else {
-      const send = await sendOne(instance.instance_name, to, r.message || '');
+      // Throttle entre 2 envois pour ne pas avoir un rythme robotique.
+      // Seulement à partir du 2e envoi.
+      if (results.some(x => x.status === 'envoye') || consecutiveErrors > 0) {
+        await sleep(randomThrottle());
+      }
+
+      // Variation du message (emoji + zero-width space) pour éviter la
+      // détection de doublons côté WhatsApp.
+      const varied = recipients.length > 1 ? varyMessage(r.message || '') : (r.message || '');
+
+      const send = await sendOne(instance.instance_name, to, varied);
       if (send.ok) {
         status = 'envoye';
+        consecutiveErrors = 0;
       } else {
         errorMsg = send.error || 'Echec envoi (raison inconnue)';
+        consecutiveErrors++;
         if (send.sessionDead) {
           sessionDeadDetected = true;
-          // Synchronise l'état DB avec la réalité : Evolution dit « open »
-          // mais Baileys est mort → on marque l'instance comme déconnectée
-          // pour que la bannière du frontend bascule en orange.
           await supabase
             .from('whatsapp_instances')
             .update({ connected: false, updated_at: new Date().toISOString() })
             .eq('user_id', user.id)
             .eq('service_type', DEFAULT_SERVICE);
+        }
+        if (consecutiveErrors >= ANTI_SPAM.MAX_CONSECUTIVE_ERRORS) {
+          circuitBroken = true;
         }
       }
     }
@@ -172,6 +224,13 @@ export async function POST(request: NextRequest) {
     sent,
     failed,
     results,
+    sentToday: (sentToday ?? 0) + sent,
+    dailyLimit: ANTI_SPAM.DAILY_LIMIT,
+    ...(skippedForQuota > 0 && { skippedForQuota }),
+    ...(circuitBroken && {
+      circuitBroken: true,
+      hint: `Batch arrêté après ${ANTI_SPAM.MAX_CONSECUTIVE_ERRORS} échecs consécutifs pour protéger le numéro. Vérifie ta connexion et tes destinataires.`,
+    }),
     ...(sessionDeadDetected && {
       sessionDead: true,
       hint: 'Session WhatsApp expirée côté Evolution. Va dans Connexion → Déconnecter → rescanne le QR, puis renvoie.',
