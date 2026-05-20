@@ -559,15 +559,24 @@ function HistoriqueTab() {
       // Erreur claire avec hint : on garde l'info visible, pas juste un toast éphémère
       toast.error(`${json.error}${json.hint ? '\n' + json.hint : ''}`, { duration: 8000 });
       checkWaStatus(); // refresh la bannière
+    } else if (json.code === 'DAILY_LIMIT_REACHED') {
+      // Protection anti-suspension : on ne dépasse pas le plafond journalier
+      toast.error(`${json.error}\n${json.hint || ''}\nDéjà envoyé : ${json.sentToday}/${json.dailyLimit} en 24h`, { duration: 12000 });
     } else if (json.sessionDead) {
       // Evolution dit « open » mais Baileys est mort → on signale clairement
       toast.error(json.hint || 'Session WhatsApp expirée — reconnecte le QR', { duration: 10000 });
       checkWaStatus();
       fetchMessages(); // affiche quand même les nouveaux échecs (pour debug)
+    } else if (json.circuitBroken) {
+      // Coupe-circuit anti-spam déclenché
+      toast.warning(`${json.sent} envoyé(s), ${json.failed} échec(s) — ${json.hint}`, { duration: 10000 });
+      fetchMessages();
     } else if (json.error) {
       toast.error(json.error);
     } else {
-      toast.success(`${json.sent}/${failed.length} message(s) renvoyé(s)${json.failed > 0 ? ` — ${json.failed} échec(s)` : ''}`);
+      const quotaMsg = json.dailyLimit ? ` · Quota : ${json.sentToday}/${json.dailyLimit}` : '';
+      const skipped = json.skippedForQuota ? ` · ${json.skippedForQuota} sautés (quota)` : '';
+      toast.success(`${json.sent}/${failed.length} message(s) renvoyé(s)${json.failed > 0 ? ` — ${json.failed} échec(s)` : ''}${skipped}${quotaMsg}`);
       fetchMessages();
     }
     setResendingAll(false);
@@ -584,6 +593,27 @@ function HistoriqueTab() {
 
   return (
     <div className="space-y-4">
+      {/* Bannière protections anti-suspension — visible en permanence pour rappeler
+          les règles automatiques qui protègent le numéro WhatsApp d'être banni. */}
+      <details className="bg-blue-50 border border-blue-200 rounded-2xl text-xs text-blue-900 group">
+        <summary className="px-4 py-2.5 cursor-pointer flex items-center gap-2 font-medium select-none">
+          <AlertCircle size={14} className="text-blue-600 shrink-0" />
+          <span>Protections anti-suspension WhatsApp actives</span>
+          <span className="ml-auto text-blue-500 text-[10px] group-open:hidden">▼ détails</span>
+          <span className="ml-auto text-blue-500 text-[10px] hidden group-open:inline">▲ masquer</span>
+        </summary>
+        <div className="px-4 pb-3 pt-1 space-y-1.5 text-blue-800">
+          <p>Pour éviter que ton numéro soit suspendu pour spam, AutoTim applique automatiquement :</p>
+          <ul className="list-disc pl-5 space-y-0.5">
+            <li><strong>Plafond 100 messages / 24h</strong> glissant — au-delà, le batch est refusé</li>
+            <li><strong>Délai aléatoire 3-6 sec</strong> entre chaque envoi — pas de rythme robotique</li>
+            <li><strong>Variation du texte</strong> (emoji + caractère invisible) — chaque message a une signature unique pour WhatsApp</li>
+            <li><strong>Coupe-circuit</strong> : si 5 envois consécutifs échouent, le batch s'arrête automatiquement</li>
+          </ul>
+          <p className="pt-1 text-[11px] text-blue-700">Conseils complémentaires : démarre un nouveau numéro avec 20-30 messages/jour pendant 1 semaine, puis augmente progressivement. Évite d'envoyer entre 22h et 8h.</p>
+        </div>
+      </details>
+
       {/* Bannière statut connexion WhatsApp — diagnostic principal du « pourquoi
           mes messages échouent ». Si la session WA est déconnectée, ne pas
           essayer de renvoyer en masse — ça générera juste 200 échecs de plus. */}
