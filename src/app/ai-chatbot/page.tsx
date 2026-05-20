@@ -427,6 +427,11 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
   // Numéro attendu (entré par l'utilisateur), à comparer avec status.phone après connexion.
   const [expectedPhone, setExpectedPhone] = useState<string | null>(null);
   const [phoneMismatch, setPhoneMismatch] = useState<{ expected: string; actual: string } | null>(null);
+  // Erreur QR persistante (ne disparaît pas comme un toast) + debug pour diagnostic
+  const [qrError, setQrError] = useState<string | null>(null);
+  const [qrDebug, setQrDebug] = useState<unknown>(null);
+  const [showQrDebug, setShowQrDebug] = useState(false);
+  const [resetting, setResetting] = useState(false);
   // Tracker la transition Déconnecté → Connecté pour afficher un toast/banner de succès
   const wasConnectedRef = React.useRef<boolean>(false);
 
@@ -598,12 +603,65 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
   const fetchQr = async () => {
     setQrLoading(true);
     setQr(null);
-    const res = await fetch(`/api/ai-chatbot/whatsapp/qr?service=${serviceType}`);
-    const json = await res.json();
-    if (json.error) toast.error(json.error);
-    else if (json.qr) setQr(json.qr);
-    else if (json.connected) { toast.success('Déjà connecté !'); fetchStatus(); }
-    setQrLoading(false);
+    setQrError(null);
+    setQrDebug(null);
+    try {
+      const res = await fetch(`/api/ai-chatbot/whatsapp/qr?service=${serviceType}`);
+      const json = await res.json();
+      if (json.qr) {
+        setQr(json.qr);
+      } else if (json.connected) {
+        toast.success('Déjà connecté !');
+        fetchStatus();
+      } else {
+        const errMsg = json.error || 'QR non disponible — Evolution API n\'a rien renvoyé.';
+        setQrError(errMsg);
+        if (json.debug) setQrDebug(json.debug);
+        // Pas de toast — on garde l'erreur visible dans la bannière persistante
+      }
+    } catch (e: any) {
+      setQrError(e?.message || 'Erreur réseau lors du chargement du QR');
+    } finally {
+      setQrLoading(false);
+    }
+  };
+
+  // Réinitialise complètement l'instance : delete → create → fetchQr.
+  // Utile quand Evolution est coincée en état « connecting » ou que la session
+  // est corrompue (cas le plus fréquent quand le QR ne s'affiche pas).
+  const resetConnection = async () => {
+    if (!confirm('Réinitialiser cette connexion ? L\'instance actuelle sera supprimée et recréée. Tu devras re-scanner un nouveau QR.')) return;
+    setResetting(true);
+    setQrError(null);
+    setQrDebug(null);
+    setQr(null);
+    try {
+      // 1. Delete existing instance
+      await fetch('/api/ai-chatbot/whatsapp/instance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', service_type: serviceType }),
+      });
+      // 2. Create fresh instance
+      const createRes = await fetch('/api/ai-chatbot/whatsapp/instance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create', service_type: serviceType }),
+      });
+      const createJson = await createRes.json();
+      if (createJson.error) {
+        setQrError(`Échec recréation : ${createJson.error}`);
+        return;
+      }
+      // 3. Re-fetch status + QR
+      await fetchStatus();
+      await fetchQr();
+      toast.success('Connexion réinitialisée — scanne le nouveau QR');
+    } catch (e: any) {
+      setQrError(e?.message || 'Erreur pendant la réinitialisation');
+    } finally {
+      setResetting(false);
+    }
   };
 
   if (loading) {
@@ -737,6 +795,42 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
                       </pre>
                     )}
                   </div>
+                )}
+              </div>
+            )}
+
+            {/* Bannière d'erreur QR persistante (avec debug + bouton reset) */}
+            {qrError && (
+              <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700 space-y-2">
+                <div className="flex items-start gap-2">
+                  <AlertCircle size={14} className="shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <strong>QR non disponible :</strong> {qrError}
+                  </div>
+                  <button onClick={() => { setQrError(null); setQrDebug(null); setShowQrDebug(false); }} className="text-red-400 hover:text-red-600 text-base leading-none">×</button>
+                </div>
+                <div className="flex items-center gap-2 pt-1 border-t border-red-100">
+                  <button
+                    onClick={resetConnection}
+                    disabled={resetting}
+                    className="flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 bg-red-100 hover:bg-red-200 text-red-800 rounded-md disabled:opacity-50"
+                  >
+                    {resetting ? <Loader2 size={10} className="animate-spin" /> : <RefreshCw size={10} />}
+                    {resetting ? 'Réinitialisation…' : 'Réinitialiser la connexion'}
+                  </button>
+                  {qrDebug !== null && (
+                    <button
+                      onClick={() => setShowQrDebug(s => !s)}
+                      className="text-[10px] text-red-500 hover:text-red-700 underline"
+                    >
+                      {showQrDebug ? '▼ Masquer' : '▶ Détails techniques'}
+                    </button>
+                  )}
+                </div>
+                {showQrDebug && qrDebug !== null && (
+                  <pre className="text-[10px] bg-white dark:bg-stone-900 border border-red-100 rounded p-2 overflow-x-auto whitespace-pre-wrap break-all max-h-48 overflow-y-auto">
+                    {JSON.stringify(qrDebug, null, 2)}
+                  </pre>
                 )}
               </div>
             )}

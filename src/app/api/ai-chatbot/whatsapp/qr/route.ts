@@ -267,9 +267,12 @@ export async function GET(req: NextRequest) {
     }
 
     if (!qr) {
+      // Toujours renvoyer le debug en cas d'échec — c'est précisément quand on en a
+      // besoin pour comprendre pourquoi Evolution ne livre pas de QR (instance en
+      // état « connecting », session corrompue, etc.).
       return NextResponse.json({
-        error: 'QR non disponible.',
-        ...(debug ? { debug: debugLog } : {}),
+        error: 'QR non disponible. Essaie de réinitialiser cette connexion.',
+        debug: debugLog,
       }, { status: 502 });
     }
 
