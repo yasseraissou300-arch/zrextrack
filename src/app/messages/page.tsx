@@ -559,6 +559,11 @@ function HistoriqueTab() {
       // Erreur claire avec hint : on garde l'info visible, pas juste un toast éphémère
       toast.error(`${json.error}${json.hint ? '\n' + json.hint : ''}`, { duration: 8000 });
       checkWaStatus(); // refresh la bannière
+    } else if (json.sessionDead) {
+      // Evolution dit « open » mais Baileys est mort → on signale clairement
+      toast.error(json.hint || 'Session WhatsApp expirée — reconnecte le QR', { duration: 10000 });
+      checkWaStatus();
+      fetchMessages(); // affiche quand même les nouveaux échecs (pour debug)
     } else if (json.error) {
       toast.error(json.error);
     } else {
