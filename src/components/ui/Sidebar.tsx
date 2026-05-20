@@ -64,7 +64,12 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
 
   return (
     <aside
-      className={`relative flex flex-col bg-white dark:bg-stone-900 border-r border-stone-200 dark:border-stone-800 transition-all duration-300 ease-in-out shrink-0 ${
+      // h-screen + flex-col garantit que la nav (flex-1) prenne tout l'espace dispo
+      // et puisse scroller en interne via overflow-y-auto. Sans h-screen explicite,
+      // l'aside prenait la hauteur naturelle de son contenu et débordait du viewport
+      // sur les petits écrans → les items du bas (Gestion, Paramètres) devenaient
+      // inaccessibles.
+      className={`relative flex flex-col h-screen bg-white dark:bg-stone-900 border-r border-stone-200 dark:border-stone-800 transition-all duration-300 ease-in-out shrink-0 ${
         effectivelyCollapsed ? 'w-[60px]' : 'w-[220px]'
       }`}
     >
@@ -85,8 +90,8 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
         )}
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-3 px-2">
+      {/* Nav — min-h-0 indispensable pour qu'overflow-y-auto fonctionne dans un parent flex */}
+      <nav className="flex-1 min-h-0 overflow-y-auto py-3 px-2">
         {navGroups.map((group) => (
           <div key={group.label} className="mb-5">
             {!effectivelyCollapsed && (
