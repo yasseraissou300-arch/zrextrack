@@ -1,32 +1,78 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 
-const BACKEND = process.env.WHATSAPP_BACKEND_URL;
-const SECRET = process.env.WHATSAPP_BACKEND_SECRET;
+// Envoie un message WhatsApp via Evolution API en utilisant l'instance
+// « auto_confirmation » de l'utilisateur (la même que celle de l'onglet
+// Connexion sur la page /messages).
+//
+// Cette route remplace l'ancien backend WhatsApp privé (WHATSAPP_BACKEND_URL)
+// qui n'est plus déployé. Le résultat : ce que tu vois dans « Connexion »
+// est exactement ce qui est utilisé pour envoyer — finis les 200 échecs
+// silencieux dus à une desynchro entre le statut affiché et le backend
+// réellement appelé.
+
+const EVOLUTION_URL = process.env.EVOLUTION_API_URL || '';
+const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY || '';
+const DEFAULT_SERVICE = 'auto_confirmation';
 
 function normalizePhone(phone: string): string {
-  const clean = phone.replace(/[\s\-\(\)\+\.]/g, '');
+  const clean = (phone || '').replace(/[\s\-()+.]/g, '');
   if (clean.startsWith('213')) return clean;
+  if (clean.startsWith('00213')) return clean.slice(2);
   if (clean.startsWith('0')) return '213' + clean.slice(1);
   if (clean.length === 9) return '213' + clean;
   return clean;
 }
 
-// Vérifie que le backend WhatsApp est connecté ET prêt avant d'envoyer.
-// Sans ce pre-flight, des envois en masse partent dans le vide quand la
-// session est déconnectée — c'est exactement le scénario des « 200 messages
-// en échec » signalé par l'utilisateur.
-async function checkBackendReady(userId: string): Promise<{ ready: boolean; reason?: string }> {
+interface Instance {
+  instance_name: string;
+  connected: boolean;
+}
+
+async function getReadyInstance(userId: string): Promise<{ instance: Instance | null; reason?: string }> {
+  if (!EVOLUTION_URL || !EVOLUTION_KEY) {
+    return { instance: null, reason: 'Evolution API non configurée (EVOLUTION_API_URL/KEY manquants)' };
+  }
+  const service = createServiceClient();
+  const { data: row } = await service
+    .from('whatsapp_instances')
+    .select('instance_name, connected')
+    .eq('user_id', userId)
+    .eq('service_type', DEFAULT_SERVICE)
+    .single();
+
+  if (!row) return { instance: null, reason: 'Aucune instance WhatsApp pour cet utilisateur — connecte-toi d\'abord dans l\'onglet Connexion' };
+
+  // Confirme l'état live (évite d'envoyer dans le vide si l'instance est tombée)
   try {
-    const res = await fetch(`${BACKEND}/api/status/${userId}`, {
-      headers: { 'x-backend-secret': SECRET! },
+    const r = await fetch(`${EVOLUTION_URL}/instance/connectionState/${row.instance_name}`, {
+      headers: { apikey: EVOLUTION_KEY },
     });
-    if (!res.ok) return { ready: false, reason: `Backend HTTP ${res.status}` };
-    const json = await res.json();
-    if (json.status === 'ready') return { ready: true };
-    return { ready: false, reason: `WhatsApp non connecté (état : ${json.status || 'inconnu'})` };
+    if (r.ok) {
+      const j = await r.json();
+      const isOpen = (j.instance?.state || j.state) === 'open';
+      if (!isOpen) return { instance: null, reason: `WhatsApp non connecté (état Evolution : ${j.instance?.state || j.state || 'inconnu'})` };
+    }
   } catch (e: any) {
-    return { ready: false, reason: `Backend injoignable : ${e?.message || 'erreur réseau'}` };
+    return { instance: null, reason: `Evolution injoignable : ${e?.message || 'erreur réseau'}` };
+  }
+  return { instance: row };
+}
+
+async function sendOne(instanceName: string, phone: string, text: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${EVOLUTION_URL}/message/sendText/${instanceName}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: EVOLUTION_KEY },
+      body: JSON.stringify({ number: phone, text }),
+    });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      return { ok: false, error: `Evolution HTTP ${res.status}: ${errText.slice(0, 200)}` };
+    }
+    return { ok: true };
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'Erreur réseau Evolution' };
   }
 }
 
@@ -34,10 +80,6 @@ export async function POST(request: NextRequest) {
   const supabaseAuth = await createClient();
   const { data: { user } } = await supabaseAuth.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
-
-  if (!BACKEND || !SECRET) {
-    return NextResponse.json({ error: 'Backend WhatsApp non configuré (env vars manquantes)' }, { status: 500 });
-  }
 
   const supabase = createServiceClient();
   const body = await request.json();
@@ -47,21 +89,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Aucun destinataire' }, { status: 400 });
   }
 
-  // Pre-flight : éviter d'enchaîner N envois si la session est déconnectée.
-  // Pour un seul destinataire on tente quand même (pas de gros gaspillage), mais
-  // pour un envoi en masse (>1) on échoue tôt avec un message clair.
-  if (recipients.length > 1) {
-    const check = await checkBackendReady(user.id);
-    if (!check.ready) {
-      return NextResponse.json({
-        error: check.reason || 'WhatsApp non prêt',
-        code: 'NOT_CONNECTED',
-        hint: 'Va dans l\'onglet Connexion et reconnecte WhatsApp avant de renvoyer.',
-        sent: 0,
-        failed: 0,
-        results: [],
-      }, { status: 503 });
-    }
+  // Pre-flight pour les envois en masse : on évite N tentatives ratées si
+  // la session Evolution est tombée
+  const { instance, reason } = await getReadyInstance(user.id);
+  if (!instance) {
+    return NextResponse.json({
+      error: reason || 'WhatsApp non prêt',
+      code: 'NOT_CONNECTED',
+      hint: 'Va dans l\'onglet Connexion et reconnecte WhatsApp avant de renvoyer.',
+      sent: 0,
+      failed: 0,
+      results: [],
+    }, { status: 503 });
   }
 
   const results = [];
@@ -70,25 +109,14 @@ export async function POST(request: NextRequest) {
     let status: 'envoye' | 'echec' = 'echec';
     let errorMsg = '';
 
-    try {
-      const res = await fetch(`${BACKEND}/api/send/${user.id}`, {
-        method: 'POST',
-        headers: { 'x-backend-secret': SECRET, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to, message: r.message }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (json.success) {
-        status = 'envoye';
-      } else {
-        errorMsg = json.error || `HTTP ${res.status} — pas de détail`;
-      }
-    } catch (e: any) {
-      errorMsg = e?.message || 'Erreur réseau inconnue';
+    if (!to || to.length < 11) {
+      errorMsg = `Numéro invalide : "${r.whatsapp}"`;
+    } else {
+      const send = await sendOne(instance.instance_name, to, r.message || '');
+      if (send.ok) status = 'envoye';
+      else errorMsg = send.error || 'Echec envoi (raison inconnue)';
     }
 
-    // On stocke aussi la raison d'échec quand elle existe, pour diagnostiquer
-    // plus tard sans relancer. La colonne error_message doit exister sur la
-    // table messages (voir supabase_messages_error.sql).
     await supabase.from('messages').insert({
       user_id: user.id,
       tracking_number: r.tracking || '',
