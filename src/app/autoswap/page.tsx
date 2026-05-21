@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Repeat, Search, CheckCircle2, AlertTriangle, MapPin, TrendingUp,
   Package, Filter, Loader2, ExternalLink, Info, Truck, XCircle, History,
-  Settings as SettingsIcon, Plus, Trash2, Save, Download,
+  Settings as SettingsIcon, Plus, Trash2, Save,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { MatchProposal, PreviewResponse, Confidence } from '@/lib/autoswap/types';
@@ -420,7 +420,6 @@ function SizeEquivalencesCard() {
   const [items, setItems] = useState<Equivalence[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
-  const [seeding, setSeeding] = useState(false);
 
   const [newKey, setNewKey] = useState('');
   const [newLabel, setNewLabel] = useState('');
@@ -436,15 +435,6 @@ function SizeEquivalencesCard() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
-
-  const seedDefaults = async () => {
-    setSeeding(true);
-    const res = await fetch('/api/autoswap/equivalences?seed=1', { method: 'POST' });
-    const json = await res.json();
-    if (json.error) toast.error(json.error);
-    else { toast.success(`${json.seeded} produits importés`); load(); }
-    setSeeding(false);
-  };
 
   const addNew = async () => {
     if (!newKey.trim() || !newGroupsText.trim()) {
@@ -517,19 +507,15 @@ function SizeEquivalencesCard() {
             <div className="flex justify-center py-6"><Loader2 className="animate-spin text-stone-400" size={18} /></div>
           ) : (
             <>
-              {/* État vide → bouton import défauts */}
+              {/* État vide : message générique, pas de fuite de produits */}
               {items.length === 0 && (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-900">
+                <div className="bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl p-4 text-sm text-stone-700 dark:text-stone-200">
                   <p className="font-medium">Aucun produit configuré.</p>
-                  <p className="text-xs mt-1">Si tu vends les mêmes produits que les comptes par défaut (hijab miral, pantalon lain, ayla abaya), tu peux les importer en 1 clic. Sinon, ajoute tes propres produits ci-dessous.</p>
-                  <button
-                    onClick={seedDefaults}
-                    disabled={seeding}
-                    className="mt-2 flex items-center gap-1.5 text-xs px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-lg disabled:opacity-50"
-                  >
-                    {seeding ? <Loader2 size={11} className="animate-spin" /> : <Download size={11} />}
-                    Importer les templates par défaut
-                  </button>
+                  <p className="text-xs mt-1 text-stone-500 dark:text-stone-400">
+                    Ajoute ci-dessous les produits pour lesquels certaines tailles sont interchangeables.
+                    Sans configuration, AutoSwap matche les tailles à l'identique strict (un colis taille 42
+                    ne matchera qu'une commande taille 42).
+                  </p>
                 </div>
               )}
 
