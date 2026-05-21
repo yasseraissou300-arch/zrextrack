@@ -59,19 +59,70 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: 'WhatsApp non configuré' }, { status: 400 });
   }
 
-  let ordersQuery = supabase
-    .from('orders')
-    .select('id, tracking_number, customer_name, customer_whatsapp, wilaya, cod')
-    .eq('user_id', user.id)
-    .not('customer_whatsapp', 'is', null)
-    .neq('customer_whatsapp', '');
+  // Deux modes possibles :
+  //  - audience_phones (liste custom, ex « clients livrés sélectionnés ») → on l'utilise tel quel
+  //  - audience_status (mode historique) → on filtre la table orders
+  let validOrders: Array<{
+    id?: string;
+    tracking_number: string;
+    customer_name: string;
+    customer_whatsapp: string;
+    wilaya: string;
+    cod: number | null;
+  }>;
 
-  if (campaign.audience_status) {
-    ordersQuery = ordersQuery.eq('delivery_status', campaign.audience_status);
+  const customList = (campaign.audience_phones as string[] | null) || null;
+
+  if (customList && customList.length > 0) {
+    // On enrichit chaque téléphone avec ce qu'on connaît dans orders (nom,
+    // wilaya, dernier tracking) pour pouvoir interpoler {{client}} etc.
+    // Si le tel n'est pas dans orders, on envoie quand même avec des champs vides.
+    const { data: knownOrders } = await supabase
+      .from('orders')
+      .select('tracking_number, customer_name, customer_whatsapp, wilaya, cod, updated_at')
+      .eq('user_id', user.id)
+      .in('customer_whatsapp', customList)
+      .order('updated_at', { ascending: false });
+
+    type KnownOrder = {
+      tracking_number: string;
+      customer_name: string;
+      customer_whatsapp: string;
+      wilaya: string;
+      cod: number | null;
+      updated_at: string;
+    };
+    const byPhone = new Map<string, KnownOrder>();
+    for (const o of ((knownOrders || []) as KnownOrder[])) {
+      // Garde la commande la plus récente par téléphone
+      if (!byPhone.has(o.customer_whatsapp)) byPhone.set(o.customer_whatsapp, o);
+    }
+
+    validOrders = customList.map(phone => {
+      const k = byPhone.get(phone);
+      return {
+        tracking_number: k?.tracking_number || '',
+        customer_name: k?.customer_name || '',
+        customer_whatsapp: phone,
+        wilaya: k?.wilaya || '',
+        cod: k?.cod ?? null,
+      };
+    });
+  } else {
+    let ordersQuery = supabase
+      .from('orders')
+      .select('id, tracking_number, customer_name, customer_whatsapp, wilaya, cod')
+      .eq('user_id', user.id)
+      .not('customer_whatsapp', 'is', null)
+      .neq('customer_whatsapp', '');
+
+    if (campaign.audience_status) {
+      ordersQuery = ordersQuery.eq('delivery_status', campaign.audience_status);
+    }
+
+    const { data: orders } = await ordersQuery;
+    validOrders = (orders || []).filter(o => o.customer_whatsapp && o.customer_whatsapp.length > 5);
   }
-
-  const { data: orders } = await ordersQuery;
-  const validOrders = (orders || []).filter(o => o.customer_whatsapp && o.customer_whatsapp.length > 5);
 
   await supabase
     .from('campaigns')

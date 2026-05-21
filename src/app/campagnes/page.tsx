@@ -1,11 +1,15 @@
 'use client';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
 import {
   Megaphone, Plus, Send, Trash2, Loader2, CheckCircle, XCircle,
   Clock, Users, ChevronRight, X, AlertCircle, RefreshCw, ImageIcon,
+  Phone, MapPin, ShoppingBag, TrendingUp, Search, Target,
 } from 'lucide-react';
 import { toast } from 'sonner';
+
+const STORAGE_KEY = 'zrexpress_token';
+const TENANT_KEY = 'zrexpress_tenant';
 
 interface Campaign {
   id: string;
@@ -50,10 +54,11 @@ function Modal({ open, onClose, children }: { open: boolean; onClose: () => void
   );
 }
 
-function CreateModal({ open, onClose, onCreate }: {
+function CreateModal({ open, onClose, onCreate, preselectedPhones }: {
   open: boolean;
   onClose: () => void;
   onCreate: (c: Campaign) => void;
+  preselectedPhones?: string[] | null;
 }) {
   const [name, setName] = useState('');
   const [template, setTemplate] = useState('');
@@ -72,7 +77,15 @@ function CreateModal({ open, onClose, onCreate }: {
     const res = await fetch('/api/campaigns', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, message_template: template, audience_status: audienceStatus, media_url: mediaUrl }),
+      body: JSON.stringify({
+        name,
+        message_template: template,
+        // Si on a une liste pré-sélectionnée (depuis « Clients livrés »), on
+        // l'envoie comme audience custom — ignore audience_status.
+        audience_status: preselectedPhones?.length ? '' : audienceStatus,
+        audience_phones: preselectedPhones?.length ? preselectedPhones : undefined,
+        media_url: mediaUrl,
+      }),
     });
     const json = await res.json();
     if (json.error) { toast.error(json.error); }
@@ -113,18 +126,28 @@ function CreateModal({ open, onClose, onCreate }: {
           />
         </div>
 
-        <div className="space-y-1">
-          <label className="block text-xs font-medium text-gray-600 dark:text-stone-300">Audience (statut des commandes)</label>
-          <select
-            value={audienceStatus}
-            onChange={e => setAudienceStatus(e.target.value)}
-            className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white dark:bg-stone-900"
-          >
-            {STATUS_OPTIONS.map(o => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-        </div>
+        {preselectedPhones && preselectedPhones.length > 0 ? (
+          <div className="bg-violet-50 dark:bg-violet-500/10 border border-violet-200 dark:border-violet-500/30 rounded-xl p-3 flex items-start gap-2.5">
+            <Target size={14} className="text-violet-600 dark:text-violet-300 shrink-0 mt-0.5" />
+            <div className="text-xs text-violet-900 dark:text-violet-200">
+              <p className="font-semibold">Audience pré-sélectionnée : {preselectedPhones.length} client{preselectedPhones.length > 1 ? 's' : ''} livré{preselectedPhones.length > 1 ? 's' : ''}</p>
+              <p className="text-violet-700 dark:text-violet-300 mt-0.5">Ces numéros viennent de l'explorateur ZRExpress. Le filtre par statut est ignoré.</p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-gray-600 dark:text-stone-300">Audience (statut des commandes)</label>
+            <select
+              value={audienceStatus}
+              onChange={e => setAudienceStatus(e.target.value)}
+              className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white dark:bg-stone-900"
+            >
+              {STATUS_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="space-y-1">
           <label className="block text-xs font-medium text-gray-600 dark:text-stone-300">
@@ -363,6 +386,10 @@ export default function CampagnesPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
+  // Onglet actif : campagnes existantes ou explorateur de clients livrés
+  const [tab, setTab] = useState<'campaigns' | 'delivered'>('campaigns');
+  // Liste pré-remplie de téléphones quand on crée une campagne depuis « Clients livrés »
+  const [preselectedPhones, setPreselectedPhones] = useState<string[] | null>(null);
 
   const fetchCampaigns = useCallback(async () => {
     setLoading(true);
@@ -405,6 +432,11 @@ export default function CampagnesPage() {
   const brouillons = campaigns.filter(c => c.status === 'brouillon');
   const terminees = campaigns.filter(c => c.status !== 'brouillon');
 
+  const onLaunchCampaignFromList = (phones: string[]) => {
+    setPreselectedPhones(phones);
+    setCreateOpen(true);
+  };
+
   return (
     <AppLayout>
       <div className="max-w-screen-xl mx-auto px-6 py-6 space-y-6">
@@ -420,7 +452,7 @@ export default function CampagnesPage() {
             </div>
           </div>
           <button
-            onClick={() => setCreateOpen(true)}
+            onClick={() => { setPreselectedPhones(null); setCreateOpen(true); }}
             className="flex items-center gap-2 bg-green-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-green-700 transition-colors"
           >
             <Plus size={16} />
@@ -428,6 +460,36 @@ export default function CampagnesPage() {
           </button>
         </div>
 
+        {/* Onglets */}
+        <div className="flex gap-1 bg-stone-100 dark:bg-stone-800 p-1 rounded-xl w-fit">
+          <button
+            onClick={() => setTab('campaigns')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              tab === 'campaigns'
+                ? 'bg-white dark:bg-stone-900 text-gray-900 dark:text-stone-100 shadow-sm'
+                : 'text-gray-500 dark:text-stone-400 hover:text-gray-700'
+            }`}
+          >
+            <Megaphone size={14} />
+            Mes campagnes
+          </button>
+          <button
+            onClick={() => setTab('delivered')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              tab === 'delivered'
+                ? 'bg-white dark:bg-stone-900 text-gray-900 dark:text-stone-100 shadow-sm'
+                : 'text-gray-500 dark:text-stone-400 hover:text-gray-700'
+            }`}
+          >
+            <Target size={14} />
+            Clients livrés (ZRExpress)
+          </button>
+        </div>
+
+        {tab === 'delivered' ? (
+          <DeliveredCustomersTab onCreateCampaign={onLaunchCampaignFromList} />
+        ) : (
+          <>
         {/* Info variables */}
         <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-start gap-3">
           <AlertCircle size={16} className="text-blue-500 shrink-0 mt-0.5" />
@@ -493,10 +555,322 @@ export default function CampagnesPage() {
             )}
           </div>
         )}
+          </>
+        )}
       </div>
 
-      <CreateModal open={createOpen} onClose={() => setCreateOpen(false)} onCreate={handleCreate} />
+      <CreateModal
+        open={createOpen}
+        onClose={() => { setCreateOpen(false); setPreselectedPhones(null); }}
+        onCreate={handleCreate}
+        preselectedPhones={preselectedPhones}
+      />
       <DetailModal campaignId={detailId} open={!!detailId} onClose={() => setDetailId(null)} />
     </AppLayout>
+  );
+}
+
+// ─── Explorateur de clients livrés depuis ZRExpress ─────────────────────────
+// Fetch on-demand de /api/campaigns/delivered-customers — agrège les colis
+// livrés par téléphone client. Permet sélection multi puis « Créer campagne ».
+
+interface DeliveredCustomer {
+  phone: string;
+  name: string;
+  wilaya: string;
+  wilaya_code: number;
+  order_count: number;
+  total_spent: number;
+  last_delivery: string;
+  trackings: string[];
+}
+
+interface DeliveredStats {
+  total_customers: number;
+  total_orders: number;
+  total_revenue: number;
+  repeat_customers: number;
+}
+
+function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones: string[]) => void }) {
+  const [customers, setCustomers] = useState<DeliveredCustomer[]>([]);
+  const [stats, setStats] = useState<DeliveredStats | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [onlyRepeat, setOnlyRepeat] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [credentialsReady, setCredentialsReady] = useState(false);
+
+  useEffect(() => {
+    const t = localStorage.getItem(STORAGE_KEY) || '';
+    const ti = localStorage.getItem(TENANT_KEY) || '';
+    setCredentialsReady(!!t && !!ti);
+  }, []);
+
+  const fetchData = useCallback(async () => {
+    const token = localStorage.getItem(STORAGE_KEY) || '';
+    const tenantId = localStorage.getItem(TENANT_KEY) || '';
+    if (!token || !tenantId) {
+      setError('Clé API ZRExpress non configurée. Va sur /sync pour la saisir.');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/campaigns/delivered-customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, tenantId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+      setCustomers(json.customers ?? []);
+      setStats(json.stats ?? null);
+    } catch (e: any) {
+      setError(e?.message || 'Erreur ZRExpress');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const filtered = useMemo(() => {
+    let list = customers;
+    if (onlyRepeat) list = list.filter(c => c.order_count >= 2);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(c =>
+        c.name.toLowerCase().includes(q) ||
+        c.phone.includes(q) ||
+        c.wilaya.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [customers, search, onlyRepeat]);
+
+  const toggleOne = (phone: string) => {
+    setSelected(s => {
+      const n = new Set(s);
+      if (n.has(phone)) n.delete(phone); else n.add(phone);
+      return n;
+    });
+  };
+
+  const toggleAllVisible = () => {
+    const visiblePhones = filtered.map(c => c.phone);
+    const allSelected = visiblePhones.every(p => selected.has(p));
+    setSelected(s => {
+      const n = new Set(s);
+      if (allSelected) visiblePhones.forEach(p => n.delete(p));
+      else visiblePhones.forEach(p => n.add(p));
+      return n;
+    });
+  };
+
+  const exportCSV = () => {
+    const target = selected.size > 0 ? filtered.filter(c => selected.has(c.phone)) : filtered;
+    if (target.length === 0) { toast.error('Rien à exporter'); return; }
+    const header = ['Téléphone', 'Nom', 'Wilaya', 'Nb livraisons', 'Total dépensé (DA)', 'Dernière livraison'];
+    const rows = target.map(c => [
+      c.phone,
+      c.name,
+      c.wilaya,
+      String(c.order_count),
+      String(c.total_spent),
+      new Date(c.last_delivery).toLocaleString('fr-FR'),
+    ]);
+    const esc = (v: string) => `"${String(v).replace(/"/g, '""')}"`;
+    const csv = [header, ...rows].map(r => r.map(esc).join(',')).join('\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `clients-livres-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`${target.length} client${target.length > 1 ? 's' : ''} exporté${target.length > 1 ? 's' : ''}`);
+  };
+
+  const launchCampaign = () => {
+    const phones = Array.from(selected);
+    if (phones.length === 0) {
+      toast.error('Sélectionne au moins un client');
+      return;
+    }
+    onCreateCampaign(phones);
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Banner explication */}
+      <div className="bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/30 rounded-2xl p-4 flex items-start gap-3">
+        <Target size={16} className="text-green-600 dark:text-green-300 shrink-0 mt-0.5" />
+        <div className="text-sm text-green-900 dark:text-green-200">
+          <p className="font-medium">Cible tes vrais clients</p>
+          <p className="text-xs text-green-700 dark:text-green-300 mt-0.5">
+            Cette liste vient directement de ZRExpress et ne contient que les clients ayant reçu leur livraison (status « livré »). Idéal pour les campagnes de fidélisation, lancement de nouveaux produits, ou récompense de clients fidèles.
+          </p>
+        </div>
+      </div>
+
+      {!credentialsReady && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+          <AlertCircle className="inline-block mr-2" size={16} />
+          Clé API ZRExpress manquante. Configure-la sur la page <a href="/sync" className="underline font-medium">Sync</a>.
+        </div>
+      )}
+
+      {/* Bouton fetch + stats */}
+      {customers.length === 0 && !loading && credentialsReady && !error && (
+        <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 p-6 text-center">
+          <Target size={32} className="mx-auto text-stone-300 mb-3" />
+          <p className="text-sm text-gray-700 dark:text-stone-200 mb-3">Charge la liste de tes clients livrés depuis ZRExpress.</p>
+          <button
+            onClick={fetchData}
+            disabled={loading}
+            className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-xl disabled:opacity-50"
+          >
+            <RefreshCw size={14} />
+            Charger les clients livrés
+          </button>
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">
+          <strong>Erreur :</strong> {error}
+          <button onClick={fetchData} className="ml-3 underline">Réessayer</button>
+        </div>
+      )}
+
+      {loading && (
+        <div className="flex justify-center py-12">
+          <Loader2 size={24} className="animate-spin text-stone-400" />
+        </div>
+      )}
+
+      {stats && customers.length > 0 && (
+        <>
+          {/* Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <StatBox icon={<Users size={14} />} label="Clients uniques" value={stats.total_customers} color="text-green-700 bg-green-50" />
+            <StatBox icon={<ShoppingBag size={14} />} label="Commandes livrées" value={stats.total_orders} color="text-blue-700 bg-blue-50" />
+            <StatBox icon={<TrendingUp size={14} />} label="Total facturé" value={`${stats.total_revenue.toFixed(0)} DA`} color="text-violet-700 bg-violet-50" />
+            <StatBox icon={<RefreshCw size={14} />} label="Clients fidèles (≥2)" value={stats.repeat_customers} color="text-amber-700 bg-amber-50" />
+          </div>
+
+          {/* Toolbar */}
+          <div className="bg-white dark:bg-stone-900 border border-stone-100 dark:border-stone-800 rounded-2xl p-3 flex items-center gap-3 flex-wrap">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Chercher par nom, téléphone, wilaya…"
+                className="w-full pl-9 pr-3 py-2 text-sm border border-stone-200 dark:border-stone-700 rounded-xl bg-white dark:bg-stone-900 focus:outline-none focus:ring-2 focus:ring-green-500/30"
+              />
+            </div>
+            <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-stone-300 cursor-pointer select-none">
+              <input type="checkbox" checked={onlyRepeat} onChange={e => setOnlyRepeat(e.target.checked)} />
+              Clients fidèles uniquement (≥ 2 livraisons)
+            </label>
+            <button onClick={fetchData} className="p-2 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-lg" title="Recharger">
+              <RefreshCw size={14} className="text-stone-500" />
+            </button>
+            <button
+              onClick={exportCSV}
+              className="text-xs px-3 py-2 border border-stone-200 dark:border-stone-700 rounded-xl hover:bg-stone-50 dark:hover:bg-stone-800 font-medium text-stone-700 dark:text-stone-200"
+            >
+              Exporter CSV
+            </button>
+            <button
+              onClick={launchCampaign}
+              disabled={selected.size === 0}
+              className="flex items-center gap-1.5 text-xs px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Send size={12} />
+              Créer campagne ({selected.size})
+            </button>
+          </div>
+
+          {/* Table */}
+          <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-stone-50 dark:bg-stone-800 border-b border-stone-100 dark:border-stone-700">
+                  <tr>
+                    <th className="px-3 py-3 text-left w-8">
+                      <input
+                        type="checkbox"
+                        checked={filtered.length > 0 && filtered.every(c => selected.has(c.phone))}
+                        onChange={toggleAllVisible}
+                        title="Tout sélectionner / désélectionner"
+                      />
+                    </th>
+                    {['Client', 'Wilaya', 'Livraisons', 'Total dépensé', 'Dernière livraison'].map(h => (
+                      <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 dark:text-stone-400 uppercase tracking-wide">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
+                  {filtered.map(c => {
+                    const isSelected = selected.has(c.phone);
+                    return (
+                      <tr
+                        key={c.phone}
+                        onClick={() => toggleOne(c.phone)}
+                        className={`cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-800 ${isSelected ? 'bg-green-50/50 dark:bg-green-500/5' : ''}`}
+                      >
+                        <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
+                          <input type="checkbox" checked={isSelected} onChange={() => toggleOne(c.phone)} />
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-gray-900 dark:text-stone-100 text-xs">{c.name || <span className="text-stone-400">(sans nom)</span>}</p>
+                          <p className="text-[10px] text-stone-500 font-mono flex items-center gap-1 mt-0.5">
+                            <Phone size={9} />
+                            +{c.phone}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="flex items-center gap-1 text-xs text-stone-600 dark:text-stone-300">
+                            <MapPin size={10} />
+                            {c.wilaya || '—'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${c.order_count >= 2 ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-600'}`}>
+                            {c.order_count}× livré{c.order_count > 1 ? 's' : ''}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-xs font-medium text-gray-900 dark:text-stone-100">
+                          {c.total_spent.toFixed(0)} DA
+                        </td>
+                        <td className="px-4 py-3 text-[11px] text-stone-500">
+                          {new Date(c.last_delivery).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {filtered.length === 0 && (
+                <div className="py-12 text-center text-sm text-stone-400">
+                  Aucun client ne correspond aux filtres.
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function StatBox({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number | string; color: string }) {
+  return (
+    <div className={`rounded-2xl p-3 ${color}`}>
+      <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide opacity-80">{icon}{label}</div>
+      <p className="text-xl font-bold mt-1">{value}</p>
+    </div>
   );
 }
