@@ -2,12 +2,14 @@
 //
 // GET  /api/autoswap/equivalences         → liste les équivalences du user
 // POST /api/autoswap/equivalences         → upsert un produit { product_key, product_label, groups }
-// POST /api/autoswap/equivalences?seed=1  → seed les défauts (hijab miral, pantalon lain, ayla abaya)
 // DELETE /api/autoswap/equivalences?key=X → supprime un produit
+//
+// Pas d'endpoint de « seed defaults » public : chaque utilisateur ajoute
+// ses propres produits via l'UI, on évite ainsi qu'un ami récupère par
+// inadvertance les produits d'un autre vendeur.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
-import { DEFAULT_SIZE_EQUIVALENCES } from '@/lib/autoswap/matcher';
 
 interface EquivalenceRow {
   id: string;
@@ -42,28 +44,8 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const service = createServiceClient();
-  const url = new URL(req.url);
 
-  // Mode SEED : insère tous les templates par défaut pour ce user.
-  // On ne touche pas aux entrées déjà créées (UNIQUE(user_id, product_key)
-  // + ON CONFLICT DO NOTHING via upsert avec ignoreDuplicates).
-  if (url.searchParams.get('seed') === '1') {
-    const rows = Object.entries(DEFAULT_SIZE_EQUIVALENCES).map(([key, groups]) => ({
-      user_id: user.id,
-      product_key: key,
-      // Le label lisible : si la clé est un nom (avec espaces) on capitalize,
-      // sinon on garde la clé brute (cas des SKU « mrl », « plin », …).
-      product_label: /\s/.test(key) ? key.replace(/\b\w/g, c => c.toUpperCase()) : key,
-      groups,
-    }));
-    const { error } = await service
-      .from('autoswap_size_equivalences')
-      .upsert(rows, { onConflict: 'user_id,product_key', ignoreDuplicates: true });
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true, seeded: rows.length });
-  }
-
-  // Mode UPSERT classique
+  // Upsert d'un produit
   const body = await req.json().catch(() => ({}));
   const { product_key, product_label, groups } = body as {
     product_key?: string;

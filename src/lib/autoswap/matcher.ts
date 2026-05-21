@@ -257,27 +257,26 @@ function isGeoSwapAllowed(source: NormalizedParcel, target: NormalizedParcel): b
 
 // ── Tailles équivalentes par produit ────────────────────────────────────────
 // Configuration métier : certaines tailles sont interchangeables au sein d'un
-// même produit (ex : pour le hijab miral, les tailles 40/42/44 sont équivalentes).
+// même produit (ex : 40/42/44 dans un même groupe). MULTI-TENANT : chaque
+// utilisateur définit ses propres équivalences via la table
+// autoswap_size_equivalences. Le matcher reçoit le dictionnaire en paramètre
+// via matchSwappables(parcels, { sizeEquivalences }).
 //
-// MULTI-TENANT : chaque utilisateur définit ses propres équivalences via la table
-// autoswap_size_equivalences. Le matcher reçoit le dictionnaire en paramètre via
-// matchSwappables(parcels, { sizeEquivalences }). Cette constante n'est plus
-// utilisée par défaut — elle sert juste de modèle exportable pour le bouton
-// « Importer les templates par défaut » dans la UI.
+// Aucun défaut n'est exporté ici pour ne pas exposer les produits d'un
+// vendeur dans le code source (ces données sont commerciales sensibles).
 //
-// IMPORTANT : les tailles à l'intérieur d'un groupe doivent être identiques au
-// format retourné par classifyToken() — donc upper-case pour les alpha, et la
-// chaîne brute pour les numériques.
-export const DEFAULT_SIZE_EQUIVALENCES: Record<string, string[][]> = {
-  mrl: [['40', '42', '44'], ['46', '48', '50']],
-  'hijab miral': [['40', '42', '44'], ['46', '48', '50']],
-  ayl: [['40', '42', '44'], ['46', '48', '50']],
-  'ayla abaya': [['40', '42', '44'], ['46', '48', '50']],
-  spt: [['S', 'M'], ['L', 'XL'], ['XXL', 'XXXL']],
-  'pantalon lain sport': [['S', 'M'], ['L', 'XL'], ['XXL', 'XXXL']],
-  plin: [['S', 'M'], ['L', 'XL'], ['XXL', 'XXXL']],
-  'pantalon lain': [['S', 'M'], ['L', 'XL'], ['XXL', 'XXXL']],
-};
+// Format attendu en runtime, fourni par la couche API :
+//   {
+//     '<sku-or-name-fingerprint>': [
+//       ['40', '42', '44'],  // groupe 1 : tailles interchangeables
+//       ['46', '48', '50'],  // groupe 2
+//     ],
+//     ...
+//   }
+//
+// IMPORTANT : les tailles à l'intérieur d'un groupe doivent être identiques
+// au format retourné par classifyToken() — donc upper-case pour les alpha,
+// et la chaîne brute pour les numériques.
 
 // Renvoie le représentant canonique d'une taille pour un produit donné selon
 // la table d'équivalences fournie (celle du user courant en runtime).
