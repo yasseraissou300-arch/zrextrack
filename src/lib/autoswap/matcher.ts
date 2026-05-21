@@ -258,61 +258,36 @@ function isGeoSwapAllowed(source: NormalizedParcel, target: NormalizedParcel): b
 // ── Tailles équivalentes par produit ────────────────────────────────────────
 // Configuration métier : certaines tailles sont interchangeables au sein d'un
 // même produit (ex : pour le hijab miral, les tailles 40/42/44 sont équivalentes).
-// La clé peut être un SKU normalisé ou un nameFingerprint, on essaie les 2.
+//
+// MULTI-TENANT : chaque utilisateur définit ses propres équivalences via la table
+// autoswap_size_equivalences. Le matcher reçoit le dictionnaire en paramètre via
+// matchSwappables(parcels, { sizeEquivalences }). Cette constante n'est plus
+// utilisée par défaut — elle sert juste de modèle exportable pour le bouton
+// « Importer les templates par défaut » dans la UI.
 //
 // IMPORTANT : les tailles à l'intérieur d'un groupe doivent être identiques au
 // format retourné par classifyToken() — donc upper-case pour les alpha, et la
 // chaîne brute pour les numériques.
-const SIZE_EQUIVALENCES: Record<string, string[][]> = {
-  // Hijab miral (SKU "mrl")
-  mrl: [
-    ['40', '42', '44'],
-    ['46', '48', '50'],
-  ],
-  'hijab miral': [
-    ['40', '42', '44'],
-    ['46', '48', '50'],
-  ],
-  // Ayla Abaya (SKU "ayl") — mêmes groupes que hijab miral
-  ayl: [
-    ['40', '42', '44'],
-    ['46', '48', '50'],
-  ],
-  'ayla abaya': [
-    ['40', '42', '44'],
-    ['46', '48', '50'],
-  ],
-  // Pantalon lain sport (SKU "spt")
-  spt: [
-    ['S', 'M'],
-    ['L', 'XL'],
-    ['XXL', 'XXXL'],
-  ],
-  'pantalon lain sport': [
-    ['S', 'M'],
-    ['L', 'XL'],
-    ['XXL', 'XXXL'],
-  ],
-  // Pantalon lain (SKU "plin")
-  plin: [
-    ['S', 'M'],
-    ['L', 'XL'],
-    ['XXL', 'XXXL'],
-  ],
-  'pantalon lain': [
-    ['S', 'M'],
-    ['L', 'XL'],
-    ['XXL', 'XXXL'],
-  ],
+export const DEFAULT_SIZE_EQUIVALENCES: Record<string, string[][]> = {
+  mrl: [['40', '42', '44'], ['46', '48', '50']],
+  'hijab miral': [['40', '42', '44'], ['46', '48', '50']],
+  ayl: [['40', '42', '44'], ['46', '48', '50']],
+  'ayla abaya': [['40', '42', '44'], ['46', '48', '50']],
+  spt: [['S', 'M'], ['L', 'XL'], ['XXL', 'XXXL']],
+  'pantalon lain sport': [['S', 'M'], ['L', 'XL'], ['XXL', 'XXXL']],
+  plin: [['S', 'M'], ['L', 'XL'], ['XXL', 'XXXL']],
+  'pantalon lain': [['S', 'M'], ['L', 'XL'], ['XXL', 'XXXL']],
 };
 
-// Renvoie le représentant canonique d'une taille pour un produit donné.
-// Si la taille appartient à un groupe d'équivalence, on retourne le premier
-// élément du groupe (= représentant). Sinon on retourne la taille telle quelle.
-// Ex : normalizeSize('mrl', '42') → '40' ; normalizeSize('spt', 'XL') → 'L'.
-function normalizeSize(productKey: string | null, size: string): string {
+// Renvoie le représentant canonique d'une taille pour un produit donné selon
+// la table d'équivalences fournie (celle du user courant en runtime).
+function normalizeSize(
+  productKey: string | null,
+  size: string,
+  table: Record<string, string[][]>
+): string {
   if (!productKey) return size;
-  const groups = SIZE_EQUIVALENCES[productKey];
+  const groups = table[productKey];
   if (!groups) return size;
   for (const group of groups) {
     if (group.includes(size)) return group[0];
@@ -322,9 +297,12 @@ function normalizeSize(productKey: string | null, size: string): string {
 
 // Pour un colis donné, retourne la clé produit la plus précise disponible
 // (SKU si présent, sinon nameFingerprint). Sert au lookup des équivalences.
-function getProductKey(p: NormalizedParcel): string | null {
-  if (p.productSkuCode && SIZE_EQUIVALENCES[p.productSkuCode]) return p.productSkuCode;
-  if (p.productNameFingerprint && SIZE_EQUIVALENCES[p.productNameFingerprint]) return p.productNameFingerprint;
+function getProductKey(
+  p: NormalizedParcel,
+  table: Record<string, string[][]>
+): string | null {
+  if (p.productSkuCode && table[p.productSkuCode]) return p.productSkuCode;
+  if (p.productNameFingerprint && table[p.productNameFingerprint]) return p.productNameFingerprint;
   return null;
 }
 
@@ -352,7 +330,11 @@ function setsEqual<T>(a: T[], b: T[]): boolean {
 //
 // EXACT  → même UUID variante (rare en pratique, bypass les checks de set)
 // STRONG → même produit + même quantité + sets de couleurs et tailles identiques
-function productConfidence(a: NormalizedParcel, b: NormalizedParcel): {
+function productConfidence(
+  a: NormalizedParcel,
+  b: NormalizedParcel,
+  sizeEquivalences: Record<string, string[][]>,
+): {
   confidence: Confidence;
   sharedColors: string[];
   sharedSizes: string[];
@@ -391,13 +373,13 @@ function productConfidence(a: NormalizedParcel, b: NormalizedParcel): {
   // Sets identiques sur les couleurs.
   if (!setsEqual(a.variantColors, b.variantColors)) return null;
 
-  // Tailles : on applique d'abord la table d'équivalence du produit
+  // Tailles : on applique d'abord la table d'équivalence DU USER COURANT
   // (ex : pour hijab miral, 40/42/44 sont interchangeables) avant de comparer.
-  // Si SIZE_EQUIVALENCES connaît le produit, les tailles sont rabattues sur
-  // le représentant de leur groupe — sinon comparaison stricte.
-  const productKey = getProductKey(a) || getProductKey(b);
-  const aSizesNorm = a.variantSizes.map(s => normalizeSize(productKey, s));
-  const bSizesNorm = b.variantSizes.map(s => normalizeSize(productKey, s));
+  // Si la table connaît le produit, les tailles sont rabattues sur le
+  // représentant de leur groupe — sinon comparaison stricte.
+  const productKey = getProductKey(a, sizeEquivalences) || getProductKey(b, sizeEquivalences);
+  const aSizesNorm = a.variantSizes.map(s => normalizeSize(productKey, s, sizeEquivalences));
+  const bSizesNorm = b.variantSizes.map(s => normalizeSize(productKey, s, sizeEquivalences));
   if (!setsEqual(aSizesNorm, bSizesNorm)) return null;
 
   return {
@@ -509,7 +491,18 @@ function toTargetSide(p: NormalizedParcel, sharedColors: string[], sharedSizes: 
   };
 }
 
-export function matchSwappables(allParcels: ZRParcel[]): MatchProposal[] {
+export interface MatchOptions {
+  // Table d'équivalences de tailles spécifique à l'utilisateur courant.
+  // Format : { 'mrl': [['40','42','44'],['46','48','50']], ... }
+  // Si non fourni → comparaison stricte des tailles (aucune équivalence).
+  sizeEquivalences?: Record<string, string[][]>;
+}
+
+export function matchSwappables(
+  allParcels: ZRParcel[],
+  options: MatchOptions = {},
+): MatchProposal[] {
+  const equiv = options.sizeEquivalences ?? {};
   const normalized = allParcels.map(normalizeParcel);
   const swappables = normalized.filter(isSwappable);
   const targets = normalized.filter(isTarget);
@@ -519,7 +512,7 @@ export function matchSwappables(allParcels: ZRParcel[]): MatchProposal[] {
 
   for (const s of swappables) {
     for (const t of targets) {
-      const match = productConfidence(s, t);
+      const match = productConfidence(s, t, equiv);
       if (!match) continue;
       candidates.push({ s, t, result: scorePair(s, t, match) });
     }

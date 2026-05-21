@@ -1,11 +1,13 @@
 'use client';
 
 import AppLayout from '@/components/ui/AppLayout';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Repeat, Search, CheckCircle2, AlertTriangle, MapPin, TrendingUp,
   Package, Filter, Loader2, ExternalLink, Info, Truck, XCircle, History,
+  Settings as SettingsIcon, Plus, Trash2, Save, Download,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import type { MatchProposal, PreviewResponse, Confidence } from '@/lib/autoswap/types';
 
 const STORAGE_KEY = 'zrexpress_token';
@@ -222,6 +224,10 @@ export default function AutoSwapPage() {
           </div>
         </div>
 
+        {/* Équivalences de tailles personnalisées */}
+        <SizeEquivalencesCard />
+
+
         {/* Error banner */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
@@ -394,6 +400,214 @@ function BreakdownItem({ icon, label, value, color }: { icon: React.ReactNode; l
       <span className={`w-5 h-5 rounded flex items-center justify-center ${color}`}>{icon}</span>
       <span className="text-gray-500 dark:text-stone-400">{label} :</span>
       <span className="font-semibold text-gray-900 dark:text-stone-100">{value}</span>
+    </div>
+  );
+}
+
+// ─── Équivalences de tailles (multi-tenant) ──────────────────────────────────
+// Permet à chaque utilisateur de configurer ses propres groupes de tailles
+// interchangeables par produit. Ex : pour ses hijabs, l'utilisateur décide que
+// 40/42/44 sont équivalents pour le matching de swap.
+
+interface Equivalence {
+  id: string;
+  product_key: string;
+  product_label: string | null;
+  groups: string[][];
+}
+
+function SizeEquivalencesCard() {
+  const [items, setItems] = useState<Equivalence[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+  const [seeding, setSeeding] = useState(false);
+
+  const [newKey, setNewKey] = useState('');
+  const [newLabel, setNewLabel] = useState('');
+  const [newGroupsText, setNewGroupsText] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const res = await fetch('/api/autoswap/equivalences');
+    const json = await res.json();
+    setItems(json.data ?? []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const seedDefaults = async () => {
+    setSeeding(true);
+    const res = await fetch('/api/autoswap/equivalences?seed=1', { method: 'POST' });
+    const json = await res.json();
+    if (json.error) toast.error(json.error);
+    else { toast.success(`${json.seeded} produits importés`); load(); }
+    setSeeding(false);
+  };
+
+  const addNew = async () => {
+    if (!newKey.trim() || !newGroupsText.trim()) {
+      toast.error('Saisis la clé produit + au moins un groupe de tailles');
+      return;
+    }
+    // Parse les groupes : 1 ligne par groupe, tailles séparées par virgule
+    // ex : "40, 42, 44\n46, 48, 50"
+    const groups = newGroupsText
+      .split('\n')
+      .map(line => line.split(/[,;\s]+/).map(s => s.trim()).filter(Boolean))
+      .filter(g => g.length >= 2);
+
+    if (groups.length === 0) {
+      toast.error('Chaque groupe doit contenir au moins 2 tailles');
+      return;
+    }
+
+    setSaving(true);
+    const res = await fetch('/api/autoswap/equivalences', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        product_key: newKey.trim(),
+        product_label: newLabel.trim() || undefined,
+        groups,
+      }),
+    });
+    const json = await res.json();
+    if (json.error) toast.error(json.error);
+    else {
+      toast.success('Produit enregistré');
+      setNewKey(''); setNewLabel(''); setNewGroupsText('');
+      load();
+    }
+    setSaving(false);
+  };
+
+  const remove = async (key: string) => {
+    if (!confirm(`Supprimer les équivalences pour « ${key} » ?`)) return;
+    const res = await fetch(`/api/autoswap/equivalences?key=${encodeURIComponent(key)}`, { method: 'DELETE' });
+    const json = await res.json();
+    if (json.error) toast.error(json.error);
+    else { toast.success('Supprimé'); load(); }
+  };
+
+  return (
+    <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 overflow-hidden">
+      <button
+        onClick={() => setExpanded(e => !e)}
+        className="w-full p-4 flex items-center gap-3 hover:bg-stone-50 dark:hover:bg-stone-800 transition-colors text-left"
+      >
+        <div className="w-9 h-9 rounded-lg bg-violet-50 dark:bg-violet-500/10 flex items-center justify-center">
+          <SettingsIcon size={16} className="text-violet-600 dark:text-violet-400" />
+        </div>
+        <div className="flex-1">
+          <h2 className="font-semibold text-gray-900 dark:text-stone-100 text-sm">Mes équivalences de tailles</h2>
+          <p className="text-xs text-gray-500 dark:text-stone-400 mt-0.5">
+            {items.length === 0
+              ? 'Aucun produit configuré — utilise les défauts ou ajoute les tiens'
+              : `${items.length} produit${items.length > 1 ? 's' : ''} configuré${items.length > 1 ? 's' : ''} — utilisés pour matcher des tailles interchangeables`}
+          </p>
+        </div>
+        <span className="text-xs text-stone-400">{expanded ? '▲' : '▼'}</span>
+      </button>
+
+      {expanded && (
+        <div className="border-t border-stone-100 dark:border-stone-800 p-4 space-y-4">
+          {loading ? (
+            <div className="flex justify-center py-6"><Loader2 className="animate-spin text-stone-400" size={18} /></div>
+          ) : (
+            <>
+              {/* État vide → bouton import défauts */}
+              {items.length === 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-900">
+                  <p className="font-medium">Aucun produit configuré.</p>
+                  <p className="text-xs mt-1">Si tu vends les mêmes produits que les comptes par défaut (hijab miral, pantalon lain, ayla abaya), tu peux les importer en 1 clic. Sinon, ajoute tes propres produits ci-dessous.</p>
+                  <button
+                    onClick={seedDefaults}
+                    disabled={seeding}
+                    className="mt-2 flex items-center gap-1.5 text-xs px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-lg disabled:opacity-50"
+                  >
+                    {seeding ? <Loader2 size={11} className="animate-spin" /> : <Download size={11} />}
+                    Importer les templates par défaut
+                  </button>
+                </div>
+              )}
+
+              {/* Liste des équivalences existantes */}
+              {items.length > 0 && (
+                <div className="space-y-2">
+                  {items.map(item => (
+                    <div key={item.id} className="flex items-start gap-3 p-3 bg-stone-50 dark:bg-stone-800 rounded-xl">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-semibold text-sm text-gray-900 dark:text-stone-100">{item.product_label || item.product_key}</span>
+                          <code className="text-[10px] font-mono bg-white dark:bg-stone-900 px-1.5 py-0.5 rounded text-stone-500">{item.product_key}</code>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {item.groups.map((g, i) => (
+                            <span key={i} className="text-[11px] bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-300 px-2 py-0.5 rounded-md font-medium">
+                              {g.join(' · ')}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => remove(item.product_key)}
+                        className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                        title="Supprimer"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Formulaire d'ajout */}
+              <div className="border-t border-stone-100 dark:border-stone-800 pt-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400 mb-2 flex items-center gap-1.5">
+                  <Plus size={12} />
+                  Ajouter un produit
+                </h3>
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={newKey}
+                    onChange={e => setNewKey(e.target.value)}
+                    placeholder="Clé produit (SKU ou nom, ex : « mrl » ou « hijab miral »)"
+                    className="w-full px-3 py-2 text-sm border border-stone-200 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                  />
+                  <input
+                    type="text"
+                    value={newLabel}
+                    onChange={e => setNewLabel(e.target.value)}
+                    placeholder="Nom lisible (optionnel, ex : « Hijab Miral »)"
+                    className="w-full px-3 py-2 text-sm border border-stone-200 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                  />
+                  <textarea
+                    value={newGroupsText}
+                    onChange={e => setNewGroupsText(e.target.value)}
+                    rows={3}
+                    placeholder={'Groupes de tailles équivalentes — 1 ligne par groupe, virgules entre tailles\n\nExemple :\n40, 42, 44\n46, 48, 50'}
+                    className="w-full px-3 py-2 text-sm font-mono border border-stone-200 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                  />
+                  <button
+                    onClick={addNew}
+                    disabled={saving || !newKey.trim() || !newGroupsText.trim()}
+                    className="flex items-center gap-1.5 text-sm px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white font-medium rounded-lg disabled:opacity-50"
+                  >
+                    {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                    Enregistrer
+                  </button>
+                </div>
+                <p className="text-[10px] text-stone-400 mt-2">
+                  💡 La clé doit correspondre au SKU détecté dans <code>productsDescription</code> (ex : <code>mrl</code>) ou au nom normalisé du produit (ex : <code>hijab miral</code>). Le matcher essaie les 2.
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
