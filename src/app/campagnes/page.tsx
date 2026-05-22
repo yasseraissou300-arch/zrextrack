@@ -601,6 +601,11 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
   const [onlyRepeat, setOnlyRepeat] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [credentialsReady, setCredentialsReady] = useState(false);
+  // Diagnostic : breakdown des états ZRExpress et liste des états reconnus
+  // comme « livré ». Permet d'identifier rapidement un état manquant.
+  const [stateBreakdown, setStateBreakdown] = useState<Record<string, number> | null>(null);
+  const [countedAsDelivered, setCountedAsDelivered] = useState<string[]>([]);
+  const [showBreakdown, setShowBreakdown] = useState(false);
 
   useEffect(() => {
     const t = localStorage.getItem(STORAGE_KEY) || '';
@@ -627,6 +632,8 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
       if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
       setCustomers(json.customers ?? []);
       setStats(json.stats ?? null);
+      setStateBreakdown(json.state_breakdown ?? null);
+      setCountedAsDelivered(json.counted_as_delivered ?? []);
     } catch (e: any) {
       setError(e?.message || 'Erreur ZRExpress');
     } finally {
@@ -758,6 +765,42 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
             <StatBox icon={<TrendingUp size={14} />} label="Total facturé" value={`${stats.total_revenue.toFixed(0)} DA`} color="text-violet-700 bg-violet-50" />
             <StatBox icon={<RefreshCw size={14} />} label="Clients fidèles (≥2)" value={stats.repeat_customers} color="text-amber-700 bg-amber-50" />
           </div>
+
+          {/* Diagnostic : breakdown des états ZRExpress trouvés */}
+          {stateBreakdown && (
+            <details className="bg-stone-50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700 rounded-xl text-xs" open={showBreakdown} onToggle={e => setShowBreakdown((e.target as HTMLDetailsElement).open)}>
+              <summary className="cursor-pointer px-3 py-2 text-stone-600 dark:text-stone-300 flex items-center gap-2 select-none">
+                <AlertCircle size={12} />
+                <span>Voir les états ZRExpress comptabilisés</span>
+                <span className="ml-auto text-stone-400 text-[10px]">Diagnostique</span>
+              </summary>
+              <div className="px-3 pb-3 pt-1 space-y-2">
+                <p className="text-stone-500 dark:text-stone-400">
+                  AutoTim compte comme « livré » tous les colis dont l'état ZRExpress fait partie de cette liste :
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {countedAsDelivered.map(s => (
+                    <code key={s} className="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-[10px] font-mono">{s}</code>
+                  ))}
+                </div>
+                <p className="text-stone-500 dark:text-stone-400 mt-2">Répartition de TOUS les états trouvés dans tes colis :</p>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5">
+                  {Object.entries(stateBreakdown).map(([s, n]) => {
+                    const counted = countedAsDelivered.includes(s);
+                    return (
+                      <div key={s} className={`flex items-center justify-between gap-2 px-2 py-1 rounded ${counted ? 'bg-green-50 border border-green-200' : 'bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700'}`}>
+                        <code className="text-[10px] font-mono text-stone-700 dark:text-stone-200 truncate">{s}</code>
+                        <span className={`text-[10px] font-bold shrink-0 ${counted ? 'text-green-700' : 'text-stone-500'}`}>{n}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-[10px] text-stone-400 mt-2 italic">
+                  Si un état que tu considères comme « livré » est ici en gris (non comptabilisé), envoie-moi un screenshot pour qu'on l'ajoute.
+                </p>
+              </div>
+            </details>
+          )}
 
           {/* Toolbar */}
           <div className="bg-white dark:bg-stone-900 border border-stone-100 dark:border-stone-800 rounded-2xl p-3 flex items-center gap-3 flex-wrap">

@@ -26,11 +26,24 @@ interface DeliveredCustomer {
   trackings: string[];       // jusqu'à 5 derniers tracking numbers
 }
 
-// État ZRExpress qui correspond à « colis livré ». L'état exact dans la
-// réponse de l'API peut varier — on accepte plusieurs formes pour robustesse.
+// États ZRExpress qui comptent comme « colis arrivé au client avec succès ».
+// La distinction métier ZRExpress :
+//   - livre      : remis au client, transporteur n'a pas encore versé l'argent
+//   - encaisse   : argent collecté côté ZRExpress, en attente de virement marchand
+//   - recouvert  : fonds reçus par le marchand (workflow terminé)
+//
+// Tous les 3 = client a reçu sa commande = candidat valide pour campagne marketing.
+// On EXCLUT en_livraison / non_livre / echec qui contiennent aussi « livr ».
+const DELIVERED_STATES = new Set<string>([
+  'livre', 'livré', 'livree', 'livrée',
+  'encaisse', 'encaissé', 'encaissee', 'encaissée',
+  'recouvert', 'recouvre', 'recouvré', 'recouverte',
+  'livraison_effectuee', 'livraison_effectue',
+  'delivered', 'paid', 'paye', 'payé',
+]);
+
 function isDelivered(stateName: string | undefined): boolean {
-  const s = (stateName || '').toLowerCase();
-  return s.includes('livre') || s === 'delivered' || s === 'livraison_effectuee';
+  return DELIVERED_STATES.has((stateName || '').toLowerCase().trim());
 }
 
 function normalizePhoneKey(raw: string | undefined): string {
@@ -59,8 +72,14 @@ export async function POST(request: NextRequest) {
 
   // Index par téléphone normalisé
   const byPhone = new Map<string, DeliveredCustomer>();
+  // Compteur de tous les états rencontrés — sert au debug si un état de
+  // livraison n'est pas dans DELIVERED_STATES. Le frontend peut l'afficher
+  // pour qu'on identifie immédiatement les états manquants.
+  const stateBreakdown: Record<string, number> = {};
 
   for (const p of parcels) {
+    const stateName = (p?.state?.name || 'unknown').toLowerCase().trim();
+    stateBreakdown[stateName] = (stateBreakdown[stateName] || 0) + 1;
     if (!isDelivered(p?.state?.name)) continue;
 
     const phones = [
@@ -126,5 +145,19 @@ export async function POST(request: NextRequest) {
     repeat_customers: customers.filter(c => c.order_count >= 2).length,
   };
 
-  return NextResponse.json({ customers, stats });
+  // On trie le breakdown par count décroissant pour que l'utilisateur voie
+  // immédiatement les états les plus communs (potentiellement à ajouter à
+  // DELIVERED_STATES si nécessaire).
+  const sortedBreakdown = Object.entries(stateBreakdown)
+    .sort(([, a], [, b]) => b - a)
+    .reduce((acc, [k, v]) => ({ ...acc, [k]: v }), {} as Record<string, number>);
+
+  return NextResponse.json({
+    customers,
+    stats,
+    state_breakdown: sortedBreakdown,
+    // Liste les états que cet endpoint reconnaît comme « livré » — utile pour
+    // que le frontend explique au user ce qui est compté.
+    counted_as_delivered: Array.from(DELIVERED_STATES),
+  });
 }
