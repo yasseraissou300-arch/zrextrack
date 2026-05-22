@@ -583,6 +583,8 @@ interface DeliveredCustomer {
   total_spent: number;
   last_delivery: string;
   trackings: string[];
+  products: string[];
+  gender: 'F' | 'M' | 'unknown';
 }
 
 interface DeliveredStats {
@@ -590,6 +592,7 @@ interface DeliveredStats {
   total_orders: number;
   total_revenue: number;
   repeat_customers: number;
+  by_gender: { female: number; male: number; unknown: number };
 }
 
 function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones: string[]) => void }) {
@@ -606,6 +609,12 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
   const [stateBreakdown, setStateBreakdown] = useState<Record<string, number> | null>(null);
   const [countedAsDelivered, setCountedAsDelivered] = useState<string[]>([]);
   const [showBreakdown, setShowBreakdown] = useState(false);
+  // Filtres avancés
+  const [wilayas, setWilayas] = useState<string[]>([]);
+  const [products, setProducts] = useState<string[]>([]);
+  const [filterWilaya, setFilterWilaya] = useState('');
+  const [filterProduct, setFilterProduct] = useState('');
+  const [filterGender, setFilterGender] = useState<'all' | 'F' | 'M' | 'unknown'>('all');
 
   useEffect(() => {
     const t = localStorage.getItem(STORAGE_KEY) || '';
@@ -634,6 +643,8 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
       setStats(json.stats ?? null);
       setStateBreakdown(json.state_breakdown ?? null);
       setCountedAsDelivered(json.counted_as_delivered ?? []);
+      setWilayas(json.wilayas ?? []);
+      setProducts(json.products ?? []);
     } catch (e: any) {
       setError(e?.message || 'Erreur ZRExpress');
     } finally {
@@ -644,16 +655,20 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
   const filtered = useMemo(() => {
     let list = customers;
     if (onlyRepeat) list = list.filter(c => c.order_count >= 2);
+    if (filterWilaya) list = list.filter(c => c.wilaya === filterWilaya);
+    if (filterProduct) list = list.filter(c => c.products.includes(filterProduct));
+    if (filterGender !== 'all') list = list.filter(c => c.gender === filterGender);
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(c =>
         c.name.toLowerCase().includes(q) ||
         c.phone.includes(q) ||
-        c.wilaya.toLowerCase().includes(q)
+        c.wilaya.toLowerCase().includes(q) ||
+        c.products.some(p => p.toLowerCase().includes(q))
       );
     }
     return list;
-  }, [customers, search, onlyRepeat]);
+  }, [customers, search, onlyRepeat, filterWilaya, filterProduct, filterGender]);
 
   const toggleOne = (phone: string) => {
     setSelected(s => {
@@ -677,11 +692,14 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
   const exportCSV = () => {
     const target = selected.size > 0 ? filtered.filter(c => selected.has(c.phone)) : filtered;
     if (target.length === 0) { toast.error('Rien à exporter'); return; }
-    const header = ['Téléphone', 'Nom', 'Wilaya', 'Nb livraisons', 'Total dépensé (DA)', 'Dernière livraison'];
+    const header = ['Téléphone', 'Nom', 'Genre', 'Wilaya', 'Produits', 'Nb livraisons', 'Total dépensé (DA)', 'Dernière livraison'];
+    const genderLabel: Record<DeliveredCustomer['gender'], string> = { F: 'Femme', M: 'Homme', unknown: '?' };
     const rows = target.map(c => [
       c.phone,
       c.name,
+      genderLabel[c.gender],
       c.wilaya,
+      c.products.join(' | '),
       String(c.order_count),
       String(c.total_spent),
       new Date(c.last_delivery).toLocaleString('fr-FR'),
@@ -803,37 +821,88 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
           )}
 
           {/* Toolbar */}
-          <div className="bg-white dark:bg-stone-900 border border-stone-100 dark:border-stone-800 rounded-2xl p-3 flex items-center gap-3 flex-wrap">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
-              <input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Chercher par nom, téléphone, wilaya…"
-                className="w-full pl-9 pr-3 py-2 text-sm border border-stone-200 dark:border-stone-700 rounded-xl bg-white dark:bg-stone-900 focus:outline-none focus:ring-2 focus:ring-green-500/30"
-              />
+          <div className="bg-white dark:bg-stone-900 border border-stone-100 dark:border-stone-800 rounded-2xl p-3 space-y-2.5">
+            {/* Ligne 1 : recherche + actions */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+                <input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Chercher par nom, téléphone, wilaya, produit…"
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-stone-200 dark:border-stone-700 rounded-xl bg-white dark:bg-stone-900 focus:outline-none focus:ring-2 focus:ring-green-500/30"
+                />
+              </div>
+              <button onClick={fetchData} className="p-2 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-lg" title="Recharger">
+                <RefreshCw size={14} className="text-stone-500" />
+              </button>
+              <button
+                onClick={exportCSV}
+                className="text-xs px-3 py-2 border border-stone-200 dark:border-stone-700 rounded-xl hover:bg-stone-50 dark:hover:bg-stone-800 font-medium text-stone-700 dark:text-stone-200"
+              >
+                Exporter CSV
+              </button>
+              <button
+                onClick={launchCampaign}
+                disabled={selected.size === 0}
+                className="flex items-center gap-1.5 text-xs px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Send size={12} />
+                Créer campagne ({selected.size})
+              </button>
             </div>
-            <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-stone-300 cursor-pointer select-none">
-              <input type="checkbox" checked={onlyRepeat} onChange={e => setOnlyRepeat(e.target.checked)} />
-              Clients fidèles uniquement (≥ 2 livraisons)
-            </label>
-            <button onClick={fetchData} className="p-2 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-lg" title="Recharger">
-              <RefreshCw size={14} className="text-stone-500" />
-            </button>
-            <button
-              onClick={exportCSV}
-              className="text-xs px-3 py-2 border border-stone-200 dark:border-stone-700 rounded-xl hover:bg-stone-50 dark:hover:bg-stone-800 font-medium text-stone-700 dark:text-stone-200"
-            >
-              Exporter CSV
-            </button>
-            <button
-              onClick={launchCampaign}
-              disabled={selected.size === 0}
-              className="flex items-center gap-1.5 text-xs px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <Send size={12} />
-              Créer campagne ({selected.size})
-            </button>
+
+            {/* Ligne 2 : filtres dropdowns */}
+            <div className="flex items-center gap-2 flex-wrap text-xs">
+              <span className="text-stone-500 dark:text-stone-400 font-medium">Filtres :</span>
+
+              <select
+                value={filterWilaya}
+                onChange={e => setFilterWilaya(e.target.value)}
+                className="px-2 py-1.5 border border-stone-200 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-900 text-stone-700 dark:text-stone-200"
+              >
+                <option value="">Toutes wilayas ({wilayas.length})</option>
+                {wilayas.map(w => <option key={w} value={w}>{w}</option>)}
+              </select>
+
+              <select
+                value={filterProduct}
+                onChange={e => setFilterProduct(e.target.value)}
+                className="px-2 py-1.5 border border-stone-200 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-900 text-stone-700 dark:text-stone-200 max-w-[200px]"
+              >
+                <option value="">Tous produits ({products.length})</option>
+                {products.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+
+              <select
+                value={filterGender}
+                onChange={e => setFilterGender(e.target.value as 'all' | 'F' | 'M' | 'unknown')}
+                className="px-2 py-1.5 border border-stone-200 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-900 text-stone-700 dark:text-stone-200"
+              >
+                <option value="all">Tous genres</option>
+                <option value="F">♀ Femmes ({stats?.by_gender?.female ?? 0})</option>
+                <option value="M">♂ Hommes ({stats?.by_gender?.male ?? 0})</option>
+                <option value="unknown">? Non identifié ({stats?.by_gender?.unknown ?? 0})</option>
+              </select>
+
+              <label className="flex items-center gap-1.5 text-stone-600 dark:text-stone-300 cursor-pointer select-none ml-1">
+                <input type="checkbox" checked={onlyRepeat} onChange={e => setOnlyRepeat(e.target.checked)} />
+                Fidèles (≥ 2)
+              </label>
+
+              {(filterWilaya || filterProduct || filterGender !== 'all' || onlyRepeat) && (
+                <button
+                  onClick={() => { setFilterWilaya(''); setFilterProduct(''); setFilterGender('all'); setOnlyRepeat(false); }}
+                  className="text-stone-500 hover:text-stone-700 underline ml-2"
+                >
+                  Réinitialiser
+                </button>
+              )}
+
+              <span className="ml-auto text-stone-500 dark:text-stone-400">
+                {filtered.length} client{filtered.length > 1 ? 's' : ''} affichés
+              </span>
+            </div>
           </div>
 
           {/* Table */}
@@ -850,7 +919,7 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
                         title="Tout sélectionner / désélectionner"
                       />
                     </th>
-                    {['Client', 'Wilaya', 'Livraisons', 'Total dépensé', 'Dernière livraison'].map(h => (
+                    {['Client', 'Wilaya', 'Produits', 'Livraisons', 'Total dépensé', 'Dernière livraison'].map(h => (
                       <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 dark:text-stone-400 uppercase tracking-wide">{h}</th>
                     ))}
                   </tr>
@@ -868,8 +937,21 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
                           <input type="checkbox" checked={isSelected} onChange={() => toggleOne(c.phone)} />
                         </td>
                         <td className="px-4 py-3">
-                          <p className="font-medium text-gray-900 dark:text-stone-100 text-xs">{c.name || <span className="text-stone-400">(sans nom)</span>}</p>
-                          <p className="text-[10px] text-stone-500 font-mono flex items-center gap-1 mt-0.5">
+                          <div className="flex items-center gap-1.5">
+                            {/* Pastille genre — visible si inféré, sinon vide */}
+                            <span
+                              className={`inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold shrink-0 ${
+                                c.gender === 'F' ? 'bg-pink-100 text-pink-700' :
+                                c.gender === 'M' ? 'bg-blue-100 text-blue-700' :
+                                'bg-stone-100 text-stone-400'
+                              }`}
+                              title={c.gender === 'F' ? 'Cliente femme' : c.gender === 'M' ? 'Client homme' : 'Genre non identifié'}
+                            >
+                              {c.gender === 'F' ? '♀' : c.gender === 'M' ? '♂' : '?'}
+                            </span>
+                            <p className="font-medium text-gray-900 dark:text-stone-100 text-xs truncate">{c.name || <span className="text-stone-400">(sans nom)</span>}</p>
+                          </div>
+                          <p className="text-[10px] text-stone-500 font-mono flex items-center gap-1 mt-0.5 ml-5">
                             <Phone size={9} />
                             +{c.phone}
                           </p>
@@ -879,6 +961,20 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
                             <MapPin size={10} />
                             {c.wilaya || '—'}
                           </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {c.products.length === 0 ? (
+                            <span className="text-[10px] text-stone-400">—</span>
+                          ) : (
+                            <div className="flex flex-wrap gap-1 max-w-[200px]">
+                              {c.products.slice(0, 2).map(p => (
+                                <span key={p} className="text-[10px] bg-violet-50 text-violet-700 px-1.5 py-0.5 rounded font-medium truncate">{p}</span>
+                              ))}
+                              {c.products.length > 2 && (
+                                <span className="text-[10px] text-stone-500" title={c.products.join(', ')}>+{c.products.length - 2}</span>
+                              )}
+                            </div>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${c.order_count >= 2 ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-600'}`}>
