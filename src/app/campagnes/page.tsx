@@ -190,11 +190,85 @@ function CreateModal({ open, onClose, onCreate, preselectedPhones }: {
         </div>
 
         {template && (
-          <div className="space-y-1">
-            <p className="text-xs text-gray-400 dark:text-stone-500">Aperçu</p>
-            <div className="bg-green-50 border border-green-100 rounded-xl p-4 text-sm text-gray-800 dark:text-stone-100 whitespace-pre-line text-right leading-relaxed" dir="rtl">
-              {previewText}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-gray-600 dark:text-stone-300 flex items-center gap-1.5">
+                <Phone size={11} />
+                Aperçu — comment ton client va le recevoir sur WhatsApp
+              </p>
+              {preselectedPhones && preselectedPhones.length > 0 && (
+                <span className="text-[10px] text-violet-600 font-semibold">
+                  → {preselectedPhones.length} destinataire{preselectedPhones.length > 1 ? 's' : ''}
+                </span>
+              )}
             </div>
+
+            {/* Mockup style discussion WhatsApp */}
+            <div className="rounded-2xl overflow-hidden border border-stone-200 dark:border-stone-700 shadow-inner">
+              {/* En-tête WhatsApp */}
+              <div className="bg-[#075E54] text-white px-3 py-2 flex items-center gap-2">
+                <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold">
+                  {(name || 'B')[0].toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold truncate">{name || 'Ma boutique'}</p>
+                  <p className="text-[9px] text-white/70">en ligne</p>
+                </div>
+              </div>
+
+              {/* Fond conversation */}
+              <div
+                className="px-3 py-4 min-h-[140px]"
+                style={{
+                  backgroundColor: '#ECE5DD',
+                  backgroundImage:
+                    'radial-gradient(rgba(0,0,0,0.04) 1px, transparent 1px)',
+                  backgroundSize: '12px 12px',
+                }}
+              >
+                {/* Bulle reçue (vert WhatsApp clair, côté gauche = comme reçue) */}
+                <div className="flex justify-end">
+                  <div className="bg-[#DCF8C6] rounded-xl rounded-tr-sm shadow-sm px-2.5 py-1.5 max-w-[85%] relative">
+                    {/* Media en haut de la bulle si fourni */}
+                    {mediaUrl && (
+                      <div className="mb-1.5 rounded-lg overflow-hidden bg-white/40 border border-black/5">
+                        {/\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(mediaUrl) ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={mediaUrl} alt="media" className="w-full max-h-40 object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                        ) : (
+                          <div className="px-3 py-4 text-center text-[10px] text-gray-600">
+                            <ImageIcon size={20} className="mx-auto mb-1 text-gray-400" />
+                            Pièce jointe : {mediaUrl.slice(0, 40)}{mediaUrl.length > 40 ? '…' : ''}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Texte du message */}
+                    <p className="text-sm text-[#111] whitespace-pre-line leading-relaxed text-right" dir="rtl">
+                      {previewText}
+                    </p>
+
+                    {/* Heure + double check WhatsApp */}
+                    <div className="flex items-center justify-end gap-1 mt-1 -mb-0.5">
+                      <span className="text-[10px] text-gray-500">{new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                      <svg viewBox="0 0 16 11" className="w-3.5 h-3 text-[#4FC3F7]" fill="currentColor">
+                        <path d="M11.071.653a.457.457 0 00-.304-.13c-.146 0-.286.063-.379.18l-5.846 7.43-2.405-2.516a.456.456 0 00-.66.005l-.61.625a.5.5 0 00-.005.692l3.354 3.504c.1.105.243.166.387.166.142 0 .284-.061.385-.166L12.166 1.94a.5.5 0 00.014-.692l-.61-.612a.518.518 0 00-.5-.04zM7.385 9.32l-.61-.611a.5.5 0 00-.014.692l3.354 3.504c.1.105.243.166.387.166.142 0 .284-.061.385-.166L16.166 5.94a.5.5 0 00.014-.692l-.61-.612a.518.518 0 00-.5-.04.457.457 0 00-.304-.13c-.146 0-.286.063-.379.18l-5.846 7.43-1.156-1.21z" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Note métadonnée discrète */}
+                <p className="text-[9px] text-stone-500 text-center mt-3 italic">
+                  Variables remplacées : <code>{`{{client}}`}</code> = « محمد » (exemple)
+                </p>
+              </div>
+            </div>
+
+            <p className="text-[10px] text-stone-400">
+              ⚠️ Le message réel utilisera les vraies données du client (nom, tracking, wilaya, COD).
+            </p>
           </div>
         )}
 

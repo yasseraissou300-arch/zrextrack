@@ -57,6 +57,65 @@ function inferGenderFromProducts(productNames: string[]): 'F' | 'M' | 'unknown' 
   return 'unknown';
 }
 
+// ── Nettoyage des noms de produits pour le filtre dropdown ────────────────
+// Sur les descriptions free-text ZRExpress (ex « Abaya ayla blue 46 »), le
+// parser garde tout le label. Du coup le dropdown se retrouve avec
+// 26 entrées variantées qui sont en fait le même produit. Cette fonction
+// retire les tokens de variantes pour ne garder que le produit en lui-même.
+const VARIANT_COLOR_TOKENS = new Set([
+  'noir', 'noire', 'blanc', 'blanche', 'beige', 'bleu', 'bleue', 'blue',
+  'vert', 'verte', 'gris', 'grise', 'marron', 'rouge', 'jaune', 'rose',
+  'violet', 'mauve', 'orange', 'kaki', 'khaki', 'olive', 'turquoise',
+  'black', 'white', 'green', 'grey', 'gray', 'red', 'pink', 'purple',
+  'yellow', 'brown', 'azur', 'chocolat', 'clair', 'claire', 'fonce', 'foncee', 'fonké',
+  'moutarde', 'creme', 'cream', 'nuit',
+]);
+const VARIANT_SIZE_TOKENS = new Set([
+  'xs', 's', 'm', 'l', 'xl', 'xxl', 'xxxl', 'xxxxl', '2xl', '3xl', '4xl', '5xl',
+]);
+const VARIANT_JUNK_TOKENS = new Set([
+  'taille', 'size', 'couleur', 'color', 'de', 'du', 'des', 'le', 'la', 'les',
+  'cap', 'caps',  // « Abaya Cap » contient "Cap" qu'on ne veut pas en variante ?
+                  // → en fait Cap fait partie du nom, on le retire pas
+]);
+
+function normalizeForTokenCheck(t: string): string {
+  return t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+function isVariantToken(tok: string): boolean {
+  const n = normalizeForTokenCheck(tok);
+  if (VARIANT_COLOR_TOKENS.has(n)) return true;
+  if (VARIANT_SIZE_TOKENS.has(n)) return true;
+  if (/^\d{1,3}$/.test(n)) return true;       // tailles numériques 40/42/.../50
+  if (/^t?\.?\d+$/.test(n)) return true;       // « T.42 », « 42 », « t42 »
+  // « taille » / « size » uniquement quand ils sont des mots seuls
+  if (n === 'taille' || n === 'size') return true;
+  return false;
+}
+
+// Garde l'ordre et la casse d'origine, retire les variantes.
+// Ex : « Abaya ayla blue 46 » → « Abaya Ayla »
+//      « Hijab miral noir taille 50 » → « Hijab Miral »
+//      « Pantalon lain sport( Spt )( Beige, L , Vert ) » → on prend juste avant
+//        la 1ère parenthèse, soit « Pantalon Lain Sport »
+function cleanProductLabel(rawName: string): string {
+  if (!rawName) return '';
+  // Si parenthèses présentes, on ne prend que ce qui est avant la 1ère (
+  // — c'est déjà le nom de produit propre dans le format ZRExpress structuré.
+  const beforeParen = rawName.split('(')[0].trim();
+  const source = beforeParen || rawName;
+
+  const tokens = source.split(/[\s,/]+/).filter(Boolean);
+  const filtered = tokens.filter(t => !isVariantToken(t));
+  if (filtered.length === 0) return source.trim();
+  // Title-case par mot — meilleur rendu dans le dropdown
+  return filtered
+    .map(t => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase())
+    .join(' ')
+    .trim();
+}
+
 // États ZRExpress qui comptent comme « colis arrivé au client avec succès ».
 // La distinction métier ZRExpress :
 //   - livre      : remis au client, transporteur n'a pas encore versé l'argent
@@ -133,10 +192,10 @@ export async function POST(request: NextRequest) {
     const lastUpdate = p.updatedAt || p.createdAt || new Date().toISOString();
     const tracking = p.trackingNumber || '';
 
-    // Extrait le nom de produit via le parser AutoSwap (déjà robuste sur les
-    // descriptions ZRExpress variées). On garde le label lisible, pas le SKU.
+    // Extrait le nom de produit via le parser AutoSwap, PUIS retire les
+    // tokens de variante (couleur / taille) pour avoir un label dropdown propre.
     const parsed = parseProductsDescription(p.productsDescription || '');
-    const productName = (parsed.productName || '').trim();
+    const productName = cleanProductLabel(parsed.productName || '');
 
     const existing = byPhone.get(key);
     if (!existing) {
