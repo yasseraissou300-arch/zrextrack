@@ -1,10 +1,10 @@
 'use client';
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
 import {
   Megaphone, Plus, Send, Trash2, Loader2, CheckCircle, XCircle,
   Clock, Users, ChevronRight, X, AlertCircle, RefreshCw, ImageIcon,
-  Phone, MapPin, ShoppingBag, TrendingUp, Search, Target,
+  Phone, MapPin, ShoppingBag, TrendingUp, Search, Target, ChevronDown, Check,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -687,7 +687,8 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
   const [wilayas, setWilayas] = useState<string[]>([]);
   const [products, setProducts] = useState<string[]>([]);
   const [filterWilaya, setFilterWilaya] = useState('');
-  const [filterProduct, setFilterProduct] = useState('');
+  // Multi-sélection produits (Set vide = aucun filtre, tous les produits passent)
+  const [filterProducts, setFilterProducts] = useState<Set<string>>(new Set());
   const [filterGender, setFilterGender] = useState<'all' | 'F' | 'M' | 'unknown'>('all');
 
   useEffect(() => {
@@ -730,7 +731,11 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
     let list = customers;
     if (onlyRepeat) list = list.filter(c => c.order_count >= 2);
     if (filterWilaya) list = list.filter(c => c.wilaya === filterWilaya);
-    if (filterProduct) list = list.filter(c => c.products.includes(filterProduct));
+    // Multi-produit : OR logique — le client passe si AU MOINS un de ses
+    // produits est dans la sélection. Filtre inactif quand Set vide.
+    if (filterProducts.size > 0) {
+      list = list.filter(c => c.products.some(p => filterProducts.has(p)));
+    }
     if (filterGender !== 'all') list = list.filter(c => c.gender === filterGender);
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -742,7 +747,7 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
       );
     }
     return list;
-  }, [customers, search, onlyRepeat, filterWilaya, filterProduct, filterGender]);
+  }, [customers, search, onlyRepeat, filterWilaya, filterProducts, filterGender]);
 
   const toggleOne = (phone: string) => {
     setSelected(s => {
@@ -939,14 +944,12 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
                 {wilayas.map(w => <option key={w} value={w}>{w}</option>)}
               </select>
 
-              <select
-                value={filterProduct}
-                onChange={e => setFilterProduct(e.target.value)}
-                className="px-2 py-1.5 border border-stone-200 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-900 text-stone-700 dark:text-stone-200 max-w-[200px]"
-              >
-                <option value="">Tous produits ({products.length})</option>
-                {products.map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
+              <ProductsMultiSelect
+                allProducts={products}
+                selected={filterProducts}
+                onChange={setFilterProducts}
+              />
+
 
               <select
                 value={filterGender}
@@ -964,9 +967,9 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
                 Fidèles (≥ 2)
               </label>
 
-              {(filterWilaya || filterProduct || filterGender !== 'all' || onlyRepeat) && (
+              {(filterWilaya || filterProducts.size > 0 || filterGender !== 'all' || onlyRepeat) && (
                 <button
-                  onClick={() => { setFilterWilaya(''); setFilterProduct(''); setFilterGender('all'); setOnlyRepeat(false); }}
+                  onClick={() => { setFilterWilaya(''); setFilterProducts(new Set()); setFilterGender('all'); setOnlyRepeat(false); }}
                   className="text-stone-500 hover:text-stone-700 underline ml-2"
                 >
                   Réinitialiser
@@ -1084,6 +1087,134 @@ function StatBox({ icon, label, value, color }: { icon: React.ReactNode; label: 
     <div className={`rounded-2xl p-3 ${color}`}>
       <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide opacity-80">{icon}{label}</div>
       <p className="text-xl font-bold mt-1">{value}</p>
+    </div>
+  );
+}
+
+// ─── Multi-sélection produits avec popover de checkboxes ─────────────────────
+// Trigger : bouton qui montre l'état (« Tous », « X », « N produits »).
+// Popover : recherche interne + liste à cocher + actions « tout / aucun ».
+// Ferme sur clic en dehors ou touche Escape.
+function ProductsMultiSelect({
+  allProducts,
+  selected,
+  onChange,
+}: {
+  allProducts: string[];
+  selected: Set<string>;
+  onChange: (next: Set<string>) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Fermeture sur clic en dehors
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const toggleOne = (p: string) => {
+    const next = new Set(selected);
+    if (next.has(p)) next.delete(p); else next.add(p);
+    onChange(next);
+  };
+
+  const filtered = query.trim()
+    ? allProducts.filter(p => p.toLowerCase().includes(query.toLowerCase()))
+    : allProducts;
+
+  const allFilteredSelected = filtered.length > 0 && filtered.every(p => selected.has(p));
+
+  const triggerLabel =
+    selected.size === 0
+      ? `Tous produits (${allProducts.length})`
+      : selected.size === 1
+        ? Array.from(selected)[0]
+        : `${selected.size} produits sélectionnés`;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className={`px-2.5 py-1.5 border rounded-lg bg-white dark:bg-stone-900 text-stone-700 dark:text-stone-200 flex items-center gap-1.5 min-w-[160px] max-w-[260px] ${
+          selected.size > 0 ? 'border-violet-300 bg-violet-50 dark:bg-violet-500/10' : 'border-stone-200 dark:border-stone-700'
+        }`}
+      >
+        <span className="truncate text-left flex-1">{triggerLabel}</span>
+        <ChevronDown size={12} className="shrink-0 text-stone-400" />
+      </button>
+
+      {open && (
+        <div className="absolute top-full left-0 mt-1 w-72 max-w-[90vw] bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-xl shadow-lg z-30 overflow-hidden">
+          {/* Header avec recherche + actions */}
+          <div className="p-2 border-b border-stone-100 dark:border-stone-800 space-y-2">
+            <div className="relative">
+              <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400" />
+              <input
+                autoFocus
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Filtrer la liste…"
+                className="w-full pl-7 pr-2 py-1.5 text-xs border border-stone-200 dark:border-stone-700 rounded-md bg-stone-50 dark:bg-stone-800 focus:outline-none focus:ring-1 focus:ring-violet-500/30"
+              />
+            </div>
+            <div className="flex items-center justify-between text-[10px]">
+              <button
+                onClick={() => {
+                  const next = new Set(selected);
+                  if (allFilteredSelected) filtered.forEach(p => next.delete(p));
+                  else filtered.forEach(p => next.add(p));
+                  onChange(next);
+                }}
+                className="text-violet-600 hover:text-violet-700 font-medium"
+              >
+                {allFilteredSelected ? 'Tout décocher' : 'Tout cocher'}
+              </button>
+              {selected.size > 0 && (
+                <button
+                  onClick={() => onChange(new Set())}
+                  className="text-stone-500 hover:text-stone-700"
+                >
+                  Effacer ({selected.size})
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Liste des produits */}
+          <div className="max-h-64 overflow-y-auto py-1">
+            {filtered.length === 0 ? (
+              <p className="text-center py-4 text-xs text-stone-400">Aucun produit</p>
+            ) : (
+              filtered.map(p => {
+                const isChecked = selected.has(p);
+                return (
+                  <button
+                    key={p}
+                    onClick={() => toggleOne(p)}
+                    className={`w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-stone-50 dark:hover:bg-stone-800 ${isChecked ? 'bg-violet-50/50 dark:bg-violet-500/5' : ''}`}
+                  >
+                    <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${isChecked ? 'bg-violet-600 border-violet-600' : 'border-stone-300 dark:border-stone-600'}`}>
+                      {isChecked && <Check size={10} className="text-white" />}
+                    </span>
+                    <span className="truncate text-stone-700 dark:text-stone-200">{p}</span>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
