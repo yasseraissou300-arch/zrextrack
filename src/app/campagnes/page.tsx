@@ -64,11 +64,60 @@ function CreateModal({ open, onClose, onCreate, preselectedPhones }: {
   const [template, setTemplate] = useState('');
   const [audienceStatus, setAudienceStatus] = useState('');
   const [mediaUrl, setMediaUrl] = useState('');
+  // Métadonnées du media uploadé — sert à l'affichage (taille, type) et au
+  // delete si l'utilisateur change d'avis avant de créer la campagne.
+  const [mediaType, setMediaType] = useState('');
+  const [mediaName, setMediaName] = useState('');
+  const [mediaPath, setMediaPath] = useState('');  // path dans le bucket pour le delete
+  const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const reset = () => { setName(''); setTemplate(''); setAudienceStatus(''); setMediaUrl(''); };
+  const reset = () => {
+    setName(''); setTemplate(''); setAudienceStatus('');
+    setMediaUrl(''); setMediaType(''); setMediaName(''); setMediaPath('');
+  };
 
   const handleClose = () => { reset(); onClose(); };
+
+  // Suppression d'un fichier uploadé (best-effort — on tolère les échecs)
+  const removeMedia = async () => {
+    if (mediaPath) {
+      await fetch(`/api/campaigns/media/upload?path=${encodeURIComponent(mediaPath)}`, { method: 'DELETE' }).catch(() => {});
+    }
+    setMediaUrl(''); setMediaType(''); setMediaName(''); setMediaPath('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Si un upload précédent existe, on le supprime pour ne pas accumuler
+    if (mediaPath) {
+      await fetch(`/api/campaigns/media/upload?path=${encodeURIComponent(mediaPath)}`, { method: 'DELETE' }).catch(() => {});
+    }
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/campaigns/media/upload', { method: 'POST', body: fd });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(`${json.error}${json.hint ? ' — ' + json.hint : ''}`);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      } else {
+        setMediaUrl(json.url);
+        setMediaType(json.type);
+        setMediaName(json.name);
+        setMediaPath(json.path);
+        toast.success(`Fichier uploadé : ${(json.size / 1024).toFixed(0)} KB`);
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Upload échoué');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleCreate = async () => {
     if (!name.trim()) { toast.error('Donne un nom à la campagne'); return; }
@@ -149,18 +198,79 @@ function CreateModal({ open, onClose, onCreate, preselectedPhones }: {
           </div>
         )}
 
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <label className="block text-xs font-medium text-gray-600 dark:text-stone-300">
-            <span className="flex items-center gap-1.5"><ImageIcon size={12} /> Media (optionnel — image, PDF, audio)</span>
+            <span className="flex items-center gap-1.5"><ImageIcon size={12} /> Media (optionnel — photo, vidéo, audio, PDF — max 16 MB)</span>
           </label>
+
+          {/* Input file caché — déclenché par le bouton ou la drop zone */}
           <input
-            value={mediaUrl}
-            onChange={e => setMediaUrl(e.target.value)}
-            placeholder="https://... URL publique d'une image, PDF ou audio"
-            className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,audio/mpeg,audio/ogg,application/pdf"
+            onChange={handleFileSelect}
+            className="hidden"
           />
-          {mediaUrl && (
-            <p className="text-xs text-gray-400 dark:text-stone-500">Le media sera envoyé avec le message comme légende.</p>
+
+          {!mediaUrl ? (
+            // État vide : drop zone cliquable
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="w-full border-2 border-dashed border-stone-200 dark:border-stone-700 rounded-xl px-3 py-5 text-center hover:border-violet-400 hover:bg-violet-50/30 dark:hover:bg-violet-500/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {uploading ? (
+                <div className="flex items-center justify-center gap-2 text-sm text-stone-500">
+                  <Loader2 size={14} className="animate-spin" />
+                  Upload en cours…
+                </div>
+              ) : (
+                <div className="text-sm text-stone-500 dark:text-stone-400">
+                  <ImageIcon size={20} className="mx-auto mb-1 text-stone-400" />
+                  <span className="font-medium text-violet-600">Cliquer pour choisir un fichier</span>
+                  <p className="text-[10px] text-stone-400 mt-0.5">JPG · PNG · GIF · MP4 · MOV · MP3 · PDF</p>
+                </div>
+              )}
+            </button>
+          ) : (
+            // Aperçu du fichier uploadé
+            <div className="border border-stone-200 dark:border-stone-700 rounded-xl overflow-hidden bg-stone-50 dark:bg-stone-800">
+              {mediaType.startsWith('image/') && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={mediaUrl} alt="aperçu" className="w-full max-h-48 object-contain bg-black/5" />
+              )}
+              {mediaType.startsWith('video/') && (
+                <video src={mediaUrl} controls className="w-full max-h-48 bg-black" />
+              )}
+              {mediaType.startsWith('audio/') && (
+                <audio src={mediaUrl} controls className="w-full" />
+              )}
+              {mediaType === 'application/pdf' && (
+                <div className="py-4 text-center text-sm text-stone-600 dark:text-stone-300">
+                  📄 PDF prêt à envoyer
+                </div>
+              )}
+              <div className="px-3 py-2 flex items-center gap-2 text-xs border-t border-stone-200 dark:border-stone-700">
+                <span className="text-stone-600 dark:text-stone-300 truncate flex-1" title={mediaName}>{mediaName}</span>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-violet-600 hover:text-violet-700 font-medium"
+                  disabled={uploading}
+                >
+                  Changer
+                </button>
+                <button
+                  type="button"
+                  onClick={removeMedia}
+                  className="text-red-500 hover:text-red-700"
+                  title="Retirer le média"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
           )}
         </div>
 
