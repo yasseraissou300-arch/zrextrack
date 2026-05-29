@@ -1937,8 +1937,10 @@ function ReclamationsTab() {
 
   // Enrichissement ZRExpress en batch (1 appel pour tout le tableau)
   const fetchEnrichments = useCallback(async (sess: Session[]) => {
-    const token = localStorage.getItem('zrexpress_token') || '';
-    const tenantId = localStorage.getItem('zrexpress_tenant') || '';
+    const { loadSyncSettings } = await import('@/lib/sync-settings-client');
+    const s = await loadSyncSettings();
+    const token = s.zrexpress_token;
+    const tenantId = s.zrexpress_tenant_id;
     if (!token || !tenantId) {
       setEnrichError('Clé API ZRExpress non configurée — va sur /sync pour la saisir');
       return;

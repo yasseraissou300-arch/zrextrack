@@ -7,9 +7,7 @@ import {
   Phone, MapPin, ShoppingBag, TrendingUp, Search, Target, ChevronDown, Check,
 } from 'lucide-react';
 import { toast } from 'sonner';
-
-const STORAGE_KEY = 'zrexpress_token';
-const TENANT_KEY = 'zrexpress_tenant';
+import { loadSyncSettings } from '@/lib/sync-settings-client';
 
 interface Campaign {
   id: string;
@@ -802,14 +800,15 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
   const [filterGender, setFilterGender] = useState<'all' | 'F' | 'M' | 'unknown'>('all');
 
   useEffect(() => {
-    const t = localStorage.getItem(STORAGE_KEY) || '';
-    const ti = localStorage.getItem(TENANT_KEY) || '';
-    setCredentialsReady(!!t && !!ti);
+    loadSyncSettings().then(s => {
+      setCredentialsReady(!!s.zrexpress_token && !!s.zrexpress_tenant_id);
+    });
   }, []);
 
   const fetchData = useCallback(async () => {
-    const token = localStorage.getItem(STORAGE_KEY) || '';
-    const tenantId = localStorage.getItem(TENANT_KEY) || '';
+    const s = await loadSyncSettings();
+    const token = s.zrexpress_token;
+    const tenantId = s.zrexpress_tenant_id;
     if (!token || !tenantId) {
       setError('Clé API ZRExpress non configurée. Va sur /sync pour la saisir.');
       return;
