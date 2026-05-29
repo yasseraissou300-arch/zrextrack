@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
-
-const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || '';
+import { getUserCreds } from '@/lib/user-creds';
 
 const DEFAULT_PROMPT = `Nta agent IA l [NOM_BOUTIQUE].
 Jme3 les informations li la7jinhom bach ntabet la commande:
@@ -10,28 +9,33 @@ Waqt ma jme3ti kull l-ma3loumat:
 <data>{"nom":"...","telephone":"...","wilaya":"...","produit":"..."}</data>
 DIMA bDarija.`;
 
-interface ClaudeMessage { role: 'user' | 'assistant'; content: string; }
+interface AIMessage { role: 'user' | 'assistant'; content: string; }
 
-async function callClaude(systemPrompt: string, messages: ClaudeMessage[]): Promise<string | null> {
-  if (!ANTHROPIC_KEY) return null;
+// Claude/Anthropic retiré de la plateforme. La cascade Messenger utilise
+// uniquement Gemini (clé per-user BYOK). Si le user n'a pas configuré sa
+// clé Gemini, le bot ne répond pas (silencieux côté webhook).
+async function callGemini(geminiKey: string, systemPrompt: string, messages: AIMessage[]): Promise<string | null> {
+  if (!geminiKey) return null;
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-3-5-sonnet-20241022',
-        max_tokens: 600,
-        system: systemPrompt,
-        messages: messages.slice(-10),
-      }),
-    });
+    const contents = messages.slice(-10).map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
+    }));
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents,
+          generationConfig: { maxOutputTokens: 600, temperature: 0.7 },
+        }),
+      }
+    );
     if (!res.ok) return null;
     const json = await res.json();
-    return json.content?.[0]?.text ?? null;
+    return json.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
   } catch {
     return null;
   }
@@ -106,6 +110,14 @@ export async function POST(req: NextRequest) {
       const userId = fbConn.user_id;
       const pageToken = fbConn.page_access_token;
 
+      // BYOK : on charge la clé Gemini du user une fois par entry
+      const geminiCreds = await getUserCreds(userId, 'gemini');
+      const geminiKey = geminiCreds?.api_key || '';
+      if (!geminiKey) {
+        console.log('[facebook/webhook] user has no Gemini key configured, skipping. user_id=', userId);
+        continue;
+      }
+
       for (const event of entry.messaging ?? []) {
         if (!event.message?.text || event.message.is_echo) continue;
 
@@ -133,10 +145,10 @@ export async function POST(req: NextRequest) {
           .eq('contact_id', senderId)
           .single();
 
-        const conversation: ClaudeMessage[] = session?.conversation ?? [];
+        const conversation: AIMessage[] = session?.conversation ?? [];
         conversation.push({ role: 'user', content: text });
 
-        const aiReply = await callClaude(systemPrompt, conversation);
+        const aiReply = await callGemini(geminiKey, systemPrompt, conversation);
         if (!aiReply) continue;
 
         const extracted = extractData(aiReply);

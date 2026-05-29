@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import type { ServiceName } from '@/lib/user-creds';
 
-const ALLOWED: ServiceName[] = ['gemini', 'groq', 'evolution', 'anthropic', 'greenapi'];
+const ALLOWED: ServiceName[] = ['gemini', 'groq', 'evolution', 'greenapi'];
 
 function maskKey(key: string | null): string {
   if (!key) return '';

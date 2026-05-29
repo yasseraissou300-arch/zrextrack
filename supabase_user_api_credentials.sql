@@ -9,7 +9,8 @@ CREATE TABLE IF NOT EXISTS user_api_credentials (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
 
-  -- 'gemini' | 'groq' | 'evolution' (extensible)
+  -- 'gemini' | 'groq' | 'evolution' | 'greenapi' (extensible)
+  -- Claude/Anthropic est exclu de la plateforme.
   service TEXT NOT NULL,
 
   -- Clé API principale (Gemini key, GROQ key, Evolution apikey)
@@ -32,7 +33,7 @@ CREATE TABLE IF NOT EXISTS user_api_credentials (
 
   -- Garde-fous valeurs autorisées
   CONSTRAINT user_api_credentials_service_chk
-    CHECK (service IN ('gemini', 'groq', 'evolution', 'anthropic', 'greenapi'))
+    CHECK (service IN ('gemini', 'groq', 'evolution', 'greenapi'))
 );
 
 CREATE INDEX IF NOT EXISTS user_api_credentials_user_idx
