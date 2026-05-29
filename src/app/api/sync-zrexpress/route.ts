@@ -340,10 +340,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 4. Upsert les commandes
+    // 4. Upsert les commandes — onConflict composite (user_id, tracking_number)
+    // pour garantir qu'un sync ne touche jamais les lignes d'un autre user
+    // même s'ils partagent un même tracking ZRExpress.
     const { error, count } = await supabase
       .from('orders')
-      .upsert(rows, { onConflict: 'tracking_number', count: 'exact' });
+      .upsert(rows, { onConflict: 'user_id,tracking_number', count: 'exact' });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

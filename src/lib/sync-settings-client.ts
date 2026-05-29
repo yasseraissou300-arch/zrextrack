@@ -1,8 +1,12 @@
 // Helper côté client pour charger/sauver les settings cross-device.
-// Inclut une auto-migration depuis localStorage : si la base est vide ET que
-// localStorage a des valeurs, on les pousse sur le serveur (one-shot).
-// Comme ça, les utilisateurs qui ont déjà configuré sur leur PC ne perdent
-// rien quand on passe en mode cross-device.
+// Toutes les pages lisent et écrivent leurs settings via cette API, qui
+// les stocke dans la table Supabase user_sync_settings (RLS strict).
+//
+// Inclut une auto-migration one-shot depuis l'ancien stockage localStorage :
+// si la table est vide ET que localStorage contient encore des données
+// historiques, on les pousse sur le serveur. Ça permet aux utilisateurs
+// qui avaient configuré leur PC AVANT le passage en cross-device de ne
+// rien perdre la première fois qu'ils chargent une page.
 
 'use client';
 
@@ -20,38 +24,34 @@ const EMPTY: SyncSettings = {
   notify_enabled: {},
 };
 
-// Clés localStorage historiques — on les lit une fois pour migration auto,
-// puis on les écrit en miroir pour éviter de casser les pages pas encore
-// refactorées (DashboardHeader auto-sync, etc.) jusqu'à ce que tout soit migré.
-const LS_TOKEN = 'zrexpress_token';
-const LS_TENANT = 'zrexpress_tenant';
-const LS_TEMPLATES = 'zrextrack_templates';
-const LS_NOTIFY = 'zrextrack_notify_enabled';
+// Anciennes clés localStorage — lues UNE seule fois pour la migration auto,
+// puis nettoyées. Plus aucune écriture en miroir : toutes les pages doivent
+// passer par loadSyncSettings / saveSyncSettings.
+const LEGACY_LS_TOKEN = 'zrexpress_token';
+const LEGACY_LS_TENANT = 'zrexpress_tenant';
+const LEGACY_LS_TEMPLATES = 'zrextrack_templates';
+const LEGACY_LS_NOTIFY = 'zrextrack_notify_enabled';
 
-function readLocalStorage(): SyncSettings {
+function readLegacyLocalStorage(): SyncSettings {
   if (typeof window === 'undefined') return EMPTY;
   let templates: Record<string, string> = {};
   let notify_enabled: Record<string, boolean> = {};
-  try { templates = JSON.parse(localStorage.getItem(LS_TEMPLATES) || '{}'); } catch {}
-  try { notify_enabled = JSON.parse(localStorage.getItem(LS_NOTIFY) || '{}'); } catch {}
+  try { templates = JSON.parse(localStorage.getItem(LEGACY_LS_TEMPLATES) || '{}'); } catch {}
+  try { notify_enabled = JSON.parse(localStorage.getItem(LEGACY_LS_NOTIFY) || '{}'); } catch {}
   return {
-    zrexpress_token: localStorage.getItem(LS_TOKEN) || '',
-    zrexpress_tenant_id: localStorage.getItem(LS_TENANT) || '',
+    zrexpress_token: localStorage.getItem(LEGACY_LS_TOKEN) || '',
+    zrexpress_tenant_id: localStorage.getItem(LEGACY_LS_TENANT) || '',
     templates,
     notify_enabled,
   };
 }
 
-function writeLocalStorageMirror(s: SyncSettings): void {
+function clearLegacyLocalStorage(): void {
   if (typeof window === 'undefined') return;
-  // Miroir vers localStorage — utile pour les pages qui n'ont pas encore
-  // été migrées (DashboardHeader autosync, etc.). À retirer quand tout est migré.
-  if (s.zrexpress_token) localStorage.setItem(LS_TOKEN, s.zrexpress_token);
-  else localStorage.removeItem(LS_TOKEN);
-  if (s.zrexpress_tenant_id) localStorage.setItem(LS_TENANT, s.zrexpress_tenant_id);
-  else localStorage.removeItem(LS_TENANT);
-  localStorage.setItem(LS_TEMPLATES, JSON.stringify(s.templates ?? {}));
-  localStorage.setItem(LS_NOTIFY, JSON.stringify(s.notify_enabled ?? {}));
+  localStorage.removeItem(LEGACY_LS_TOKEN);
+  localStorage.removeItem(LEGACY_LS_TENANT);
+  localStorage.removeItem(LEGACY_LS_TEMPLATES);
+  localStorage.removeItem(LEGACY_LS_NOTIFY);
 }
 
 function hasContent(s: SyncSettings): boolean {
@@ -62,8 +62,8 @@ function hasContent(s: SyncSettings): boolean {
 
 /**
  * Charge les settings depuis l'API. Si l'API renvoie vide ET que localStorage
- * contient des données héritées, on pousse ces données sur l'API (migration
- * automatique one-shot pour ne pas perdre la config de l'utilisateur sur son PC).
+ * contient encore des données héritées, on les pousse sur l'API et on nettoie
+ * le localStorage (migration automatique one-shot).
  *
  * Renvoie toujours une structure complète — pas de null.
  */
@@ -81,49 +81,37 @@ export async function loadSyncSettings(): Promise<SyncSettings> {
         notify_enabled: s.notify_enabled ?? {},
       };
     }
-  } catch { /* offline ou non auth — on retombera sur localStorage */ }
+  } catch { /* offline ou non auth — on retourne EMPTY */ }
 
   if (hasContent(serverData)) {
-    // On garde localStorage en miroir pour les pages non migrées
-    writeLocalStorageMirror(serverData);
+    // Au cas où d'anciennes données traînent encore en local après une
+    // migration partielle, on les nettoie maintenant qu'on a le serveur.
+    clearLegacyLocalStorage();
     return serverData;
   }
 
   // Pas de données serveur — on tente la migration depuis localStorage
-  const local = readLocalStorage();
-  if (hasContent(local)) {
-    // Push asynchrone vers le serveur (best-effort, on ne bloque pas l'UI)
+  const legacy = readLegacyLocalStorage();
+  if (hasContent(legacy)) {
+    // Push asynchrone vers le serveur, puis cleanup local
     fetch('/api/sync-settings', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(local),
-    }).catch(() => { /* ignore */ });
-    return local;
+      body: JSON.stringify(legacy),
+    }).then(res => {
+      if (res.ok) clearLegacyLocalStorage();
+    }).catch(() => { /* ignore — on retentera au prochain chargement */ });
+    return legacy;
   }
 
   return EMPTY;
 }
 
 /**
- * Sauve un sous-ensemble de settings. Le serveur preserve ce qui n'est pas
- * fourni. On met aussi à jour le miroir localStorage pour les pages pas
- * encore refactorées.
+ * Sauve un sous-ensemble de settings. Le serveur préserve les champs non
+ * fournis. Aucune écriture en localStorage — tout passe par l'API.
  */
 export async function saveSyncSettings(patch: Partial<SyncSettings>): Promise<void> {
-  // Met à jour le miroir localStorage immédiatement (UX rapide pour pages non migrées)
-  if (typeof window !== 'undefined') {
-    if (patch.zrexpress_token !== undefined) {
-      if (patch.zrexpress_token) localStorage.setItem(LS_TOKEN, patch.zrexpress_token);
-      else localStorage.removeItem(LS_TOKEN);
-    }
-    if (patch.zrexpress_tenant_id !== undefined) {
-      if (patch.zrexpress_tenant_id) localStorage.setItem(LS_TENANT, patch.zrexpress_tenant_id);
-      else localStorage.removeItem(LS_TENANT);
-    }
-    if (patch.templates !== undefined) localStorage.setItem(LS_TEMPLATES, JSON.stringify(patch.templates));
-    if (patch.notify_enabled !== undefined) localStorage.setItem(LS_NOTIFY, JSON.stringify(patch.notify_enabled));
-  }
-
   const res = await fetch('/api/sync-settings', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
