@@ -4,8 +4,8 @@ import AppLayout from '@/components/ui/AppLayout';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Repeat, Search, CheckCircle2, AlertTriangle, MapPin, TrendingUp,
-  Package, Filter, Loader2, ExternalLink, Info, Truck, XCircle, History,
-  Settings as SettingsIcon, Plus, Trash2, Save,
+  Package, Filter, Loader2, ExternalLink, Info, Truck, XCircle,
+  Settings as SettingsIcon, Plus, Trash2, Save, BarChart3,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { MatchProposal, PreviewResponse, Confidence } from '@/lib/autoswap/types';
@@ -149,12 +149,12 @@ export default function AutoSwapPage() {
           </div>
         )}
 
-        {/* Historique des swaps — stats cumulatives */}
+        {/* Statistiques des commandes swappées — focus livré vs annulé */}
         <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <History size={16} className="text-gray-500 dark:text-stone-400" />
-              <h2 className="font-semibold text-gray-900 dark:text-stone-100">Historique des swaps</h2>
+              <BarChart3 size={16} className="text-gray-500 dark:text-stone-400" />
+              <h2 className="font-semibold text-gray-900 dark:text-stone-100">Statistiques des commandes swappées</h2>
             </div>
             <button
               onClick={fetchSwapStats}
@@ -184,20 +184,63 @@ export default function AutoSwapPage() {
             </div>
           ) : swapStats ? (
             <>
+              {/* Carrés principaux — 4 stats clés visibles d'un coup d'œil */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <StatCard icon={<Repeat size={18} />} label="Commandes swappées" value={swapStats.total_swaps} color="purple" />
-                <StatCard icon={<CheckCircle2 size={18} />} label="Livrées" value={swapStats.delivered} color="green" />
-                <StatCard icon={<TrendingUp size={18} />} label="Taux de livraison" value={`${swapStats.delivery_rate}%`} color="blue" />
-                <StatCard icon={<TrendingUp size={18} />} label="Économies cumulées" value={`${Math.round(swapStats.total_savings)} DA`} color="amber" />
+                <StatCard
+                  icon={<Repeat size={18} />}
+                  label="Total swappées"
+                  value={swapStats.total_swaps}
+                  color="purple"
+                />
+                <StatCard
+                  icon={<CheckCircle2 size={18} />}
+                  label="Livrées"
+                  value={swapStats.delivered}
+                  color="green"
+                />
+                <StatCard
+                  icon={<XCircle size={18} />}
+                  label="Annulées"
+                  value={swapStats.failed}
+                  color="red"
+                />
+                <StatCard
+                  icon={<Truck size={18} />}
+                  label="En cours"
+                  value={swapStats.in_progress}
+                  color="blue"
+                />
               </div>
 
-              {/* Sous-répartition par état */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2 border-t border-stone-100 dark:border-stone-800">
-                <BreakdownItem icon={<Truck size={12} />} label="En cours" value={swapStats.in_progress} color="text-blue-700 bg-blue-50" />
-                <BreakdownItem icon={<XCircle size={12} />} label="Échec / retour" value={swapStats.failed} color="text-red-700 bg-red-50" />
-                <BreakdownItem icon={<Info size={12} />} label="Statut inconnu" value={swapStats.unknown} color="text-gray-600 dark:text-stone-300 bg-stone-50" />
-                <BreakdownItem icon={<CheckCircle2 size={12} />} label="Livrées" value={swapStats.delivered} color="text-green-700 bg-green-50" />
+              {/* Bandeau résumé — taux + économies */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-stone-100 dark:border-stone-800">
+                <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 rounded-xl px-4 py-3">
+                  <div className="flex items-center gap-2 text-sm">
+                    <TrendingUp size={14} className="text-emerald-600 dark:text-emerald-400" />
+                    <span className="text-emerald-900 dark:text-emerald-300 font-medium">Taux de livraison</span>
+                  </div>
+                  <span className="text-lg font-bold text-emerald-700 dark:text-emerald-300">
+                    {swapStats.delivery_rate}%
+                  </span>
+                </div>
+                <div className="flex items-center justify-between bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-xl px-4 py-3">
+                  <div className="flex items-center gap-2 text-sm">
+                    <TrendingUp size={14} className="text-amber-600 dark:text-amber-400" />
+                    <span className="text-amber-900 dark:text-amber-300 font-medium">Économies cumulées</span>
+                  </div>
+                  <span className="text-lg font-bold text-amber-700 dark:text-amber-300">
+                    {Math.round(swapStats.total_savings)} DA
+                  </span>
+                </div>
               </div>
+
+              {/* Note discrète sur les statuts inconnus s'il y en a */}
+              {swapStats.unknown > 0 && (
+                <p className="text-xs text-gray-400 dark:text-stone-500 pt-1">
+                  <Info size={11} className="inline mr-1" />
+                  {swapStats.unknown} swap{swapStats.unknown > 1 ? 's' : ''} avec statut non encore reçu de ZRExpress.
+                </p>
+              )}
             </>
           ) : (
             <div className="text-sm text-red-600 py-2">Impossible de charger les statistiques.</div>
@@ -374,12 +417,13 @@ export default function AutoSwapPage() {
   );
 }
 
-function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number | string; color: 'amber' | 'blue' | 'purple' | 'green' }) {
+function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number | string; color: 'amber' | 'blue' | 'purple' | 'green' | 'red' }) {
   const palette: Record<string, string> = {
     amber:  'bg-amber-50 text-amber-700',
     blue:   'bg-blue-50 text-blue-700',
     purple: 'bg-purple-50 text-purple-700',
     green:  'bg-green-50 text-green-700',
+    red:    'bg-red-50 text-red-700',
   };
   return (
     <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 p-4">
@@ -388,16 +432,6 @@ function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label:
         <span className="text-xs text-gray-500 dark:text-stone-400">{label}</span>
       </div>
       <div className="text-2xl font-bold text-gray-900 dark:text-stone-100">{value}</div>
-    </div>
-  );
-}
-
-function BreakdownItem({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number; color: string }) {
-  return (
-    <div className="flex items-center gap-2 text-xs">
-      <span className={`w-5 h-5 rounded flex items-center justify-center ${color}`}>{icon}</span>
-      <span className="text-gray-500 dark:text-stone-400">{label} :</span>
-      <span className="font-semibold text-gray-900 dark:text-stone-100">{value}</span>
     </div>
   );
 }
