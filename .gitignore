@@ -37,8 +37,12 @@ jest-test-results.json
 turbo/
 
 # Local env (secrets — never commit)
+.env
 .env.local
 .env.*.local
+.env.production
+# .env.example IS committed (template with placeholders)
+!.env.example
 
 # AutoSwap dry-run outputs (contiennent des données clients)
 autoswap-proposals.md
