@@ -27,13 +27,11 @@ const CONFIDENCE_META: Record<Confidence, { label: string; bg: string; text: str
 };
 
 interface SwapStats {
-  total_swaps: number;
+  total_swapped: number;
   delivered: number;
-  failed: number;
+  cancelled: number;
   in_progress: number;
-  unknown: number;
   delivery_rate: number;
-  total_savings: number;
 }
 
 export default function AutoSwapPage() {
@@ -52,41 +50,40 @@ export default function AutoSwapPage() {
   const [statsLoading, setStatsLoading] = useState(true);
   const [statsError, setStatsError] = useState<string | null>(null);
 
-  // Propositions confirmées comme swappées manuellement (cachées du tableau)
-  const [confirmedKeys, setConfirmedKeys] = useState<Set<string>>(new Set());
-  const [confirmingKey, setConfirmingKey] = useState<string | null>(null);
-
-  useEffect(() => {
-    loadSyncSettings().then(s => {
-      setToken(s.zrexpress_token);
-      setTenantId(s.zrexpress_tenant_id);
-      setCredentialsReady(!!s.zrexpress_token && !!s.zrexpress_tenant_id);
-    });
-  }, []);
-
-  const fetchSwapStats = async () => {
+  // Charge les stats des commandes DÉJÀ swappées directement depuis ZRExpress
+  // (détection automatique via swap.count) — nécessite les credentials.
+  const fetchSwapStats = useCallback(async (tk: string, ti: string) => {
+    if (!tk || !ti) { setStatsLoading(false); return; }
     setStatsLoading(true);
     setStatsError(null);
     try {
-      const res = await fetch('/api/autoswap/stats');
+      const res = await fetch('/api/autoswap/swapped-stats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: tk, tenantId: ti }),
+      });
       const json = await res.json().catch(() => ({} as Record<string, unknown>));
       if (res.ok) {
         setSwapStats(json as SwapStats);
       } else {
-        const errMsg = (json as { error?: string; code?: string }).error || `HTTP ${res.status}`;
-        const code = (json as { code?: string }).code;
-        setStatsError(code ? `${errMsg} (code ${code})` : errMsg);
+        setStatsError((json as { error?: string }).error || `HTTP ${res.status}`);
       }
     } catch (e) {
       setStatsError(e instanceof Error ? e.message : 'Erreur réseau');
     } finally {
       setStatsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchSwapStats();
-  }, []);
+    loadSyncSettings().then(s => {
+      setToken(s.zrexpress_token);
+      setTenantId(s.zrexpress_tenant_id);
+      setCredentialsReady(!!s.zrexpress_token && !!s.zrexpress_tenant_id);
+      // Charge les stats dès que les credentials sont disponibles
+      fetchSwapStats(s.zrexpress_token, s.zrexpress_tenant_id);
+    });
+  }, [fetchSwapStats]);
 
   const runScan = async () => {
     if (!credentialsReady) return;
@@ -114,41 +111,11 @@ export default function AutoSwapPage() {
   const filteredProposals: MatchProposal[] = useMemo(() => {
     if (!preview) return [];
     return preview.proposals.filter(p => {
-      if (confirmedKeys.has(proposalKey(p))) return false; // cacher les swaps confirmés
       if (filterConfidence !== 'ALL' && p.confidence !== filterConfidence) return false;
       if (onlySameCity && !p.same_city) return false;
       return true;
     });
-  }, [preview, filterConfidence, onlySameCity, confirmedKeys]);
-
-  // Marque une proposition comme swappée manuellement : enregistre dans
-  // autoswap_log, retire la ligne du tableau, et rafraîchit les stats.
-  const confirmSwap = async (p: MatchProposal) => {
-    const key = proposalKey(p);
-    setConfirmingKey(key);
-    try {
-      const res = await fetch('/api/autoswap/confirm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          source_tracking: p.swappable.tracking,
-          target_tracking: p.target.tracking,
-          confidence: p.confidence,
-          same_city: p.same_city,
-          estimated_savings: p.estimated_savings,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || `Erreur ${res.status}`);
-      setConfirmedKeys(prev => new Set(prev).add(key));
-      toast.success('Swap enregistré', { description: 'La commande apparaît maintenant dans les statistiques.' });
-      fetchSwapStats();
-    } catch (err: any) {
-      toast.error('Erreur', { description: err?.message || 'Impossible d\'enregistrer le swap' });
-    } finally {
-      setConfirmingKey(null);
-    }
-  };
+  }, [preview, filterConfidence, onlySameCity]);
 
   return (
     <AppLayout>
@@ -191,39 +158,42 @@ export default function AutoSwapPage() {
               <h2 className="font-semibold text-gray-900 dark:text-stone-100">Statistiques des commandes swappées</h2>
             </div>
             <button
-              onClick={fetchSwapStats}
-              disabled={statsLoading}
+              onClick={() => fetchSwapStats(token, tenantId)}
+              disabled={statsLoading || !credentialsReady}
               className="text-xs text-gray-500 dark:text-stone-400 hover:text-gray-700 dark:text-stone-200 flex items-center gap-1.5 disabled:opacity-50"
               title="Rafraîchir les statistiques"
             >
-              {statsLoading ? <Loader2 size={12} className="animate-spin" /> : <Loader2 size={12} className="opacity-0" />}
+              <Loader2 size={12} className={statsLoading ? 'animate-spin' : 'opacity-0'} />
               Rafraîchir
             </button>
           </div>
 
-          {statsError ? (
+          {!credentialsReady ? (
+            <div className="text-sm text-gray-500 dark:text-stone-400 py-2">
+              Configurez votre clé API ZRExpress sur la page <a href="/sync" className="underline font-medium">Sync</a> pour voir les statistiques.
+            </div>
+          ) : statsError ? (
             <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
               <strong>Erreur :</strong> {statsError}
-              {/relation.*autoswap_log.*does not exist/i.test(statsError) && (
-                <p className="mt-1 text-xs text-red-600">
-                  La table <code>autoswap_log</code> n'existe pas. Exécute le fichier <code>supabase_autoswap.sql</code> dans Supabase → SQL Editor.
-                </p>
-              )}
             </div>
           ) : statsLoading && !swapStats ? (
-            <div className="text-sm text-gray-400 dark:text-stone-500 py-2">Chargement des statistiques…</div>
-          ) : swapStats && swapStats.total_swaps === 0 ? (
+            <div className="text-sm text-gray-400 dark:text-stone-500 py-2">Analyse des commandes swappées…</div>
+          ) : swapStats && swapStats.total_swapped === 0 ? (
             <div className="text-sm text-gray-500 dark:text-stone-400 py-2">
-              Aucun swap exécuté pour le moment. Lance un scan ci-dessous pour détecter les opportunités.
+              Aucune commande swappée trouvée dans votre compte ZRExpress.
             </div>
           ) : swapStats ? (
             <>
-              {/* Carrés principaux — 4 stats clés visibles d'un coup d'œil */}
+              <p className="text-xs text-gray-400 dark:text-stone-500 -mt-1">
+                Commandes déjà swappées sur votre compte ZRExpress, classées par statut de livraison.
+              </p>
+
+              {/* Carrés principaux — livré vs annulé visibles d'un coup d'œil */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <StatCard
                   icon={<Repeat size={18} />}
                   label="Total swappées"
-                  value={swapStats.total_swaps}
+                  value={swapStats.total_swapped}
                   color="purple"
                 />
                 <StatCard
@@ -235,7 +205,7 @@ export default function AutoSwapPage() {
                 <StatCard
                   icon={<XCircle size={18} />}
                   label="Annulées"
-                  value={swapStats.failed}
+                  value={swapStats.cancelled}
                   color="red"
                 />
                 <StatCard
@@ -246,35 +216,18 @@ export default function AutoSwapPage() {
                 />
               </div>
 
-              {/* Bandeau résumé — taux + économies */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-stone-100 dark:border-stone-800">
+              {/* Bandeau résumé — taux de livraison */}
+              <div className="pt-3 border-t border-stone-100 dark:border-stone-800">
                 <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 rounded-xl px-4 py-3">
                   <div className="flex items-center gap-2 text-sm">
                     <TrendingUp size={14} className="text-emerald-600 dark:text-emerald-400" />
-                    <span className="text-emerald-900 dark:text-emerald-300 font-medium">Taux de livraison</span>
+                    <span className="text-emerald-900 dark:text-emerald-300 font-medium">Taux de livraison des swaps</span>
                   </div>
                   <span className="text-lg font-bold text-emerald-700 dark:text-emerald-300">
                     {swapStats.delivery_rate}%
                   </span>
                 </div>
-                <div className="flex items-center justify-between bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-xl px-4 py-3">
-                  <div className="flex items-center gap-2 text-sm">
-                    <TrendingUp size={14} className="text-amber-600 dark:text-amber-400" />
-                    <span className="text-amber-900 dark:text-amber-300 font-medium">Économies cumulées</span>
-                  </div>
-                  <span className="text-lg font-bold text-amber-700 dark:text-amber-300">
-                    {Math.round(swapStats.total_savings)} DA
-                  </span>
-                </div>
               </div>
-
-              {/* Note discrète sur les statuts inconnus s'il y en a */}
-              {swapStats.unknown > 0 && (
-                <p className="text-xs text-gray-400 dark:text-stone-500 pt-1">
-                  <Info size={11} className="inline mr-1" />
-                  {swapStats.unknown} swap{swapStats.unknown > 1 ? 's' : ''} avec statut non encore reçu de ZRExpress.
-                </p>
-              )}
             </>
           ) : (
             <div className="text-sm text-red-600 py-2">Impossible de charger les statistiques.</div>
@@ -429,17 +382,6 @@ export default function AutoSwapPage() {
                                 <ExternalLink size={12} />
                                 Voir la nouvelle commande
                               </a>
-                              <button
-                                onClick={() => confirmSwap(p)}
-                                disabled={confirmingKey === key}
-                                className="flex items-center justify-center gap-1.5 text-xs bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-3 py-1.5 rounded-md transition-colors mt-0.5"
-                                title="J'ai fait ce swap dans ZRExpress — l'enregistrer dans les statistiques"
-                              >
-                                {confirmingKey === key
-                                  ? <Loader2 size={12} className="animate-spin" />
-                                  : <CheckCircle2 size={12} />}
-                                Marquer comme swappé
-                              </button>
                             </div>
                           </td>
                         </tr>
