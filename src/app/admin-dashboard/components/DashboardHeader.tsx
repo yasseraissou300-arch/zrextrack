@@ -3,11 +3,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { RefreshCw, Download, Plus, Wifi, WifiOff, Zap, PauseCircle, PlayCircle, Trash2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
+import { loadSyncSettings } from '@/lib/sync-settings-client';
 
-const STORAGE_KEY = 'zrexpress_token';
-const TENANT_KEY = 'zrexpress_tenant';
-const TEMPLATES_KEY = 'zrextrack_templates';
-const NOTIFY_ENABLED_KEY = 'zrextrack_notify_enabled';
 const AUTO_SYNC_INTERVAL = 30_000; // 30 secondes
 
 // Event pour notifier les autres composants qu'un sync vient de se faire
@@ -24,19 +21,21 @@ export default function DashboardHeader() {
   const [clearing, setClearing] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem(STORAGE_KEY);
-    const tenant = localStorage.getItem(TENANT_KEY);
-    setHasToken(!!token && !!tenant);
+    // Charge depuis Supabase (cross-device). Le helper hydrate aussi le miroir
+    // localStorage pour les pages qui ne sont pas encore migrées.
+    loadSyncSettings().then(s => {
+      setHasToken(!!s.zrexpress_token && !!s.zrexpress_tenant_id);
 
-    // Charger la dernière date de sync
+      // Active l'auto-sync si token présent (sauf désactivation manuelle locale)
+      const autoDisabled = localStorage.getItem('zrextrack_autosync_disabled') === 'true';
+      if (s.zrexpress_token && s.zrexpress_tenant_id && !autoDisabled) {
+        setAutoSyncEnabled(true);
+      }
+    });
+
+    // Dernière date de sync : reste local (info per-appareil, pas critique)
     const lastSyncStored = localStorage.getItem('zrextrack_last_sync');
     if (lastSyncStored) setLastSync(lastSyncStored);
-
-    // Activer l'auto-sync si le token existe (sauf si l'utilisateur l'a désactivé manuellement)
-    const autoDisabled = localStorage.getItem('zrextrack_autosync_disabled') === 'true';
-    if (token && tenant && !autoDisabled) {
-      setAutoSyncEnabled(true);
-    }
   }, []);
 
   const toggleAutoSync = () => {
@@ -52,8 +51,9 @@ export default function DashboardHeader() {
   };
 
   const runSync = useCallback(async (silent = false) => {
-    const token = localStorage.getItem(STORAGE_KEY);
-    const tenantId = localStorage.getItem(TENANT_KEY);
+    const s = await loadSyncSettings();
+    const token = s.zrexpress_token;
+    const tenantId = s.zrexpress_tenant_id;
     if (!token || !tenantId) {
       if (!silent) toast.error('Token ZREXpress non configuré', { description: 'Allez dans Sync ZREXpress pour configurer votre clé API.' });
       return;
@@ -67,8 +67,8 @@ export default function DashboardHeader() {
         body: JSON.stringify({
           token,
           tenantId,
-          templates: JSON.parse(localStorage.getItem(TEMPLATES_KEY) || '{}'),
-          notifyEnabled: JSON.parse(localStorage.getItem(NOTIFY_ENABLED_KEY) || '{}'),
+          templates: s.templates ?? {},
+          notifyEnabled: s.notify_enabled ?? {},
         }),
       });
       const json = await res.json();

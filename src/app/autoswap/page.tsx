@@ -9,9 +9,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { MatchProposal, PreviewResponse, Confidence } from '@/lib/autoswap/types';
-
-const STORAGE_KEY = 'zrexpress_token';
-const TENANT_KEY = 'zrexpress_tenant';
+import { loadSyncSettings } from '@/lib/sync-settings-client';
 
 // ZRExpress restreint l'exécution des swaps via API key (403 ApiKeyNotAllowed).
 // AutoTim agit donc comme un copilote : il identifie les matchs et facilite
@@ -55,11 +53,11 @@ export default function AutoSwapPage() {
   const [statsError, setStatsError] = useState<string | null>(null);
 
   useEffect(() => {
-    const t = localStorage.getItem(STORAGE_KEY) || '';
-    const ti = localStorage.getItem(TENANT_KEY) || '';
-    setToken(t);
-    setTenantId(ti);
-    setCredentialsReady(!!t && !!ti);
+    loadSyncSettings().then(s => {
+      setToken(s.zrexpress_token);
+      setTenantId(s.zrexpress_tenant_id);
+      setCredentialsReady(!!s.zrexpress_token && !!s.zrexpress_tenant_id);
+    });
   }, []);
 
   const fetchSwapStats = async () => {

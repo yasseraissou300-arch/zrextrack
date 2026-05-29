@@ -6,11 +6,7 @@ import {
   RefreshCw, CheckCircle2, XCircle, Key, Package,
   Clock, AlertTriangle, Eye, EyeOff, MessageSquare, Save, RotateCcw
 } from 'lucide-react';
-
-const STORAGE_KEY = 'zrexpress_token';
-const TENANT_KEY = 'zrexpress_tenant';
-const TEMPLATES_KEY = 'zrextrack_templates';
-const NOTIFY_ENABLED_KEY = 'zrextrack_notify_enabled';
+import { loadSyncSettings, saveSyncSettings } from '@/lib/sync-settings-client';
 
 const DEFAULT_NOTIFY_ENABLED: Record<string, boolean> = {
   en_transit:   true,
@@ -69,44 +65,46 @@ export default function SyncPage() {
   const [notifyEnabled, setNotifyEnabled] = useState<Record<string, boolean>>(DEFAULT_NOTIFY_ENABLED);
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) { setToken(saved); setTokenSaved(true); }
-    const savedTenant = localStorage.getItem(TENANT_KEY);
-    if (savedTenant) setTenantId(savedTenant);
+    // Load from server (cross-device) — falls back to localStorage migration if empty
+    loadSyncSettings().then(s => {
+      if (s.zrexpress_token) { setToken(s.zrexpress_token); setTokenSaved(true); }
+      if (s.zrexpress_tenant_id) setTenantId(s.zrexpress_tenant_id);
+      if (s.templates && Object.keys(s.templates).length) {
+        setTemplates({ ...DEFAULT_TEMPLATES, ...s.templates });
+      }
+      if (s.notify_enabled && Object.keys(s.notify_enabled).length) {
+        setNotifyEnabled({ ...DEFAULT_NOTIFY_ENABLED, ...s.notify_enabled });
+      }
+    });
+    // Sync history reste local (purement informatif, par appareil)
     const hist = localStorage.getItem('zrexpress_sync_history');
-    if (hist) setHistory(JSON.parse(hist));
-    const savedTemplates = localStorage.getItem(TEMPLATES_KEY);
-    if (savedTemplates) setTemplates({ ...DEFAULT_TEMPLATES, ...JSON.parse(savedTemplates) });
-    const savedNotify = localStorage.getItem(NOTIFY_ENABLED_KEY);
-    if (savedNotify) setNotifyEnabled({ ...DEFAULT_NOTIFY_ENABLED, ...JSON.parse(savedNotify) });
+    if (hist) try { setHistory(JSON.parse(hist)); } catch {}
   }, []);
 
-  const saveToken = () => {
+  const saveToken = async () => {
     if (!token.trim() || !tenantId.trim()) return;
-    localStorage.setItem(STORAGE_KEY, token.trim());
-    localStorage.setItem(TENANT_KEY, tenantId.trim());
+    await saveSyncSettings({
+      zrexpress_token: token.trim(),
+      zrexpress_tenant_id: tenantId.trim(),
+    });
     setTokenSaved(true);
   };
 
-  const clearToken = () => {
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(TENANT_KEY);
+  const clearToken = async () => {
+    await saveSyncSettings({ zrexpress_token: '', zrexpress_tenant_id: '' });
     setToken(''); setTenantId(''); setTokenSaved(false);
   };
 
-  const saveTemplates = () => {
-    localStorage.setItem(TEMPLATES_KEY, JSON.stringify(templates));
-    localStorage.setItem(NOTIFY_ENABLED_KEY, JSON.stringify(notifyEnabled));
+  const saveTemplates = async () => {
+    await saveSyncSettings({ templates, notify_enabled: notifyEnabled });
     setTemplatesSaved(true);
     setTimeout(() => setTemplatesSaved(false), 2000);
   };
 
-  const toggleNotify = (status: string) => {
-    setNotifyEnabled(prev => {
-      const next = { ...prev, [status]: !prev[status] };
-      localStorage.setItem(NOTIFY_ENABLED_KEY, JSON.stringify(next));
-      return next;
-    });
+  const toggleNotify = async (status: string) => {
+    const next = { ...notifyEnabled, [status]: !notifyEnabled[status] };
+    setNotifyEnabled(next);
+    await saveSyncSettings({ notify_enabled: next });
   };
 
   const resetTemplate = (status: string) => {
