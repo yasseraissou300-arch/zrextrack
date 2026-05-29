@@ -33,9 +33,12 @@ export async function POST(_req) {
 
     const since = new Date(Date.now() - 86400000).toISOString();
     const { data: delivered } = await supabase.from('orders').select('tracking_number,customer_name,customer_whatsapp')
+      .eq('user_id', user.id)
       .eq('delivery_status', 'livre').gte('last_update', since).not('customer_whatsapp','is',null).neq('customer_whatsapp','');
     if (!delivered?.length) return NextResponse.json({ sent: 0, message: 'Aucune livraison récente' });
-    const { data: done } = await supabase.from('messages').select('tracking_number').in('tracking_number', delivered.map(o => o.tracking_number)).ilike('message', '%NPS%');
+    const { data: done } = await supabase.from('messages').select('tracking_number')
+      .eq('user_id', user.id)
+      .in('tracking_number', delivered.map(o => o.tracking_number)).ilike('message', '%NPS%');
     const doneSet = new Set((done || []).map(m => m.tracking_number));
     const toSend = delivered.filter(o => !doneSet.has(o.tracking_number));
     if (!toSend.length) return NextResponse.json({ sent: 0, message: 'NPS déjà envoyés' });

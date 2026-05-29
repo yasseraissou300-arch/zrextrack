@@ -39,6 +39,7 @@ export async function POST(_req) {
     for (const [status, hours] of Object.entries(THRESHOLDS)) {
       const cutoff = new Date(now.getTime() - hours * 3600000);
       const { data } = await supabase.from('orders').select('tracking_number,customer_name,customer_whatsapp,last_update')
+        .eq('user_id', user.id)
         .eq('delivery_status', status).lt('last_update', cutoff.toISOString()).not('customer_whatsapp','is',null).neq('customer_whatsapp','');
       for (const o of data || []) {
         const h = Math.round((now.getTime() - new Date(o.last_update).getTime()) / 3600000);

@@ -1,14 +1,19 @@
 import { NextResponse } from 'next/server';
-import { createServiceClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 export async function GET() {
   try {
+    const supabaseAuth = await createClient();
+    const { data: { user } } = await supabaseAuth.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+
     const supabase = createServiceClient();
 
     // --- Répartition par statut ---
     const { data: allOrders } = await supabase
       .from('orders')
-      .select('delivery_status, last_update');
+      .select('delivery_status, last_update')
+      .eq('user_id', user.id);
 
     const distribution: Record<string, number> = {
       livre: 0, en_transit: 0, en_livraison: 0,

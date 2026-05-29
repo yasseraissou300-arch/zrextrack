@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServiceClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 // Seuils en heures par statut
 const THRESHOLDS: Record<string, number> = {
@@ -10,6 +10,10 @@ const THRESHOLDS: Record<string, number> = {
 
 export async function GET() {
   try {
+    const supabaseAuth = await createClient();
+    const { data: { user } } = await supabaseAuth.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+
     const supabase = createServiceClient();
     const now = new Date();
 
@@ -21,6 +25,7 @@ export async function GET() {
       const { data } = await supabase
         .from('orders')
         .select('id, tracking_number, customer_name, wilaya, delivery_status, last_update')
+        .eq('user_id', user.id)
         .eq('delivery_status', status)
         .lt('last_update', cutoff)
         .order('last_update', { ascending: true })

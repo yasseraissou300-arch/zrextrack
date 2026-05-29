@@ -307,9 +307,12 @@ export async function POST(request: NextRequest) {
     const trackingNums = rows.map(r => r.tracking_number);
 
     // 2. Charger les statuts actuels pour détecter les changements
+    // Scopé par user_id : on ne regarde que les commandes de l'utilisateur courant
+    // pour éviter de cross-contaminer les notifications entre comptes.
     const { data: existingOrders } = await supabase
       .from('orders')
       .select('tracking_number, delivery_status, customer_whatsapp, customer_name, wilaya')
+      .eq('user_id', userId)
       .in('tracking_number', trackingNums);
 
     const existingMap = new Map((existingOrders || []).map(o => [o.tracking_number, o]));
