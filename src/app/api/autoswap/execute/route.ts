@@ -61,7 +61,8 @@ export async function POST(request: NextRequest) {
 
     const supabaseAuth = await createClient();
     const { data: { user } } = await supabaseAuth.auth.getUser();
-    const userId = user?.id ?? null;
+    if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    const userId = user.id;
     const supabase = createServiceClient();
 
     const results: ExecutionResult[] = [];
@@ -84,8 +85,8 @@ export async function POST(request: NextRequest) {
           };
 
           const now = new Date().toISOString();
-          await supabase.from('orders').update({ delivery_status: 'swap_redirected', last_update: now }).eq('tracking_number', swap.swappable.tracking);
-          await supabase.from('orders').update({ delivery_status: 'swap_shipped',    last_update: now }).eq('tracking_number', swap.target.tracking);
+          await supabase.from('orders').update({ delivery_status: 'swap_redirected', last_update: now }).eq('tracking_number', swap.swappable.tracking).eq('user_id', userId);
+          await supabase.from('orders').update({ delivery_status: 'swap_shipped',    last_update: now }).eq('tracking_number', swap.target.tracking).eq('user_id', userId);
         } else {
           failed += 1;
           result = {

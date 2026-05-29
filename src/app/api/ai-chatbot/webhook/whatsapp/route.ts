@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
+import { getUserCreds } from '@/lib/user-creds';
 
-const EVOLUTION_URL = process.env.EVOLUTION_API_URL || '';
-const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY || '';
+// Anthropic n'est PAS en BYOK pour l'instant — clé partagée plateforme.
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || '';
-const GEMINI_KEY = process.env.GEMINI_API_KEY || '';
-const GROQ_KEY = process.env.GROQ_API_KEY || '';
+
+// Bag de credentials résolu au début de chaque requête (per-user BYOK)
+interface ResolvedCreds {
+  evolutionUrl: string;
+  evolutionKey: string;
+  geminiKey: string;   // '' si non configuré → cascade saute Gemini
+  groqKey: string;     // '' si non configuré → cascade saute GROQ
+}
 
 // ─── 58 Wilayas Algeria normalization ─────────────────────────────────────────
 const WILAYA_MAP: Record<string, string> = {
@@ -153,8 +159,8 @@ interface ClaudeMessage { role: 'user' | 'assistant'; content: string; }
 interface ClaudeResult { text: string | null; tokens: number; }
 
 // ─── Gemini call (free fallback) ──────────────────────────────────────────────
-async function callGemini(systemPrompt: string, messages: ClaudeMessage[]): Promise<ClaudeResult> {
-  if (!GEMINI_KEY) return { text: null, tokens: 0 };
+async function callGemini(geminiKey: string, systemPrompt: string, messages: ClaudeMessage[]): Promise<ClaudeResult> {
+  if (!geminiKey) return { text: null, tokens: 0 };
   try {
     // Build Gemini contents from message history
     const contents = messages.slice(-10).map(m => ({
@@ -162,7 +168,7 @@ async function callGemini(systemPrompt: string, messages: ClaudeMessage[]): Prom
       parts: [{ text: m.content }],
     }));
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -189,14 +195,14 @@ async function callGemini(systemPrompt: string, messages: ClaudeMessage[]): Prom
 }
 
 // ─── GROQ call (free tier, OpenAI-compatible) ─────────────────────────────────
-async function callGroq(systemPrompt: string, messages: ClaudeMessage[]): Promise<ClaudeResult> {
-  if (!GROQ_KEY) return { text: null, tokens: 0 };
+async function callGroq(groqKey: string, systemPrompt: string, messages: ClaudeMessage[]): Promise<ClaudeResult> {
+  if (!groqKey) return { text: null, tokens: 0 };
   try {
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${GROQ_KEY}`,
+        'Authorization': `Bearer ${groqKey}`,
       },
       body: JSON.stringify({
         model: 'llama-3.1-8b-instant',
@@ -263,31 +269,37 @@ async function callClaude(systemPrompt: string, messages: ClaudeMessage[]): Prom
 // Pour le SAV (sensible : ton, empathie, formules locales) → Gemini en premier.
 // Pour les autres templates → on garde Claude qui reste correct sur le côté
 // transactionnel (collecte de Nom/Téléphone/Wilaya).
-type AIFn = (sp: string, msgs: ClaudeMessage[]) => Promise<ClaudeResult>;
+type AIStep = { name: string; call: (sp: string, msgs: ClaudeMessage[]) => Promise<ClaudeResult> };
 
-const CASCADE_DEFAULT: { name: string; fn: AIFn }[] = [
-  { name: 'Claude', fn: callClaude },
-  { name: 'Gemini', fn: callGemini },
-  { name: 'GROQ',   fn: callGroq   },
-];
+function buildCascade(creds: ResolvedCreds, templateType?: string): AIStep[] {
+  const claude: AIStep = { name: 'Claude', call: callClaude };
+  const gemini: AIStep = { name: 'Gemini', call: (sp, m) => callGemini(creds.geminiKey, sp, m) };
+  const groq:   AIStep = { name: 'GROQ',   call: (sp, m) => callGroq(creds.groqKey, sp, m) };
 
-const CASCADE_BY_TEMPLATE: Record<string, { name: string; fn: AIFn }[]> = {
   // SAV : Gemini en premier pour la darija algérienne authentique
-  sav: [
-    { name: 'Gemini', fn: callGemini },
-    { name: 'Claude', fn: callClaude },
-    { name: 'GROQ',   fn: callGroq   },
-  ],
-};
+  const ordered = templateType === 'sav' ? [gemini, claude, groq] : [claude, gemini, groq];
+
+  // Filtre les étapes dont la clé est manquante — pas d'appel inutile (BYOK)
+  return ordered.filter(step => {
+    if (step.name === 'Gemini') return !!creds.geminiKey;
+    if (step.name === 'GROQ')   return !!creds.groqKey;
+    return true; // Claude utilise toujours la clé plateforme
+  });
+}
 
 async function callAI(
+  creds: ResolvedCreds,
   systemPrompt: string,
   messages: ClaudeMessage[],
   templateType?: string,
 ): Promise<ClaudeResult> {
-  const cascade = (templateType && CASCADE_BY_TEMPLATE[templateType]) || CASCADE_DEFAULT;
-  for (const { name, fn } of cascade) {
-    const result = await fn(systemPrompt, messages);
+  const cascade = buildCascade(creds, templateType);
+  if (cascade.length === 0) {
+    console.log('[AI] no model available for this user (BYOK keys missing)');
+    return { text: null, tokens: 0 };
+  }
+  for (const { name, call } of cascade) {
+    const result = await call(systemPrompt, messages);
     if (result.text) {
       console.log(`[AI] ${name} answered (template=${templateType ?? 'default'})`);
       return result;
@@ -308,25 +320,25 @@ function stripDataTag(text: string): string {
 }
 
 // ─── WhatsApp senders ─────────────────────────────────────────────────────────
-async function sendWhatsApp(instanceName: string, number: string, text: string): Promise<void> {
-  if (!EVOLUTION_URL || !EVOLUTION_KEY) return;
+async function sendWhatsApp(evUrl: string, evKey: string, instanceName: string, number: string, text: string): Promise<void> {
+  if (!evUrl || !evKey) return;
   const cleanNumber = number.replace('@s.whatsapp.net', '').replace('@g.us', '');
   try {
-    await fetch(`${EVOLUTION_URL}/message/sendText/${instanceName}`, {
+    await fetch(`${evUrl}/message/sendText/${instanceName}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', apikey: EVOLUTION_KEY },
+      headers: { 'Content-Type': 'application/json', apikey: evKey },
       body: JSON.stringify({ number: cleanNumber, text }),
     });
   } catch { /* non-blocking */ }
 }
 
-async function sendWhatsAppMedia(instanceName: string, number: string, mediaUrl: string, caption: string): Promise<void> {
-  if (!EVOLUTION_URL || !EVOLUTION_KEY || !mediaUrl) return;
+async function sendWhatsAppMedia(evUrl: string, evKey: string, instanceName: string, number: string, mediaUrl: string, caption: string): Promise<void> {
+  if (!evUrl || !evKey || !mediaUrl) return;
   const cleanNumber = number.replace('@s.whatsapp.net', '').replace('@g.us', '');
   try {
-    await fetch(`${EVOLUTION_URL}/message/sendMedia/${instanceName}`, {
+    await fetch(`${evUrl}/message/sendMedia/${instanceName}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', apikey: EVOLUTION_KEY },
+      headers: { 'Content-Type': 'application/json', apikey: evKey },
       body: JSON.stringify({ number: cleanNumber, mediatype: 'image', media: mediaUrl, caption }),
     });
   } catch { /* non-blocking */ }
@@ -346,6 +358,8 @@ async function notifyGoogleSheets(webhookUrl: string, type: string, data: Record
 
 // ─── Admin WhatsApp notification ──────────────────────────────────────────────
 async function notifyAdmin(
+  evUrl: string,
+  evKey: string,
   instanceName: string,
   adminWA: string,
   data: Record<string, string>,
@@ -360,7 +374,7 @@ async function notifyAdmin(
   if (data.produit) lines.push(`🛍️ Produit: ${data.produit}`);
   if (data.reclamation) lines.push(`⚠️ Réclamation: ${data.reclamation}`);
   if (data.tracking_number) lines.push(`📦 Tracking: ${data.tracking_number}`);
-  await sendWhatsApp(instanceName, adminWA, lines.join('\n'));
+  await sendWhatsApp(evUrl, evKey, instanceName, adminWA, lines.join('\n'));
 }
 
 // ─── GET — webhook verification ───────────────────────────────────────────────
@@ -406,6 +420,27 @@ export async function POST(req: NextRequest) {
     }
     const userId = waInstance.user_id;
     const serviceType: string = waInstance.service_type || 'auto_confirmation';
+
+    // ─── BYOK — résolution des credentials par utilisateur ───────────────────────
+    // Evolution : fallback aux env vars pour ne pas casser les instances existantes
+    //             créées sur le serveur partagé (Yasser's). Les nouveaux users qui
+    //             veulent leur propre serveur configurent dans /parametres/api-keys.
+    // Gemini/GROQ : strict — pas de fallback env. Si le user n'a pas configuré sa
+    //               clé, l'étape est sautée dans la cascade (et la cascade peut
+    //               donc tomber sur Claude qui reste sur la clé plateforme).
+    const [evCreds, geminiCreds, groqCreds] = await Promise.all([
+      getUserCreds(userId, 'evolution'),
+      getUserCreds(userId, 'gemini'),
+      getUserCreds(userId, 'groq'),
+    ]);
+    const creds: ResolvedCreds = {
+      evolutionUrl: evCreds?.api_url || process.env.EVOLUTION_API_URL || '',
+      evolutionKey: evCreds?.api_key || process.env.EVOLUTION_API_KEY || '',
+      geminiKey: geminiCreds?.api_key || '',
+      groqKey: groqCreds?.api_key || '',
+    };
+    const evUrl = creds.evolutionUrl;
+    const evKey = creds.evolutionKey;
 
     // Load config for the specific service that received the message
     const { data: config, error: cfgErr } = await supabase
@@ -461,7 +496,7 @@ export async function POST(req: NextRequest) {
     const angerDetected = isAngerDetected(text);
     if (angerDetected) {
       const handoverMsg = `Smah liya 3la l-iklaj! Ghadi nwejdek wa7d d'équipe dyalna b sra3a bach ysa3dek 🙏`;
-      await sendWhatsApp(instanceName, remoteJid, handoverMsg);
+      await sendWhatsApp(evUrl, evKey, instanceName, remoteJid, handoverMsg);
       if (existingSession) {
         await supabase
           .from('ai_chat_sessions')
@@ -488,9 +523,9 @@ export async function POST(req: NextRequest) {
       const nudge = nudges[config.template_type] ?? nudges.auto_confirmation;
       // Send product image on first contact if configured
       if (!existingSession && config.media_url) {
-        await sendWhatsAppMedia(instanceName, remoteJid, config.media_url, '');
+        await sendWhatsAppMedia(evUrl, evKey, instanceName, remoteJid, config.media_url, '');
       }
-      await sendWhatsApp(instanceName, remoteJid, nudge);
+      await sendWhatsApp(evUrl, evKey, instanceName, remoteJid, nudge);
       return NextResponse.json({ ok: true });
     }
 
@@ -501,7 +536,8 @@ export async function POST(req: NextRequest) {
     // Human handover after 2 consecutive AI failures
     if (failureCount >= 2) {
       const handoverMsg = `Smah, ma fhemtsh mezyan shu tbghi. Ghadi nwejdek m3a wa7d mena équipe dyalna 👨‍💼`;
-      await sendWhatsApp(instanceName, remoteJid, handoverMsg);
+      await sendWhatsApp(evUrl, evKey, instanceName, remoteJid, handoverMsg);
+      // (already wired to BYOK via evUrl/evKey)
       if (existingSession) {
         await supabase
           .from('ai_chat_sessions')
@@ -517,17 +553,17 @@ export async function POST(req: NextRequest) {
 
     // Send product image on first message if configured
     if (!existingSession && config.media_url) {
-      await sendWhatsAppMedia(instanceName, remoteJid, config.media_url, '');
+      await sendWhatsAppMedia(evUrl, evKey, instanceName, remoteJid, config.media_url, '');
     }
 
     conversation.push({ role: 'user', content: text });
-    const { text: aiReply, tokens: newTokens } = await callAI(systemPrompt, conversation, config.template_type);
+    const { text: aiReply, tokens: newTokens } = await callAI(creds, systemPrompt, conversation, config.template_type);
 
     const newFailureCount = aiReply ? 0 : failureCount + 1;
     const updatedTokens = totalTokens + newTokens;
 
     if (!aiReply) {
-      await sendWhatsApp(instanceName, remoteJid, 'Smah liya, kayen bug tqani. Raje3 diri f had lweqt.');
+      await sendWhatsApp(evUrl, evKey, instanceName, remoteJid, 'Smah liya, kayen bug tqani. Raje3 diri f had lweqt.');
       if (existingSession) {
         await supabase
           .from('ai_chat_sessions')
@@ -575,7 +611,7 @@ export async function POST(req: NextRequest) {
         await notifyGoogleSheets(config.google_sheets_url, config.template_type, newData);
       }
       if (config.admin_whatsapp) {
-        await notifyAdmin(instanceName, config.admin_whatsapp, newData, config.shop_name || 'Boutique', config.template_type);
+        await notifyAdmin(evUrl, evKey, instanceName, config.admin_whatsapp, newData, config.shop_name || 'Boutique', config.template_type);
       }
       await supabase
         .from('ai_chat_sessions')
@@ -585,7 +621,7 @@ export async function POST(req: NextRequest) {
         .eq('contact_id', remoteJid);
     }
 
-    await sendWhatsApp(instanceName, remoteJid, cleanReply);
+    await sendWhatsApp(evUrl, evKey, instanceName, remoteJid, cleanReply);
     return NextResponse.json({ ok: true });
 
   } catch (err: unknown) {

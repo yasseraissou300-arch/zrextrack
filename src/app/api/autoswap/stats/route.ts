@@ -62,6 +62,7 @@ export async function GET() {
     const { data: orders, error: ordErr } = await supabase
       .from('orders')
       .select('tracking_number, delivery_status')
+      .eq('user_id', user.id)
       .in('tracking_number', sourceTrackings);
 
     if (ordErr) {

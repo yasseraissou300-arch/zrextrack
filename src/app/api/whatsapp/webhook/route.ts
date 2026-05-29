@@ -105,30 +105,13 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (!waSettings) {
-      // Fallback: use env vars for single-instance deployments
-      const envInstance = process.env.GREEN_API_INSTANCE_ID || process.env.GREENAPI_INSTANCE_ID;
-      const envToken = process.env.GREEN_API_TOKEN || process.env.GREENAPI_TOKEN;
-      if (!envInstance || !envToken) return NextResponse.json({ ok: true });
-
-      const tracking = extractTracking(text);
-      if (tracking) {
-        const { data: order } = await supabase
-          .from('orders')
-          .select('tracking_number, customer_name, wilaya, delivery_status, attempts, product_name')
-          .ilike('tracking_number', tracking)
-          .limit(1)
-          .single();
-
-        if (order) {
-          const reply = buildTrackingReply(order);
-          await sendWhatsApp(envInstance, envToken, chatId, reply);
-        } else {
-          await sendWhatsApp(envInstance, envToken, chatId, `❌ Commande *${tracking}* introuvable. Vérifiez le numéro et réessayez.`);
-        }
-      } else {
-        await sendWhatsApp(envInstance, envToken, chatId,
-          `Bonjour${senderName ? ` *${senderName}*` : ''} 👋\nEnvoyez votre *numéro de tracking* pour suivre votre commande.\nEx: *ZRX123456*`);
-      }
+      // L'ancien fallback single-tenant utilisait les env vars Green API pour
+      // répondre, MAIS faisait un lookup orders sans filtre user_id — ce qui
+      // exposait les commandes de tous les utilisateurs à n'importe quel
+      // numéro WhatsApp inconnu. Désactivé pour préserver l'isolation multi-
+      // tenant. Les webhooks dont l'instance n'est pas mappée à un user sont
+      // simplement ignorés.
+      console.log('[whatsapp/webhook] unknown instance, ignoring:', instanceId);
       return NextResponse.json({ ok: true });
     }
 
