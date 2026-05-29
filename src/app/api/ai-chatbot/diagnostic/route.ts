@@ -46,7 +46,8 @@ export async function GET() {
     appUrl: APP_URL || '(not set — using fallback)',
     expectedWebhookUrl: EXPECTED_WEBHOOK,
     aiKeys: {
-      anthropic: !!process.env.ANTHROPIC_API_KEY,
+      // Claude/Anthropic retiré de la plateforme. La cascade IA utilise
+      // uniquement Gemini et GROQ, configurés en BYOK par utilisateur.
       gemini: !!process.env.GEMINI_API_KEY,
       groq: !!process.env.GROQ_API_KEY,
     },
@@ -122,8 +123,8 @@ export async function GET() {
   if (!env.evolutionUrlSet || !env.evolutionKeySet) {
     issues.push('Evolution API non configurée (EVOLUTION_API_URL / EVOLUTION_API_KEY manquantes).');
   }
-  if (!env.aiKeys.anthropic && !env.aiKeys.gemini && !env.aiKeys.groq) {
-    issues.push('Aucune clé IA configurée (Claude/Gemini/GROQ) — le bot ne pourra pas répondre.');
+  if (!env.aiKeys.gemini && !env.aiKeys.groq) {
+    issues.push('Aucune clé IA configurée (Gemini/GROQ) — le bot ne pourra pas répondre. Configurez vos clés dans Paramètres → Clés API.');
   }
   if (instErr) {
     issues.push(`Erreur lecture whatsapp_instances: ${instErr.message}. La colonne service_type est-elle créée ?`);

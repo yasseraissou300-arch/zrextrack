@@ -5,7 +5,8 @@
 
 import { createServiceClient } from '@/lib/supabase/server';
 
-export type ServiceName = 'gemini' | 'groq' | 'evolution' | 'anthropic' | 'greenapi';
+// Claude/Anthropic retiré de la plateforme.
+export type ServiceName = 'gemini' | 'groq' | 'evolution' | 'greenapi';
 
 export interface UserCreds {
   api_key: string | null;

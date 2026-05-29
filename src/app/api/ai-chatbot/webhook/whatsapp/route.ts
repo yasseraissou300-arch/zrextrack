@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { getUserCreds } from '@/lib/user-creds';
 
-// Anthropic n'est PAS en BYOK pour l'instant — clé partagée plateforme.
-const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || '';
-
-// Bag de credentials résolu au début de chaque requête (per-user BYOK)
+// Bag de credentials résolu au début de chaque requête (per-user BYOK).
+// Claude/Anthropic a été retiré de la plateforme : la cascade IA n'utilise
+// plus que Gemini puis GROQ. Chaque user fournit ses propres clés.
 interface ResolvedCreds {
   evolutionUrl: string;
   evolutionKey: string;
@@ -229,61 +228,21 @@ async function callGroq(groqKey: string, systemPrompt: string, messages: ClaudeM
   }
 }
 
-// ─── Claude call (primary) ─────────────────────────────────────────────────────
-async function callClaude(systemPrompt: string, messages: ClaudeMessage[]): Promise<ClaudeResult> {
-  if (!ANTHROPIC_KEY) return { text: null, tokens: 0 };
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-3-5-sonnet-20241022',
-        max_tokens: 600,
-        system: systemPrompt,
-        messages: messages.slice(-10),
-      }),
-    });
-    if (!res.ok) {
-      const err = await res.text();
-      console.error('[Claude] Error:', res.status, err);
-      return { text: null, tokens: 0 };
-    }
-    const json = await res.json();
-    const text = json.content?.[0]?.text ?? null;
-    const tokens = (json.usage?.input_tokens ?? 0) + (json.usage?.output_tokens ?? 0);
-    return { text, tokens };
-  } catch (e) {
-    console.error('[Claude] Exception:', e);
-    return { text: null, tokens: 0 };
-  }
-}
-
 // ─── AI cascade per template_type ────────────────────────────────────────────
-// Choix du modèle adapté au dialecte. Observation utilisateur :
-//   - Claude tend à répondre en arabe standard, marocain ou moyen-oriental
-//   - Gemini 2.0 Flash donne de meilleurs résultats en darija algérienne
-// Pour le SAV (sensible : ton, empathie, formules locales) → Gemini en premier.
-// Pour les autres templates → on garde Claude qui reste correct sur le côté
-// transactionnel (collecte de Nom/Téléphone/Wilaya).
+// Cascade IA : Gemini en premier (meilleur résultat en darija algérienne),
+// puis GROQ en fallback. Claude/Anthropic a été retiré de la plateforme —
+// aucun appel à api.anthropic.com n'est fait nulle part dans cette route.
 type AIStep = { name: string; call: (sp: string, msgs: ClaudeMessage[]) => Promise<ClaudeResult> };
 
-function buildCascade(creds: ResolvedCreds, templateType?: string): AIStep[] {
-  const claude: AIStep = { name: 'Claude', call: callClaude };
+function buildCascade(creds: ResolvedCreds, _templateType?: string): AIStep[] {
   const gemini: AIStep = { name: 'Gemini', call: (sp, m) => callGemini(creds.geminiKey, sp, m) };
   const groq:   AIStep = { name: 'GROQ',   call: (sp, m) => callGroq(creds.groqKey, sp, m) };
 
-  // SAV : Gemini en premier pour la darija algérienne authentique
-  const ordered = templateType === 'sav' ? [gemini, claude, groq] : [claude, gemini, groq];
-
-  // Filtre les étapes dont la clé est manquante — pas d'appel inutile (BYOK)
-  return ordered.filter(step => {
+  // Filtre les étapes dont la clé n'est pas configurée par le user (BYOK)
+  return [gemini, groq].filter(step => {
     if (step.name === 'Gemini') return !!creds.geminiKey;
     if (step.name === 'GROQ')   return !!creds.groqKey;
-    return true; // Claude utilise toujours la clé plateforme
+    return false;
   });
 }
 
