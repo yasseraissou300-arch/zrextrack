@@ -52,6 +52,10 @@ export default function AutoSwapPage() {
   const [statsLoading, setStatsLoading] = useState(true);
   const [statsError, setStatsError] = useState<string | null>(null);
 
+  // Propositions confirmées comme swappées manuellement (cachées du tableau)
+  const [confirmedKeys, setConfirmedKeys] = useState<Set<string>>(new Set());
+  const [confirmingKey, setConfirmingKey] = useState<string | null>(null);
+
   useEffect(() => {
     loadSyncSettings().then(s => {
       setToken(s.zrexpress_token);
@@ -105,16 +109,46 @@ export default function AutoSwapPage() {
     }
   };
 
+  const proposalKey = (p: MatchProposal) => `${p.swappable.id}::${p.target.id}`;
+
   const filteredProposals: MatchProposal[] = useMemo(() => {
     if (!preview) return [];
     return preview.proposals.filter(p => {
+      if (confirmedKeys.has(proposalKey(p))) return false; // cacher les swaps confirmés
       if (filterConfidence !== 'ALL' && p.confidence !== filterConfidence) return false;
       if (onlySameCity && !p.same_city) return false;
       return true;
     });
-  }, [preview, filterConfidence, onlySameCity]);
+  }, [preview, filterConfidence, onlySameCity, confirmedKeys]);
 
-  const proposalKey = (p: MatchProposal) => `${p.swappable.id}::${p.target.id}`;
+  // Marque une proposition comme swappée manuellement : enregistre dans
+  // autoswap_log, retire la ligne du tableau, et rafraîchit les stats.
+  const confirmSwap = async (p: MatchProposal) => {
+    const key = proposalKey(p);
+    setConfirmingKey(key);
+    try {
+      const res = await fetch('/api/autoswap/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source_tracking: p.swappable.tracking,
+          target_tracking: p.target.tracking,
+          confidence: p.confidence,
+          same_city: p.same_city,
+          estimated_savings: p.estimated_savings,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || `Erreur ${res.status}`);
+      setConfirmedKeys(prev => new Set(prev).add(key));
+      toast.success('Swap enregistré', { description: 'La commande apparaît maintenant dans les statistiques.' });
+      fetchSwapStats();
+    } catch (err: any) {
+      toast.error('Erreur', { description: err?.message || 'Impossible d\'enregistrer le swap' });
+    } finally {
+      setConfirmingKey(null);
+    }
+  };
 
   return (
     <AppLayout>
@@ -395,6 +429,17 @@ export default function AutoSwapPage() {
                                 <ExternalLink size={12} />
                                 Voir la nouvelle commande
                               </a>
+                              <button
+                                onClick={() => confirmSwap(p)}
+                                disabled={confirmingKey === key}
+                                className="flex items-center justify-center gap-1.5 text-xs bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-3 py-1.5 rounded-md transition-colors mt-0.5"
+                                title="J'ai fait ce swap dans ZRExpress — l'enregistrer dans les statistiques"
+                              >
+                                {confirmingKey === key
+                                  ? <Loader2 size={12} className="animate-spin" />
+                                  : <CheckCircle2 size={12} />}
+                                Marquer comme swappé
+                              </button>
                             </div>
                           </td>
                         </tr>
