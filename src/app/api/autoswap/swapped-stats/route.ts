@@ -12,23 +12,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { fetchAllParcels } from '@/app/api/sync-zrexpress/route';
-import { mapStatus } from '@/lib/zrexpress/status';
+import { classifySwappedDelivery, type DeliveryBucket } from '@/lib/zrexpress/status';
 
-// Statuts internes (sortie de mapStatus) considérés comme livraison réussie.
-const DELIVERED = new Set(['livre']);
-// Statuts considérés comme commande annulée (échec définitif ou retour).
-const CANCELLED = new Set(['echec', 'retourne']);
-
-type Bucket = 'delivered' | 'cancelled' | 'in_progress';
+type Bucket = DeliveryBucket;
 
 interface SwappedItem {
   id: string;            // UUID du colis (pour le lien ZRExpress)
   tracking: string;
   customer: string;
   wilaya: string;
-  state_raw: string;     // état brut ZRExpress (ex "Retour", "Livré")
-  situation_raw: string; // situation brute (souvent la vraie raison)
-  status: string;        // statut interne mappé
+  state_raw: string;     // état brut ZRExpress (ex "Sortie en livraison", "Livré")
+  situation_raw: string; // situation brute (souvent l'ANCIENNE raison pré-swap)
   bucket: Bucket;
   swap_count: number;
   swapped_at: string | null;
@@ -60,12 +54,13 @@ export async function POST(request: NextRequest) {
 
       const rawState = String(p.state?.name || p.stateName || p.status?.name || p.statusName || p.state || p.status || '');
       const situation = String(p.situation?.name || p.situationName || p.lastSituation?.name || p.lastSituationName || p.situation || '');
-      const status = mapStatus(rawState, situation);
 
-      let bucket: Bucket;
-      if (DELIVERED.has(status)) { bucket = 'delivered'; delivered += 1; }
-      else if (CANCELLED.has(status)) { bucket = 'cancelled'; cancelled += 1; }
-      else { bucket = 'in_progress'; inProgress += 1; }
+      // IMPORTANT : pour un colis swappé on classe sur l'ÉTAT de livraison,
+      // pas sur la situation (qui garde souvent l'ancienne raison d'échec pré-swap).
+      const bucket = classifySwappedDelivery(rawState);
+      if (bucket === 'delivered') delivered += 1;
+      else if (bucket === 'cancelled') cancelled += 1;
+      else inProgress += 1;
 
       items.push({
         id: String(p.id || ''),
@@ -74,7 +69,6 @@ export async function POST(request: NextRequest) {
         wilaya: String(p.deliveryAddress?.city || p.wilaya?.name || p.wilaya || ''),
         state_raw: rawState,
         situation_raw: situation,
-        status,
         bucket,
         swap_count: swapCount,
         swapped_at: swappedAt,

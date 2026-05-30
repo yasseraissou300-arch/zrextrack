@@ -35,7 +35,6 @@ interface SwappedItem {
   wilaya: string;
   state_raw: string;
   situation_raw: string;
-  status: string;
   bucket: SwapBucket;
   swap_count: number;
   swapped_at: string | null;
@@ -513,7 +512,7 @@ function SwappedDetailList({ items, bucket, onClose }: {
                 <th className="px-4 py-2 font-medium">Tracking</th>
                 <th className="px-4 py-2 font-medium">Client</th>
                 <th className="px-4 py-2 font-medium">Wilaya</th>
-                <th className="px-4 py-2 font-medium">Statut ZRExpress</th>
+                <th className="px-4 py-2 font-medium">Statut livraison</th>
                 <th className="px-4 py-2 font-medium text-center">Swaps</th>
                 <th className="px-4 py-2 font-medium text-center">Vérifier</th>
               </tr>
@@ -525,7 +524,10 @@ function SwappedDetailList({ items, bucket, onClose }: {
                   <td className="px-4 py-2 text-gray-700 dark:text-stone-200">{it.customer || '—'}</td>
                   <td className="px-4 py-2 text-gray-600 dark:text-stone-300">{it.wilaya || '—'}</td>
                   <td className="px-4 py-2">
-                    <span className="text-gray-800 dark:text-stone-100">{it.situation_raw || it.state_raw || '—'}</span>
+                    <div className="text-gray-800 dark:text-stone-100">{it.state_raw || '—'}</div>
+                    {it.situation_raw && (
+                      <div className="text-[10px] text-gray-400 dark:text-stone-500">situation : {it.situation_raw}</div>
+                    )}
                   </td>
                   <td className="px-4 py-2 text-center text-gray-500 dark:text-stone-400">{it.swap_count}</td>
                   <td className="px-4 py-2 text-center">
