@@ -11,8 +11,9 @@
 
 import { createServiceClient } from '@/lib/supabase/server';
 
-// Seuls services réellement stockés par utilisateur. greenapi est legacy.
-export type ServiceName = 'gemini' | 'greenapi';
+// Seul Gemini est stocké par utilisateur (BYOK). Evolution = partagé,
+// GROQ/Claude/GreenAPI = retirés de la plateforme.
+export type ServiceName = 'gemini';
 
 export interface UserCreds {
   api_key: string | null;
