@@ -8,8 +8,8 @@ import { createClient, createServiceClient } from '@/lib/supabase/server';
 import type { ServiceName } from '@/lib/user-creds';
 
 // Seul Gemini est configurable par l'utilisateur (BYOK). Evolution est
-// partagé (serveur plateforme), GROQ/Claude retirés. greenapi est legacy.
-const ALLOWED: ServiceName[] = ['gemini', 'greenapi'];
+// partagé (serveur plateforme) ; GROQ / Claude / Green API sont retirés.
+const ALLOWED: ServiceName[] = ['gemini'];
 
 function maskKey(key: string | null): string {
   if (!key) return '';
