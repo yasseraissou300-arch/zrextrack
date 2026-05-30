@@ -1,15 +1,16 @@
 'use client';
 
-// Page de gestion des clés API BYOK ("Bring Your Own Keys").
-// Chaque utilisateur configure ses propres clés Gemini / GROQ / Evolution pour
-// ne pas consommer celles partagées de la plateforme.
+// Page de gestion de la clé API Gemini (BYOK).
+// Chaque utilisateur configure sa propre clé Gemini pour que son chatbot
+// WhatsApp réponde sans consommer le quota de la plateforme. Gemini est le
+// seul modèle IA. Evolution (connexion WhatsApp) est géré par la plateforme.
 
 import React, { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
 import { Key, Loader2, CheckCircle2, XCircle, Eye, EyeOff, Save, Trash2, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 
-type Service = 'gemini' | 'groq' | 'evolution';
+type Service = 'gemini';
 
 interface CredentialStatus {
   service: string;
@@ -34,27 +35,10 @@ const SERVICES: ServiceConfig[] = [
   {
     id: 'gemini',
     name: 'Google Gemini',
-    description: 'IA générative — réponses du chatbot WhatsApp/Facebook. Gratuit jusqu\'à un certain quota.',
+    description: 'IA qui génère les réponses du chatbot WhatsApp. Meilleur modèle pour la darija algérienne. Obligatoire pour que le bot réponde. Clé gratuite sur Google AI Studio.',
     needsUrl: false,
     getKeyUrl: 'https://aistudio.google.com/app/apikey',
     placeholder: 'AIzaSy...',
-  },
-  {
-    id: 'groq',
-    name: 'GROQ',
-    description: 'IA alternative — utilisée en fallback si Gemini est indisponible. Tier gratuit.',
-    needsUrl: false,
-    getKeyUrl: 'https://console.groq.com/keys',
-    placeholder: 'gsk_...',
-  },
-  {
-    id: 'evolution',
-    name: 'Evolution API',
-    description: 'Passerelle WhatsApp self-hosted. Chaque utilisateur peut pointer son propre serveur Evolution.',
-    needsUrl: true,
-    getKeyUrl: 'https://doc.evolution-api.com/',
-    placeholder: 'B6D71...',
-    urlPlaceholder: 'https://evolution.mondomaine.com',
   },
 ];
 
@@ -256,11 +240,12 @@ export default function ApiKeysPage() {
       <div className="min-h-screen bg-stone-50 dark:bg-stone-950">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
           <div>
-            <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100">Clés API</h1>
+            <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100">Clé API Gemini</h1>
             <p className="text-sm text-stone-500 dark:text-stone-400 mt-1">
-              Configurez vos propres clés pour utiliser vos propres comptes Gemini, GROQ et
-              Evolution. Sans clé configurée, les services correspondants sont désactivés
-              pour votre compte.
+              Le chatbot WhatsApp utilise votre propre clé Gemini pour répondre à vos
+              clients. Sans clé configurée, le bot ne peut pas répondre automatiquement.
+              La connexion du numéro WhatsApp, elle, est gérée par la plateforme — rien
+              à configurer de ce côté.
             </p>
           </div>
 

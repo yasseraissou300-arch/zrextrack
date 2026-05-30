@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { resolveEvolutionCreds } from '@/lib/user-creds';
+import { resolveEvolutionCreds, getUserCreds } from '@/lib/user-creds';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || '';
 const EXPECTED_WEBHOOK = `${APP_URL || 'https://zrextrack.vercel.app'}/api/ai-chatbot/webhook/whatsapp`;
@@ -40,8 +40,11 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  // BYOK : serveur Evolution de l'utilisateur (ou fallback plateforme)
+  // Evolution = serveur partagé de la plateforme
   const ev = await resolveEvolutionCreds(user.id);
+
+  // Gemini = clé propre du client (BYOK), seul modèle IA
+  const geminiCreds = await getUserCreds(user.id, 'gemini');
 
   // Env
   const env = {
@@ -50,10 +53,9 @@ export async function GET() {
     appUrl: APP_URL || '(not set — using fallback)',
     expectedWebhookUrl: EXPECTED_WEBHOOK,
     aiKeys: {
-      // Claude/Anthropic retiré de la plateforme. La cascade IA utilise
-      // uniquement Gemini et GROQ, configurés en BYOK par utilisateur.
-      gemini: !!process.env.GEMINI_API_KEY,
-      groq: !!process.env.GROQ_API_KEY,
+      // Gemini est le seul modèle IA. Ici on indique si le CLIENT a configuré
+      // sa propre clé Gemini (BYOK) — c'est ce qui détermine si le bot répond.
+      gemini: !!geminiCreds?.api_key,
     },
   };
 
@@ -127,8 +129,8 @@ export async function GET() {
   if (!env.evolutionUrlSet || !env.evolutionKeySet) {
     issues.push('Evolution API non configurée (EVOLUTION_API_URL / EVOLUTION_API_KEY manquantes).');
   }
-  if (!env.aiKeys.gemini && !env.aiKeys.groq) {
-    issues.push('Aucune clé IA configurée (Gemini/GROQ) — le bot ne pourra pas répondre. Configurez vos clés dans Paramètres → Clés API.');
+  if (!env.aiKeys.gemini) {
+    issues.push('Clé Gemini non configurée — le bot ne pourra pas répondre. Ajoutez votre clé dans Paramètres → Clés API.');
   }
   if (instErr) {
     issues.push(`Erreur lecture whatsapp_instances: ${instErr.message}. La colonne service_type est-elle créée ?`);

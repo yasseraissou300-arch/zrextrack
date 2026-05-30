@@ -7,7 +7,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import type { ServiceName } from '@/lib/user-creds';
 
-const ALLOWED: ServiceName[] = ['gemini', 'groq', 'evolution', 'greenapi'];
+// Seul Gemini est configurable par l'utilisateur (BYOK). Evolution est
+// partagé (serveur plateforme), GROQ/Claude retirés. greenapi est legacy.
+const ALLOWED: ServiceName[] = ['gemini', 'greenapi'];
 
 function maskKey(key: string | null): string {
   if (!key) return '';
@@ -59,22 +61,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Service inconnu' }, { status: 400 });
   }
 
-  // Validations minimales par service
+  // Validation : les services restants (gemini, greenapi) requièrent une clé.
   const apiKey = (body.api_key ?? '').trim() || null;
   const apiUrl = (body.api_url ?? '').trim() || null;
   const apiSecret = (body.api_secret ?? '').trim() || null;
 
-  if (service === 'evolution') {
-    if (!apiUrl || !apiKey) {
-      return NextResponse.json({ error: 'Evolution requiert URL + clé API' }, { status: 400 });
-    }
-    if (!/^https?:\/\//i.test(apiUrl)) {
-      return NextResponse.json({ error: 'URL invalide (doit commencer par http:// ou https://)' }, { status: 400 });
-    }
-  } else {
-    if (!apiKey) {
-      return NextResponse.json({ error: 'Clé API requise' }, { status: 400 });
-    }
+  if (!apiKey) {
+    return NextResponse.json({ error: 'Clé API requise' }, { status: 400 });
   }
 
   const supabase = createServiceClient();
