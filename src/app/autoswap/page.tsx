@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Repeat, Search, CheckCircle2, AlertTriangle, MapPin, TrendingUp,
   Package, Filter, Loader2, ExternalLink, Info, Truck, XCircle,
-  Settings as SettingsIcon, Plus, Trash2, Save, BarChart3,
+  Settings as SettingsIcon, Plus, Trash2, Save, BarChart3, X, ChevronRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { MatchProposal, PreviewResponse, Confidence } from '@/lib/autoswap/types';
@@ -26,12 +26,28 @@ const CONFIDENCE_META: Record<Confidence, { label: string; bg: string; text: str
   WEAK:   { label: 'À vérifier', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
 };
 
+type SwapBucket = 'delivered' | 'cancelled' | 'in_progress';
+
+interface SwappedItem {
+  id: string;
+  tracking: string;
+  customer: string;
+  wilaya: string;
+  state_raw: string;
+  situation_raw: string;
+  status: string;
+  bucket: SwapBucket;
+  swap_count: number;
+  swapped_at: string | null;
+}
+
 interface SwapStats {
   total_swapped: number;
   delivered: number;
   cancelled: number;
   in_progress: number;
   delivery_rate: number;
+  items: SwappedItem[];
 }
 
 export default function AutoSwapPage() {
@@ -49,6 +65,8 @@ export default function AutoSwapPage() {
   const [swapStats, setSwapStats] = useState<SwapStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [statsError, setStatsError] = useState<string | null>(null);
+  // Bucket cliqué pour afficher le détail (null = aucun, 'all' = tout)
+  const [openBucket, setOpenBucket] = useState<SwapBucket | 'all' | null>(null);
 
   // Charge les stats des commandes DÉJÀ swappées directement depuis ZRExpress
   // (détection automatique via swap.count) — nécessite les credentials.
@@ -186,35 +204,53 @@ export default function AutoSwapPage() {
             <>
               <p className="text-xs text-gray-400 dark:text-stone-500 -mt-1">
                 Commandes déjà swappées sur votre compte ZRExpress, classées par statut de livraison.
+                <span className="text-gray-300 dark:text-stone-600"> · Cliquez une carte pour voir le détail.</span>
               </p>
 
-              {/* Carrés principaux — livré vs annulé visibles d'un coup d'œil */}
+              {/* Carrés principaux — cliquables pour afficher le détail */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <StatCard
                   icon={<Repeat size={18} />}
                   label="Total swappées"
                   value={swapStats.total_swapped}
                   color="purple"
+                  active={openBucket === 'all'}
+                  onClick={() => setOpenBucket(b => b === 'all' ? null : 'all')}
                 />
                 <StatCard
                   icon={<CheckCircle2 size={18} />}
                   label="Livrées"
                   value={swapStats.delivered}
                   color="green"
+                  active={openBucket === 'delivered'}
+                  onClick={() => setOpenBucket(b => b === 'delivered' ? null : 'delivered')}
                 />
                 <StatCard
                   icon={<XCircle size={18} />}
                   label="Annulées"
                   value={swapStats.cancelled}
                   color="red"
+                  active={openBucket === 'cancelled'}
+                  onClick={() => setOpenBucket(b => b === 'cancelled' ? null : 'cancelled')}
                 />
                 <StatCard
                   icon={<Truck size={18} />}
                   label="En cours"
                   value={swapStats.in_progress}
                   color="blue"
+                  active={openBucket === 'in_progress'}
+                  onClick={() => setOpenBucket(b => b === 'in_progress' ? null : 'in_progress')}
                 />
               </div>
+
+              {/* Détail du bucket sélectionné */}
+              {openBucket && (
+                <SwappedDetailList
+                  items={swapStats.items.filter(it => openBucket === 'all' || it.bucket === openBucket)}
+                  bucket={openBucket}
+                  onClose={() => setOpenBucket(null)}
+                />
+              )}
 
               {/* Bandeau résumé — taux de livraison */}
               <div className="pt-3 border-t border-stone-100 dark:border-stone-800">
@@ -404,7 +440,14 @@ export default function AutoSwapPage() {
   );
 }
 
-function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number | string; color: 'amber' | 'blue' | 'purple' | 'green' | 'red' }) {
+function StatCard({ icon, label, value, color, onClick, active }: {
+  icon: React.ReactNode;
+  label: string;
+  value: number | string;
+  color: 'amber' | 'blue' | 'purple' | 'green' | 'red';
+  onClick?: () => void;
+  active?: boolean;
+}) {
   const palette: Record<string, string> = {
     amber:  'bg-amber-50 text-amber-700',
     blue:   'bg-blue-50 text-blue-700',
@@ -412,13 +455,98 @@ function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label:
     green:  'bg-green-50 text-green-700',
     red:    'bg-red-50 text-red-700',
   };
+  const ringByColor: Record<string, string> = {
+    amber: 'ring-amber-400', blue: 'ring-blue-400', purple: 'ring-purple-400',
+    green: 'ring-green-400', red: 'ring-red-400',
+  };
+  const interactive = !!onClick;
   return (
-    <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 p-4">
+    <div
+      onClick={onClick}
+      role={interactive ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      onKeyDown={interactive ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.(); } } : undefined}
+      className={`bg-white dark:bg-stone-900 rounded-2xl shadow-sm border p-4 transition-all ${
+        interactive ? 'cursor-pointer hover:shadow-md hover:border-stone-300 dark:hover:border-stone-600 active:scale-[0.98]' : ''
+      } ${active ? `ring-2 ${ringByColor[color]} border-transparent` : 'border-stone-100 dark:border-stone-800'}`}
+    >
       <div className="flex items-center gap-2 mb-2">
         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${palette[color]}`}>{icon}</div>
         <span className="text-xs text-gray-500 dark:text-stone-400">{label}</span>
+        {interactive && <ChevronRight size={13} className={`ml-auto text-gray-300 dark:text-stone-600 transition-transform ${active ? 'rotate-90' : ''}`} />}
       </div>
       <div className="text-2xl font-bold text-gray-900 dark:text-stone-100">{value}</div>
+    </div>
+  );
+}
+
+// Tableau de détail des colis swappés pour un bucket donné. Chaque ligne a un
+// lien direct vers la fiche ZRExpress pour vérifier le statut réel.
+function SwappedDetailList({ items, bucket, onClose }: {
+  items: SwappedItem[];
+  bucket: SwapBucket | 'all';
+  onClose: () => void;
+}) {
+  const title: Record<string, string> = {
+    all: 'Toutes les commandes swappées',
+    delivered: 'Commandes swappées livrées',
+    cancelled: 'Commandes swappées annulées',
+    in_progress: 'Commandes swappées en cours',
+  };
+  return (
+    <div className="border border-stone-200 dark:border-stone-700 rounded-xl overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-stone-50 dark:bg-stone-800/50 border-b border-stone-100 dark:border-stone-800">
+        <span className="text-sm font-medium text-gray-700 dark:text-stone-200">
+          {title[bucket]} <span className="text-gray-400 dark:text-stone-500">({items.length})</span>
+        </span>
+        <button onClick={onClose} className="text-gray-400 dark:text-stone-500 hover:text-gray-700 dark:hover:text-stone-200" title="Fermer">
+          <X size={15} />
+        </button>
+      </div>
+      {items.length === 0 ? (
+        <div className="px-4 py-6 text-center text-sm text-gray-400 dark:text-stone-500">Aucune commande dans cette catégorie.</div>
+      ) : (
+        <div className="max-h-96 overflow-y-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-white dark:bg-stone-900 sticky top-0 border-b border-stone-100 dark:border-stone-800">
+              <tr className="text-left text-gray-500 dark:text-stone-400">
+                <th className="px-4 py-2 font-medium">Tracking</th>
+                <th className="px-4 py-2 font-medium">Client</th>
+                <th className="px-4 py-2 font-medium">Wilaya</th>
+                <th className="px-4 py-2 font-medium">Statut ZRExpress</th>
+                <th className="px-4 py-2 font-medium text-center">Swaps</th>
+                <th className="px-4 py-2 font-medium text-center">Vérifier</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
+              {items.map((it, i) => (
+                <tr key={`${it.id}-${i}`} className="hover:bg-stone-50 dark:hover:bg-stone-800/50">
+                  <td className="px-4 py-2 font-mono text-xs text-gray-900 dark:text-stone-100">{it.tracking || '—'}</td>
+                  <td className="px-4 py-2 text-gray-700 dark:text-stone-200">{it.customer || '—'}</td>
+                  <td className="px-4 py-2 text-gray-600 dark:text-stone-300">{it.wilaya || '—'}</td>
+                  <td className="px-4 py-2">
+                    <span className="text-gray-800 dark:text-stone-100">{it.situation_raw || it.state_raw || '—'}</span>
+                  </td>
+                  <td className="px-4 py-2 text-center text-gray-500 dark:text-stone-400">{it.swap_count}</td>
+                  <td className="px-4 py-2 text-center">
+                    {it.id ? (
+                      <a
+                        href={`https://app.zrexpress.app/parcels/default/${it.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-violet-600 hover:text-violet-700 dark:text-violet-400"
+                        title="Ouvrir la fiche dans ZRExpress"
+                      >
+                        <ExternalLink size={12} /> Ouvrir
+                      </a>
+                    ) : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
