@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
-
-const EVOLUTION_URL = process.env.EVOLUTION_API_URL || '';
-const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY || '';
+import { resolveEvolutionCreds } from '@/lib/user-creds';
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  // BYOK : serveur Evolution de l'utilisateur (ou fallback plateforme)
+  const { url: EVOLUTION_URL, key: EVOLUTION_KEY } = await resolveEvolutionCreds(user.id);
 
   const serviceType = req.nextUrl.searchParams.get('service') || 'auto_confirmation';
 

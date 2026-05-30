@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { resolveEvolutionCreds } from '@/lib/user-creds';
 
 // Allow up to 60s for Evolution API to generate QR (WhatsApp handshake is slow)
 export const maxDuration = 60;
 
-const EVOLUTION_URL = process.env.EVOLUTION_API_URL || '';
-const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY || '';
 
 // Extract QR (image base64/URL) from any Evolution API response shape.
 function extractQr(json: unknown): string | null {
@@ -50,6 +49,9 @@ export async function GET(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  // BYOK : serveur Evolution de l'utilisateur (ou fallback plateforme)
+  const { url: EVOLUTION_URL, key: EVOLUTION_KEY } = await resolveEvolutionCreds(user.id);
 
   const serviceType = req.nextUrl.searchParams.get('service') || 'auto_confirmation';
   const debug = req.nextUrl.searchParams.get('debug') === '1';

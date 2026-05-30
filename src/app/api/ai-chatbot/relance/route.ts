@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
+import { resolveEvolutionCreds } from '@/lib/user-creds';
 
-const EVOLUTION_URL = process.env.EVOLUTION_API_URL || '';
-const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY || '';
 const CRON_SECRET = process.env.CRON_SECRET || '';
 
-async function sendWhatsApp(instanceName: string, number: string, text: string): Promise<void> {
-  if (!EVOLUTION_URL || !EVOLUTION_KEY) return;
+interface EvCreds { url: string; key: string }
+
+async function sendWhatsApp(ev: EvCreds, instanceName: string, number: string, text: string): Promise<void> {
+  if (!ev.url || !ev.key) return;
   const cleanNumber = number.replace('@s.whatsapp.net', '').replace('@g.us', '');
   try {
-    await fetch(`${EVOLUTION_URL}/message/sendText/${instanceName}`, {
+    await fetch(`${ev.url}/message/sendText/${instanceName}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', apikey: EVOLUTION_KEY },
+      headers: { 'Content-Type': 'application/json', apikey: ev.key },
       body: JSON.stringify({ number: cleanNumber, text }),
     });
   } catch { /* non-blocking */ }
@@ -65,8 +66,11 @@ export async function POST(req: NextRequest) {
 
     if (!instance?.connected) continue;
 
+    // BYOK : serveur Evolution du propriétaire de cette session
+    const ev = await resolveEvolutionCreds(session.user_id);
+
     const msg = RELANCE_MESSAGES[session.template_type] ?? RELANCE_MESSAGES.auto_confirmation;
-    await sendWhatsApp(instance.instance_name, session.contact_id, msg);
+    await sendWhatsApp(ev, instance.instance_name, session.contact_id, msg);
 
     await supabase
       .from('ai_chat_sessions')
@@ -112,8 +116,9 @@ export async function GET(req: NextRequest) {
       .eq('user_id', session.user_id)
       .single();
     if (!instance?.connected) continue;
+    const ev = await resolveEvolutionCreds(session.user_id);
     const msg = RELANCE_MESSAGES[session.template_type] ?? RELANCE_MESSAGES.auto_confirmation;
-    await sendWhatsApp(instance.instance_name, session.contact_id, msg);
+    await sendWhatsApp(ev, instance.instance_name, session.contact_id, msg);
     await supabase.from('ai_chat_sessions').update({ relance_sent: true, updated_at: new Date().toISOString() }).eq('id', session.id);
     relanced++;
   }

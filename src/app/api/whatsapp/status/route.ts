@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { resolveEvolutionCreds } from '@/lib/user-creds';
 
 // Route legacy utilisée par la page /messages (onglet Historique).
 //
@@ -13,14 +14,15 @@ import { createClient } from '@/lib/supabase/server';
 // l'onglet Connexion. Plus de bannière « backend_not_configured » trompeuse
 // alors que la connexion est en réalité opérationnelle.
 
-const EVOLUTION_URL = process.env.EVOLUTION_API_URL || '';
-const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY || '';
 const DEFAULT_SERVICE = 'auto_confirmation';
 
 export async function GET() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+
+  // BYOK : serveur Evolution de l'utilisateur (ou fallback plateforme)
+  const { url: EVOLUTION_URL, key: EVOLUTION_KEY } = await resolveEvolutionCreds(user.id);
 
   if (!EVOLUTION_URL || !EVOLUTION_KEY) {
     return NextResponse.json({ connected: false, status: 'evolution_not_configured' });

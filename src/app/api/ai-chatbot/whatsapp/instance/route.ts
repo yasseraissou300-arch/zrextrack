@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { resolveEvolutionCreds } from '@/lib/user-creds';
 
-const EVOLUTION_URL = process.env.EVOLUTION_API_URL || '';
-const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY || '';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://zrextrack.vercel.app';
+
+interface EvCreds { url: string; key: string }
 
 type ServiceType = 'auto_confirmation' | 'sav' | 'tracking';
 
@@ -17,12 +18,12 @@ function getInstanceName(userId: string, serviceType: ServiceType): string {
   return `zrex_${userId.replace(/-/g, '').slice(0, 12)}_${SERVICE_SUFFIX[serviceType]}`;
 }
 
-async function evolutionRequest(path: string, method = 'GET', body?: object) {
-  if (!EVOLUTION_URL || !EVOLUTION_KEY) return null;
+async function evolutionRequest(ev: EvCreds, path: string, method = 'GET', body?: object) {
+  if (!ev.url || !ev.key) return null;
   try {
-    const res = await fetch(`${EVOLUTION_URL}${path}`, {
+    const res = await fetch(`${ev.url}${path}`, {
       method,
-      headers: { 'Content-Type': 'application/json', apikey: EVOLUTION_KEY },
+      headers: { 'Content-Type': 'application/json', apikey: ev.key },
       body: body ? JSON.stringify(body) : undefined,
     });
     if (!res.ok) return null;
@@ -38,6 +39,9 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  // BYOK : serveur Evolution de l'utilisateur (ou fallback plateforme)
+  const ev = await resolveEvolutionCreds(user.id);
+
   const { data: instances } = await supabase
     .from('whatsapp_instances')
     .select('*')
@@ -45,7 +49,7 @@ export async function GET() {
 
   return NextResponse.json({
     instances: instances ?? [],
-    evolutionConfigured: !!(EVOLUTION_URL && EVOLUTION_KEY),
+    evolutionConfigured: !!(ev.url && ev.key),
   });
 }
 
@@ -55,6 +59,9 @@ export async function POST(req: NextRequest) {
   const serviceSupabase = createServiceClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  // BYOK : serveur Evolution de l'utilisateur (ou fallback plateforme)
+  const ev = await resolveEvolutionCreds(user.id);
 
   const body = await req.json().catch(() => ({}));
   const action: string = body.action || 'create';
@@ -67,7 +74,7 @@ export async function POST(req: NextRequest) {
   const instanceName = getInstanceName(user.id, serviceType);
 
   if (action === 'create') {
-    await evolutionRequest('/instance/create', 'POST', {
+    await evolutionRequest(ev, '/instance/create', 'POST', {
       instanceName,
       token: user.id,
       integration: 'WHATSAPP-BAILEYS',
@@ -76,7 +83,7 @@ export async function POST(req: NextRequest) {
 
     // Set webhook separately after creation — Evolution API requires events array
     // when setting webhook (can't be done in createBody without events)
-    await evolutionRequest(`/webhook/set/${instanceName}`, 'POST', {
+    await evolutionRequest(ev, `/webhook/set/${instanceName}`, 'POST', {
       url: `${APP_URL}/api/ai-chatbot/webhook/whatsapp`,
       webhook_by_events: false,
       webhook_base64: false,
@@ -104,7 +111,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'delete') {
-    await evolutionRequest(`/instance/delete/${instanceName}`, 'DELETE');
+    await evolutionRequest(ev, `/instance/delete/${instanceName}`, 'DELETE');
     await serviceSupabase
       .from('whatsapp_instances')
       .delete()

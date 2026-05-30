@@ -15,9 +15,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
-
-const EVOLUTION_URL = process.env.EVOLUTION_API_URL || '';
-const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY || '';
+import { resolveEvolutionCreds } from '@/lib/user-creds';
 
 type Resolution = 'exchange' | 'refund' | 'resolved';
 
@@ -46,6 +44,8 @@ function buildMessage(resolution: Resolution, name: string): string {
 }
 
 async function sendWhatsAppViaSAV(userId: string, phoneRaw: string, message: string): Promise<{ ok: boolean; reason?: string }> {
+  // BYOK : serveur Evolution de l'utilisateur (ou fallback plateforme)
+  const { url: EVOLUTION_URL, key: EVOLUTION_KEY } = await resolveEvolutionCreds(userId);
   if (!EVOLUTION_URL || !EVOLUTION_KEY) {
     return { ok: false, reason: 'Evolution API non configurée' };
   }

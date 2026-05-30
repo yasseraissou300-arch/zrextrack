@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { resolveEvolutionCreds } from '@/lib/user-creds';
 import { ANTI_SPAM, randomThrottle, sleep, varyMessage, remainingDailyQuota } from '@/lib/whatsapp/anti-spam';
 
 // Envoie un message WhatsApp via Evolution API en utilisant l'instance
@@ -12,9 +13,9 @@ import { ANTI_SPAM, randomThrottle, sleep, varyMessage, remainingDailyQuota } fr
 // silencieux dus à une desynchro entre le statut affiché et le backend
 // réellement appelé.
 
-const EVOLUTION_URL = process.env.EVOLUTION_API_URL || '';
-const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY || '';
 const DEFAULT_SERVICE = 'auto_confirmation';
+
+interface EvCreds { url: string; key: string }
 
 function normalizePhone(phone: string): string {
   const clean = (phone || '').replace(/[\s\-()+.]/g, '');
@@ -30,8 +31,8 @@ interface Instance {
   connected: boolean;
 }
 
-async function getReadyInstance(userId: string): Promise<{ instance: Instance | null; reason?: string }> {
-  if (!EVOLUTION_URL || !EVOLUTION_KEY) {
+async function getReadyInstance(userId: string, ev: EvCreds): Promise<{ instance: Instance | null; reason?: string }> {
+  if (!ev.url || !ev.key) {
     return { instance: null, reason: 'Evolution API non configurée (EVOLUTION_API_URL/KEY manquants)' };
   }
   const service = createServiceClient();
@@ -46,8 +47,8 @@ async function getReadyInstance(userId: string): Promise<{ instance: Instance | 
 
   // Confirme l'état live (évite d'envoyer dans le vide si l'instance est tombée)
   try {
-    const r = await fetch(`${EVOLUTION_URL}/instance/connectionState/${row.instance_name}`, {
-      headers: { apikey: EVOLUTION_KEY },
+    const r = await fetch(`${ev.url}/instance/connectionState/${row.instance_name}`, {
+      headers: { apikey: ev.key },
     });
     if (r.ok) {
       const j = await r.json();
@@ -68,11 +69,11 @@ function isSessionDead(errText: string): boolean {
   return /Connection Closed/i.test(errText) || /Connection Failure/i.test(errText) || /precondition/i.test(errText);
 }
 
-async function sendOne(instanceName: string, phone: string, text: string): Promise<{ ok: boolean; error?: string; sessionDead?: boolean }> {
+async function sendOne(ev: EvCreds, instanceName: string, phone: string, text: string): Promise<{ ok: boolean; error?: string; sessionDead?: boolean }> {
   try {
-    const res = await fetch(`${EVOLUTION_URL}/message/sendText/${instanceName}`, {
+    const res = await fetch(`${ev.url}/message/sendText/${instanceName}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', apikey: EVOLUTION_KEY },
+      headers: { 'Content-Type': 'application/json', apikey: ev.key },
       body: JSON.stringify({ number: phone, text }),
     });
     if (!res.ok) {
@@ -105,9 +106,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Aucun destinataire' }, { status: 400 });
   }
 
+  // BYOK : serveur Evolution de l'utilisateur (ou fallback plateforme)
+  const ev = await resolveEvolutionCreds(user.id);
+
   // Pre-flight pour les envois en masse : on évite N tentatives ratées si
   // la session Evolution est tombée
-  const { instance, reason } = await getReadyInstance(user.id);
+  const { instance, reason } = await getReadyInstance(user.id, ev);
   if (!instance) {
     return NextResponse.json({
       error: reason || 'WhatsApp non prêt',
@@ -183,7 +187,7 @@ export async function POST(request: NextRequest) {
       // détection de doublons côté WhatsApp.
       const varied = recipients.length > 1 ? varyMessage(r.message || '') : (r.message || '');
 
-      const send = await sendOne(instance.instance_name, to, varied);
+      const send = await sendOne(ev, instance.instance_name, to, varied);
       if (send.ok) {
         status = 'envoye';
         consecutiveErrors = 0;
