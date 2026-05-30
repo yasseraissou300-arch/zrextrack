@@ -132,11 +132,15 @@ export type DeliveryBucket = 'delivered' | 'cancelled' | 'in_progress';
 // livraison comme « annulé » (bug observé : taux de livraison 1.5% au lieu du réel).
 //
 // États de succès ZRExpress : Livré → Encaissé → Recouvert (les 3 = client servi).
-// États d'échec : Retour / Annulé / Échec / Refus.
+// États d'échec :
+//   - recupere_par_fournisseur : le colis est REVENU chez le marchand = annulé.
+//     (vérifié sur données réelles — situation associée « Commande annulée »
+//      ou « Ne répond pas 3 ». L'état seul suffit à le classer comme annulé.)
+//   - Retour / Annulé / Échec / Refus.
 // Tout le reste (Confirmée, Vers wilaya, En livraison, Sortie en livraison,
 // Transit, Préparation) = en cours.
 export function classifySwappedDelivery(rawState: string): DeliveryBucket {
-  const s = norm(rawState);
+  const s = norm(rawState); // ex "recupere_par_fournisseur" → "recupere par fournisseur"
   const has = (...terms: string[]) => terms.some(t => s.includes(t));
 
   // Succès : encaissé / recouvert / payé, ou « livré » (mais pas « en livraison »,
@@ -144,8 +148,8 @@ export function classifySwappedDelivery(rawState: string): DeliveryBucket {
   if (has('encaisse', 'recouvert', 'recouvre', 'paye', 'paid')) return 'delivered';
   if (has('livre') && !has('en livr', 'sorti', 'sortie', 'en cours', 'non')) return 'delivered';
 
-  // Échec définitif : retour / annulé / échec / refus.
-  if (has('retour', 'annul', 'echec', 'echoue', 'refus', 'return')) return 'cancelled';
+  // Échec définitif : colis récupéré par le fournisseur, retour, annulé, échec, refus.
+  if (has('recupere par fournisseur', 'fournisseur', 'retour', 'annul', 'echec', 'echoue', 'refus', 'return')) return 'cancelled';
 
   // Sinon : encore en cours de livraison.
   return 'in_progress';
