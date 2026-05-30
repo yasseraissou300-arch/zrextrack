@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { resolveGeminiKey } from '@/lib/user-creds';
 
 const STATUS_LABELS: Record<string, string> = {
   en_preparation: '📦 En préparation',
@@ -84,19 +85,21 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // 2. AI response
+  // 2. AI response — utilise la clé Gemini PROPRE du client (BYOK)
   if (aiEnabled) {
-    const key = process.env.GEMINI_API_KEY;
+    const key = await resolveGeminiKey(user.id);
     if (!key) {
       return NextResponse.json({
         reply: null,
         type: 'error',
-        error: 'GEMINI_API_KEY non configurée dans les variables d\'environnement Vercel.',
+        error: 'Clé Gemini non configurée. Ajoutez-la dans Paramètres → Clés API pour tester votre bot.',
+        code: 'missing_credentials',
+        redirect: '/parametres/api-keys',
       });
     }
     try {
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
