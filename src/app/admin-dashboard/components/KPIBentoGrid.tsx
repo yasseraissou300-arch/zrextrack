@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { Package, CheckCircle2, Truck, TrendingUp, MessageSquare, XCircle, Boxes, Sparkles } from 'lucide-react';
+import { Package, CheckCircle2, Truck, MessageSquare, XCircle, Boxes, Sparkles } from 'lucide-react';
 import { SYNC_DONE_EVENT } from './DashboardHeader';
 
 interface KPIData {
@@ -17,17 +17,34 @@ interface KPIData {
   failed: number;
 }
 
+interface TodayAgg {
+  livrees: number;
+  echecs: number;
+  retours: number;
+  en_cours: number;
+  total: number;
+}
+
+const TODAY_EMPTY: TodayAgg = { livrees: 0, echecs: 0, retours: 0, en_cours: 0, total: 0 };
+
 const POLL_INTERVAL = 5_000;
 
 export default function KPIBentoGrid() {
   const [kpis, setKpis] = useState<KPIData | null>(null);
+  const [today, setToday] = useState<TodayAgg>(TODAY_EMPTY);
   const [loading, setLoading] = useState(true);
 
   const fetchKPIs = useCallback(async () => {
     try {
-      const res = await fetch('/api/kpis');
-      const json = await res.json();
-      if (!json.error) setKpis(json);
+      // KPIs globaux (cartes secondaires) + agrégat du jour (carte hero)
+      const [kpiRes, statsRes] = await Promise.all([
+        fetch('/api/kpis'),
+        fetch('/api/stats', { cache: 'no-store' }),
+      ]);
+      const kpiJson = await kpiRes.json();
+      if (!kpiJson.error) setKpis(kpiJson);
+      const statsJson = await statsRes.json().catch(() => ({}));
+      if (statsJson.today) setToday(statsJson.today);
     } catch (e) {
       console.error('KPI fetch error:', e);
     } finally {
@@ -49,7 +66,9 @@ export default function KPIBentoGrid() {
 
   const val = (n: number | undefined) => (n ?? 0).toLocaleString('fr-FR');
 
-  const heroValue = `${kpis?.deliveryRate ?? 0}%`;
+  // Taux de livraison DU JOUR (livrées / commandes finalisées aujourd'hui)
+  const todayFinalized = today.livrees + today.echecs + today.retours;
+  const todayRate = todayFinalized > 0 ? Math.round((today.livrees / todayFinalized) * 1000) / 10 : 0;
 
   const secondaryCards: Array<{
     label: string;
@@ -59,11 +78,11 @@ export default function KPIBentoGrid() {
     iconBg: string;
   }> = [
     { label: 'Total commandes',       value: val(kpis?.totalOrders),     icon: Package,        iconColor: 'text-violet-600 dark:text-violet-300',  iconBg: 'bg-violet-100 dark:bg-violet-500/15' },
-    { label: 'Livrées',                value: val(kpis?.delivered),       icon: CheckCircle2,   iconColor: 'text-emerald-600 dark:text-emerald-300', iconBg: 'bg-emerald-100 dark:bg-emerald-500/15' },
-    { label: "Livrées aujourd'hui",    value: val(kpis?.deliveredToday),  icon: Sparkles,       iconColor: 'text-teal-600 dark:text-teal-300',       iconBg: 'bg-teal-100 dark:bg-teal-500/15' },
+    { label: 'Livrées (total)',        value: val(kpis?.delivered),       icon: CheckCircle2,   iconColor: 'text-emerald-600 dark:text-emerald-300', iconBg: 'bg-emerald-100 dark:bg-emerald-500/15' },
+    { label: 'Échecs aujourd\'hui',    value: val(today.echecs),          icon: XCircle,        iconColor: 'text-rose-600 dark:text-rose-300',       iconBg: 'bg-rose-100 dark:bg-rose-500/15' },
     { label: 'En préparation',         value: val(kpis?.enPreparation),   icon: Boxes,          iconColor: 'text-amber-600 dark:text-amber-300',     iconBg: 'bg-amber-100 dark:bg-amber-500/15' },
     { label: 'En transit / livraison', value: val(kpis?.inTransit),       icon: Truck,          iconColor: 'text-blue-600 dark:text-blue-300',       iconBg: 'bg-blue-100 dark:bg-blue-500/15' },
-    { label: 'Échecs',                 value: val(kpis?.failed),          icon: XCircle,        iconColor: 'text-rose-600 dark:text-rose-300',       iconBg: 'bg-rose-100 dark:bg-rose-500/15' },
+    { label: 'Échecs (total)',         value: val(kpis?.failed),          icon: XCircle,        iconColor: 'text-rose-600 dark:text-rose-300',       iconBg: 'bg-rose-100 dark:bg-rose-500/15' },
     { label: 'Messages WhatsApp',      value: val(kpis?.messagesSent),    icon: MessageSquare,  iconColor: 'text-fuchsia-600 dark:text-fuchsia-300', iconBg: 'bg-fuchsia-100 dark:bg-fuchsia-500/15' },
   ];
 
@@ -79,24 +98,33 @@ export default function KPIBentoGrid() {
         <div className="relative flex flex-col h-full">
           <div className="flex items-center gap-2.5 mb-5">
             <div className="w-10 h-10 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center">
-              <TrendingUp size={18} className="text-white" />
+              <Sparkles size={18} className="text-white" />
             </div>
             <div>
-              <p className="text-sm font-medium text-white/80 leading-tight">Taux de livraison</p>
-              <p className="text-[10px] text-white/60">Tous statuts confondus</p>
+              <p className="text-sm font-medium text-white/90 leading-tight">Aujourd'hui</p>
+              <p className="text-[10px] text-white/60">Livraisons du jour</p>
             </div>
           </div>
 
           <div className="mt-auto">
-            <p className="text-4xl xl:text-5xl font-bold tabular-nums tracking-tight">
-              {loading ? <span className="text-white/30 animate-pulse">—</span> : heroValue}
-            </p>
-            <div className="mt-3 flex items-center gap-2 text-[11px] text-white/80">
+            <div className="flex items-end gap-2">
+              <p className="text-4xl xl:text-5xl font-bold tabular-nums tracking-tight">
+                {loading ? <span className="text-white/30 animate-pulse">—</span> : val(today.livrees)}
+              </p>
+              <p className="text-sm font-medium text-white/70 mb-1.5">livrées</p>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-white/85">
               <span className="px-2 py-0.5 rounded-full bg-white/15 backdrop-blur-sm font-medium">
-                {val(kpis?.delivered)} livrées
+                {val(today.total)} traitées
               </span>
-              <span className="text-white/40">·</span>
-              <span>sur {val(kpis?.totalOrders)} commandes</span>
+              <span className="px-2 py-0.5 rounded-full bg-white/15 backdrop-blur-sm font-medium">
+                taux {todayRate}%
+              </span>
+              {today.echecs > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-rose-400/25 backdrop-blur-sm font-medium">
+                  {val(today.echecs)} échecs
+                </span>
+              )}
             </div>
           </div>
         </div>
