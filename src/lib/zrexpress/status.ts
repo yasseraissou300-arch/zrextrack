@@ -117,3 +117,36 @@ export function mapStatus(rawState: string, rawSituation = ''): string {
 
   return 'en_preparation';
 }
+
+// ── Classification spécifique aux colis DÉJÀ swappés ─────────────────────────
+export type DeliveryBucket = 'delivered' | 'cancelled' | 'in_progress';
+
+// Pour un colis swappé, on classe UNIQUEMENT sur l'état de livraison, JAMAIS sur
+// la situation.
+//
+// Raison (vérifiée sur cas réel) : après un swap, le champ `situation` garde
+// souvent la raison du PREMIER échec — celle qui a rendu le colis swappable, ex
+// « Commune erronée », « Client absent ». Or l'état ("Sortie en livraison",
+// "Livré", "Encaissé"…) reflète, lui, le NOUVEAU parcours de livraison vers le
+// client cible. Se fier à la situation classerait à tort un colis en cours de
+// livraison comme « annulé » (bug observé : taux de livraison 1.5% au lieu du réel).
+//
+// États de succès ZRExpress : Livré → Encaissé → Recouvert (les 3 = client servi).
+// États d'échec : Retour / Annulé / Échec / Refus.
+// Tout le reste (Confirmée, Vers wilaya, En livraison, Sortie en livraison,
+// Transit, Préparation) = en cours.
+export function classifySwappedDelivery(rawState: string): DeliveryBucket {
+  const s = norm(rawState);
+  const has = (...terms: string[]) => terms.some(t => s.includes(t));
+
+  // Succès : encaissé / recouvert / payé, ou « livré » (mais pas « en livraison »,
+  // « sortie en livraison », « non livré »).
+  if (has('encaisse', 'recouvert', 'recouvre', 'paye', 'paid')) return 'delivered';
+  if (has('livre') && !has('en livr', 'sorti', 'sortie', 'en cours', 'non')) return 'delivered';
+
+  // Échec définitif : retour / annulé / échec / refus.
+  if (has('retour', 'annul', 'echec', 'echoue', 'refus', 'return')) return 'cancelled';
+
+  // Sinon : encore en cours de livraison.
+  return 'in_progress';
+}
