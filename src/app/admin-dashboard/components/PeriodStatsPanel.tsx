@@ -1,6 +1,8 @@
 'use client';
 
-// Résumé statistique par période : Aujourd'hui + 7 derniers jours.
+// Résumé statistique par période.
+// "7 derniers jours" = carte principale en grand format.
+// "Aujourd'hui" = carte secondaire compacte.
 // Données depuis /api/stats (agrégats today / last7days, basés sur last_update).
 
 import React, { useEffect, useState, useCallback } from 'react';
@@ -22,44 +24,90 @@ function rate(a: Agg): number {
   return finalized > 0 ? Math.round((a.livrees / finalized) * 1000) / 10 : 0;
 }
 
-function StatLine({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number; color: string }) {
+const TILES = [
+  { key: 'livrees' as const, label: 'Livrées', icon: CheckCircle2, fg: 'text-green-600', bg: 'bg-green-50 dark:bg-green-900/20' },
+  { key: 'echecs'  as const, label: 'Échecs',  icon: XCircle,      fg: 'text-red-500',   bg: 'bg-red-50 dark:bg-red-900/20' },
+  { key: 'retours' as const, label: 'Retours', icon: RotateCcw,    fg: 'text-gray-500 dark:text-stone-400', bg: 'bg-gray-50 dark:bg-stone-800/60' },
+  { key: 'en_cours' as const, label: 'En cours', icon: Truck,      fg: 'text-blue-500',  bg: 'bg-blue-50 dark:bg-blue-900/20' },
+];
+
+// ─── Carte principale (grand format) ─────────────────────────────────────────
+function HeroCard({ agg }: { agg: Agg }) {
   return (
-    <div className="flex items-center justify-between py-1.5">
-      <span className="flex items-center gap-2 text-sm text-gray-600 dark:text-stone-300">
-        <span className={color}>{icon}</span>
-        {label}
-      </span>
-      <span className="font-bold tabular-nums text-gray-900 dark:text-stone-100">{value}</span>
+    <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-6 h-full flex flex-col">
+      <div className="flex items-start justify-between mb-5">
+        <div>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-stone-100">7 derniers jours</h2>
+          <p className="text-xs text-gray-400 dark:text-stone-500 mt-0.5">Cumul de l'activité sur la semaine</p>
+        </div>
+        <div className="flex items-center gap-1.5 text-sm font-bold px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400">
+          <Package size={14} />
+          {agg.total} commandes traitées
+        </div>
+      </div>
+
+      {/* 4 grandes tuiles */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {TILES.map(t => {
+          const Icon = t.icon;
+          return (
+            <div key={t.key} className={`rounded-xl p-4 ${t.bg}`}>
+              <div className="flex items-center gap-1.5 mb-2">
+                <Icon size={16} className={t.fg} />
+                <span className="text-xs font-medium text-gray-500 dark:text-stone-400">{t.label}</span>
+              </div>
+              <div className="text-3xl font-bold tabular-nums text-gray-900 dark:text-stone-100">{agg[t.key]}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Taux de livraison — bandeau */}
+      <div className="mt-auto pt-5">
+        <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 rounded-xl px-5 py-4">
+          <span className="flex items-center gap-2 text-sm font-semibold text-emerald-800 dark:text-emerald-300">
+            <TrendingUp size={16} /> Taux de livraison (7 jours)
+          </span>
+          <span className="text-3xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{rate(agg)}%</span>
+        </div>
+      </div>
     </div>
   );
 }
 
-function PeriodCard({ title, subtitle, agg, accent }: { title: string; subtitle: string; agg: Agg; accent: string }) {
+// ─── Carte secondaire (compacte) ─────────────────────────────────────────────
+function CompactCard({ agg }: { agg: Agg }) {
   return (
-    <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5">
+    <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5 h-full flex flex-col">
       <div className="flex items-center justify-between mb-3">
         <div>
-          <h3 className="text-sm font-semibold text-gray-800 dark:text-stone-100">{title}</h3>
-          <p className="text-xs text-gray-400 dark:text-stone-500">{subtitle}</p>
+          <h3 className="text-sm font-semibold text-gray-800 dark:text-stone-100">Aujourd'hui</h3>
+          <p className="text-xs text-gray-400 dark:text-stone-500">Activité du jour</p>
         </div>
-        <div className={`flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full ${accent}`}>
-          <Package size={12} />
-          {agg.total} traitées
-        </div>
+        <span className="flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 dark:bg-violet-900/20 dark:text-violet-400">
+          <Package size={11} />{agg.total}
+        </span>
       </div>
 
       <div className="divide-y divide-stone-50 dark:divide-stone-800">
-        <StatLine icon={<CheckCircle2 size={15} />} label="Livrées" value={agg.livrees} color="text-green-600" />
-        <StatLine icon={<XCircle size={15} />} label="Échecs" value={agg.echecs} color="text-red-500" />
-        <StatLine icon={<RotateCcw size={15} />} label="Retours" value={agg.retours} color="text-gray-400 dark:text-stone-500" />
-        <StatLine icon={<Truck size={15} />} label="En cours" value={agg.en_cours} color="text-blue-500" />
+        {TILES.map(t => {
+          const Icon = t.icon;
+          return (
+            <div key={t.key} className="flex items-center justify-between py-1.5">
+              <span className="flex items-center gap-2 text-sm text-gray-600 dark:text-stone-300">
+                <Icon size={14} className={t.fg} />{t.label}
+              </span>
+              <span className="font-bold tabular-nums text-gray-900 dark:text-stone-100">{agg[t.key]}</span>
+            </div>
+          );
+        })}
       </div>
 
-      <div className="mt-3 pt-3 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between">
+      <div className="mt-auto pt-3 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between">
         <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
           <TrendingUp size={13} /> Taux de livraison
         </span>
-        <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{rate(agg)}%</span>
+        <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{rate(agg)}%</span>
       </div>
     </div>
   );
@@ -94,27 +142,23 @@ export default function PeriodStatsPanel() {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <div className="h-44 bg-stone-50 dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 animate-pulse" />
-        <div className="h-44 bg-stone-50 dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 animate-pulse" />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 h-52 bg-stone-50 dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 animate-pulse" />
+        <div className="lg:col-span-1 h-52 bg-stone-50 dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 animate-pulse" />
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-      <PeriodCard
-        title="Aujourd'hui"
-        subtitle="Activité du jour"
-        agg={today}
-        accent="bg-violet-50 text-violet-700 dark:bg-violet-900/20 dark:text-violet-400"
-      />
-      <PeriodCard
-        title="7 derniers jours"
-        subtitle="Cumul sur la semaine"
-        agg={week}
-        accent="bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400"
-      />
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+      {/* Principale — 7 jours, grand format (2/3 de la largeur) */}
+      <div className="lg:col-span-2">
+        <HeroCard agg={week} />
+      </div>
+      {/* Secondaire — aujourd'hui, compacte (1/3) */}
+      <div className="lg:col-span-1">
+        <CompactCard agg={today} />
+      </div>
     </div>
   );
 }
