@@ -933,7 +933,7 @@ interface DiagnosticResult {
     evolutionKeySet: boolean;
     appUrl: string;
     expectedWebhookUrl: string;
-    aiKeys: { gemini: boolean; groq: boolean };
+    aiKeys: { gemini: boolean };
   };
   instances: DiagnosticInstance[];
   configs: DiagnosticConfig[];
@@ -1032,7 +1032,7 @@ function WhatsAppTab() {
             <div className="space-y-1 font-mono text-xs bg-amber-100 rounded-lg p-3">
               <p>EVOLUTION_API_URL=https://evolution.votredomaine.com</p>
               <p>EVOLUTION_API_KEY=votre-clé-api</p>
-              <p className="text-amber-700">Pour les clés IA (Gemini, GROQ) : utilisez Paramètres → Clés API</p>
+              <p className="text-amber-700">Pour la clé Gemini : utilisez Paramètres → Clés API</p>
             </div>
             <a href="https://github.com/EvolutionAPI/evolution-api" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-amber-700 hover:underline font-medium">
               Documentation Evolution API <ExternalLink size={11} />
@@ -1142,8 +1142,7 @@ function WhatsAppTab() {
                 <ul className="space-y-0.5 ml-1">
                   <li className="flex items-center gap-1.5">{diag.env.evolutionUrlSet ? <CheckCircle size={11} className="text-green-600" /> : <XCircle size={11} className="text-red-600" />} EVOLUTION_API_URL</li>
                   <li className="flex items-center gap-1.5">{diag.env.evolutionKeySet ? <CheckCircle size={11} className="text-green-600" /> : <XCircle size={11} className="text-red-600" />} EVOLUTION_API_KEY</li>
-                  <li className="flex items-center gap-1.5">{diag.env.aiKeys.gemini ? <CheckCircle size={11} className="text-green-600" /> : <XCircle size={11} className="text-gray-400 dark:text-stone-500" />} GEMINI_API_KEY</li>
-                  <li className="flex items-center gap-1.5">{diag.env.aiKeys.groq ? <CheckCircle size={11} className="text-green-600" /> : <XCircle size={11} className="text-gray-400 dark:text-stone-500" />} GROQ_API_KEY</li>
+                  <li className="flex items-center gap-1.5">{diag.env.aiKeys.gemini ? <CheckCircle size={11} className="text-green-600" /> : <XCircle size={11} className="text-red-600" />} Clé Gemini (votre compte)</li>
                   <li className="text-gray-500 dark:text-stone-400 mt-1 break-all">NEXT_PUBLIC_APP_URL : <code>{diag.env.appUrl}</code></li>
                   <li className="text-gray-500 dark:text-stone-400 break-all">Webhook attendu : <code>{diag.env.expectedWebhookUrl}</code></li>
                 </ul>

@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
-import { getUserCreds } from '@/lib/user-creds';
+import { getUserCreds, resolveEvolutionCreds } from '@/lib/user-creds';
 
-// Bag de credentials résolu au début de chaque requête (per-user BYOK).
-// Claude/Anthropic a été retiré de la plateforme : la cascade IA n'utilise
-// plus que Gemini puis GROQ. Chaque user fournit ses propres clés.
+// Credentials résolus au début de chaque requête.
+//   - Evolution = serveur PARTAGÉ de la plateforme (connexion du numéro).
+//   - Gemini    = clé PROPRE du client (BYOK). Seul modèle IA. Si non
+//                 configurée, le bot ne répond pas (escalade humaine).
 interface ResolvedCreds {
   evolutionUrl: string;
   evolutionKey: string;
-  geminiKey: string;   // '' si non configuré → cascade saute Gemini
-  groqKey: string;     // '' si non configuré → cascade saute GROQ
+  geminiKey: string;   // '' si non configuré → le bot ne répond pas
 }
 
 // ─── 58 Wilayas Algeria normalization ─────────────────────────────────────────
@@ -193,79 +193,28 @@ async function callGemini(geminiKey: string, systemPrompt: string, messages: Cla
   }
 }
 
-// ─── GROQ call (free tier, OpenAI-compatible) ─────────────────────────────────
-async function callGroq(groqKey: string, systemPrompt: string, messages: ClaudeMessage[]): Promise<ClaudeResult> {
-  if (!groqKey) return { text: null, tokens: 0 };
-  try {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${groqKey}`,
-      },
-      body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
-        max_tokens: 600,
-        temperature: 0.7,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          ...messages.slice(-10).map(m => ({ role: m.role, content: m.content })),
-        ],
-      }),
-    });
-    if (!res.ok) {
-      const err = await res.text();
-      console.error('[GROQ] Error:', res.status, err);
-      return { text: null, tokens: 0 };
-    }
-    const json = await res.json();
-    const text = json.choices?.[0]?.message?.content ?? null;
-    const tokens = (json.usage?.prompt_tokens ?? 0) + (json.usage?.completion_tokens ?? 0);
-    return { text, tokens };
-  } catch (e) {
-    console.error('[GROQ] Exception:', e);
-    return { text: null, tokens: 0 };
-  }
-}
-
-// ─── AI cascade per template_type ────────────────────────────────────────────
-// Cascade IA : Gemini en premier (meilleur résultat en darija algérienne),
-// puis GROQ en fallback. Claude/Anthropic a été retiré de la plateforme —
-// aucun appel à api.anthropic.com n'est fait nulle part dans cette route.
-type AIStep = { name: string; call: (sp: string, msgs: ClaudeMessage[]) => Promise<ClaudeResult> };
-
-function buildCascade(creds: ResolvedCreds, _templateType?: string): AIStep[] {
-  const gemini: AIStep = { name: 'Gemini', call: (sp, m) => callGemini(creds.geminiKey, sp, m) };
-  const groq:   AIStep = { name: 'GROQ',   call: (sp, m) => callGroq(creds.groqKey, sp, m) };
-
-  // Filtre les étapes dont la clé n'est pas configurée par le user (BYOK)
-  return [gemini, groq].filter(step => {
-    if (step.name === 'Gemini') return !!creds.geminiKey;
-    if (step.name === 'GROQ')   return !!creds.groqKey;
-    return false;
-  });
-}
-
+// ─── AI ────────────────────────────────────────────────────────────────────
+// Gemini est le SEUL modèle (meilleur en darija algérienne). Chaque client
+// fournit sa propre clé. Pas de cascade, pas de fallback : si la clé Gemini
+// n'est pas configurée OU si l'appel échoue, le bot ne répond pas (le flux
+// d'escalade humaine prend le relais en aval).
 async function callAI(
   creds: ResolvedCreds,
   systemPrompt: string,
   messages: ClaudeMessage[],
-  templateType?: string,
+  _templateType?: string,
 ): Promise<ClaudeResult> {
-  const cascade = buildCascade(creds, templateType);
-  if (cascade.length === 0) {
-    console.log('[AI] no model available for this user (BYOK keys missing)');
+  if (!creds.geminiKey) {
+    console.log('[AI] no Gemini key configured for this user — bot stays silent');
     return { text: null, tokens: 0 };
   }
-  for (const { name, call } of cascade) {
-    const result = await call(systemPrompt, messages);
-    if (result.text) {
-      console.log(`[AI] ${name} answered (template=${templateType ?? 'default'})`);
-      return result;
-    }
-    console.log(`[AI] ${name} failed, trying next in cascade...`);
+  const result = await callGemini(creds.geminiKey, systemPrompt, messages);
+  if (result.text) {
+    console.log('[AI] Gemini answered');
+  } else {
+    console.log('[AI] Gemini failed');
   }
-  return { text: null, tokens: 0 };
+  return result;
 }
 
 function extractData(text: string): Record<string, string> | null {
@@ -380,23 +329,19 @@ export async function POST(req: NextRequest) {
     const userId = waInstance.user_id;
     const serviceType: string = waInstance.service_type || 'auto_confirmation';
 
-    // ─── BYOK — résolution des credentials par utilisateur ───────────────────────
-    // Evolution : fallback aux env vars pour ne pas casser les instances existantes
-    //             créées sur le serveur partagé (Yasser's). Les nouveaux users qui
-    //             veulent leur propre serveur configurent dans /parametres/api-keys.
-    // Gemini/GROQ : strict — pas de fallback env. Si le user n'a pas configuré sa
-    //               clé, l'étape est sautée dans la cascade (et la cascade peut
-    //               donc tomber sur Claude qui reste sur la clé plateforme).
-    const [evCreds, geminiCreds, groqCreds] = await Promise.all([
-      getUserCreds(userId, 'evolution'),
+    // ─── Résolution des credentials ─────────────────────────────────────────────
+    // Evolution : serveur PARTAGÉ de la plateforme (le vôtre) — tous les clients
+    //             connectent leur numéro WhatsApp via ce serveur.
+    // Gemini    : clé PROPRE du client (BYOK), seul modèle IA. Si non configurée,
+    //             le bot ne répond pas.
+    const [evolution, geminiCreds] = await Promise.all([
+      resolveEvolutionCreds(userId),
       getUserCreds(userId, 'gemini'),
-      getUserCreds(userId, 'groq'),
     ]);
     const creds: ResolvedCreds = {
-      evolutionUrl: evCreds?.api_url || process.env.EVOLUTION_API_URL || '',
-      evolutionKey: evCreds?.api_key || process.env.EVOLUTION_API_KEY || '',
+      evolutionUrl: evolution.url,
+      evolutionKey: evolution.key,
       geminiKey: geminiCreds?.api_key || '',
-      groqKey: groqCreds?.api_key || '',
     };
     const evUrl = creds.evolutionUrl;
     const evKey = creds.evolutionKey;

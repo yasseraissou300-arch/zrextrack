@@ -1,12 +1,18 @@
 // BYOK — Helper pour charger les credentials API de l'utilisateur courant
-// (Gemini, GROQ, Evolution, etc.) depuis Supabase au lieu des variables
-// d'environnement globales. Utilisé par toutes les routes /api qui consomment
-// un service tiers — bloque proprement si le user n'a pas configuré sa clé.
+// depuis Supabase au lieu des variables d'environnement globales.
+//
+// Architecture (décision produit) :
+//   - Gemini   = BYOK. Chaque client utilise SA propre clé Gemini (meilleur
+//                modèle pour la darija algérienne). C'est le SEUL modèle IA.
+//   - Evolution = PARTAGÉ. Tous les clients connectent leur numéro WhatsApp
+//                via le serveur Evolution de la plateforme (pas de BYOK).
+//                Voir resolveEvolutionCreds — toujours les env vars.
+//   - GROQ / Claude = retirés de la plateforme.
 
 import { createServiceClient } from '@/lib/supabase/server';
 
-// Claude/Anthropic retiré de la plateforme.
-export type ServiceName = 'gemini' | 'groq' | 'evolution' | 'greenapi';
+// Seuls services réellement stockés par utilisateur. greenapi est legacy.
+export type ServiceName = 'gemini' | 'greenapi';
 
 export interface UserCreds {
   api_key: string | null;
@@ -58,36 +64,25 @@ export function missingCredentialsResponse(service: ServiceName) {
 }
 
 /**
- * Résolution Evolution API pour un utilisateur — utilisée par les ~10 routes
- * d'administration WhatsApp. Si l'utilisateur a configuré ses propres creds,
- * on les utilise. Sinon on retombe sur les variables d'environnement
- * (serveur Evolution partagé de la plateforme) pour ne pas casser les
- * instances existantes créées avant la mise en place de BYOK.
+ * Résolution Evolution API — TOUJOURS le serveur partagé de la plateforme.
+ * Evolution sert uniquement à connecter le numéro WhatsApp ; tous les clients
+ * passent par le même serveur (le vôtre). Pas de BYOK. La signature
+ * (userId, Promise) est conservée car ~10 routes l'appellent déjà.
  */
-export async function resolveEvolutionCreds(userId: string): Promise<{ url: string; key: string }> {
-  const creds = await getUserCreds(userId, 'evolution');
+export async function resolveEvolutionCreds(_userId?: string): Promise<{ url: string; key: string }> {
   return {
-    url: creds?.api_url || process.env.EVOLUTION_API_URL || '',
-    key: creds?.api_key || process.env.EVOLUTION_API_KEY || '',
+    url: process.env.EVOLUTION_API_URL || '',
+    key: process.env.EVOLUTION_API_KEY || '',
   };
 }
 
 /**
  * Résolution Gemini stricte — pas de fallback aux env vars. Retourne null si
- * l'utilisateur n'a pas configuré sa clé. L'appelant doit traiter null comme
- * "feature désactivée" (ex: cascade IA saute Gemini, route admin renvoie
- * missingCredentialsResponse).
+ * l'utilisateur n'a pas configuré sa clé. L'appelant traite null comme
+ * "feature désactivée" (le bot ne répond pas / route admin renvoie
+ * missingCredentialsResponse). Gemini est le SEUL modèle IA de la plateforme.
  */
 export async function resolveGeminiKey(userId: string): Promise<string | null> {
   const creds = await getUserCreds(userId, 'gemini');
-  return creds?.api_key || null;
-}
-
-/**
- * Résolution GROQ stricte — pas de fallback aux env vars. Même sémantique que
- * resolveGeminiKey.
- */
-export async function resolveGroqKey(userId: string): Promise<string | null> {
-  const creds = await getUserCreds(userId, 'groq');
   return creds?.api_key || null;
 }
