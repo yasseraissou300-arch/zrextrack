@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { resolveEvolutionCreds } from '@/lib/user-creds';
 
-const EVOLUTION_URL = process.env.EVOLUTION_API_URL || '';
-const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY || '';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || '';
 const EXPECTED_WEBHOOK = `${APP_URL || 'https://zrextrack.vercel.app'}/api/ai-chatbot/webhook/whatsapp`;
+
+interface EvCreds { url: string; key: string }
 
 type InstanceDiag = {
   service_type: string;
@@ -17,13 +18,13 @@ type InstanceDiag = {
   errors: string[];
 };
 
-async function evolutionGet(path: string): Promise<{ ok: boolean; status: number; json: unknown }> {
-  if (!EVOLUTION_URL || !EVOLUTION_KEY) {
+async function evolutionGet(ev: EvCreds, path: string): Promise<{ ok: boolean; status: number; json: unknown }> {
+  if (!ev.url || !ev.key) {
     return { ok: false, status: 0, json: null };
   }
   try {
-    const res = await fetch(`${EVOLUTION_URL}${path}`, {
-      headers: { apikey: EVOLUTION_KEY },
+    const res = await fetch(`${ev.url}${path}`, {
+      headers: { apikey: ev.key },
     });
     const text = await res.text();
     let json: unknown = null;
@@ -39,10 +40,13 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  // BYOK : serveur Evolution de l'utilisateur (ou fallback plateforme)
+  const ev = await resolveEvolutionCreds(user.id);
+
   // Env
   const env = {
-    evolutionUrlSet: !!EVOLUTION_URL,
-    evolutionKeySet: !!EVOLUTION_KEY,
+    evolutionUrlSet: !!ev.url,
+    evolutionKeySet: !!ev.key,
     appUrl: APP_URL || '(not set — using fallback)',
     expectedWebhookUrl: EXPECTED_WEBHOOK,
     aiKeys: {
@@ -75,7 +79,7 @@ export async function GET() {
       };
 
       // 1. Connection state
-      const stateRes = await evolutionGet(`/instance/connectionState/${inst.instance_name}`);
+      const stateRes = await evolutionGet(ev, `/instance/connectionState/${inst.instance_name}`);
       if (stateRes.ok) {
         const j = stateRes.json as Record<string, unknown>;
         const instObj = j?.instance as Record<string, unknown> | undefined;
@@ -85,7 +89,7 @@ export async function GET() {
       }
 
       // 2. Webhook config
-      const whRes = await evolutionGet(`/webhook/find/${inst.instance_name}`);
+      const whRes = await evolutionGet(ev, `/webhook/find/${inst.instance_name}`);
       if (whRes.ok) {
         const j = whRes.json as Record<string, unknown>;
         diag.webhook_url = (j?.url as string) ?? (j?.webhook as string) ?? null;

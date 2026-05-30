@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { resolveEvolutionCreds } from '@/lib/user-creds';
 
-const EVOLUTION_URL = process.env.EVOLUTION_API_URL || '';
-const EVOLUTION_KEY = process.env.EVOLUTION_API_KEY || '';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://zrextrack.vercel.app';
 const WEBHOOK_URL = `${APP_URL}/api/ai-chatbot/webhook/whatsapp`;
 
@@ -24,11 +23,11 @@ type InstanceReset = {
   verified: boolean;
 };
 
-async function postJson(url: string, body: object): Promise<{ status: number; text: string }> {
+async function postJson(url: string, body: object, evKey: string): Promise<{ status: number; text: string }> {
   try {
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', apikey: EVOLUTION_KEY },
+      headers: { 'Content-Type': 'application/json', apikey: evKey },
       body: JSON.stringify(body),
     });
     const text = await res.text().catch(() => '');
@@ -38,10 +37,10 @@ async function postJson(url: string, body: object): Promise<{ status: number; te
   }
 }
 
-async function findWebhook(instanceName: string): Promise<{ url: string | null; events: string[] | null }> {
+async function findWebhook(evUrl: string, evKey: string, instanceName: string): Promise<{ url: string | null; events: string[] | null }> {
   try {
-    const res = await fetch(`${EVOLUTION_URL}/webhook/find/${instanceName}`, {
-      headers: { apikey: EVOLUTION_KEY },
+    const res = await fetch(`${evUrl}/webhook/find/${instanceName}`, {
+      headers: { apikey: evKey },
     });
     if (!res.ok) return { url: null, events: null };
     const j = (await res.json()) as Record<string, unknown>;
@@ -56,9 +55,9 @@ async function findWebhook(instanceName: string): Promise<{ url: string | null; 
   }
 }
 
-async function resetOne(instanceName: string): Promise<Omit<InstanceReset, 'service_type'>> {
+async function resetOne(evUrl: string, evKey: string, instanceName: string): Promise<Omit<InstanceReset, 'service_type'>> {
   const attempts: AttemptResult[] = [];
-  const setUrl = `${EVOLUTION_URL}/webhook/set/${instanceName}`;
+  const setUrl = `${evUrl}/webhook/set/${instanceName}`;
 
   // Format A — flat snake_case (Evolution v1.x)
   const bodyA = {
@@ -67,16 +66,16 @@ async function resetOne(instanceName: string): Promise<Omit<InstanceReset, 'serv
     webhook_base64: false,
     events: EVENTS,
   };
-  const a = await postJson(setUrl, bodyA);
+  const a = await postJson(setUrl, bodyA, evKey);
   attempts.push({
     format: 'flat_snake',
-    endpoint: setUrl.replace(EVOLUTION_URL, '<base>'),
+    endpoint: setUrl.replace(evUrl, '<base>'),
     status: a.status,
     response_snippet: a.text.slice(0, 300),
   });
 
   // Verify
-  let check = await findWebhook(instanceName);
+  let check = await findWebhook(evUrl, evKey, instanceName);
   let verified = check.url === WEBHOOK_URL && Array.isArray(check.events) && check.events.includes('MESSAGES_UPSERT');
 
   // Format B — nested camelCase (Evolution v2.x) if A didn't take effect
@@ -90,15 +89,15 @@ async function resetOne(instanceName: string): Promise<Omit<InstanceReset, 'serv
         events: EVENTS,
       },
     };
-    const b = await postJson(setUrl, bodyB);
+    const b = await postJson(setUrl, bodyB, evKey);
     attempts.push({
       format: 'nested_camel',
-      endpoint: setUrl.replace(EVOLUTION_URL, '<base>'),
+      endpoint: setUrl.replace(evUrl, '<base>'),
       status: b.status,
       response_snippet: b.text.slice(0, 300),
     });
 
-    check = await findWebhook(instanceName);
+    check = await findWebhook(evUrl, evKey, instanceName);
     verified = check.url === WEBHOOK_URL && Array.isArray(check.events) && check.events.includes('MESSAGES_UPSERT');
   }
 
@@ -116,6 +115,8 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  // BYOK : serveur Evolution de l'utilisateur (ou fallback plateforme)
+  const { url: EVOLUTION_URL, key: EVOLUTION_KEY } = await resolveEvolutionCreds(user.id);
   if (!EVOLUTION_URL || !EVOLUTION_KEY) {
     return NextResponse.json(
       { error: 'Evolution API not configured (EVOLUTION_API_URL / EVOLUTION_API_KEY missing).' },
@@ -145,7 +146,7 @@ export async function POST(req: NextRequest) {
 
   const results: InstanceReset[] = [];
   for (const inst of instances) {
-    const r = await resetOne(inst.instance_name);
+    const r = await resetOne(EVOLUTION_URL, EVOLUTION_KEY, inst.instance_name);
     results.push({ ...r, service_type: inst.service_type });
   }
 
