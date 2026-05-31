@@ -110,7 +110,7 @@ VALIDATION WILAYA — waqt client i3tik wilaya:
 WAQT 3ENDEK KULL CHI — akhrej had l-tag f akhir l-response:
 <data>{"nom":"...","telephone":"...","wilaya":"...","produit":"..."}</data>
 
-BA3D L-TAG: "Yallah mliha! Sjjelna commande dyalek ✅ Ghadi nwejdek quelqu'un men équipe dyalna f aqrab waqt bach ytakked m3ak. Chokran bezzaf w rabi y3awnek 🙏"
+BA3D L-TAG: "Yallah mliha! Sajjelna commande ta3ek ✅ Rah nwejjdou wahed men l'équipe ta3na f aqrab waqt bach ytakked m3ak. Choukran bezzaf w rabi y3awnek 🙏"
 
 MUHIM BEZZAF:
 - MATEFES l-tag <data> GHIR waqt 3endek LES 4 MA3LOUMAT complètes
@@ -399,7 +399,7 @@ export async function POST(req: NextRequest) {
     // ─── Anger detection → immediate human handover ───────────────────────────
     const angerDetected = isAngerDetected(text);
     if (angerDetected) {
-      const handoverMsg = `Smah liya 3la l-iklaj! Ghadi nwejdek wa7d d'équipe dyalna b sra3a bach ysa3dek 🙏`;
+      const handoverMsg = `Smahli 3la l-izaaj! Rah nwejjdek wahed men l'équipe ta3na b sur3a bach y3awnek 🙏`;
       await sendWhatsApp(evUrl, evKey, instanceName, remoteJid, handoverMsg);
       if (existingSession) {
         await supabase
@@ -420,9 +420,9 @@ export async function POST(req: NextRequest) {
     // ─── Blabla → friendly nudge without Claude ───────────────────────────────
     if (isBlabla(text)) {
       const nudges: Record<string, string> = {
-        auto_confirmation: 'Ahlan! Kifash nqdarek nsa3dek? Bghiti tdir commande? 😊',
-        sav: 'Ahlan! 3andek mushkil m3a commande? Qul liya w ghadi nsa3dek 🙏',
-        tracking: 'Ahlan! Bghiti t3raf statut dyal commande dyalek? 3tini raqm l-colis.',
+        auto_confirmation: 'Slam! Kifach n9der n3awnek? Tebghi dir commande? 😊',
+        sav: 'Slam! 3andek mushkil f commande? Goulili wach rak w rah n3awnek 🙏',
+        tracking: 'Slam! Tebghi ta3raf win waslat commande ta3ek? 3tini raqm l-colis.',
       };
       const nudge = nudges[config.template_type] ?? nudges.auto_confirmation;
       // Send product image on first contact if configured
@@ -439,7 +439,7 @@ export async function POST(req: NextRequest) {
 
     // Human handover after 2 consecutive AI failures
     if (failureCount >= 2) {
-      const handoverMsg = `Smah, ma fhemtsh mezyan shu tbghi. Ghadi nwejdek m3a wa7d mena équipe dyalna 👨‍💼`;
+      const handoverMsg = `Smahli, ma fhemtch mlih wach tebghi. Rah nwejjdek m3a wahed men l'équipe ta3na 👨‍💼`;
       await sendWhatsApp(evUrl, evKey, instanceName, remoteJid, handoverMsg);
       // (already wired to BYOK via evUrl/evKey)
       if (existingSession) {
@@ -467,7 +467,7 @@ export async function POST(req: NextRequest) {
     const updatedTokens = totalTokens + newTokens;
 
     if (!aiReply) {
-      await sendWhatsApp(evUrl, evKey, instanceName, remoteJid, 'Smah liya, kayen bug tqani. Raje3 diri f had lweqt.');
+      await sendWhatsApp(evUrl, evKey, instanceName, remoteJid, 'Smahli, kayen mushkil t9ani. 3awed 7awel ba3d chwiya.');
       if (existingSession) {
         await supabase
           .from('ai_chat_sessions')
