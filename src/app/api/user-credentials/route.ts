@@ -17,6 +17,13 @@ function maskKey(key: string | null): string {
   return `${key.slice(0, 4)}••••${key.slice(-4)}`;
 }
 
+// Découpe un blob de clés (séparées par retour à la ligne / virgule / ;) en
+// liste propre. Sert au pool de clés Gemini.
+function splitKeys(key: string | null): string[] {
+  if (!key) return [];
+  return key.split(/[\n,;]+/).map(k => k.trim()).filter(Boolean);
+}
+
 export async function GET() {
   const supabaseAuth = await createClient();
   const { data: { user } } = await supabaseAuth.auth.getUser();
@@ -32,14 +39,19 @@ export async function GET() {
 
   // On ne renvoie JAMAIS la clé en clair au navigateur. Seulement masquée +
   // un flag `configured`. Le user peut donc voir qu'il a une clé sans la lire.
-  const services = (data || []).map(row => ({
-    service: row.service,
-    configured: !!(row.api_key || row.api_url),
-    api_key_masked: maskKey(row.api_key),
-    api_url: row.api_url ?? null,
-    is_active: row.is_active,
-    updated_at: row.updated_at,
-  }));
+  const services = (data || []).map(row => {
+    const keys = splitKeys(row.api_key);
+    return {
+      service: row.service,
+      configured: !!(row.api_key || row.api_url),
+      api_key_masked: maskKey(keys[0] ?? row.api_key),
+      key_count: keys.length,                       // nombre de clés dans le pool
+      keys_masked: keys.map(maskKey),               // chaque clé masquée
+      api_url: row.api_url ?? null,
+      is_active: row.is_active,
+      updated_at: row.updated_at,
+    };
+  });
 
   return NextResponse.json({ services });
 }
