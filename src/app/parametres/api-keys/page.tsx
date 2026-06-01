@@ -7,7 +7,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
-import { Key, Loader2, CheckCircle2, XCircle, Eye, EyeOff, Save, Trash2, ExternalLink } from 'lucide-react';
+import { Key, Loader2, CheckCircle2, XCircle, Save, Trash2, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 
 type Service = 'gemini';
@@ -16,6 +16,8 @@ interface CredentialStatus {
   service: string;
   configured: boolean;
   api_key_masked: string;
+  key_count?: number;
+  keys_masked?: string[];
   api_url: string | null;
   is_active: boolean;
   updated_at?: string;
@@ -52,7 +54,6 @@ function ServiceCard({
 }) {
   const [apiKey, setApiKey] = useState('');
   const [apiUrl, setApiUrl] = useState(status?.api_url ?? '');
-  const [showKey, setShowKey] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -129,46 +130,40 @@ function ServiceCard({
       </div>
 
       {configured && (
-        <div className="text-xs text-stone-500 dark:text-stone-400 bg-stone-50 dark:bg-stone-800/50 px-3 py-2 rounded-lg font-mono">
-          {status?.api_key_masked}
-          {status?.api_url && <span className="block mt-1 text-stone-400 dark:text-stone-500">URL: {status.api_url}</span>}
-        </div>
-      )}
-
-      {cfg.needsUrl && (
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-stone-700 dark:text-stone-300">URL du serveur</label>
-          <input
-            type="url"
-            value={apiUrl}
-            onChange={e => setApiUrl(e.target.value)}
-            placeholder={cfg.urlPlaceholder}
-            className="w-full px-3 py-2 text-sm bg-white dark:bg-stone-950 border border-stone-200 dark:border-stone-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-          />
+        <div className="text-xs text-stone-500 dark:text-stone-400 bg-stone-50 dark:bg-stone-800/50 px-3 py-2 rounded-lg">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-semibold text-stone-700 dark:text-stone-200">
+              {status?.key_count ?? 1} clé{(status?.key_count ?? 1) > 1 ? 's' : ''} configurée{(status?.key_count ?? 1) > 1 ? 's' : ''}
+            </span>
+            {(status?.key_count ?? 1) > 1 && (
+              <span className="text-[10px] text-emerald-600 dark:text-emerald-400">rotation auto sur quota</span>
+            )}
+          </div>
+          <div className="font-mono space-y-0.5">
+            {(status?.keys_masked?.length ? status.keys_masked : [status?.api_key_masked]).map((m, i) => (
+              <div key={i}>{i + 1}. {m}</div>
+            ))}
+          </div>
         </div>
       )}
 
       <div className="space-y-1">
         <label className="text-xs font-medium text-stone-700 dark:text-stone-300">
-          {configured ? 'Remplacer la clé' : 'Clé API'}
+          {configured ? 'Remplacer les clés' : 'Clés API'}
+          <span className="text-stone-400 dark:text-stone-500 font-normal"> — une clé par ligne (pool de rotation)</span>
         </label>
-        <div className="relative">
-          <input
-            type={showKey ? 'text' : 'password'}
-            value={apiKey}
-            onChange={e => setApiKey(e.target.value)}
-            placeholder={cfg.placeholder}
-            className="w-full px-3 py-2 pr-10 text-sm bg-white dark:bg-stone-950 border border-stone-200 dark:border-stone-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 font-mono"
-          />
-          <button
-            type="button"
-            onClick={() => setShowKey(s => !s)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
-            aria-label={showKey ? 'Masquer' : 'Afficher'}
-          >
-            {showKey ? <EyeOff size={15} /> : <Eye size={15} />}
-          </button>
-        </div>
+        <textarea
+          value={apiKey}
+          onChange={e => setApiKey(e.target.value)}
+          placeholder={`${cfg.placeholder}\nAIzaSy...   (2e clé, autre compte Google)\nAIzaSy...   (3e clé...)`}
+          rows={4}
+          autoComplete="off"
+          spellCheck={false}
+          className="w-full px-3 py-2 text-sm bg-white dark:bg-stone-950 border border-stone-200 dark:border-stone-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 font-mono resize-y"
+        />
+        <p className="text-[11px] text-stone-400 dark:text-stone-500">
+          💡 Collez plusieurs clés (1 par ligne) de comptes Google différents pour multiplier le quota gratuit. Le bot bascule à la suivante quand une est épuisée.
+        </p>
       </div>
 
       <div className="flex items-center gap-2 pt-1">

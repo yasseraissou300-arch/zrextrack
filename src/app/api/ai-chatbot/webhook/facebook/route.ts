@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
-import { getUserCreds } from '@/lib/user-creds';
+import { resolveGeminiKeys } from '@/lib/user-creds';
 
 const DEFAULT_PROMPT = `Nta agent IA l [NOM_BOUTIQUE].
 Jme3 les informations li la7jinhom bach ntabet la commande:
@@ -14,31 +14,35 @@ interface AIMessage { role: 'user' | 'assistant'; content: string; }
 // Claude/Anthropic retiré de la plateforme. La cascade Messenger utilise
 // uniquement Gemini (clé per-user BYOK). Si le user n'a pas configuré sa
 // clé Gemini, le bot ne répond pas (silencieux côté webhook).
-async function callGemini(geminiKey: string, systemPrompt: string, messages: AIMessage[]): Promise<string | null> {
-  if (!geminiKey) return null;
-  try {
-    const contents = messages.slice(-10).map(m => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }],
-    }));
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: systemPrompt }] },
-          contents,
-          generationConfig: { maxOutputTokens: 600, temperature: 0.7 },
-        }),
-      }
-    );
-    if (!res.ok) return null;
-    const json = await res.json();
-    return json.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
-  } catch {
-    return null;
+// Pool de clés Gemini : on essaie chaque clé, si une épuise son quota (429) on
+// passe à la suivante. Retourne le 1er texte obtenu, ou null si toutes échouent.
+async function callGeminiPool(geminiKeys: string[], systemPrompt: string, messages: AIMessage[]): Promise<string | null> {
+  const contents = messages.slice(-10).map(m => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: m.content }],
+  }));
+  for (const key of geminiKeys) {
+    if (!key) continue;
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            system_instruction: { parts: [{ text: systemPrompt }] },
+            contents,
+            generationConfig: { maxOutputTokens: 600, temperature: 0.7 },
+          }),
+        }
+      );
+      if (!res.ok) continue; // quota (429) ou autre erreur → clé suivante
+      const json = await res.json();
+      const text = json.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
+      if (text) return text;
+    } catch { /* clé suivante */ }
   }
+  return null;
 }
 
 function extractData(text: string): Record<string, string> | null {
@@ -110,10 +114,9 @@ export async function POST(req: NextRequest) {
       const userId = fbConn.user_id;
       const pageToken = fbConn.page_access_token;
 
-      // BYOK : on charge la clé Gemini du user une fois par entry
-      const geminiCreds = await getUserCreds(userId, 'gemini');
-      const geminiKey = geminiCreds?.api_key || '';
-      if (!geminiKey) {
+      // BYOK : on charge le POOL de clés Gemini du user une fois par entry
+      const geminiKeys = await resolveGeminiKeys(userId);
+      if (geminiKeys.length === 0) {
         console.log('[facebook/webhook] user has no Gemini key configured, skipping. user_id=', userId);
         continue;
       }
@@ -148,7 +151,7 @@ export async function POST(req: NextRequest) {
         const conversation: AIMessage[] = session?.conversation ?? [];
         conversation.push({ role: 'user', content: text });
 
-        const aiReply = await callGemini(geminiKey, systemPrompt, conversation);
+        const aiReply = await callGeminiPool(geminiKeys, systemPrompt, conversation);
         if (!aiReply) continue;
 
         const extracted = extractData(aiReply);

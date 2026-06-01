@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
-import { getUserCreds, resolveEvolutionCreds } from '@/lib/user-creds';
+import { resolveGeminiKeys, resolveEvolutionCreds } from '@/lib/user-creds';
 
 // Credentials résolus au début de chaque requête.
 //   - Evolution = serveur PARTAGÉ de la plateforme (connexion du numéro).
-//   - Gemini    = clé PROPRE du client (BYOK). Seul modèle IA. Si non
-//                 configurée, le bot ne répond pas (escalade humaine).
+//   - Gemini    = POOL de clés du client (BYOK). Seul modèle IA. On essaie
+//                 les clés une par une : si une épuise son quota (429), on
+//                 passe à la suivante. Si aucune ne répond → bot silencieux.
 interface ResolvedCreds {
   evolutionUrl: string;
   evolutionKey: string;
-  geminiKey: string;   // '' si non configuré → le bot ne répond pas
+  geminiKeys: string[];   // pool — vide → le bot ne répond pas
 }
 
 // ─── 58 Wilayas Algeria normalization ─────────────────────────────────────────
@@ -157,8 +158,12 @@ DIMA bDarija.`,
 interface ClaudeMessage { role: 'user' | 'assistant'; content: string; }
 interface ClaudeResult { text: string | null; tokens: number; }
 
-// ─── Gemini call (free fallback) ──────────────────────────────────────────────
-async function callGemini(geminiKey: string, systemPrompt: string, messages: ClaudeMessage[]): Promise<ClaudeResult> {
+interface GeminiCall extends ClaudeResult { quota?: boolean }
+
+// ─── Gemini call ──────────────────────────────────────────────────────────────
+// `quota: true` quand la clé a épuisé son quota (HTTP 429) → l'appelant peut
+// passer à la clé suivante du pool.
+async function callGemini(geminiKey: string, systemPrompt: string, messages: ClaudeMessage[]): Promise<GeminiCall> {
   if (!geminiKey) return { text: null, tokens: 0 };
   try {
     // Build Gemini contents from message history
@@ -180,8 +185,8 @@ async function callGemini(geminiKey: string, systemPrompt: string, messages: Cla
     );
     if (!res.ok) {
       const err = await res.text();
-      console.error('[Gemini] Error:', res.status, err);
-      return { text: null, tokens: 0 };
+      console.error('[Gemini] Error:', res.status, err.slice(0, 200));
+      return { text: null, tokens: 0, quota: res.status === 429 };
     }
     const json = await res.json();
     const text = json.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
@@ -194,27 +199,35 @@ async function callGemini(geminiKey: string, systemPrompt: string, messages: Cla
 }
 
 // ─── AI ────────────────────────────────────────────────────────────────────
-// Gemini est le SEUL modèle (meilleur en darija algérienne). Chaque client
-// fournit sa propre clé. Pas de cascade, pas de fallback : si la clé Gemini
-// n'est pas configurée OU si l'appel échoue, le bot ne répond pas (le flux
-// d'escalade humaine prend le relais en aval).
+// Gemini est le SEUL modèle. On parcourt le POOL de clés du client : si une clé
+// épuise son quota gratuit (429), on essaie la suivante. La première qui répond
+// gagne. Si toutes échouent (ou aucune clé) → null → escalade humaine en aval.
 async function callAI(
   creds: ResolvedCreds,
   systemPrompt: string,
   messages: ClaudeMessage[],
   _templateType?: string,
 ): Promise<ClaudeResult> {
-  if (!creds.geminiKey) {
+  const keys = creds.geminiKeys;
+  if (keys.length === 0) {
     console.log('[AI] no Gemini key configured for this user — bot stays silent');
     return { text: null, tokens: 0 };
   }
-  const result = await callGemini(creds.geminiKey, systemPrompt, messages);
-  if (result.text) {
-    console.log('[AI] Gemini answered');
-  } else {
-    console.log('[AI] Gemini failed');
+  for (let i = 0; i < keys.length; i++) {
+    const result = await callGemini(keys[i], systemPrompt, messages);
+    if (result.text) {
+      console.log(`[AI] Gemini answered (clé ${i + 1}/${keys.length})`);
+      return result;
+    }
+    if (result.quota) {
+      console.log(`[AI] clé ${i + 1}/${keys.length} quota épuisé → clé suivante`);
+      continue; // quota épuisé → essaie la clé suivante
+    }
+    // Échec non-quota (clé invalide, erreur réseau) → on tente quand même la suivante
+    console.log(`[AI] clé ${i + 1}/${keys.length} a échoué → clé suivante`);
   }
-  return result;
+  console.log('[AI] toutes les clés Gemini ont échoué');
+  return { text: null, tokens: 0 };
 }
 
 function extractData(text: string): Record<string, string> | null {
@@ -334,14 +347,14 @@ export async function POST(req: NextRequest) {
     //             connectent leur numéro WhatsApp via ce serveur.
     // Gemini    : clé PROPRE du client (BYOK), seul modèle IA. Si non configurée,
     //             le bot ne répond pas.
-    const [evolution, geminiCreds] = await Promise.all([
+    const [evolution, geminiKeys] = await Promise.all([
       resolveEvolutionCreds(userId),
-      getUserCreds(userId, 'gemini'),
+      resolveGeminiKeys(userId),
     ]);
     const creds: ResolvedCreds = {
       evolutionUrl: evolution.url,
       evolutionKey: evolution.key,
-      geminiKey: geminiCreds?.api_key || '',
+      geminiKeys,
     };
     const evUrl = creds.evolutionUrl;
     const evKey = creds.evolutionKey;

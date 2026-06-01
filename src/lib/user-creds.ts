@@ -78,12 +78,28 @@ export async function resolveEvolutionCreds(_userId?: string): Promise<{ url: st
 }
 
 /**
- * Résolution Gemini stricte — pas de fallback aux env vars. Retourne null si
- * l'utilisateur n'a pas configuré sa clé. L'appelant traite null comme
- * "feature désactivée" (le bot ne répond pas / route admin renvoie
- * missingCredentialsResponse). Gemini est le SEUL modèle IA de la plateforme.
+ * Pool de clés Gemini de l'utilisateur. Les clés sont stockées dans api_key
+ * séparées par retour à la ligne (ou virgule / point-virgule). Permet la
+ * rotation : quand une clé épuise son quota gratuit (429), le bot passe à la
+ * suivante. Pour multiplier le quota, les clés doivent venir de comptes Google
+ * DIFFÉRENTS (le quota gratuit est par projet).
+ *
+ * Retourne un tableau (vide si rien configuré).
+ */
+export async function resolveGeminiKeys(userId: string): Promise<string[]> {
+  const creds = await getUserCreds(userId, 'gemini');
+  if (!creds?.api_key) return [];
+  return creds.api_key
+    .split(/[\n,;]+/)
+    .map(k => k.trim())
+    .filter(k => k.length > 0);
+}
+
+/**
+ * Première clé Gemini du pool (compat. pour les routes admin/test qui n'ont pas
+ * besoin de rotation). null si aucune clé configurée.
  */
 export async function resolveGeminiKey(userId: string): Promise<string | null> {
-  const creds = await getUserCreds(userId, 'gemini');
-  return creds?.api_key || null;
+  const keys = await resolveGeminiKeys(userId);
+  return keys[0] ?? null;
 }
