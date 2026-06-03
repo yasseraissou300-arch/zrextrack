@@ -66,6 +66,30 @@ export default function AutoSwapPage() {
   const [statsError, setStatsError] = useState<string | null>(null);
   // Bucket cliqué pour afficher le détail (null = aucun, 'all' = tout)
   const [openBucket, setOpenBucket] = useState<SwapBucket | 'all' | null>(null);
+  // Période affichée — Aujourd'hui par défaut
+  const [period, setPeriod] = useState<'today' | '7days'>('today');
+
+  // Filtre les commandes swappées par date de swap (swapped_at) selon la période,
+  // et recalcule les compteurs côté client (pas besoin de re-appeler l'API).
+  const periodStats = useMemo(() => {
+    const empty = { total_swapped: 0, delivered: 0, cancelled: 0, in_progress: 0, delivery_rate: 0, items: [] as SwappedItem[] };
+    if (!swapStats) return empty;
+    const now = new Date();
+    const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const start7 = startToday - 6 * 24 * 60 * 60 * 1000; // 7 jours glissants (aujourd'hui inclus)
+    const items = swapStats.items.filter(it => {
+      if (!it.swapped_at) return false; // sans date → non rattachable à une période
+      const t = new Date(it.swapped_at).getTime();
+      if (Number.isNaN(t)) return false;
+      return period === 'today' ? t >= startToday : t >= start7;
+    });
+    const delivered = items.filter(i => i.bucket === 'delivered').length;
+    const cancelled = items.filter(i => i.bucket === 'cancelled').length;
+    const in_progress = items.filter(i => i.bucket === 'in_progress').length;
+    const finalized = delivered + cancelled;
+    const delivery_rate = finalized > 0 ? Math.round((delivered / finalized) * 1000) / 10 : 0;
+    return { total_swapped: items.length, delivered, cancelled, in_progress, delivery_rate, items };
+  }, [swapStats, period]);
 
   // Charge les stats des commandes DÉJÀ swappées directement depuis ZRExpress
   // (détection automatique via swap.count) — nécessite les credentials.
@@ -169,20 +193,37 @@ export default function AutoSwapPage() {
 
         {/* Statistiques des commandes swappées — focus livré vs annulé */}
         <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 p-6 space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-2">
               <BarChart3 size={16} className="text-gray-500 dark:text-stone-400" />
               <h2 className="font-semibold text-gray-900 dark:text-stone-100">Statistiques des commandes swappées</h2>
             </div>
-            <button
-              onClick={() => fetchSwapStats(token, tenantId)}
-              disabled={statsLoading || !credentialsReady}
-              className="text-xs text-gray-500 dark:text-stone-400 hover:text-gray-700 dark:text-stone-200 flex items-center gap-1.5 disabled:opacity-50"
-              title="Rafraîchir les statistiques"
-            >
-              <Loader2 size={12} className={statsLoading ? 'animate-spin' : 'opacity-0'} />
-              Rafraîchir
-            </button>
+            <div className="flex items-center gap-3">
+              {/* Sélecteur de période — Aujourd'hui par défaut */}
+              <div className="inline-flex bg-stone-100 dark:bg-stone-800 rounded-lg p-0.5">
+                <button
+                  onClick={() => { setPeriod('today'); setOpenBucket(null); }}
+                  className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${period === 'today' ? 'bg-white dark:bg-stone-900 text-violet-700 dark:text-violet-300 shadow-sm' : 'text-stone-500 dark:text-stone-400'}`}
+                >
+                  Aujourd'hui
+                </button>
+                <button
+                  onClick={() => { setPeriod('7days'); setOpenBucket(null); }}
+                  className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${period === '7days' ? 'bg-white dark:bg-stone-900 text-violet-700 dark:text-violet-300 shadow-sm' : 'text-stone-500 dark:text-stone-400'}`}
+                >
+                  7 derniers jours
+                </button>
+              </div>
+              <button
+                onClick={() => fetchSwapStats(token, tenantId)}
+                disabled={statsLoading || !credentialsReady}
+                className="text-xs text-gray-500 dark:text-stone-400 hover:text-gray-700 dark:text-stone-200 flex items-center gap-1.5 disabled:opacity-50"
+                title="Rafraîchir les statistiques"
+              >
+                <Loader2 size={12} className={statsLoading ? 'animate-spin' : 'opacity-0'} />
+                Rafraîchir
+              </button>
+            </div>
           </div>
 
           {!credentialsReady ? (
@@ -202,7 +243,7 @@ export default function AutoSwapPage() {
           ) : swapStats ? (
             <>
               <p className="text-xs text-gray-400 dark:text-stone-500 -mt-1">
-                Commandes déjà swappées sur votre compte ZRExpress, classées par statut de livraison.
+                Commandes swappées {period === 'today' ? "aujourd'hui" : 'sur les 7 derniers jours'}, classées par statut de livraison.
                 <span className="text-gray-300 dark:text-stone-600"> · Cliquez une carte pour voir le détail.</span>
               </p>
 
@@ -211,7 +252,7 @@ export default function AutoSwapPage() {
                 <StatCard
                   icon={<Repeat size={18} />}
                   label="Total swappées"
-                  value={swapStats.total_swapped}
+                  value={periodStats.total_swapped}
                   color="purple"
                   active={openBucket === 'all'}
                   onClick={() => setOpenBucket(b => b === 'all' ? null : 'all')}
@@ -219,7 +260,7 @@ export default function AutoSwapPage() {
                 <StatCard
                   icon={<CheckCircle2 size={18} />}
                   label="Livrées"
-                  value={swapStats.delivered}
+                  value={periodStats.delivered}
                   color="green"
                   active={openBucket === 'delivered'}
                   onClick={() => setOpenBucket(b => b === 'delivered' ? null : 'delivered')}
@@ -227,7 +268,7 @@ export default function AutoSwapPage() {
                 <StatCard
                   icon={<XCircle size={18} />}
                   label="Annulées"
-                  value={swapStats.cancelled}
+                  value={periodStats.cancelled}
                   color="red"
                   active={openBucket === 'cancelled'}
                   onClick={() => setOpenBucket(b => b === 'cancelled' ? null : 'cancelled')}
@@ -235,17 +276,25 @@ export default function AutoSwapPage() {
                 <StatCard
                   icon={<Truck size={18} />}
                   label="En cours"
-                  value={swapStats.in_progress}
+                  value={periodStats.in_progress}
                   color="blue"
                   active={openBucket === 'in_progress'}
                   onClick={() => setOpenBucket(b => b === 'in_progress' ? null : 'in_progress')}
                 />
               </div>
 
+              {/* Message si aucune commande dans la période choisie */}
+              {periodStats.total_swapped === 0 && (
+                <div className="text-sm text-gray-500 dark:text-stone-400 py-1">
+                  Aucune commande swappée {period === 'today' ? "aujourd'hui" : 'sur les 7 derniers jours'}.
+                  {period === 'today' && <span className="text-gray-400 dark:text-stone-500"> Essayez « 7 derniers jours ».</span>}
+                </div>
+              )}
+
               {/* Détail du bucket sélectionné */}
               {openBucket && (
                 <SwappedDetailList
-                  items={swapStats.items.filter(it => openBucket === 'all' || it.bucket === openBucket)}
+                  items={periodStats.items.filter(it => openBucket === 'all' || it.bucket === openBucket)}
                   bucket={openBucket}
                   onClose={() => setOpenBucket(null)}
                 />
@@ -259,7 +308,7 @@ export default function AutoSwapPage() {
                     <span className="text-emerald-900 dark:text-emerald-300 font-medium">Taux de livraison des swaps</span>
                   </div>
                   <span className="text-lg font-bold text-emerald-700 dark:text-emerald-300">
-                    {swapStats.delivery_rate}%
+                    {periodStats.delivery_rate}%
                   </span>
                 </div>
               </div>
