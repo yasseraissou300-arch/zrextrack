@@ -27,7 +27,11 @@ interface TodayAgg {
 
 const TODAY_EMPTY: TodayAgg = { livrees: 0, echecs: 0, retours: 0, en_cours: 0, total: 0 };
 
-const POLL_INTERVAL = 5_000;
+// Rafraîchissement automatique. ATTENTION : c'était 5 s → ça lançait 9 COUNT +
+// 1 scan complet toutes les 5 s = ~120 req/min par onglet → CPU du Nano à 86 %
+// → projet "Unhealthy" → erreur 522. Passé à 60 s + pause quand l'onglet est
+// inactif (voir useEffect). Largement suffisant pour du suivi de livraison.
+const POLL_INTERVAL = 60_000;
 
 export default function KPIBentoGrid() {
   const [kpis, setKpis] = useState<KPIData | null>(null);
@@ -54,8 +58,17 @@ export default function KPIBentoGrid() {
 
   useEffect(() => {
     fetchKPIs();
-    const interval = setInterval(fetchKPIs, POLL_INTERVAL);
-    return () => clearInterval(interval);
+    // Ne rafraîchit QUE si l'onglet est visible → zéro requête en arrière-plan.
+    const interval = setInterval(() => {
+      if (!document.hidden) fetchKPIs();
+    }, POLL_INTERVAL);
+    // Quand l'utilisateur revient sur l'onglet, on rafraîchit immédiatement.
+    const onVisible = () => { if (!document.hidden) fetchKPIs(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [fetchKPIs]);
 
   useEffect(() => {
