@@ -1,59 +1,44 @@
-import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request });
+// Middleware d'auth "optimiste" — AUCUN appel réseau.
+//
+// Avant, ce middleware appelait supabase.auth.getUser() (requête réseau vers
+// l'auth Supabase) sur CHAQUE page. Depuis le runtime Edge de Vercel, cet appel
+// pouvait hanger → Vercel renvoyait 504 MIDDLEWARE_INVOCATION_TIMEOUT et tout
+// le dashboard devenait inaccessible.
+//
+// Nouvelle approche : on vérifie UNIQUEMENT la présence d'un cookie de session
+// Supabase (vérif locale, instantanée, jamais de réseau → jamais de timeout).
+//   - pas de cookie  → redirection /login
+//   - cookie présent → on laisse passer
+//
+// La VRAIE validation d'auth (token valide, non révoqué) se fait dans les
+// routes /api (getUser côté serveur, runtime Node). Donc même si quelqu'un
+// forge un cookie, il ne verra qu'une coquille de page vide : toutes les
+// données passent par des API protégées qui renvoient 401. Aucune fuite.
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() { return request.cookies.getAll(); },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          supabaseResponse = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          );
-        },
-      },
-    }
-  );
-
+export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  // Public routes — no auth needed. On les court-circuite AVANT tout appel à
-  // Supabase pour ne pas faire de réseau inutile (et éviter de bloquer /api,
-  // /login, /track même si Supabase est lent).
+  // Routes publiques — aucune auth nécessaire
   const publicRoutes = ['/login', '/pricing', '/auth/callback', '/api/', '/track/'];
   if (publicRoutes.some(r => pathname.startsWith(r))) {
-    return supabaseResponse;
+    return NextResponse.next();
   }
 
-  // Auth check avec garde-fou de timeout : si Supabase est lent/injoignable,
-  // on NE bloque PAS la requête avec un 504 (MIDDLEWARE_INVOCATION_TIMEOUT).
-  // On laisse passer — la page est client-side et ses appels API refont la
-  // vraie vérif d'auth (getUser côté serveur) → aucune donnée sensible exposée.
-  let user = null;
-  try {
-    const result = await Promise.race([
-      supabase.auth.getUser(),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('auth_timeout')), 5000)),
-    ]);
-    user = (result as { data: { user: unknown } }).data.user;
-  } catch {
-    // Supabase trop lent — fail open (laisse passer plutôt qu'un 504)
-    return supabaseResponse;
-  }
+  // Vérif locale : un cookie de session Supabase existe-t-il ?
+  // @supabase/ssr stocke le token dans `sb-<ref>-auth-token` (parfois découpé
+  // en `.0`, `.1`...). On cherche n'importe quel cookie qui matche.
+  const hasSession = request.cookies.getAll().some(
+    c => c.name.startsWith('sb-') && c.name.includes('auth-token') && !!c.value
+  );
 
-  // Not logged in — redirect to login
-  if (!user) {
+  if (!hasSession) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  return supabaseResponse;
+  return NextResponse.next();
 }
 
 export const config = {
