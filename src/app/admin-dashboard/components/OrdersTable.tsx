@@ -43,7 +43,9 @@ function formatDeliveryType(type: string): string {
   return type;
 }
 
-const POLL_INTERVAL = 5_000;
+// Était 5 s → une requête /api/orders (+ COUNT pagination) toutes les 5 s.
+// Passé à 60 s + pause onglet inactif pour soulager la base.
+const POLL_INTERVAL = 60_000;
 
 export default function OrdersTable() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -86,11 +88,18 @@ export default function OrdersTable() {
     }
   }, [page, statusFilter, search, pageSize]);
 
-  // Polling toutes les 5 secondes (silencieux)
+  // Polling silencieux — uniquement quand l'onglet est visible.
   useEffect(() => {
     fetchOrders();
-    const interval = setInterval(() => fetchOrders(true), POLL_INTERVAL);
-    return () => clearInterval(interval);
+    const interval = setInterval(() => {
+      if (!document.hidden) fetchOrders(true);
+    }, POLL_INTERVAL);
+    const onVisible = () => { if (!document.hidden) fetchOrders(true); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [fetchOrders]);
 
   // Rafraîchir immédiatement après un sync ZREXpress

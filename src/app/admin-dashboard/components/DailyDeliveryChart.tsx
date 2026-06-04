@@ -39,8 +39,16 @@ export default function DailyDeliveryChart() {
 
   useEffect(() => {
     fetch_();
-    const interval = setInterval(fetch_, 30_000);
-    return () => clearInterval(interval);
+    // 60 s + pause onglet inactif (appelle /api/stats — requête lourde).
+    const interval = setInterval(() => {
+      if (!document.hidden) fetch_();
+    }, 60_000);
+    const onVisible = () => { if (!document.hidden) fetch_(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, []);
 
   useEffect(() => {

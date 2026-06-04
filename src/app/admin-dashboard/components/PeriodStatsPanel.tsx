@@ -50,8 +50,16 @@ export default function PeriodStatsPanel() {
 
   useEffect(() => {
     load();
-    const interval = setInterval(load, 30_000);
-    return () => clearInterval(interval);
+    // 60 s + pause quand l'onglet est inactif (allège la charge sur la base).
+    const interval = setInterval(() => {
+      if (!document.hidden) load();
+    }, 60_000);
+    const onVisible = () => { if (!document.hidden) load(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [load]);
 
   useEffect(() => {
