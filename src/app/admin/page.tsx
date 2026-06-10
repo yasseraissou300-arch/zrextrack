@@ -20,10 +20,29 @@ export default function AdminPage() {
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ total: 0, active: 0, blocked: 0, pro: 0 });
+  // null = vérification du rôle en cours ; true = admin confirmé.
+  // Les non-admins sont redirigés (la RLS protège déjà les données, mais sans
+  // cette garde un client curieux tombait sur l'interface admin vide).
+  const [authorized, setAuthorized] = useState<boolean | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
-    fetchUsers();
+    const checkAccess = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { window.location.href = '/login'; return; }
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      if (profile?.role !== 'admin') {
+        window.location.href = '/admin-dashboard';
+        return;
+      }
+      setAuthorized(true);
+      fetchUsers();
+    };
+    checkAccess();
   }, []);
 
   const fetchUsers = async () => {
@@ -61,6 +80,16 @@ export default function AdminPage() {
     pro: 'bg-blue-100 text-blue-700',
     business: 'bg-purple-100 text-purple-700',
   };
+
+  // Pendant la vérification du rôle (ou juste avant redirection), on n'affiche
+  // rien de l'interface admin.
+  if (authorized !== true) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <RefreshCw size={20} className="animate-spin text-gray-400" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
