@@ -38,12 +38,16 @@ interface DbTemplate {
 // Remplace les variables {{client}} {{tracking}} {{wilaya}} {{cod}} par les
 // valeurs réelles d'une commande.
 function renderTemplate(content: string, o: Order): string {
+  const link = typeof window !== 'undefined'
+    ? `${window.location.origin}/track/${o.tracking_number}`
+    : `/track/${o.tracking_number}`;
   return (content || '')
     .replace(/\{\{client\}\}/g, o.customer_name || 'cher client')
     .replace(/\{\{tracking\}\}/g, o.tracking_number || '')
     .replace(/\{\{wilaya\}\}/g, o.wilaya || '')
     .replace(/\{\{produit\}\}/g, o.product_name || '')
-    .replace(/\{\{cod\}\}/g, String(o.cod ?? ''));
+    .replace(/\{\{cod\}\}/g, String(o.cod ?? ''))
+    .replace(/\{\{lien\}\}/g, link);
 }
 
 // Quand on filtre par situation, on pré-sélectionne le template correspondant.
@@ -751,7 +755,7 @@ const TPL_LANGS = [
   { id: 'content_french', label: 'Français 🇫🇷', dir: 'ltr' },
 ] as const;
 
-const TPL_VARS = ['{{client}}', '{{tracking}}', '{{produit}}', '{{wilaya}}', '{{cod}}'];
+const TPL_VARS = ['{{client}}', '{{tracking}}', '{{produit}}', '{{wilaya}}', '{{cod}}', '{{lien}}'];
 
 type LangKey = 'content_darija' | 'content_arabic' | 'content_french';
 

@@ -8,28 +8,35 @@ const APP_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://zrextrack6753.built
 // Statuts qui déclenchent une notification WhatsApp
 const NOTIFY_STATUSES = new Set(['en_transit', 'en_livraison', 'livre', 'echec', 'retourne']);
 
-const DEFAULT_TEMPLATES: Record<string, string> = {
-  en_transit:   `📦 Bonjour {client},\n\nVotre commande *{tracking}* est maintenant *en transit* vers {wilaya}.\n\nSuivez-la ici : {lien}`,
-  en_livraison: `🚚 Bonjour {client},\n\nVotre commande *{tracking}* est *en cours de livraison* aujourd'hui !\n\nSoyez disponible. Suivi : {lien}`,
-  livre:        `✅ Bonjour {client},\n\nVotre commande *{tracking}* a été *livrée avec succès* ! 🎉\n\nMerci pour votre confiance. Suivi : {lien}`,
-  echec:        `⚠️ Bonjour {client},\n\nNous n'avons pas pu livrer votre commande *{tracking}*.\n\nVeuillez contacter le vendeur ou suivre : {lien}`,
-  retourne:     `📦 Bonjour {client},\n\nVotre commande *{tracking}* a été *retournée*.\n\nContactez le vendeur. Suivi : {lien}`,
+// Templates par défaut (darija) — utilisés si l'utilisateur n'a pas encore
+// personnalisé ses messages. SOURCE UNIQUE : la table message_templates,
+// éditée dans Messages → Templates. Même syntaxe à double accolade {{...}}
+// que l'envoi manuel.
+const DARIJA_DEFAULTS: Record<string, string> = {
+  en_transit:   `السلام عليكم {{client}} 👋\nطردك *{{produit}}* رقم *{{tracking}}* في الطريق لـ *{{wilaya}}*.\nتبّع هنا : {{lien}} 🚚`,
+  en_livraison: `السلام عليكم {{client}} 👋\nطردك *{{produit}}* رقم *{{tracking}}* مع الليفرور دروك في *{{wilaya}}*.\nالمبلغ لي يتسلم : *{{cod}} دج*. كون فالدار 🛵`,
+  livre:        `السلام عليكم {{client}} 👋\nطردك *{{produit}}* رقم *{{tracking}}* وصل.\nشكرا على ثقتك فينا 🙏`,
+  echec:        `السلام عليكم {{client}} 👋\nحاولنا نوصلو طردك *{{tracking}}* ولقيناك ما جاوبتناش.\nتواصل معنا : {{lien}} 📞`,
+  retourne:     `السلام عليكم {{client}} 👋\nطردك رقم *{{tracking}}* رجع لينا.\nإذا تبغي تعاود تطلب تواصل معنا 🔄`,
 };
 
-// Construire le message à partir du template (custom ou défaut)
+// Construit le message d'un statut à partir du template UNIFIÉ de l'utilisateur
+// (table message_templates, version darija) ou du défaut. Substitue les
+// variables {{client}} {{tracking}} {{wilaya}} {{produit}} {{cod}} {{lien}}.
 function buildMessage(
-  status: string, client: string, tracking: string, wilaya: string, product: string,
-  customTemplates?: Record<string, string>
+  status: string,
+  o: { customer_name: string; tracking_number: string; wilaya: string; product_name: string; cod: number },
+  userTemplates: Map<string, string>,
 ): string {
-  const link = `${APP_URL}/track/${tracking}`;
-  const name = client || 'cher client';
-  const tpl = (customTemplates?.[status] || DEFAULT_TEMPLATES[status] || `Mise à jour commande {tracking} : ${status}. Suivi : {lien}`);
+  const link = `${APP_URL}/track/${o.tracking_number}`;
+  const tpl = userTemplates.get(status) || DARIJA_DEFAULTS[status] || `Mise à jour {{tracking}} : {{lien}}`;
   return tpl
-    .replace(/{client}/g, name)
-    .replace(/{tracking}/g, tracking)
-    .replace(/{wilaya}/g, wilaya || 'votre wilaya')
-    .replace(/{produit}/g, product || '')
-    .replace(/{lien}/g, link);
+    .replace(/\{\{client\}\}/g, o.customer_name || 'cher client')
+    .replace(/\{\{tracking\}\}/g, o.tracking_number || '')
+    .replace(/\{\{wilaya\}\}/g, o.wilaya || 'votre wilaya')
+    .replace(/\{\{produit\}\}/g, o.product_name || '')
+    .replace(/\{\{cod\}\}/g, String(o.cod ?? ''))
+    .replace(/\{\{lien\}\}/g, link);
 }
 
 // Normaliser numéro algérien → 213XXXXXXXXX
@@ -161,7 +168,7 @@ function mapParcel(p: any, syncedAt: string) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { token, tenantId, templates: customTemplates, notifyEnabled } = await request.json();
+    const { token, tenantId, notifyEnabled } = await request.json();
     if (!token) return NextResponse.json({ error: 'Clé API (secretKey) manquante' }, { status: 400 });
     if (!tenantId) return NextResponse.json({ error: 'Tenant ID manquant' }, { status: 400 });
 
@@ -177,6 +184,18 @@ export async function POST(request: NextRequest) {
       : { data: null };
     const waInstanceId: string = waSettings?.instance_id ?? '';
     const waToken: string = waSettings?.api_token ?? '';
+
+    // Templates UNIFIÉS : table message_templates (éditée dans Messages →
+    // Templates). Source unique pour l'envoi auto ET manuel ; on prend la
+    // version darija. Si l'utilisateur n'a rien personnalisé → DARIJA_DEFAULTS.
+    const { data: tplRows } = userId
+      ? await supabase.from('message_templates').select('key, content_darija').eq('user_id', userId)
+      : { data: null };
+    const userTpl = new Map<string, string>(
+      (tplRows || [])
+        .filter((t: { content_darija?: string | null }) => !!t.content_darija)
+        .map((t: { key: string; content_darija: string }) => [t.key, t.content_darija])
+    );
 
     // 1. Récupérer toutes les commandes depuis ZREXpress
     const parcels = await fetchAllParcels(token, tenantId);
@@ -212,7 +231,7 @@ export async function POST(request: NextRequest) {
     const existingMap = new Map((existingOrders || []).map(o => [o.tracking_number, o]));
 
     // 3. Identifier les commandes dont le statut a changé
-    const toNotify: Array<{ tracking_number: string; delivery_status: string; customer_whatsapp: string; customer_name: string; wilaya: string; product_name: string }> = [];
+    const toNotify: Array<{ tracking_number: string; delivery_status: string; customer_whatsapp: string; customer_name: string; wilaya: string; product_name: string; cod: number }> = [];
     for (const row of rows) {
       const existing = existingMap.get(row.tracking_number);
       // Vérifier si les notifications sont activées pour ce statut (true par défaut si non précisé)
@@ -231,6 +250,7 @@ export async function POST(request: NextRequest) {
           customer_name: row.customer_name,
           wilaya: row.wilaya,
           product_name: row.product_name,
+          cod: row.cod,
         });
       }
     }
@@ -249,7 +269,7 @@ export async function POST(request: NextRequest) {
     // 5. Envoyer les notifications WhatsApp + logger dans messages
     let whatsappSent = 0;
     for (const n of toNotify) {
-      const message = buildMessage(n.delivery_status, n.customer_name, n.tracking_number, n.wilaya, n.product_name, customTemplates);
+      const message = buildMessage(n.delivery_status, n, userTpl);
       const sent = waInstanceId && waToken
         ? await sendWhatsApp(waInstanceId, waToken, n.customer_whatsapp, message)
         : false;
