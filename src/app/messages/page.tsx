@@ -5,12 +5,13 @@ import { MessageSquare, Wifi, WifiOff, QrCode, Send, History, CheckCircle, Refre
 import { toast } from 'sonner';
 
 interface WASettings { instance_id: string; api_token: string; connected: boolean; phone: string; }
-interface Order { id: string; tracking_number: string; customer_name: string; customer_whatsapp: string; situation: string; wilaya: string; delivery_status: string; cod: number; }
+interface Order { id: string; tracking_number: string; customer_name: string; customer_whatsapp: string; situation: string; wilaya: string; delivery_status: string; cod: number; product_name: string; }
 interface MsgLog { id: string; tracking_number: string; customer_name: string; customer_whatsapp: string; message: string; status: 'envoye' | 'echec' | 'en_attente'; sent_at: string; error_message?: string | null; }
 
 const MOCK_ORDER: Order = {
   id: 'preview', tracking_number: 'ZR-000000', customer_name: 'محمد',
   customer_whatsapp: '', situation: '', wilaya: 'الجزائر', delivery_status: '', cod: 2500,
+  product_name: 'منتج',
 };
 
 const SITUATION_FILTERS = [
@@ -41,6 +42,7 @@ function renderTemplate(content: string, o: Order): string {
     .replace(/\{\{client\}\}/g, o.customer_name || 'cher client')
     .replace(/\{\{tracking\}\}/g, o.tracking_number || '')
     .replace(/\{\{wilaya\}\}/g, o.wilaya || '')
+    .replace(/\{\{produit\}\}/g, o.product_name || '')
     .replace(/\{\{cod\}\}/g, String(o.cod ?? ''));
 }
 
@@ -749,7 +751,7 @@ const TPL_LANGS = [
   { id: 'content_french', label: 'Français 🇫🇷', dir: 'ltr' },
 ] as const;
 
-const TPL_VARS = ['{{client}}', '{{tracking}}', '{{wilaya}}', '{{cod}}'];
+const TPL_VARS = ['{{client}}', '{{tracking}}', '{{produit}}', '{{wilaya}}', '{{cod}}'];
 
 type LangKey = 'content_darija' | 'content_arabic' | 'content_french';
 
