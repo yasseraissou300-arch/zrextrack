@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
-import { MessageSquare, Wifi, WifiOff, QrCode, Send, History, CheckCircle, RefreshCw, ChevronLeft, ChevronRight, AlertCircle, Users, Loader2, Smartphone, Filter, Copy } from 'lucide-react';
+import { MessageSquare, Wifi, WifiOff, QrCode, Send, History, CheckCircle, RefreshCw, ChevronLeft, ChevronRight, AlertCircle, Users, Loader2, Smartphone, Filter, Copy, Globe, RotateCcw, ChevronDown, ChevronUp, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface WASettings { instance_id: string; api_token: string; connected: boolean; phone: string; }
@@ -24,42 +24,36 @@ const SITUATION_FILTERS = [
   { value: 'en preparation', label: 'En preparation' },
 ];
 
-const TEMPLATES = [
-  { id: 'ne_repond_pas', label: 'Ma jawabch', situation: 'ne repond pas',
-    text: (o: Order) => `السلام عليكم ${o.customer_name} 👋
-عندك طرد برقم *${o.tracking_number}* ولقيناك ما جاوبتناش.
-ارجاء تواصل معنا باش نوصلو ليك طردك.
-شكرا 🙏` },
-  { id: 'annule', label: 'Commande lghya', situation: 'commande annul',
-    text: (o: Order) => `السلام عليكم ${o.customer_name} 👋
-طردك رقم *${o.tracking_number}* تلغى.
-إذا عندك أي سؤال ولا تبغي تعاود تطلب، تواصل معنا.
-شكرا 🙏` },
-  { id: 'commune_erronee', label: 'Adresse khata', situation: 'commune erron',
-    text: (o: Order) => `السلام عليكم ${o.customer_name} 👋
-طردك رقم *${o.tracking_number}* فيه مشكل في عنوان التسليم.
-ارجاء راسلنا وعطينا عنوانك الصحيح باش نوصلو ليك طردك.
-شكرا 🙏` },
-  { id: 'en_livraison', label: 'F tariq', situation: 'en cours de livraison',
-    text: (o: Order) => `السلام عليكم ${o.customer_name} 👋
-طردك رقم *${o.tracking_number}* مع الليفروار دروك في *${o.wilaya}*.
-المبلغ لي يتسلم : *${o.cod} دج*
-كون في الدار ويصلك. شكرا 🚚` },
-  { id: 'livre', label: 'Twassal', situation: 'livr',
-    text: (o: Order) => `السلام عليكم ${o.customer_name} 👋
-طردك رقم *${o.tracking_number}* وصل.
-شكرا على ثقتك فينا وانشاء الله راك راضي على الطلبية. نتمنالك يوم مليح 🙏` },
-  { id: 'retourne', label: 'Rjae', situation: 'retour',
-    text: (o: Order) => `السلام عليكم ${o.customer_name} 👋
-طردك رقم *${o.tracking_number}* رجع لينا.
-إذا تبغي تعاود تطلب ولا عندك سؤال، تواصل معنا.
-شكرا 🙏` },
-  { id: 'transit', label: 'F route', situation: 'en transit',
-    text: (o: Order) => `السلام عليكم ${o.customer_name} 👋
-طردك رقم *${o.tracking_number}* في الطريق لـ *${o.wilaya}*.
-غادي يوصلك قريب انشاء الله. شكرا 🙏` },
-  { id: 'custom', label: 'Personnalise', situation: '', text: () => '' },
-];
+// Template partagé (édité dans l'onglet « Templates », stocké via /api/templates).
+// Les MÊMES templates servent à l'envoi manuel ET aux notifications automatiques.
+interface DbTemplate {
+  key: string;
+  name: string;
+  content_darija: string;
+  content_arabic: string;
+  content_french: string;
+}
+
+// Remplace les variables {{client}} {{tracking}} {{wilaya}} {{cod}} par les
+// valeurs réelles d'une commande.
+function renderTemplate(content: string, o: Order): string {
+  return (content || '')
+    .replace(/\{\{client\}\}/g, o.customer_name || 'cher client')
+    .replace(/\{\{tracking\}\}/g, o.tracking_number || '')
+    .replace(/\{\{wilaya\}\}/g, o.wilaya || '')
+    .replace(/\{\{cod\}\}/g, String(o.cod ?? ''));
+}
+
+// Quand on filtre par situation, on pré-sélectionne le template correspondant.
+const SITUATION_TO_KEY: Record<string, string> = {
+  'commande annul': 'commande_annulee',
+  'commune erron': 'commune_erronee',
+  'en cours de livraison': 'en_livraison',
+  'livr': 'livre',
+  'retour': 'retourne',
+  'en transit': 'en_transit',
+  'en preparation': 'en_transit',
+};
 
 function statusToLabel(status: string): string {
   const map: Record<string, string> = {
@@ -241,6 +235,7 @@ function EnvoyerTab() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [templates, setTemplates] = useState<DbTemplate[]>([]);
   const [templateId, setTemplateId] = useState('ne_repond_pas');
   const [customText, setCustomText] = useState('');
   const [sending, setSending] = useState(false);
@@ -264,12 +259,13 @@ function EnvoyerTab() {
   }, [page, situationFilter]);
 
   useEffect(() => { fetch('/api/ai-chatbot/whatsapp/status').then(r => r.json()).then(j => setConnected(j.connected || false)); }, []);
+  useEffect(() => { fetch('/api/templates').then(r => r.json()).then(j => setTemplates(j.data || [])).catch(() => {}); }, []);
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
   useEffect(() => {
     setSubSituationFilter('');
     if (!situationFilter) return;
-    const match = TEMPLATES.find(t => t.situation && situationFilter.includes(t.situation.split(' ')[0].toLowerCase()));
-    if (match) setTemplateId(match.id);
+    const key = SITUATION_TO_KEY[situationFilter];
+    if (key) setTemplateId(key);
   }, [situationFilter]);
 
   // Unique wilayas from loaded orders for sub-filter
@@ -278,7 +274,7 @@ function EnvoyerTab() {
   // Apply wilaya sub-filter client-side
   const displayedOrders = subSituationFilter ? orders.filter(o => o.situation === subSituationFilter) : orders;
   const totalPages = Math.ceil(total / PAGE_SIZE);
-  const template = TEMPLATES.find(t => t.id === templateId) || TEMPLATES[0];
+  const template = templates.find(t => t.key === templateId) || null;
   const previewOrder = orders[0] || MOCK_ORDER;
   const ordersWithPhone = displayedOrders.filter(o => o.customer_whatsapp && o.customer_whatsapp.length > 5);
 
@@ -291,7 +287,7 @@ function EnvoyerTab() {
     if (selected.size === 0) { toast.error('Selectionne au moins un client'); return; }
     const recipients = displayedOrders.filter(o => selected.has(o.id)).map(o => ({
       tracking: o.tracking_number, client: o.customer_name, whatsapp: o.customer_whatsapp,
-      message: templateId === 'custom' ? customText : template.text(o),
+      message: templateId === 'custom' ? customText : renderTemplate(template?.content_darija ?? '', o),
     }));
     setSending(true);
     const res = await fetch('/api/whatsapp/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ recipients }) });
@@ -304,7 +300,7 @@ function EnvoyerTab() {
   const sendTest = async () => {
     if (!testPhone) { toast.error('Entre un numero de telephone'); return; }
     const mockO = { ...MOCK_ORDER, whatsapp: testPhone };
-    const message = templateId === 'custom' ? (customText || 'هذا رسالة تجريبية') : template.text(mockO);
+    const message = templateId === 'custom' ? (customText || 'هذا رسالة تجريبية') : renderTemplate(template?.content_darija ?? '', mockO);
     setSendingTest(true);
     const res = await fetch('/api/whatsapp/send', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -362,14 +358,21 @@ function EnvoyerTab() {
 
       {/* Templates */}
       <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5 space-y-4">
-        <div className="flex items-center gap-2"><MessageSquare size={16} className="text-green-500" /><h3 className="font-semibold text-gray-900 dark:text-stone-100">Template (Darija)</h3></div>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2"><MessageSquare size={16} className="text-green-500" /><h3 className="font-semibold text-gray-900 dark:text-stone-100">Template (Darija)</h3></div>
+          <span className="text-[11px] text-gray-400 dark:text-stone-500">✏️ Modifiable dans l'onglet « Templates »</span>
+        </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {TEMPLATES.map(t => (
-            <button key={t.id} onClick={() => setTemplateId(t.id)}
-              className={`text-xs px-3 py-2 rounded-xl border text-left font-medium transition-colors ${templateId === t.id ? 'border-green-500 bg-green-50 text-green-700' : 'border-stone-200 dark:border-stone-700 text-gray-600 dark:text-stone-300 hover:border-gray-300'}`}>
-              {t.label}
+          {templates.map(t => (
+            <button key={t.key} onClick={() => setTemplateId(t.key)}
+              className={`text-xs px-3 py-2 rounded-xl border text-left font-medium transition-colors ${templateId === t.key ? 'border-green-500 bg-green-50 text-green-700' : 'border-stone-200 dark:border-stone-700 text-gray-600 dark:text-stone-300 hover:border-gray-300'}`}>
+              {t.name}
             </button>
           ))}
+          <button onClick={() => setTemplateId('custom')}
+            className={`text-xs px-3 py-2 rounded-xl border text-left font-medium transition-colors ${templateId === 'custom' ? 'border-green-500 bg-green-50 text-green-700' : 'border-stone-200 dark:border-stone-700 text-gray-600 dark:text-stone-300 hover:border-gray-300'}`}>
+            Personnalisé
+          </button>
         </div>
         {templateId === 'custom' ? (
           <textarea value={customText} onChange={e => setCustomText(e.target.value)} placeholder="كتب رسالتك..." rows={4} dir="rtl" className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
@@ -377,7 +380,7 @@ function EnvoyerTab() {
           <div>
             <p className="text-xs text-gray-400 dark:text-stone-500 mb-1">{orders.length > 0 ? 'Apercu (premier client)' : 'Apercu (exemple)'}</p>
             <div className="bg-green-50 rounded-xl p-4 text-sm text-gray-800 dark:text-stone-100 whitespace-pre-line border border-green-100 text-right leading-relaxed" dir="rtl">
-              {template.text(previewOrder)}
+              {renderTemplate(template?.content_darija ?? '', previewOrder)}
             </div>
           </div>
         )}
@@ -730,9 +733,122 @@ function HistoriqueTab() {
   );
 }
 
+// ─── Onglet « Templates » — éditeur des messages WhatsApp en 3 langues ───────
+// C'est désormais le SEUL endroit pour éditer les templates (l'ancienne page
+// Paramètres a été fusionnée ici). Stockés via /api/templates ; utilisés à la
+// fois par l'envoi manuel (onglet Envoyer) et les notifications automatiques.
+
+interface EditableTemplate extends DbTemplate {
+  id?: string | null;
+  is_active?: boolean;
+}
+
+const TPL_LANGS = [
+  { id: 'content_darija', label: 'Darija 🇩🇿', dir: 'rtl' },
+  { id: 'content_arabic', label: 'العربية', dir: 'rtl' },
+  { id: 'content_french', label: 'Français 🇫🇷', dir: 'ltr' },
+] as const;
+
+const TPL_VARS = ['{{client}}', '{{tracking}}', '{{wilaya}}', '{{cod}}'];
+
+type LangKey = 'content_darija' | 'content_arabic' | 'content_french';
+
+function TemplateEditCard({ tpl, def, onSave }: { tpl: EditableTemplate; def?: EditableTemplate; onSave: (t: EditableTemplate) => Promise<void>; }) {
+  const [open, setOpen] = useState(false);
+  const [lang, setLang] = useState<LangKey>('content_darija');
+  const [form, setForm] = useState<EditableTemplate>(tpl);
+  const [saving, setSaving] = useState(false);
+
+  const langCfg = TPL_LANGS.find(l => l.id === lang)!;
+  const content = form[lang] as string;
+
+  const save = async () => { setSaving(true); await onSave(form); setSaving(false); };
+
+  return (
+    <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm overflow-hidden">
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between px-5 py-4 hover:bg-stone-50 dark:hover:bg-stone-800 transition-colors">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center"><MessageSquare size={15} className="text-green-600" /></div>
+          <span className="font-semibold text-gray-900 dark:text-stone-100">{tpl.name}</span>
+          <span className="text-xs text-gray-400 dark:text-stone-500 font-mono">{tpl.key}</span>
+        </div>
+        {open ? <ChevronUp size={16} className="text-gray-400 dark:text-stone-500" /> : <ChevronDown size={16} className="text-gray-400 dark:text-stone-500" />}
+      </button>
+      {open && (
+        <div className="border-t border-stone-100 dark:border-stone-800 p-5 space-y-4">
+          <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+            {TPL_LANGS.map(l => (
+              <button key={l.id} onClick={() => setLang(l.id as LangKey)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${lang === l.id ? 'bg-white dark:bg-stone-900 text-gray-900 dark:text-stone-100 shadow-sm' : 'text-gray-500 dark:text-stone-400'}`}>{l.label}</button>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {TPL_VARS.map(v => (
+              <button key={v} onClick={() => setForm(f => ({ ...f, [lang]: (f[lang] as string) + v }))} className="text-[10px] font-mono bg-green-50 text-green-700 px-1.5 py-0.5 rounded border border-green-200 hover:bg-green-100">{v}</button>
+            ))}
+          </div>
+          <textarea value={content} onChange={e => setForm(f => ({ ...f, [lang]: e.target.value }))} rows={5} dir={langCfg.dir} className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none" />
+          <div className="flex gap-2">
+            {def && (
+              <button onClick={() => setForm(f => ({ ...f, [lang]: def[lang] as string }))} className="flex items-center gap-1.5 text-xs px-3 py-2 border border-stone-200 dark:border-stone-700 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800 text-gray-500 dark:text-stone-400"><RotateCcw size={12} /> Réinitialiser</button>
+            )}
+            <button onClick={save} disabled={saving} className="flex items-center gap-1.5 text-sm px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium ml-auto">{saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />} Sauvegarder</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TemplatesTab() {
+  const [templates, setTemplates] = useState<EditableTemplate[]>([]);
+  const [defaults, setDefaults] = useState<EditableTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const res = await fetch('/api/templates');
+    const json = await res.json();
+    setTemplates(json.data || []);
+    setDefaults(json.defaults || []);
+    setLoading(false);
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const save = async (t: EditableTemplate) => {
+    const res = await fetch('/api/templates', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...t, is_active: true }) });
+    const json = await res.json();
+    if (json.error) { toast.error(json.error); return; }
+    toast.success('Template sauvegardé !');
+    setTemplates(prev => prev.map(p => p.key === t.key ? { ...p, ...t } : p));
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-start gap-3">
+        <Globe size={16} className="text-blue-500 shrink-0 mt-0.5" />
+        <div className="text-sm text-blue-700">
+          <span className="font-medium">Vos messages, en 3 langues</span>
+          <span className="ml-1">— modifiez chaque template (Darija, Arabe, Français). Ils servent à la fois à l'envoi manuel et aux notifications automatiques. Variables :</span>
+          <span className="ml-1">{TPL_VARS.map(v => <code key={v} className="mx-0.5 bg-blue-100 px-1.5 py-0.5 rounded text-blue-800 text-xs font-mono">{v}</code>)}</span>
+        </div>
+      </div>
+      {loading ? (
+        <div className="flex justify-center py-16"><Loader2 size={24} className="animate-spin text-gray-400 dark:text-stone-500" /></div>
+      ) : (
+        <div className="space-y-3">
+          {templates.map(t => (
+            <TemplateEditCard key={t.key} tpl={t} def={defaults.find(d => d.key === t.key)} onSave={save} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const TABS = [
   { id: 'connexion', label: 'Connexion', icon: QrCode },
   { id: 'envoyer', label: 'Envoyer', icon: Send },
+  { id: 'templates', label: 'Templates', icon: FileText },
   { id: 'historique', label: 'Historique', icon: History },
 ];
 
@@ -754,6 +870,7 @@ export default function MessagesPage() {
         </div>
         {tab === 'connexion' && <ConnexionTab />}
         {tab === 'envoyer' && <EnvoyerTab />}
+        {tab === 'templates' && <TemplatesTab />}
         {tab === 'historique' && <HistoriqueTab />}
       </div>
     </AppLayout>

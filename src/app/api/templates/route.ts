@@ -37,6 +37,28 @@ const DEFAULT_TEMPLATES = [
     content_arabic: 'السلام عليكم {{client}} 👋\nطلبك رقم *{{tracking}}* تم إرجاعه.\nإذا أردت إعادة الطلب تواصل معنا 🔄',
     content_french: 'Bonjour {{client}} 👋\nVotre colis *{{tracking}}* nous a été retourné.\nContactez-nous si vous souhaitez repasser commande 🔄',
   },
+  // --- Situations d'envoi MANUEL (onglet « Envoyer ») ---
+  {
+    key: 'ne_repond_pas',
+    name: 'Ne répond pas (Ma jawabch)',
+    content_darija: 'السلام عليكم {{client}} 👋\nعندك طرد برقم *{{tracking}}* ولقيناك ما جاوبتناش.\nارجاء تواصل معنا باش نوصلو ليك طردك.\nشكرا 🙏',
+    content_arabic: 'السلام عليكم {{client}} 👋\nلديك طلب رقم *{{tracking}}* وحاولنا الاتصال بك دون رد.\nيرجى التواصل معنا لتوصيل طلبك.\nشكراً 🙏',
+    content_french: 'Bonjour {{client}} 👋\nVous avez un colis *{{tracking}}* et nous n\'avons pas pu vous joindre.\nContactez-nous pour organiser la livraison.\nMerci 🙏',
+  },
+  {
+    key: 'commande_annulee',
+    name: 'Commande annulée (Lghya)',
+    content_darija: 'السلام عليكم {{client}} 👋\nطردك رقم *{{tracking}}* تلغى.\nإذا عندك أي سؤال ولا تبغي تعاود تطلب، تواصل معنا.\nشكرا 🙏',
+    content_arabic: 'السلام عليكم {{client}} 👋\nطلبك رقم *{{tracking}}* تم إلغاؤه.\nإذا كان لديك أي سؤال أو أردت إعادة الطلب، تواصل معنا.\nشكراً 🙏',
+    content_french: 'Bonjour {{client}} 👋\nVotre commande *{{tracking}}* a été annulée.\nPour toute question ou pour recommander, contactez-nous.\nMerci 🙏',
+  },
+  {
+    key: 'commune_erronee',
+    name: 'Adresse erronée (Adresse khata)',
+    content_darija: 'السلام عليكم {{client}} 👋\nطردك رقم *{{tracking}}* فيه مشكل في عنوان التسليم.\nارجاء راسلنا وعطينا عنوانك الصحيح باش نوصلو ليك طردك.\nشكرا 🙏',
+    content_arabic: 'السلام عليكم {{client}} 👋\nطلبك رقم *{{tracking}}* به مشكلة في عنوان التسليم.\nيرجى مراسلتنا بعنوانك الصحيح لتوصيل طلبك.\nشكراً 🙏',
+    content_french: 'Bonjour {{client}} 👋\nVotre colis *{{tracking}}* a un problème d\'adresse de livraison.\nEnvoyez-nous votre adresse correcte pour la livraison.\nMerci 🙏',
+  },
 ];
 
 export async function GET() {

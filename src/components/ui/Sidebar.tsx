@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard, Package, MessageSquare, BarChart3, Settings, Key,
+  LayoutDashboard, Package, MessageSquare, BarChart3, Key,
   ChevronLeft, ChevronRight, Truck, Bell, RefreshCw, Users, Trash2, Megaphone, Plug, MessageCircle, Bot, Repeat,
   Sun, Moon, PhoneCall,
 } from 'lucide-react';
@@ -176,23 +176,6 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
             </div>
           )}
         </button>
-
-        <Link
-          href="/parametres"
-          onClick={onMobileClose}
-          title={effectivelyCollapsed ? 'Paramètres' : undefined}
-          className={`group relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium text-stone-500 hover:bg-stone-50 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100 transition-all duration-150 ${
-            effectivelyCollapsed ? 'justify-center' : ''
-          }`}
-        >
-          <Settings size={15} className="shrink-0" />
-          {!effectivelyCollapsed && <span>Paramètres</span>}
-          {effectivelyCollapsed && (
-            <div className="absolute left-full ml-2 px-2 py-1 bg-stone-800 dark:bg-stone-700 text-white text-xs rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-md">
-              Paramètres
-            </div>
-          )}
-        </Link>
 
         <Link
           href="/parametres/api-keys"
