@@ -154,6 +154,7 @@ export default function SyncPage() {
       .replace(/{client}/g, 'Ahmed Benali')
       .replace(/{tracking}/g, 'ZRX789012')
       .replace(/{wilaya}/g, 'Alger')
+      .replace(/{produit}/g, 'Montre connectée')
       .replace(/{lien}/g, 'zrextrack.vercel.app/track/ZRX789012');
 
   return (
@@ -263,6 +264,7 @@ export default function SyncPage() {
                 Variables disponibles : <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 dark:text-stone-300">{'{client}'}</code>{' '}
                 <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 dark:text-stone-300">{'{tracking}'}</code>{' '}
                 <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 dark:text-stone-300">{'{wilaya}'}</code>{' '}
+                <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 dark:text-stone-300">{'{produit}'}</code>{' '}
                 <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 dark:text-stone-300">{'{lien}'}</code>
               </p>
 

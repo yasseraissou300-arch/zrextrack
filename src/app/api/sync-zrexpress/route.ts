@@ -18,7 +18,7 @@ const DEFAULT_TEMPLATES: Record<string, string> = {
 
 // Construire le message à partir du template (custom ou défaut)
 function buildMessage(
-  status: string, client: string, tracking: string, wilaya: string,
+  status: string, client: string, tracking: string, wilaya: string, product: string,
   customTemplates?: Record<string, string>
 ): string {
   const link = `${APP_URL}/track/${tracking}`;
@@ -28,6 +28,7 @@ function buildMessage(
     .replace(/{client}/g, name)
     .replace(/{tracking}/g, tracking)
     .replace(/{wilaya}/g, wilaya || 'votre wilaya')
+    .replace(/{produit}/g, product || '')
     .replace(/{lien}/g, link);
 }
 
@@ -211,7 +212,7 @@ export async function POST(request: NextRequest) {
     const existingMap = new Map((existingOrders || []).map(o => [o.tracking_number, o]));
 
     // 3. Identifier les commandes dont le statut a changé
-    const toNotify: Array<{ tracking_number: string; delivery_status: string; customer_whatsapp: string; customer_name: string; wilaya: string }> = [];
+    const toNotify: Array<{ tracking_number: string; delivery_status: string; customer_whatsapp: string; customer_name: string; wilaya: string; product_name: string }> = [];
     for (const row of rows) {
       const existing = existingMap.get(row.tracking_number);
       // Vérifier si les notifications sont activées pour ce statut (true par défaut si non précisé)
@@ -229,6 +230,7 @@ export async function POST(request: NextRequest) {
           customer_whatsapp: row.customer_whatsapp,
           customer_name: row.customer_name,
           wilaya: row.wilaya,
+          product_name: row.product_name,
         });
       }
     }
@@ -247,7 +249,7 @@ export async function POST(request: NextRequest) {
     // 5. Envoyer les notifications WhatsApp + logger dans messages
     let whatsappSent = 0;
     for (const n of toNotify) {
-      const message = buildMessage(n.delivery_status, n.customer_name, n.tracking_number, n.wilaya, customTemplates);
+      const message = buildMessage(n.delivery_status, n.customer_name, n.tracking_number, n.wilaya, n.product_name, customTemplates);
       const sent = waInstanceId && waToken
         ? await sendWhatsApp(waInstanceId, waToken, n.customer_whatsapp, message)
         : false;
