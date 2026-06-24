@@ -154,6 +154,7 @@ export default function SyncPage() {
       .replace(/{client}/g, 'Ahmed Benali')
       .replace(/{tracking}/g, 'ZRX789012')
       .replace(/{wilaya}/g, 'Alger')
+      .replace(/{produit}/g, 'Montre connectée')
       .replace(/{lien}/g, 'zrextrack.vercel.app/track/ZRX789012');
 
   return (
@@ -260,10 +261,10 @@ export default function SyncPage() {
                 <span className="ml-auto text-xs text-gray-400 dark:text-stone-500">Envoyés automatiquement à chaque changement de statut</span>
               </div>
               <p className="text-xs text-gray-400 dark:text-stone-500 mb-4">
-                Variables disponibles : <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 dark:text-stone-300">{'{client}'}</code>{' '}
-                <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 dark:text-stone-300">{'{tracking}'}</code>{' '}
-                <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 dark:text-stone-300">{'{wilaya}'}</code>{' '}
-                <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 dark:text-stone-300">{'{lien}'}</code>
+                Activez ou désactivez l'envoi automatique d'un WhatsApp par statut.
+                Le <strong>contenu des messages</strong> (Darija / Arabe / Français)
+                se modifie désormais dans{' '}
+                <a href="/messages" className="text-green-600 hover:underline font-medium">Messages → Templates</a>.
               </p>
 
               {/* Onglets statuts + toggles ON/OFF */}
@@ -302,42 +303,19 @@ export default function SyncPage() {
                 ))}
               </div>
 
-              {/* Éditeur */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 dark:text-stone-400 mb-1.5">✏️ Modifier le message</label>
-                  <textarea
-                    value={templates[activeTemplate] || ''}
-                    onChange={e => setTemplates(prev => ({ ...prev, [activeTemplate]: e.target.value }))}
-                    rows={8}
-                    className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-400 resize-none leading-relaxed"
-                    placeholder="Entrez votre message..."
-                  />
-                  <button onClick={() => resetTemplate(activeTemplate)}
-                    className="mt-2 flex items-center gap-1.5 text-xs text-gray-400 dark:text-stone-500 hover:text-gray-600 dark:text-stone-300 transition-colors">
-                    <RotateCcw size={11} />
-                    Réinitialiser par défaut
-                  </button>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 dark:text-stone-400 mb-1.5">👁 Aperçu (données test)</label>
-                  <div className="border border-stone-200 dark:border-stone-700 rounded-xl px-4 py-3 text-sm bg-gray-50 whitespace-pre-wrap leading-relaxed min-h-[180px] text-gray-700 dark:text-stone-200 font-sans">
-                    {previewTemplate(templates[activeTemplate] || '')}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end mt-4">
-                <button onClick={saveTemplates}
-                  className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                    templatesSaved
-                      ? 'bg-green-100 text-green-700 border border-green-200'
-                      : 'bg-green-500 text-white hover:bg-green-600'
-                  }`}>
-                  <Save size={14} />
-                  {templatesSaved ? '✓ Sauvegardé !' : 'Sauvegarder les templates'}
-                </button>
-              </div>
+              {/* L'édition du contenu a été déplacée dans Messages → Templates
+                  (source unique, 3 langues). Ici on ne garde que les ON/OFF,
+                  qui se sauvegardent automatiquement au clic. */}
+              <a
+                href="/messages"
+                className="flex items-center justify-between gap-2 text-sm text-green-700 bg-green-50 border border-green-100 rounded-xl px-4 py-3 hover:bg-green-100 transition-colors"
+              >
+                <span className="flex items-center gap-2">
+                  <MessageSquare size={15} />
+                  Modifier le contenu des messages (Darija / Arabe / Français)
+                </span>
+                <span aria-hidden>→</span>
+              </a>
             </div>
 
           </div>
