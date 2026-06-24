@@ -48,8 +48,8 @@ jobs:
           fi
           STAMP=$(date -u +%Y-%m-%d_%H%M)
           # --format=custom : format compresse de pg_dump, restaurable avec pg_restore
-          pg_dump          /usr/lib/postgresql/17/bin/pg_dump "$SUPABASE_DB_URL" \
-            --format=custom \
+          /usr/lib/postgresql/17/bin/pg_dump "$SUPABASE_DB_URL" \
+          --format=custom \
             --no-owner \
             --no-privileges \
             --file="backup_${STAMP}.dump"
