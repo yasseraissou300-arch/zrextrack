@@ -1,8 +1,9 @@
 'use client';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
-import { MessageSquare, Wifi, WifiOff, QrCode, Send, History, CheckCircle, RefreshCw, ChevronLeft, ChevronRight, AlertCircle, Users, Loader2, Smartphone, Filter, Copy, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
+import { MessageSquare, Wifi, WifiOff, QrCode, Send, History, CheckCircle, RefreshCw, ChevronLeft, ChevronRight, AlertCircle, Users, Loader2, Smartphone, Filter, Copy, RotateCcw, ChevronDown, ChevronUp, Bell } from 'lucide-react';
 import { toast } from 'sonner';
+import { loadSyncSettings, saveSyncSettings } from '@/lib/sync-settings-client';
 
 interface WASettings { instance_id: string; api_token: string; connected: boolean; phone: string; }
 interface Order { id: string; tracking_number: string; customer_name: string; customer_whatsapp: string; situation: string; wilaya: string; delivery_status: string; cod: number; product_name: string; }
@@ -60,6 +61,73 @@ const SITUATION_TO_KEY: Record<string, string> = {
   'en transit': 'en_transit',
   'en preparation': 'en_transit',
 };
+
+// Statuts qui peuvent déclencher une notification WhatsApp automatique
+// (au changement de statut pendant le sync ZRExpress).
+const AUTO_NOTIFY_STATUSES = [
+  { key: 'en_transit', label: 'En transit' },
+  { key: 'en_livraison', label: 'En cours de livraison' },
+  { key: 'livre', label: 'Livré' },
+  { key: 'echec', label: 'Échec de livraison' },
+  { key: 'retourne', label: 'Retourné' },
+];
+
+// Interrupteurs ON/OFF des notifications automatiques. Réglage partagé
+// (user_sync_settings) — déplacé ici depuis la page Sync pour tout regrouper
+// dans Messages WhatsApp. Clé absente = activé (comme le sync).
+function AutoNotifyToggles() {
+  const [enabled, setEnabled] = useState<Record<string, boolean>>({});
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    loadSyncSettings()
+      .then(s => { setEnabled(s.notify_enabled ?? {}); })
+      .catch(() => {})
+      .finally(() => setLoaded(true));
+  }, []);
+
+  const isOn = (key: string) => enabled[key] !== false;
+
+  const toggle = async (key: string) => {
+    const next = { ...enabled, [key]: !isOn(key) };
+    setEnabled(next);
+    try { await saveSyncSettings({ notify_enabled: next }); }
+    catch { toast.error('Erreur de sauvegarde'); }
+  };
+
+  return (
+    <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5 space-y-3">
+      <div className="flex items-center gap-2">
+        <Bell size={16} className="text-amber-500" />
+        <h3 className="font-semibold text-gray-900 dark:text-stone-100">Notifications automatiques</h3>
+        <span className="ml-auto text-xs text-gray-400 dark:text-stone-500">Au changement de statut</span>
+      </div>
+      <p className="text-xs text-gray-400 dark:text-stone-500">
+        Choisissez les statuts qui envoient un WhatsApp automatique à vos clients.
+        Le contenu = les messages ci-dessus.
+      </p>
+      {!loaded ? (
+        <div className="flex justify-center py-4"><Loader2 size={18} className="animate-spin text-gray-400 dark:text-stone-500" /></div>
+      ) : (
+        <div className="space-y-2">
+          {AUTO_NOTIFY_STATUSES.map(s => (
+            <div key={s.key} className="flex items-center gap-3 px-3 py-2 rounded-xl border border-stone-200 dark:border-stone-700">
+              <button
+                onClick={() => toggle(s.key)}
+                title={isOn(s.key) ? 'Désactiver' : 'Activer'}
+                className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full transition-colors ${isOn(s.key) ? 'bg-green-500' : 'bg-gray-300'}`}
+              >
+                <span className={`inline-block h-4 w-4 mt-0.5 transform rounded-full bg-white shadow transition-transform ${isOn(s.key) ? 'translate-x-4' : 'translate-x-0.5'}`} />
+              </button>
+              <span className={`flex-1 text-sm font-medium ${isOn(s.key) ? 'text-gray-800 dark:text-stone-100' : 'text-gray-400 dark:text-stone-500 line-through'}`}>{s.label}</span>
+              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${isOn(s.key) ? 'text-green-600 bg-green-100' : 'text-gray-400 dark:text-stone-500 bg-gray-100'}`}>{isOn(s.key) ? 'ON' : 'OFF'}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function statusToLabel(status: string): string {
   const map: Record<string, string> = {
@@ -407,6 +475,9 @@ function EnvoyerTab() {
           </div>
         )}
       </div>
+
+      {/* Notifications automatiques (déplacé depuis la page Sync) */}
+      <AutoNotifyToggles />
 
       {/* Test de message */}
       <div className="bg-white dark:bg-stone-900 rounded-2xl border border-blue-100 shadow-sm p-5 space-y-3">

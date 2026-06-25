@@ -253,70 +253,23 @@ export default function SyncPage() {
               )}
             </div>
 
-            {/* Templates WhatsApp */}
-            <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 p-6">
-              <div className="flex items-center gap-2 mb-1">
-                <MessageSquare size={18} className="text-green-500" />
-                <h2 className="font-semibold text-gray-900 dark:text-stone-100">Templates WhatsApp</h2>
-                <span className="ml-auto text-xs text-gray-400 dark:text-stone-500">Envoyés automatiquement à chaque changement de statut</span>
-              </div>
-              <p className="text-xs text-gray-400 dark:text-stone-500 mb-4">
-                Activez ou désactivez l'envoi automatique d'un WhatsApp par statut.
-                Le <strong>contenu des messages</strong> (Darija / Arabe / Français)
-                se modifie désormais dans{' '}
-                <a href="/messages" className="text-green-600 hover:underline font-medium">Messages → Envoyer</a> (bouton « ✏️ Modifier ce message »).
-              </p>
-
-              {/* Onglets statuts + toggles ON/OFF */}
-              <div className="space-y-2 mb-4">
-                {Object.entries(STATUS_META).map(([key, meta]) => (
-                  <div key={key} className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-all ${
-                    activeTemplate === key ? `${meta.bg} ${meta.border}` : 'bg-gray-50 border-stone-200 dark:border-stone-700'
-                  }`}>
-                    {/* Toggle ON/OFF */}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); toggleNotify(key); }}
-                      title={notifyEnabled[key] ? 'Désactiver ce message' : 'Activer ce message'}
-                      className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${
-                        notifyEnabled[key] ? 'bg-green-500' : 'bg-gray-300'
-                      }`}
-                    >
-                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-stone-900 shadow transition-transform duration-200 ${
-                        notifyEnabled[key] ? 'translate-x-4' : 'translate-x-0'
-                      }`} />
-                    </button>
-                    {/* Sélecteur de template actif */}
-                    <button
-                      onClick={() => setActiveTemplate(key)}
-                      className={`flex-1 text-left text-xs font-medium transition-colors ${
-                        activeTemplate === key ? meta.color : 'text-gray-500 dark:text-stone-400'
-                      } ${!notifyEnabled[key] ? 'opacity-40 line-through' : ''}`}
-                    >
-                      {meta.label}
-                    </button>
-                    {notifyEnabled[key] ? (
-                      <span className="text-[10px] font-semibold text-green-600 bg-green-100 px-1.5 py-0.5 rounded-full">ON</span>
-                    ) : (
-                      <span className="text-[10px] font-semibold text-gray-400 dark:text-stone-500 bg-gray-100 px-1.5 py-0.5 rounded-full">OFF</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {/* L'édition du contenu a été déplacée dans Messages → Templates
-                  (source unique, 3 langues). Ici on ne garde que les ON/OFF,
-                  qui se sauvegardent automatiquement au clic. */}
-              <a
-                href="/messages"
-                className="flex items-center justify-between gap-2 text-sm text-green-700 bg-green-50 border border-green-100 rounded-xl px-4 py-3 hover:bg-green-100 transition-colors"
-              >
-                <span className="flex items-center gap-2">
-                  <MessageSquare size={15} />
-                  Modifier le contenu des messages (Darija / Arabe / Français)
+            {/* Les messages WhatsApp automatiques (ON/OFF par statut + contenu)
+                sont désormais entièrement gérés dans Messages → Envoyer. */}
+            <a
+              href="/messages"
+              className="flex items-center justify-between gap-2 bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 p-5 hover:border-green-300 transition-colors"
+            >
+              <span className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-green-100 flex items-center justify-center">
+                  <MessageSquare size={18} className="text-green-600" />
+                </div>
+                <span>
+                  <span className="block text-sm font-semibold text-gray-900 dark:text-stone-100">Messages WhatsApp automatiques</span>
+                  <span className="block text-xs text-gray-400 dark:text-stone-500">Activer/désactiver par statut + modifier le contenu</span>
                 </span>
-                <span aria-hidden>→</span>
-              </a>
-            </div>
+              </span>
+              <span className="text-green-600 text-sm font-medium">Gérer →</span>
+            </a>
 
           </div>
 
