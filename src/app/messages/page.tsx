@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
-import { MessageSquare, Wifi, WifiOff, QrCode, Send, History, CheckCircle, RefreshCw, ChevronLeft, ChevronRight, AlertCircle, Users, Loader2, Smartphone, Filter, Copy, Globe, RotateCcw, ChevronDown, ChevronUp, FileText } from 'lucide-react';
+import { MessageSquare, Wifi, WifiOff, QrCode, Send, History, CheckCircle, RefreshCw, ChevronLeft, ChevronRight, AlertCircle, Users, Loader2, Smartphone, Filter, Copy, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface WASettings { instance_id: string; api_token: string; connected: boolean; phone: string; }
@@ -242,6 +242,8 @@ function EnvoyerTab() {
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [templates, setTemplates] = useState<DbTemplate[]>([]);
+  const [defaults, setDefaults] = useState<DbTemplate[]>([]);
+  const [editing, setEditing] = useState(false);
   const [templateId, setTemplateId] = useState('ne_repond_pas');
   const [customText, setCustomText] = useState('');
   const [sending, setSending] = useState(false);
@@ -265,7 +267,15 @@ function EnvoyerTab() {
   }, [page, situationFilter]);
 
   useEffect(() => { fetch('/api/ai-chatbot/whatsapp/status').then(r => r.json()).then(j => setConnected(j.connected || false)); }, []);
-  useEffect(() => { fetch('/api/templates').then(r => r.json()).then(j => setTemplates(j.data || [])).catch(() => {}); }, []);
+  useEffect(() => { fetch('/api/templates').then(r => r.json()).then(j => { setTemplates(j.data || []); setDefaults(j.defaults || []); }).catch(() => {}); }, []);
+
+  const saveTemplate = async (t: EditableTemplate) => {
+    const res = await fetch('/api/templates', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...t, is_active: true }) });
+    const json = await res.json();
+    if (json.error) { toast.error(json.error); return; }
+    toast.success('Message sauvegardé !');
+    setTemplates(prev => prev.map(p => p.key === t.key ? { ...p, ...t } : p));
+  };
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
   useEffect(() => {
     setSubSituationFilter('');
@@ -362,20 +372,17 @@ function EnvoyerTab() {
         )}
       </div>
 
-      {/* Templates */}
+      {/* Choisir le message + le modifier sur place (un seul endroit) */}
       <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5 space-y-4">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-2"><MessageSquare size={16} className="text-green-500" /><h3 className="font-semibold text-gray-900 dark:text-stone-100">Template (Darija)</h3></div>
-          <span className="text-[11px] text-gray-400 dark:text-stone-500">✏️ Modifiable dans l'onglet « Templates »</span>
-        </div>
+        <div className="flex items-center gap-2"><MessageSquare size={16} className="text-green-500" /><h3 className="font-semibold text-gray-900 dark:text-stone-100">Message à envoyer</h3></div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {templates.map(t => (
-            <button key={t.key} onClick={() => setTemplateId(t.key)}
+            <button key={t.key} onClick={() => { setTemplateId(t.key); setEditing(false); }}
               className={`text-xs px-3 py-2 rounded-xl border text-left font-medium transition-colors ${templateId === t.key ? 'border-green-500 bg-green-50 text-green-700' : 'border-stone-200 dark:border-stone-700 text-gray-600 dark:text-stone-300 hover:border-gray-300'}`}>
               {t.name}
             </button>
           ))}
-          <button onClick={() => setTemplateId('custom')}
+          <button onClick={() => { setTemplateId('custom'); setEditing(false); }}
             className={`text-xs px-3 py-2 rounded-xl border text-left font-medium transition-colors ${templateId === 'custom' ? 'border-green-500 bg-green-50 text-green-700' : 'border-stone-200 dark:border-stone-700 text-gray-600 dark:text-stone-300 hover:border-gray-300'}`}>
             Personnalisé
           </button>
@@ -383,11 +390,20 @@ function EnvoyerTab() {
         {templateId === 'custom' ? (
           <textarea value={customText} onChange={e => setCustomText(e.target.value)} placeholder="كتب رسالتك..." rows={4} dir="rtl" className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
         ) : (
-          <div>
-            <p className="text-xs text-gray-400 dark:text-stone-500 mb-1">{orders.length > 0 ? 'Apercu (premier client)' : 'Apercu (exemple)'}</p>
-            <div className="bg-green-50 rounded-xl p-4 text-sm text-gray-800 dark:text-stone-100 whitespace-pre-line border border-green-100 text-right leading-relaxed" dir="rtl">
-              {renderTemplate(template?.content_darija ?? '', previewOrder)}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs text-gray-400 dark:text-stone-500">{editing ? 'Modifier (Darija / Arabe / Français)' : (orders.length > 0 ? 'Aperçu (premier client)' : 'Aperçu (exemple)')}</p>
+              <button onClick={() => setEditing(e => !e)} className="text-xs font-medium text-green-600 hover:text-green-700 flex items-center gap-1">
+                {editing ? '✓ Terminé' : '✏️ Modifier ce message'}
+              </button>
             </div>
+            {editing && template ? (
+              <TemplateEditCard key={template.key} inline tpl={template} def={defaults.find(d => d.key === template.key)} onSave={saveTemplate} />
+            ) : (
+              <div className="bg-green-50 rounded-xl p-4 text-sm text-gray-800 dark:text-stone-100 whitespace-pre-line border border-green-100 text-right leading-relaxed" dir="rtl">
+                {renderTemplate(template?.content_darija ?? '', previewOrder)}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -759,8 +775,8 @@ const TPL_VARS = ['{{client}}', '{{tracking}}', '{{produit}}', '{{wilaya}}', '{{
 
 type LangKey = 'content_darija' | 'content_arabic' | 'content_french';
 
-function TemplateEditCard({ tpl, def, onSave }: { tpl: EditableTemplate; def?: EditableTemplate; onSave: (t: EditableTemplate) => Promise<void>; }) {
-  const [open, setOpen] = useState(false);
+function TemplateEditCard({ tpl, def, onSave, inline }: { tpl: EditableTemplate; def?: EditableTemplate; onSave: (t: EditableTemplate) => Promise<void>; inline?: boolean }) {
+  const [open, setOpen] = useState(inline ?? false);
   const [lang, setLang] = useState<LangKey>('content_darija');
   const [form, setForm] = useState<EditableTemplate>(tpl);
   const [saving, setSaving] = useState(false);
@@ -771,7 +787,8 @@ function TemplateEditCard({ tpl, def, onSave }: { tpl: EditableTemplate; def?: E
   const save = async () => { setSaving(true); await onSave(form); setSaving(false); };
 
   return (
-    <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm overflow-hidden">
+    <div className={inline ? 'border border-stone-100 dark:border-stone-800 rounded-2xl overflow-hidden' : 'bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm overflow-hidden'}>
+      {!inline && (
       <button onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between px-5 py-4 hover:bg-stone-50 dark:hover:bg-stone-800 transition-colors">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center"><MessageSquare size={15} className="text-green-600" /></div>
@@ -780,8 +797,9 @@ function TemplateEditCard({ tpl, def, onSave }: { tpl: EditableTemplate; def?: E
         </div>
         {open ? <ChevronUp size={16} className="text-gray-400 dark:text-stone-500" /> : <ChevronDown size={16} className="text-gray-400 dark:text-stone-500" />}
       </button>
+      )}
       {open && (
-        <div className="border-t border-stone-100 dark:border-stone-800 p-5 space-y-4">
+        <div className={`space-y-4 ${inline ? 'p-4 bg-stone-50/60 dark:bg-stone-800/40' : 'border-t border-stone-100 dark:border-stone-800 p-5'}`}>
           <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
             {TPL_LANGS.map(l => (
               <button key={l.id} onClick={() => setLang(l.id as LangKey)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${lang === l.id ? 'bg-white dark:bg-stone-900 text-gray-900 dark:text-stone-100 shadow-sm' : 'text-gray-500 dark:text-stone-400'}`}>{l.label}</button>
@@ -805,56 +823,9 @@ function TemplateEditCard({ tpl, def, onSave }: { tpl: EditableTemplate; def?: E
   );
 }
 
-function TemplatesTab() {
-  const [templates, setTemplates] = useState<EditableTemplate[]>([]);
-  const [defaults, setDefaults] = useState<EditableTemplate[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    const res = await fetch('/api/templates');
-    const json = await res.json();
-    setTemplates(json.data || []);
-    setDefaults(json.defaults || []);
-    setLoading(false);
-  }, []);
-  useEffect(() => { load(); }, [load]);
-
-  const save = async (t: EditableTemplate) => {
-    const res = await fetch('/api/templates', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...t, is_active: true }) });
-    const json = await res.json();
-    if (json.error) { toast.error(json.error); return; }
-    toast.success('Template sauvegardé !');
-    setTemplates(prev => prev.map(p => p.key === t.key ? { ...p, ...t } : p));
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-start gap-3">
-        <Globe size={16} className="text-blue-500 shrink-0 mt-0.5" />
-        <div className="text-sm text-blue-700">
-          <span className="font-medium">Vos messages, en 3 langues</span>
-          <span className="ml-1">— modifiez chaque template (Darija, Arabe, Français). Ils servent à la fois à l'envoi manuel et aux notifications automatiques. Variables :</span>
-          <span className="ml-1">{TPL_VARS.map(v => <code key={v} className="mx-0.5 bg-blue-100 px-1.5 py-0.5 rounded text-blue-800 text-xs font-mono">{v}</code>)}</span>
-        </div>
-      </div>
-      {loading ? (
-        <div className="flex justify-center py-16"><Loader2 size={24} className="animate-spin text-gray-400 dark:text-stone-500" /></div>
-      ) : (
-        <div className="space-y-3">
-          {templates.map(t => (
-            <TemplateEditCard key={t.key} tpl={t} def={defaults.find(d => d.key === t.key)} onSave={save} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 const TABS = [
   { id: 'connexion', label: 'Connexion', icon: QrCode },
   { id: 'envoyer', label: 'Envoyer', icon: Send },
-  { id: 'templates', label: 'Templates', icon: FileText },
   { id: 'historique', label: 'Historique', icon: History },
 ];
 
@@ -876,7 +847,6 @@ export default function MessagesPage() {
         </div>
         {tab === 'connexion' && <ConnexionTab />}
         {tab === 'envoyer' && <EnvoyerTab />}
-        {tab === 'templates' && <TemplatesTab />}
         {tab === 'historique' && <HistoriqueTab />}
       </div>
     </AppLayout>

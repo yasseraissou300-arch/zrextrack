@@ -264,7 +264,7 @@ export default function SyncPage() {
                 Activez ou désactivez l'envoi automatique d'un WhatsApp par statut.
                 Le <strong>contenu des messages</strong> (Darija / Arabe / Français)
                 se modifie désormais dans{' '}
-                <a href="/messages" className="text-green-600 hover:underline font-medium">Messages → Templates</a>.
+                <a href="/messages" className="text-green-600 hover:underline font-medium">Messages → Envoyer</a> (bouton « ✏️ Modifier ce message »).
               </p>
 
               {/* Onglets statuts + toggles ON/OFF */}
