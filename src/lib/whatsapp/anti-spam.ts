@@ -18,9 +18,10 @@ export const ANTI_SPAM = {
   THROTTLE_MIN_MS: 3000,
   THROTTLE_MAX_MS: 6000,
 
-  // Plafond journalier glissant (sur 24h). Très conservateur — un numéro neuf
-  // doit rester sous 100/jour pendant la 1ère semaine, puis tu peux monter.
-  DAILY_LIMIT: 100,
+  // Plafond journalier glissant (sur 24h). 200 pour un numéro établi (gros
+  // historique). Un numéro NEUF devrait rester ~100/jour la 1ère semaine.
+  // Au-delà de ~250-300/jour, le risque de suspension WhatsApp augmente vite.
+  DAILY_LIMIT: 200,
 
   // Si N envois consécutifs échouent, on stoppe le batch pour ne pas brûler
   // davantage de réputation du numéro.
