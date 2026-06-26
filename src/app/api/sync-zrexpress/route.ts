@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { mapStatus } from '@/lib/zrexpress/status';
+import { remainingDailyQuota } from '@/lib/whatsapp/anti-spam';
 
 const ZREXPRESS_API = 'https://api.zrexpress.app/api/v1.0';
 const APP_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://zrextrack6753.builtwithrocket.new';
@@ -266,9 +267,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // 5. Envoyer les notifications WhatsApp + logger dans messages
+    // 5. Envoyer les notifications WhatsApp + logger dans messages.
+    // ── PLAFOND DE SÉCURITÉ ANTI-BURST ──────────────────────────────────────
+    // On ne TENTE jamais plus que le quota journalier restant en un seul sync.
+    // Sans ça, si 200 commandes changent de statut d'un coup (ex. après une
+    // longue absence de sync), on tenterait 200 envois = burst = suspension
+    // WhatsApp garantie. On en prend juste assez pour rester sous la limite.
+    const notifSince = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { count: notifSentToday } = await supabase
+      .from('messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('status', 'envoye')
+      .gte('sent_at', notifSince);
+    const notifBudget = remainingDailyQuota(notifSentToday ?? 0);
+    const toNotifyCapped = toNotify.slice(0, notifBudget);
+
     let whatsappSent = 0;
-    for (const n of toNotify) {
+    for (const n of toNotifyCapped) {
       const message = buildMessage(n.delivery_status, n, userTpl);
       const sent = waInstanceId && waToken
         ? await sendWhatsApp(waInstanceId, waToken, n.customer_whatsapp, message)
