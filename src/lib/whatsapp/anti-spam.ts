@@ -15,13 +15,15 @@
 export const ANTI_SPAM = {
   // Délai entre 2 envois consécutifs en mode bulk (en millisecondes).
   // Random entre min et max pour ne pas avoir un rythme robotique.
-  THROTTLE_MIN_MS: 3000,
-  THROTTLE_MAX_MS: 6000,
+  // Rallongé à 20-60s après une suspension WhatsApp : un rythme lent et
+  // irrégulier ressemble bien plus à un envoi humain qu'un burst.
+  THROTTLE_MIN_MS: 20000,
+  THROTTLE_MAX_MS: 60000,
 
-  // Plafond journalier glissant (sur 24h). 200 pour un numéro établi (gros
-  // historique). Un numéro NEUF devrait rester ~100/jour la 1ère semaine.
-  // Au-delà de ~250-300/jour, le risque de suspension WhatsApp augmente vite.
-  DAILY_LIMIT: 200,
+  // Plafond journalier glissant (sur 24h). TRÈS conservateur après la
+  // suspension du numéro : on redescend bas pour reconstruire sa réputation.
+  // À remonter LENTEMENT (jamais en burst) seulement si tout reste stable.
+  DAILY_LIMIT: 40,
 
   // Si N envois consécutifs échouent, on stoppe le batch pour ne pas brûler
   // davantage de réputation du numéro.
