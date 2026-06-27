@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { mapStatus } from '@/lib/zrexpress/status';
-import { remainingDailyQuota } from '@/lib/whatsapp/anti-spam';
+import { remainingDailyQuota, sleep, varyMessage } from '@/lib/whatsapp/anti-spam';
+import { resolveEvolutionCreds } from '@/lib/user-creds';
 
 const ZREXPRESS_API = 'https://api.zrexpress.app/api/v1.0';
 const APP_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://zrextrack6753.builtwithrocket.new';
@@ -167,6 +168,105 @@ function mapParcel(p: any, syncedAt: string) {
   };
 }
 
+const DRAIN_PER_SYNC = 2;        // max notifs envoyées par sync (anti-burst)
+const DRAIN_SPACING_MS = 8000;   // espacement entre 2 envois d'un même drain
+
+// Draine la file pending_notifications : envoie au plus DRAIN_PER_SYNC notifs
+// (jamais au-delà du plafond journalier) via le numéro Evolution connecté.
+// Renvoie le nombre réellement envoyé. Aucun envoi en masse possible.
+async function drainNotifications(
+  supabase: ReturnType<typeof createServiceClient>,
+  userId: string,
+  userTpl: Map<string, string>,
+): Promise<number> {
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { count: sentToday } = await supabase
+    .from('messages')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('status', 'envoye')
+    .gte('sent_at', since);
+  const budget = Math.min(remainingDailyQuota(sentToday ?? 0), DRAIN_PER_SYNC);
+  if (budget <= 0) return 0;
+
+  // Numéro Evolution connecté de l'utilisateur (instance auto_confirmation)
+  const ev = await resolveEvolutionCreds(userId);
+  if (!ev.url || !ev.key) return 0;
+  const { data: inst } = await supabase
+    .from('whatsapp_instances')
+    .select('instance_name')
+    .eq('user_id', userId)
+    .eq('service_type', 'auto_confirmation')
+    .single();
+  if (!inst?.instance_name) return 0;
+
+  const { data: pendings } = await supabase
+    .from('pending_notifications')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: true })
+    .limit(budget);
+  if (!pendings || pendings.length === 0) return 0;
+
+  type Pending = {
+    id: string; tracking_number: string; delivery_status: string;
+    customer_name: string | null; customer_whatsapp: string | null;
+    wilaya: string | null; product_name: string | null; cod: number | null;
+  };
+
+  let sent = 0;
+  for (let i = 0; i < pendings.length; i++) {
+    const p = pendings[i] as Pending;
+    if (i > 0) await sleep(DRAIN_SPACING_MS);
+
+    const message = buildMessage(p.delivery_status, {
+      customer_name: p.customer_name || '',
+      tracking_number: p.tracking_number,
+      wilaya: p.wilaya || '',
+      product_name: p.product_name || '',
+      cod: p.cod ?? 0,
+    }, userTpl);
+
+    const phone = normalizePhone(p.customer_whatsapp || '');
+    let ok = false;
+    let err = '';
+    if (phone.length >= 11) {
+      try {
+        const r = await fetch(`${ev.url}/message/sendText/${inst.instance_name}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', apikey: ev.key },
+          body: JSON.stringify({ number: phone, text: varyMessage(message) }),
+        });
+        ok = r.ok;
+        if (!ok) err = `Evolution HTTP ${r.status}`;
+      } catch (e: any) {
+        err = e?.message || 'réseau';
+      }
+    } else {
+      err = 'Numéro invalide';
+    }
+
+    await supabase.from('pending_notifications')
+      .update({ status: ok ? 'sent' : 'failed', sent_at: new Date().toISOString() })
+      .eq('id', p.id);
+
+    await supabase.from('messages').insert({
+      user_id: userId,
+      tracking_number: p.tracking_number,
+      customer_name: p.customer_name || '',
+      customer_whatsapp: p.customer_whatsapp || '',
+      message,
+      status: ok ? 'envoye' : 'echec',
+      error_message: ok ? null : err.slice(0, 300),
+      sent_at: new Date().toISOString(),
+    });
+
+    if (ok) sent++;
+  }
+  return sent;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { token, tenantId, notifyEnabled } = await request.json();
@@ -267,41 +367,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // 5. Envoyer les notifications WhatsApp + logger dans messages.
-    // ── PLAFOND DE SÉCURITÉ ANTI-BURST ──────────────────────────────────────
-    // On ne TENTE jamais plus que le quota journalier restant en un seul sync.
-    // Sans ça, si 200 commandes changent de statut d'un coup (ex. après une
-    // longue absence de sync), on tenterait 200 envois = burst = suspension
-    // WhatsApp garantie. On en prend juste assez pour rester sous la limite.
-    const notifSince = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const { count: notifSentToday } = await supabase
-      .from('messages')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .eq('status', 'envoye')
-      .gte('sent_at', notifSince);
-    const notifBudget = remainingDailyQuota(notifSentToday ?? 0);
-    const toNotifyCapped = toNotify.slice(0, notifBudget);
+    // 5. Notifications WhatsApp — FILE D'ATTENTE (anti-ban).
+    // On N'ENVOIE PLUS en masse pendant le sync. À la place :
+    //   a) chaque changement de statut est mis EN FILE (pending_notifications)
+    //   b) on draine au plus DRAIN_PER_SYNC notifs, espacées, via le numéro
+    //      Evolution connecté, sous le plafond journalier.
+    // => jamais de burst, envoi étalé, zéro risque de suspension.
 
-    let whatsappSent = 0;
-    for (const n of toNotifyCapped) {
-      const message = buildMessage(n.delivery_status, n, userTpl);
-      const sent = waInstanceId && waToken
-        ? await sendWhatsApp(waInstanceId, waToken, n.customer_whatsapp, message)
-        : false;
-      if (sent) whatsappSent++;
-
-      // Logger dans la table messages
-      await supabase.from('messages').insert({
-        tracking_number: n.tracking_number,
-        customer_name: n.customer_name,
-        customer_whatsapp: n.customer_whatsapp,
-        message,
-        status: sent ? 'envoye' : 'echec',
-        sent_at: syncedAt,
-        user_id: userId,
-      }).select();
+    // a) Mise en file (dédupliquée par index unique user+tracking+statut)
+    if (toNotify.length > 0 && userId) {
+      await supabase.from('pending_notifications').upsert(
+        toNotify.map(n => ({
+          user_id: userId,
+          tracking_number: n.tracking_number,
+          delivery_status: n.delivery_status,
+          customer_name: n.customer_name,
+          customer_whatsapp: n.customer_whatsapp,
+          wilaya: n.wilaya,
+          product_name: n.product_name,
+          cod: n.cod,
+          status: 'pending',
+        })),
+        { onConflict: 'user_id,tracking_number,delivery_status', ignoreDuplicates: true },
+      );
     }
+
+    // b) Drain au compte-gouttes (≤ DRAIN_PER_SYNC, espacé, ≤ plafond/jour)
+    const whatsappSent = userId ? await drainNotifications(supabase, userId, userTpl) : 0;
 
     return NextResponse.json({
       synced: count ?? rows.length,

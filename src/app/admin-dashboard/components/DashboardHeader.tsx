@@ -5,7 +5,7 @@ import { RefreshCw, Download, Plus, Wifi, WifiOff, Zap, PauseCircle, PlayCircle,
 import { toast } from 'sonner';
 import { loadSyncSettings } from '@/lib/sync-settings-client';
 
-const AUTO_SYNC_INTERVAL = 30_000; // 30 secondes
+const AUTO_SYNC_INTERVAL = 300_000; // 5 minutes (léger + draine la file de notifs en douceur)
 
 // Event pour notifier les autres composants qu'un sync vient de se faire
 export const SYNC_DONE_EVENT = 'zrextrack:sync-done';
