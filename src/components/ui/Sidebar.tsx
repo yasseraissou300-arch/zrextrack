@@ -1,15 +1,16 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Package, MessageSquare, BarChart3, Key,
   ChevronLeft, ChevronRight, Truck, Bell, RefreshCw, Users, Trash2, Megaphone, Plug, MessageCircle, Bot, Repeat,
-  Sun, Moon, PhoneCall,
+  Sun, Moon, PhoneCall, UserCircle, Shield,
 } from 'lucide-react';
 import { useChatbot } from '@/contexts/ChatbotContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { createClient } from '@/lib/supabase/client';
 
 const navGroups = [
   {
@@ -55,9 +56,20 @@ interface SidebarProps {
 
 export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const pathname = usePathname();
   const { toggle, isOpen } = useChatbot();
   const { theme, toggle: toggleTheme } = useTheme();
+
+  // Le lien « Super Admin » n'apparaît QUE pour les comptes role = 'admin'.
+  useEffect(() => {
+    const sb = createClient();
+    sb.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      sb.from('profiles').select('role').eq('id', user.id).single()
+        .then(({ data }) => { if (data?.role === 'admin') setIsAdmin(true); });
+    });
+  }, []);
 
   // Reset collapsed when in mobile drawer mode
   const isMobile = mobileOpen !== undefined && onMobileClose !== undefined;
@@ -193,6 +205,34 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
             </div>
           )}
         </Link>
+
+        <Link
+          href="/mon-compte"
+          onClick={onMobileClose}
+          title={effectivelyCollapsed ? 'Mon compte' : undefined}
+          className={`group relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium text-stone-500 hover:bg-stone-50 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100 transition-all duration-150 ${effectivelyCollapsed ? 'justify-center' : ''}`}
+        >
+          <UserCircle size={15} className="shrink-0" />
+          {!effectivelyCollapsed && <span>Mon compte</span>}
+          {effectivelyCollapsed && (
+            <div className="absolute left-full ml-2 px-2 py-1 bg-stone-800 dark:bg-stone-700 text-white text-xs rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-md">Mon compte</div>
+          )}
+        </Link>
+
+        {isAdmin && (
+          <Link
+            href="/admin"
+            onClick={onMobileClose}
+            title={effectivelyCollapsed ? 'Super Admin' : undefined}
+            className={`group relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 dark:text-amber-300 dark:bg-amber-500/10 dark:hover:bg-amber-500/20 transition-all duration-150 ${effectivelyCollapsed ? 'justify-center' : ''}`}
+          >
+            <Shield size={15} className="shrink-0" />
+            {!effectivelyCollapsed && <span>Super Admin</span>}
+            {effectivelyCollapsed && (
+              <div className="absolute left-full ml-2 px-2 py-1 bg-stone-800 dark:bg-stone-700 text-white text-xs rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-md">Super Admin</div>
+            )}
+          </Link>
+        )}
       </div>
 
       {/* Collapse toggle — hidden on mobile drawer */}
