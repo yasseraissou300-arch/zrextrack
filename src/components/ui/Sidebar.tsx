@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 import { useChatbot } from '@/contexts/ChatbotContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { createClient } from '@/lib/supabase/client';
 
 const navGroups = [
   {
@@ -62,13 +61,13 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
   const { theme, toggle: toggleTheme } = useTheme();
 
   // Le lien « Super Admin » n'apparaît QUE pour les comptes role = 'admin'.
+  // Le rôle est lu via /api/auth/me (serveur, bypass RLS) → fiable même si la
+  // RLS de profiles est cassée.
   useEffect(() => {
-    const sb = createClient();
-    sb.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return;
-      sb.from('profiles').select('role').eq('id', user.id).single()
-        .then(({ data }) => { if (data?.role === 'admin') setIsAdmin(true); });
-    });
+    fetch('/api/auth/me')
+      .then(r => r.json())
+      .then(j => { if (j.role === 'admin') setIsAdmin(true); })
+      .catch(() => {});
   }, []);
 
   // Reset collapsed when in mobile drawer mode
