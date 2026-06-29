@@ -45,13 +45,12 @@ export default function AdminPage() {
     checkAccess();
   }, []);
 
+  // Tous les profils via la route serveur admin (service role, vérif rôle).
   const fetchUsers = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false });
-
+    const res = await fetch('/api/admin/users');
+    const json = await res.json();
+    const data: Profile[] | undefined = json.users;
     if (data) {
       setUsers(data);
       setStats({
@@ -66,12 +65,18 @@ export default function AdminPage() {
 
   const toggleUserStatus = async (userId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'active' ? 'blocked' : 'active';
-    await supabase.from('profiles').update({ status: newStatus }).eq('id', userId);
+    await fetch('/api/admin/users', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, status: newStatus }),
+    });
     fetchUsers();
   };
 
   const changePlan = async (userId: string, planId: string) => {
-    await supabase.from('profiles').update({ plan_id: planId }).eq('id', userId);
+    await fetch('/api/admin/users', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, plan_id: planId }),
+    });
     fetchUsers();
   };
 
