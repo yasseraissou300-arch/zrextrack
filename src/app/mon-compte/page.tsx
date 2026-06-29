@@ -41,14 +41,22 @@ export default function MonComptePage() {
 
   useEffect(() => {
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { window.location.href = '/login'; return; }
-      setEmail(user.email || '');
-      const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-      setProfile((data as Profile) ?? null);
+      // Lecture via /api/auth/me (serveur, bypass RLS) → le rôle est toujours lu.
+      const res = await fetch('/api/auth/me');
+      if (res.status === 401) { window.location.href = '/login'; return; }
+      const j = await res.json();
+      setEmail(j.email || '');
+      setProfile({
+        email: j.email || '',
+        full_name: j.full_name || '',
+        avatar_url: j.avatar_url || '',
+        company_name: j.company_name || '',
+        plan_id: j.plan_id || 'basic',
+        role: j.role || '',
+        created_at: j.created_at || '',
+      });
       setLoading(false);
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const logout = async () => {

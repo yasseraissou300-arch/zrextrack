@@ -28,14 +28,11 @@ export default function AdminPage() {
 
   useEffect(() => {
     const checkAccess = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { window.location.href = '/login'; return; }
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      if (profile?.role !== 'admin') {
+      // Rôle lu via /api/auth/me (serveur, bypass RLS) — fiable.
+      const res = await fetch('/api/auth/me');
+      if (res.status === 401) { window.location.href = '/login'; return; }
+      const me = await res.json();
+      if (me?.role !== 'admin') {
         window.location.href = '/admin-dashboard';
         return;
       }
