@@ -290,7 +290,7 @@ export default function OrdersTable() {
               <tr
                 key={order.id}
                 onClick={() => setSelectedOrder(order)}
-                className={`border-b border-stone-50 hover:bg-slate-50 transition-colors cursor-pointer group ${selected.has(order.id) ? 'bg-red-50/40' : ''}`}
+                className={`border-b border-stone-50 dark:border-stone-800 hover:bg-stone-50 dark:hover:bg-stone-800/40 transition-colors cursor-pointer group ${selected.has(order.id) ? 'bg-red-50/40 dark:bg-red-500/10' : ''}`}
               >
                 <td className="px-4 py-3" onClick={e => toggleSelect(order.id, e)}>
                   <input
