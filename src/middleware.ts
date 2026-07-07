@@ -21,8 +21,11 @@ import type { NextRequest } from 'next/server';
 export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  // Routes publiques — aucune auth nécessaire
-  const publicRoutes = ['/login', '/pricing', '/auth/callback', '/api/', '/track/'];
+  // Routes publiques — aucune auth nécessaire.
+  // NB : '/track' (sans slash) couvre la page de recherche /track ET les pages
+  // résultat /track/<numero>. Avant, seul '/track/' était listé → la page
+  // d'entrée /track redirigeait l'acheteur vers /login (inaccessible).
+  const publicRoutes = ['/login', '/pricing', '/auth/callback', '/api/', '/track'];
   if (publicRoutes.some(r => pathname.startsWith(r))) {
     return NextResponse.next();
   }
