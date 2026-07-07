@@ -34,7 +34,7 @@ const STATUS_OPTIONS = [
 const VARIABLE_HINTS = ['{{client}}', '{{tracking}}', '{{wilaya}}', '{{cod}}'];
 
 const CAMPAIGN_STATUS_CONFIG = {
-  brouillon: { label: 'Brouillon', bg: 'bg-gray-100 text-gray-600 dark:text-stone-300', icon: Clock },
+  brouillon: { label: 'Brouillon', bg: 'bg-stone-100 text-stone-600 dark:text-stone-300', icon: Clock },
   en_cours: { label: 'En cours', bg: 'bg-blue-100 text-blue-700', icon: Loader2 },
   termine: { label: 'Terminé', bg: 'bg-green-100 text-green-700', icon: CheckCircle },
   annule: { label: 'Annulé', bg: 'bg-red-100 text-red-600', icon: XCircle },
@@ -153,18 +153,18 @@ function CreateModal({ open, onClose, onCreate, preselectedPhones }: {
       <div className="p-6 space-y-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-green-100 dark:bg-green-500/15 rounded-lg flex items-center justify-center">
               <Megaphone size={16} className="text-green-600" />
             </div>
-            <h2 className="font-bold text-gray-900 dark:text-stone-100">Nouvelle campagne</h2>
+            <h2 className="font-bold text-stone-900 dark:text-stone-100">Nouvelle campagne</h2>
           </div>
           <button onClick={handleClose} className="p-1.5 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-lg">
-            <X size={16} className="text-gray-500 dark:text-stone-400" />
+            <X size={16} className="text-stone-500 dark:text-stone-400" />
           </button>
         </div>
 
         <div className="space-y-1">
-          <label className="block text-xs font-medium text-gray-600 dark:text-stone-300">Nom de la campagne</label>
+          <label className="block text-xs font-medium text-stone-600 dark:text-stone-300">Nom de la campagne</label>
           <input
             value={name}
             onChange={e => setName(e.target.value)}
@@ -183,7 +183,7 @@ function CreateModal({ open, onClose, onCreate, preselectedPhones }: {
           </div>
         ) : (
           <div className="space-y-1">
-            <label className="block text-xs font-medium text-gray-600 dark:text-stone-300">Audience (statut des commandes)</label>
+            <label className="block text-xs font-medium text-stone-600 dark:text-stone-300">Audience (statut des commandes)</label>
             <select
               value={audienceStatus}
               onChange={e => setAudienceStatus(e.target.value)}
@@ -197,7 +197,7 @@ function CreateModal({ open, onClose, onCreate, preselectedPhones }: {
         )}
 
         <div className="space-y-1.5">
-          <label className="block text-xs font-medium text-gray-600 dark:text-stone-300">
+          <label className="block text-xs font-medium text-stone-600 dark:text-stone-300">
             <span className="flex items-center gap-1.5"><ImageIcon size={12} /> Media (optionnel — photo, vidéo, audio, PDF — max 16 MB)</span>
           </label>
 
@@ -274,7 +274,7 @@ function CreateModal({ open, onClose, onCreate, preselectedPhones }: {
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="block text-xs font-medium text-gray-600 dark:text-stone-300">Message</label>
+            <label className="block text-xs font-medium text-stone-600 dark:text-stone-300">Message</label>
             <div className="flex gap-1.5">
               {VARIABLE_HINTS.map(v => (
                 <button
@@ -300,7 +300,7 @@ function CreateModal({ open, onClose, onCreate, preselectedPhones }: {
         {template && (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-gray-600 dark:text-stone-300 flex items-center gap-1.5">
+              <p className="text-xs font-medium text-stone-600 dark:text-stone-300 flex items-center gap-1.5">
                 <Phone size={11} />
                 Aperçu — comment ton client va le recevoir sur WhatsApp
               </p>
@@ -344,8 +344,8 @@ function CreateModal({ open, onClose, onCreate, preselectedPhones }: {
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={mediaUrl} alt="media" className="w-full max-h-40 object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                         ) : (
-                          <div className="px-3 py-4 text-center text-[10px] text-gray-600">
-                            <ImageIcon size={20} className="mx-auto mb-1 text-gray-400" />
+                          <div className="px-3 py-4 text-center text-[10px] text-stone-600">
+                            <ImageIcon size={20} className="mx-auto mb-1 text-stone-400" />
                             Pièce jointe : {mediaUrl.slice(0, 40)}{mediaUrl.length > 40 ? '…' : ''}
                           </div>
                         )}
@@ -359,7 +359,7 @@ function CreateModal({ open, onClose, onCreate, preselectedPhones }: {
 
                     {/* Heure + double check WhatsApp */}
                     <div className="flex items-center justify-end gap-1 mt-1 -mb-0.5">
-                      <span className="text-[10px] text-gray-500">{new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span className="text-[10px] text-stone-500">{new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
                       <svg viewBox="0 0 16 11" className="w-3.5 h-3 text-[#4FC3F7]" fill="currentColor">
                         <path d="M11.071.653a.457.457 0 00-.304-.13c-.146 0-.286.063-.379.18l-5.846 7.43-2.405-2.516a.456.456 0 00-.66.005l-.61.625a.5.5 0 00-.005.692l3.354 3.504c.1.105.243.166.387.166.142 0 .284-.061.385-.166L12.166 1.94a.5.5 0 00.014-.692l-.61-.612a.518.518 0 00-.5-.04zM7.385 9.32l-.61-.611a.5.5 0 00-.014.692l3.354 3.504c.1.105.243.166.387.166.142 0 .284-.061.385-.166L16.166 5.94a.5.5 0 00.014-.692l-.61-.612a.518.518 0 00-.5-.04.457.457 0 00-.304-.13c-.146 0-.286.063-.379.18l-5.846 7.43-1.156-1.21z" />
                       </svg>
@@ -383,7 +383,7 @@ function CreateModal({ open, onClose, onCreate, preselectedPhones }: {
         <div className="flex gap-2 pt-2">
           <button
             onClick={handleClose}
-            className="flex-1 border border-stone-200 dark:border-stone-700 rounded-xl py-2.5 text-sm font-medium text-gray-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800"
+            className="flex-1 border border-stone-200 dark:border-stone-700 rounded-xl py-2.5 text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800"
           >
             Annuler
           </button>
@@ -418,8 +418,8 @@ function CampaignCard({ campaign, onDelete, onSend, onView }: {
     <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5 space-y-4 hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-gray-900 dark:text-stone-100 truncate">{campaign.name}</h3>
-          <p className="text-xs text-gray-400 dark:text-stone-500 mt-0.5">
+          <h3 className="font-semibold text-stone-900 dark:text-stone-100 truncate">{campaign.name}</h3>
+          <p className="text-xs text-stone-400 dark:text-stone-500 mt-0.5">
             {new Date(campaign.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
           </p>
         </div>
@@ -429,20 +429,20 @@ function CampaignCard({ campaign, onDelete, onSend, onView }: {
         </span>
       </div>
 
-      <div className="bg-gray-50 rounded-xl p-3">
-        <p className="text-xs text-gray-500 dark:text-stone-400 line-clamp-2 text-right leading-relaxed" dir="rtl">
+      <div className="bg-stone-50 rounded-xl p-3">
+        <p className="text-xs text-stone-500 dark:text-stone-400 line-clamp-2 text-right leading-relaxed" dir="rtl">
           {campaign.message_template}
         </p>
       </div>
 
-      <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-stone-400">
+      <div className="flex items-center gap-3 text-xs text-stone-500 dark:text-stone-400">
         <span className="flex items-center gap-1">
           <Users size={12} />
           {audienceLabel}
         </span>
         {campaign.status === 'termine' && (
           <>
-            <span className="text-gray-200">|</span>
+            <span className="text-stone-200">|</span>
             <span className="flex items-center gap-1 text-green-600 font-medium">
               <CheckCircle size={11} /> {campaign.sent_count} envoyés
             </span>
@@ -452,7 +452,7 @@ function CampaignCard({ campaign, onDelete, onSend, onView }: {
               </span>
             )}
             {successRate !== null && (
-              <span className="ml-auto text-gray-400 dark:text-stone-500">{successRate}%</span>
+              <span className="ml-auto text-stone-400 dark:text-stone-500">{successRate}%</span>
             )}
           </>
         )}
@@ -461,7 +461,7 @@ function CampaignCard({ campaign, onDelete, onSend, onView }: {
       <div className="flex gap-2 pt-1">
         <button
           onClick={() => onView(campaign.id)}
-          className="flex items-center gap-1.5 text-xs px-3 py-2 border border-stone-200 dark:border-stone-700 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800 text-gray-600 dark:text-stone-300"
+          className="flex items-center gap-1.5 text-xs px-3 py-2 border border-stone-200 dark:border-stone-700 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800 text-stone-600 dark:text-stone-300"
         >
           Détails <ChevronRight size={12} />
         </button>
@@ -515,39 +515,39 @@ function DetailModal({ campaignId, open, onClose }: { campaignId: string | null;
     <Modal open={open} onClose={onClose}>
       <div className="p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="font-bold text-gray-900 dark:text-stone-100">Détails de la campagne</h2>
+          <h2 className="font-bold text-stone-900 dark:text-stone-100">Détails de la campagne</h2>
           <button onClick={onClose} className="p-1.5 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-lg">
-            <X size={16} className="text-gray-500 dark:text-stone-400" />
+            <X size={16} className="text-stone-500 dark:text-stone-400" />
           </button>
         </div>
         {loading ? (
-          <div className="flex justify-center py-12"><Loader2 size={24} className="animate-spin text-gray-400 dark:text-stone-500" /></div>
+          <div className="flex justify-center py-12"><Loader2 size={24} className="animate-spin text-stone-400 dark:text-stone-500" /></div>
         ) : !data ? (
-          <p className="text-center text-gray-400 dark:text-stone-500 py-8">Aucune donnée</p>
+          <p className="text-center text-stone-400 dark:text-stone-500 py-8">Aucune donnée</p>
         ) : (
           <>
             <div className="grid grid-cols-3 gap-3">
-              <div className="bg-gray-50 rounded-xl p-3 text-center">
-                <p className="text-xl font-bold text-gray-900 dark:text-stone-100">{data.campaign.total_count}</p>
-                <p className="text-xs text-gray-500 dark:text-stone-400 mt-0.5">Total</p>
+              <div className="bg-stone-50 rounded-xl p-3 text-center">
+                <p className="text-xl font-bold text-stone-900 dark:text-stone-100">{data.campaign.total_count}</p>
+                <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">Total</p>
               </div>
               <div className="bg-green-50 rounded-xl p-3 text-center">
                 <p className="text-xl font-bold text-green-700">{data.campaign.sent_count}</p>
-                <p className="text-xs text-gray-500 dark:text-stone-400 mt-0.5">Envoyés</p>
+                <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">Envoyés</p>
               </div>
               <div className="bg-red-50 rounded-xl p-3 text-center">
                 <p className="text-xl font-bold text-red-600">{data.campaign.failed_count}</p>
-                <p className="text-xs text-gray-500 dark:text-stone-400 mt-0.5">Échecs</p>
+                <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">Échecs</p>
               </div>
             </div>
             <div className="max-h-80 overflow-y-auto divide-y divide-stone-50 dark:divide-stone-800 rounded-xl border border-stone-100 dark:border-stone-800">
               {data.recipients.length === 0 ? (
-                <p className="text-center text-gray-400 dark:text-stone-500 py-8 text-sm">Aucun destinataire</p>
+                <p className="text-center text-stone-400 dark:text-stone-500 py-8 text-sm">Aucun destinataire</p>
               ) : data.recipients.map((r: any) => (
                 <div key={r.id} className="p-3 flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 dark:text-stone-100 truncate">{r.client}</p>
-                    <p className="text-xs text-gray-400 dark:text-stone-500">{r.phone} {r.tracking && `· ${r.tracking}`}</p>
+                    <p className="text-sm font-medium text-stone-900 dark:text-stone-100 truncate">{r.client}</p>
+                    <p className="text-xs text-stone-400 dark:text-stone-500">{r.phone} {r.tracking && `· ${r.tracking}`}</p>
                   </div>
                   <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${statusCfg[r.status] || statusCfg.en_attente}`}>
                     {r.status === 'envoye' ? 'Envoyé' : r.status === 'echec' ? 'Échec' : 'Attente'}
@@ -625,12 +625,12 @@ export default function CampagnesPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
+            <div className="w-10 h-10 bg-green-100 dark:bg-green-500/15 rounded-xl flex items-center justify-center">
               <Megaphone size={20} className="text-green-600" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900 dark:text-stone-100">Campagnes</h1>
-              <p className="text-sm text-gray-500 dark:text-stone-400">Envois groupés WhatsApp ciblés</p>
+              <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100">Campagnes</h1>
+              <p className="text-sm text-stone-500 dark:text-stone-400">Envois groupés WhatsApp ciblés</p>
             </div>
           </div>
           <button
@@ -648,8 +648,8 @@ export default function CampagnesPage() {
             onClick={() => setTab('campaigns')}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               tab === 'campaigns'
-                ? 'bg-white dark:bg-stone-900 text-gray-900 dark:text-stone-100 shadow-sm'
-                : 'text-gray-500 dark:text-stone-400 hover:text-gray-700'
+                ? 'bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 shadow-sm'
+                : 'text-stone-500 dark:text-stone-400 hover:text-stone-700'
             }`}
           >
             <Megaphone size={14} />
@@ -659,8 +659,8 @@ export default function CampagnesPage() {
             onClick={() => setTab('delivered')}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               tab === 'delivered'
-                ? 'bg-white dark:bg-stone-900 text-gray-900 dark:text-stone-100 shadow-sm'
-                : 'text-gray-500 dark:text-stone-400 hover:text-gray-700'
+                ? 'bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 shadow-sm'
+                : 'text-stone-500 dark:text-stone-400 hover:text-stone-700'
             }`}
           >
             <Target size={14} />
@@ -687,12 +687,12 @@ export default function CampagnesPage() {
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <Loader2 size={24} className="animate-spin text-gray-400 dark:text-stone-500" />
+            <Loader2 size={24} className="animate-spin text-stone-400 dark:text-stone-500" />
           </div>
         ) : campaigns.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-gray-400 dark:text-stone-500">
+          <div className="flex flex-col items-center justify-center py-20 text-stone-400 dark:text-stone-500">
             <Megaphone size={40} className="mb-3 opacity-20" />
-            <p className="text-base font-medium text-gray-500 dark:text-stone-400">Aucune campagne</p>
+            <p className="text-base font-medium text-stone-500 dark:text-stone-400">Aucune campagne</p>
             <p className="text-sm mt-1">Crée ta première campagne WhatsApp</p>
             <button
               onClick={() => setCreateOpen(true)}
@@ -705,7 +705,7 @@ export default function CampagnesPage() {
           <div className="space-y-6">
             {brouillons.length > 0 && (
               <div className="space-y-3">
-                <h2 className="text-sm font-semibold text-gray-500 dark:text-stone-400 uppercase tracking-wide">Prêtes à envoyer ({brouillons.length})</h2>
+                <h2 className="text-sm font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide">Prêtes à envoyer ({brouillons.length})</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                   {brouillons.map(c => (
                     <CampaignCard
@@ -721,7 +721,7 @@ export default function CampagnesPage() {
             )}
             {terminees.length > 0 && (
               <div className="space-y-3">
-                <h2 className="text-sm font-semibold text-gray-500 dark:text-stone-400 uppercase tracking-wide">Historique ({terminees.length})</h2>
+                <h2 className="text-sm font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide">Historique ({terminees.length})</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                   {terminees.map(c => (
                     <CampaignCard
@@ -937,7 +937,7 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
       {customers.length === 0 && !loading && credentialsReady && !error && (
         <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 p-6 text-center">
           <Target size={32} className="mx-auto text-stone-300 mb-3" />
-          <p className="text-sm text-gray-700 dark:text-stone-200 mb-3">Charge la liste de tes clients livrés depuis ZRExpress.</p>
+          <p className="text-sm text-stone-700 dark:text-stone-200 mb-3">Charge la liste de tes clients livrés depuis ZRExpress.</p>
           <button
             onClick={fetchData}
             disabled={loading}
@@ -1106,7 +1106,7 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
                       />
                     </th>
                     {['Client', 'Wilaya', 'Produits', 'Livraisons', 'Total dépensé', 'Dernière livraison'].map(h => (
-                      <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 dark:text-stone-400 uppercase tracking-wide">{h}</th>
+                      <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -1135,7 +1135,7 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
                             >
                               {c.gender === 'F' ? '♀' : c.gender === 'M' ? '♂' : '?'}
                             </span>
-                            <p className="font-medium text-gray-900 dark:text-stone-100 text-xs truncate">{c.name || <span className="text-stone-400">(sans nom)</span>}</p>
+                            <p className="font-medium text-stone-900 dark:text-stone-100 text-xs truncate">{c.name || <span className="text-stone-400">(sans nom)</span>}</p>
                           </div>
                           <p className="text-[10px] text-stone-500 font-mono flex items-center gap-1 mt-0.5 ml-5">
                             <Phone size={9} />
@@ -1167,7 +1167,7 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
                             {c.order_count}× livré{c.order_count > 1 ? 's' : ''}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-xs font-medium text-gray-900 dark:text-stone-100">
+                        <td className="px-4 py-3 text-xs font-medium text-stone-900 dark:text-stone-100">
                           {c.total_spent.toFixed(0)} DA
                         </td>
                         <td className="px-4 py-3 text-[11px] text-stone-500">

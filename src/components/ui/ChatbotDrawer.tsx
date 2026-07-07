@@ -124,9 +124,9 @@ export default function ChatbotDrawer() {
       </div>
 
       {/* Channel badge */}
-      <div className="flex items-center gap-1.5 px-4 py-2 bg-gray-50 border-b border-stone-100 dark:border-stone-800 shrink-0">
-        <Globe size={11} className="text-gray-400 dark:text-stone-500" />
-        <span className="text-[11px] text-gray-500 dark:text-stone-400 font-medium">Chat Web · ZREXpress</span>
+      <div className="flex items-center gap-1.5 px-4 py-2 bg-stone-50 border-b border-stone-100 dark:border-stone-800 shrink-0">
+        <Globe size={11} className="text-stone-400 dark:text-stone-500" />
+        <span className="text-[11px] text-stone-500 dark:text-stone-400 font-medium">Chat Web · ZREXpress</span>
       </div>
 
       {/* Messages */}
@@ -142,7 +142,7 @@ export default function ChatbotDrawer() {
               className={`max-w-[82%] px-3.5 py-2.5 rounded-2xl text-sm whitespace-pre-wrap leading-relaxed ${
                 msg.role === 'user'
                   ? 'bg-green-600 text-white rounded-br-sm'
-                  : 'bg-gray-100 text-gray-800 dark:text-stone-100 rounded-bl-sm'
+                  : 'bg-stone-100 text-stone-800 dark:text-stone-100 rounded-bl-sm'
               }`}
             >
               {msg.content}
@@ -157,7 +157,7 @@ export default function ChatbotDrawer() {
               <button
                 key={a.label}
                 onClick={() => sendMessage(a.msg)}
-                className="text-[11px] px-2.5 py-1.5 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 text-gray-600 dark:text-stone-300 rounded-full hover:border-green-400 hover:text-green-700 hover:bg-green-50 transition-all"
+                className="text-[11px] px-2.5 py-1.5 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300 rounded-full hover:border-green-400 hover:text-green-700 hover:bg-green-50 transition-all"
               >
                 {a.label}
               </button>
@@ -170,10 +170,10 @@ export default function ChatbotDrawer() {
             <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mr-2 shrink-0 mt-0.5">
               <Bot size={12} className="text-green-600" />
             </div>
-            <div className="bg-gray-100 rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-              <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-              <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            <div className="bg-stone-100 rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
             </div>
           </div>
         )}
@@ -188,7 +188,7 @@ export default function ChatbotDrawer() {
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
           placeholder="Écrivez votre message..."
-          className="flex-1 text-sm bg-gray-50 border border-stone-200 dark:border-stone-700 rounded-xl px-3.5 py-2.5 outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-green-400 transition-all"
+          className="flex-1 text-sm bg-stone-50 border border-stone-200 dark:border-stone-700 rounded-xl px-3.5 py-2.5 outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-green-400 transition-all"
           disabled={loading}
           dir="auto"
         />

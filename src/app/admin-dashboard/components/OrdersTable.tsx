@@ -31,7 +31,7 @@ const statusConfig: Record<Status, { label: string; badge: string }> = {
   en_livraison: { label: 'En livraison', badge: 'bg-amber-100 text-amber-700' },
   livre: { label: 'Livré', badge: 'bg-green-100 text-green-700' },
   echec: { label: 'Échec', badge: 'bg-red-100 text-red-700' },
-  retourne: { label: 'Retourné', badge: 'bg-gray-100 text-gray-600 dark:text-stone-300' },
+  retourne: { label: 'Retourné', badge: 'bg-stone-100 text-stone-600 dark:text-stone-300' },
 };
 
 function formatDeliveryType(type: string): string {
@@ -178,13 +178,13 @@ export default function OrdersTable() {
     <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 overflow-hidden">
       <div className="px-5 py-3.5 border-b border-stone-100 dark:border-stone-800 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
         <div className="flex items-center gap-2">
-          <h2 className="font-semibold text-gray-800 dark:text-stone-100 text-sm">Commandes récentes <span className="text-gray-400 dark:text-stone-500 font-normal">({total})</span></h2>
-          {lastRefresh && <span className="text-[10px] text-gray-300 dark:text-stone-600 font-mono">{lastRefresh}</span>}
+          <h2 className="font-semibold text-stone-800 dark:text-stone-100 text-sm">Commandes récentes <span className="text-stone-400 dark:text-stone-500 font-normal">({total})</span></h2>
+          {lastRefresh && <span className="text-[10px] text-stone-300 dark:text-stone-600 font-mono">{lastRefresh}</span>}
         </div>
         <div className="flex gap-2 flex-wrap items-center">
           {selected.size > 0 && (
             <div className="flex items-center gap-2 mr-1">
-              <span className="text-xs font-medium text-gray-500 dark:text-stone-400 bg-gray-100 px-2 py-1 rounded-lg">{selected.size} sélectionnée(s)</span>
+              <span className="text-xs font-medium text-stone-500 dark:text-stone-400 bg-stone-100 px-2 py-1 rounded-lg">{selected.size} sélectionnée(s)</span>
               <button
                 onClick={handleBulkDelete}
                 disabled={deleting}
@@ -196,7 +196,7 @@ export default function OrdersTable() {
             </div>
           )}
           <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-stone-500" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 dark:text-stone-500" />
             <input
               value={search}
               onChange={e => { setSearch(e.target.value); setPage(1); }}
@@ -220,7 +220,7 @@ export default function OrdersTable() {
           <select
             value={pageSize}
             onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
-            className="text-sm border border-stone-200 dark:border-stone-700 rounded-lg px-2 py-1.5 focus:outline-none text-gray-600 dark:text-stone-300"
+            className="text-sm border border-stone-200 dark:border-stone-700 rounded-lg px-2 py-1.5 focus:outline-none text-stone-600 dark:text-stone-300"
             title="Commandes par page"
           >
             <option value={10}>10 / page</option>
@@ -238,7 +238,7 @@ export default function OrdersTable() {
             {reclassifying ? 'Correction...' : 'Corriger statuts'}
           </button>
           <button onClick={() => fetchOrders()} className="p-1.5 border border-stone-200 dark:border-stone-700 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800">
-            <RefreshCw size={14} className="text-gray-500 dark:text-stone-400" />
+            <RefreshCw size={14} className="text-stone-500 dark:text-stone-400" />
           </button>
         </div>
       </div>
@@ -246,29 +246,29 @@ export default function OrdersTable() {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-stone-100 dark:border-stone-800 bg-gray-50/60">
+            <tr className="border-b border-stone-100 dark:border-stone-800 bg-stone-50/60">
               <th className="px-4 py-2.5 w-10">
                 <input
                   type="checkbox"
                   checked={allSelected}
                   onChange={toggleAll}
-                  className="rounded border-gray-300 cursor-pointer"
+                  className="rounded border-stone-300 cursor-pointer"
                 />
               </th>
-              <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-400 dark:text-stone-500 uppercase tracking-wider">Tracking</th>
-              <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-400 dark:text-stone-500 uppercase tracking-wider">Client</th>
-              <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-400 dark:text-stone-500 uppercase tracking-wider">Produit</th>
-              <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-400 dark:text-stone-500 uppercase tracking-wider">Wilaya</th>
-              <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-400 dark:text-stone-500 uppercase tracking-wider">Statut</th>
-              <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-gray-400 dark:text-stone-500 uppercase tracking-wider">Livraison</th>
-              <th className="px-4 py-2.5 text-right text-[10px] font-semibold text-gray-400 dark:text-stone-500 uppercase tracking-wider">COD</th>
-              <th className="px-4 py-2.5 text-center text-[10px] font-semibold text-gray-400 dark:text-stone-500 uppercase tracking-wider">Tentatives</th>
+              <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">Tracking</th>
+              <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">Client</th>
+              <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">Produit</th>
+              <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">Wilaya</th>
+              <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">Statut</th>
+              <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">Livraison</th>
+              <th className="px-4 py-2.5 text-right text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">COD</th>
+              <th className="px-4 py-2.5 text-center text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">Tentatives</th>
               <th className="px-2 py-2.5 w-6"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-stone-50 dark:divide-stone-800">
             {loading ? (
-              <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400 dark:text-stone-500">Chargement...</td></tr>
+              <tr><td colSpan={10} className="px-4 py-8 text-center text-stone-400 dark:text-stone-500">Chargement...</td></tr>
             ) : orders.length === 0 ? (
               <tr>
                 <td colSpan={10} className="px-4 py-12 text-center">
@@ -290,14 +290,14 @@ export default function OrdersTable() {
               <tr
                 key={order.id}
                 onClick={() => setSelectedOrder(order)}
-                className={`border-b border-gray-50 hover:bg-slate-50 transition-colors cursor-pointer group ${selected.has(order.id) ? 'bg-red-50/40' : ''}`}
+                className={`border-b border-stone-50 hover:bg-slate-50 transition-colors cursor-pointer group ${selected.has(order.id) ? 'bg-red-50/40' : ''}`}
               >
                 <td className="px-4 py-3" onClick={e => toggleSelect(order.id, e)}>
                   <input
                     type="checkbox"
                     checked={selected.has(order.id)}
                     onChange={() => {}}
-                    className="rounded border-gray-300 cursor-pointer"
+                    className="rounded border-stone-300 cursor-pointer"
                   />
                 </td>
                 <td className="px-4 py-3">
@@ -305,32 +305,32 @@ export default function OrdersTable() {
                     <span className="font-mono text-xs font-semibold text-violet-600">{order.tracking_number}</span>
                     <button
                       onClick={e => { e.stopPropagation(); copyTracking(order.tracking_number); }}
-                      className="text-gray-300 dark:text-stone-600 hover:text-gray-500 dark:text-stone-400 transition-colors"
+                      className="text-stone-300 dark:text-stone-600 hover:text-stone-500 dark:text-stone-400 transition-colors"
                     >
                       {copiedId === order.tracking_number ? <CheckCheck size={11} className="text-green-500" /> : <Copy size={11} />}
                     </button>
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <p className="text-sm font-medium text-gray-800 dark:text-stone-100">{order.customer_name}</p>
-                  <p className="text-xs text-gray-400 dark:text-stone-500">{order.customer_whatsapp}</p>
+                  <p className="text-sm font-medium text-stone-800 dark:text-stone-100">{order.customer_name}</p>
+                  <p className="text-xs text-stone-400 dark:text-stone-500">{order.customer_whatsapp}</p>
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-500 dark:text-stone-400 max-w-[140px] truncate">{order.product_name || '—'}</td>
-                <td className="px-4 py-3 text-sm text-gray-600 dark:text-stone-300 font-medium">{order.wilaya || '—'}</td>
+                <td className="px-4 py-3 text-sm text-stone-500 dark:text-stone-400 max-w-[140px] truncate">{order.product_name || '—'}</td>
+                <td className="px-4 py-3 text-sm text-stone-600 dark:text-stone-300 font-medium">{order.wilaya || '—'}</td>
                 <td className="px-4 py-3">
-                  <span className={`inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full ${statusConfig[order.delivery_status]?.badge || 'bg-gray-100 text-gray-600 dark:text-stone-300'}`}>
+                  <span className={`inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full ${statusConfig[order.delivery_status]?.badge || 'bg-stone-100 text-stone-600 dark:text-stone-300'}`}>
                     {order.situation?.trim() || statusConfig[order.delivery_status]?.label || order.delivery_status}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-500 dark:text-stone-400">{formatDeliveryType(order.delivery_type)}</td>
-                <td className="px-4 py-3 text-right text-sm font-semibold text-gray-800 dark:text-stone-100">
+                <td className="px-4 py-3 text-sm text-stone-500 dark:text-stone-400">{formatDeliveryType(order.delivery_type)}</td>
+                <td className="px-4 py-3 text-right text-sm font-semibold text-stone-800 dark:text-stone-100">
                   {order.cod ? `${Number(order.cod).toLocaleString('fr-DZ')} DA` : '—'}
                 </td>
                 <td className="px-4 py-3 text-center">
-                  <span className="text-xs font-medium text-gray-500 dark:text-stone-400 bg-gray-100 rounded-md px-2 py-0.5">{order.attempts ?? 0}</span>
+                  <span className="text-xs font-medium text-stone-500 dark:text-stone-400 bg-stone-100 rounded-md px-2 py-0.5">{order.attempts ?? 0}</span>
                 </td>
                 <td className="px-2 py-3">
-                  <Arrow size={13} className="text-gray-300 dark:text-stone-600 group-hover:text-gray-500 dark:text-stone-400 transition-colors" />
+                  <Arrow size={13} className="text-stone-300 dark:text-stone-600 group-hover:text-stone-500 dark:text-stone-400 transition-colors" />
                 </td>
               </tr>
             ))}
@@ -340,7 +340,7 @@ export default function OrdersTable() {
 
       {totalPages > 1 && (
         <div className="px-4 py-3 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between">
-          <span className="text-sm text-gray-500 dark:text-stone-400">Page {page} / {totalPages}</span>
+          <span className="text-sm text-stone-500 dark:text-stone-400">Page {page} / {totalPages}</span>
           <div className="flex gap-2">
             <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
               className="p-1.5 border rounded-lg disabled:opacity-40 hover:bg-stone-50 dark:hover:bg-stone-800">

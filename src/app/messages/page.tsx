@@ -99,15 +99,15 @@ function AutoNotifyToggles() {
     <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5 space-y-3">
       <div className="flex items-center gap-2">
         <Bell size={16} className="text-amber-500" />
-        <h3 className="font-semibold text-gray-900 dark:text-stone-100">Notifications automatiques</h3>
-        <span className="ml-auto text-xs text-gray-400 dark:text-stone-500">Au changement de statut</span>
+        <h3 className="font-semibold text-stone-900 dark:text-stone-100">Notifications automatiques</h3>
+        <span className="ml-auto text-xs text-stone-400 dark:text-stone-500">Au changement de statut</span>
       </div>
-      <p className="text-xs text-gray-400 dark:text-stone-500">
+      <p className="text-xs text-stone-400 dark:text-stone-500">
         Choisissez les statuts qui envoient un WhatsApp automatique à vos clients.
         Le contenu = les messages ci-dessus.
       </p>
       {!loaded ? (
-        <div className="flex justify-center py-4"><Loader2 size={18} className="animate-spin text-gray-400 dark:text-stone-500" /></div>
+        <div className="flex justify-center py-4"><Loader2 size={18} className="animate-spin text-stone-400 dark:text-stone-500" /></div>
       ) : (
         <div className="space-y-2">
           {AUTO_NOTIFY_STATUSES.map(s => (
@@ -115,12 +115,12 @@ function AutoNotifyToggles() {
               <button
                 onClick={() => toggle(s.key)}
                 title={isOn(s.key) ? 'Désactiver' : 'Activer'}
-                className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full transition-colors ${isOn(s.key) ? 'bg-green-500' : 'bg-gray-300'}`}
+                className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full transition-colors ${isOn(s.key) ? 'bg-green-500' : 'bg-stone-300'}`}
               >
                 <span className={`inline-block h-4 w-4 mt-0.5 transform rounded-full bg-white shadow transition-transform ${isOn(s.key) ? 'translate-x-4' : 'translate-x-0.5'}`} />
               </button>
-              <span className={`flex-1 text-sm font-medium ${isOn(s.key) ? 'text-gray-800 dark:text-stone-100' : 'text-gray-400 dark:text-stone-500 line-through'}`}>{s.label}</span>
-              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${isOn(s.key) ? 'text-green-600 bg-green-100' : 'text-gray-400 dark:text-stone-500 bg-gray-100'}`}>{isOn(s.key) ? 'ON' : 'OFF'}</span>
+              <span className={`flex-1 text-sm font-medium ${isOn(s.key) ? 'text-stone-800 dark:text-stone-100' : 'text-stone-400 dark:text-stone-500 line-through'}`}>{s.label}</span>
+              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${isOn(s.key) ? 'text-green-600 bg-green-100' : 'text-stone-400 dark:text-stone-500 bg-stone-100'}`}>{isOn(s.key) ? 'ON' : 'OFF'}</span>
             </div>
           ))}
         </div>
@@ -224,19 +224,19 @@ function ConnexionTab() {
     setConnected(j.connected || false); setPhone(j.phone || '');
   };
 
-  if (connected === null) return <div className="flex items-center justify-center py-20"><Loader2 size={24} className="animate-spin text-gray-400 dark:text-stone-500" /></div>;
+  if (connected === null) return <div className="flex items-center justify-center py-20"><Loader2 size={24} className="animate-spin text-stone-400 dark:text-stone-500" /></div>;
 
   return (
     <div className="max-w-xl space-y-6">
       {/* Statut */}
-      <div className={`rounded-2xl p-5 border-2 ${connected ? 'border-green-200 bg-green-50' : 'border-stone-200 dark:border-stone-700 bg-gray-50'}`}>
+      <div className={`rounded-2xl p-5 border-2 ${connected ? 'border-green-200 bg-green-50' : 'border-stone-200 dark:border-stone-700 bg-stone-50'}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${connected ? 'bg-green-500' : qr ? 'bg-amber-400' : 'bg-gray-300'}`}>
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${connected ? 'bg-green-500' : qr ? 'bg-amber-400' : 'bg-stone-300'}`}>
               <MessageSquare size={20} className="text-white" />
             </div>
             <div>
-              <p className="font-semibold text-gray-900 dark:text-stone-100">WhatsApp</p>
+              <p className="font-semibold text-stone-900 dark:text-stone-100">WhatsApp</p>
               <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${connected ? 'bg-green-100 text-green-700' : qr ? 'bg-amber-100 text-amber-700' : busy ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-600'}`}>
                 {connected ? <><Wifi size={12} /> Connecté</> : qr ? <><Loader2 size={12} className="animate-spin" /> En attente du scan...</> : busy ? <><Loader2 size={12} className="animate-spin" /> Connexion...</> : <><WifiOff size={12} /> Déconnecté</>}
               </span>
@@ -245,7 +245,7 @@ function ConnexionTab() {
           </div>
           <div className="flex gap-2">
             <button onClick={handleCheckStatus} className="p-1.5 border border-stone-200 dark:border-stone-700 rounded-lg hover:bg-white dark:bg-stone-900">
-              <RefreshCw size={14} className="text-gray-400 dark:text-stone-500" />
+              <RefreshCw size={14} className="text-stone-400 dark:text-stone-500" />
             </button>
             {connected && (
               <button onClick={handleDisconnect} className="text-xs px-3 py-1.5 border border-red-200 text-red-600 rounded-lg hover:bg-red-50">
@@ -260,14 +260,14 @@ function ConnexionTab() {
       {!connected && (
         <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5 space-y-4">
           <div className="flex items-center gap-2">
-            <QrCode size={16} className="text-gray-500 dark:text-stone-400" />
-            <h3 className="font-semibold text-gray-900 dark:text-stone-100">Connecter WhatsApp</h3>
+            <QrCode size={16} className="text-stone-500 dark:text-stone-400" />
+            <h3 className="font-semibold text-stone-900 dark:text-stone-100">Connecter WhatsApp</h3>
           </div>
 
           {qr ? (
             <div className="flex flex-col items-center gap-3">
               <img src={qr} alt="QR Code WhatsApp" className="w-56 h-56 rounded-xl border border-stone-200 dark:border-stone-700" />
-              <p className="text-xs text-gray-500 dark:text-stone-400 text-center">Ouvre WhatsApp → <strong>Appareils liés</strong> → scanne ce QR</p>
+              <p className="text-xs text-stone-500 dark:text-stone-400 text-center">Ouvre WhatsApp → <strong>Appareils liés</strong> → scanne ce QR</p>
               <p className="text-xs text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg">QR expire en 20 secondes — rafraichis si expiré</p>
               <button onClick={handleRefreshQr} disabled={busy} className="flex items-center gap-1.5 text-sm px-3 py-1.5 border border-stone-200 dark:border-stone-700 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800 disabled:opacity-50">
                 <RefreshCw size={13} /> Nouveau QR
@@ -408,11 +408,11 @@ function EnvoyerTab() {
       {/* Filtre situation */}
       <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-4 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-medium text-gray-700 dark:text-stone-200">Situation :</span>
+          <span className="text-sm font-medium text-stone-700 dark:text-stone-200">Situation :</span>
           <div className="flex flex-wrap gap-2">
             {SITUATION_FILTERS.map(f => (
               <button key={f.value} onClick={() => { setSituationFilter(f.value); setPage(1); setSelected(new Set()); }}
-                className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${situationFilter === f.value ? 'bg-green-600 text-white border-green-600' : 'border-stone-200 dark:border-stone-700 text-gray-600 dark:text-stone-300 hover:border-green-400 hover:text-green-600'}`}>
+                className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${situationFilter === f.value ? 'bg-green-600 text-white border-green-600' : 'border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300 hover:border-green-400 hover:text-green-600'}`}>
                 {f.label}
               </button>
             ))}
@@ -421,17 +421,17 @@ function EnvoyerTab() {
         {/* Sous-filtre wilaya */}
         {situationFilter === 'en cours de livraison' && (
           <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-stone-100 dark:border-stone-800">
-            <div className="flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-stone-400">
+            <div className="flex items-center gap-1 text-xs font-medium text-stone-500 dark:text-stone-400">
               <Filter size={11} /> Wilaya :
             </div>
             <div className="flex flex-wrap gap-1.5">
               <button onClick={() => setSubSituationFilter('')}
-                className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${subSituationFilter === '' ? 'bg-blue-600 text-white border-blue-600' : 'border-stone-200 dark:border-stone-700 text-gray-500 dark:text-stone-400 hover:border-blue-400 hover:text-blue-600'}`}>
+                className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${subSituationFilter === '' ? 'bg-blue-600 text-white border-blue-600' : 'border-stone-200 dark:border-stone-700 text-stone-500 dark:text-stone-400 hover:border-blue-400 hover:text-blue-600'}`}>
                 Toutes
               </button>
               {SUB_SITUATIONS.map(w => (
                 <button key={w} onClick={() => setSubSituationFilter(w)}
-                  className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${subSituationFilter === w ? 'bg-blue-600 text-white border-blue-600' : 'border-stone-200 dark:border-stone-700 text-gray-500 dark:text-stone-400 hover:border-blue-400 hover:text-blue-600'}`}>
+                  className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${subSituationFilter === w ? 'bg-blue-600 text-white border-blue-600' : 'border-stone-200 dark:border-stone-700 text-stone-500 dark:text-stone-400 hover:border-blue-400 hover:text-blue-600'}`}>
                   {w}
                 </button>
               ))}
@@ -442,16 +442,16 @@ function EnvoyerTab() {
 
       {/* Choisir le message + le modifier sur place (un seul endroit) */}
       <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5 space-y-4">
-        <div className="flex items-center gap-2"><MessageSquare size={16} className="text-green-500" /><h3 className="font-semibold text-gray-900 dark:text-stone-100">Message à envoyer</h3></div>
+        <div className="flex items-center gap-2"><MessageSquare size={16} className="text-green-500" /><h3 className="font-semibold text-stone-900 dark:text-stone-100">Message à envoyer</h3></div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {templates.map(t => (
             <button key={t.key} onClick={() => { setTemplateId(t.key); setEditing(false); }}
-              className={`text-xs px-3 py-2 rounded-xl border text-left font-medium transition-colors ${templateId === t.key ? 'border-green-500 bg-green-50 text-green-700' : 'border-stone-200 dark:border-stone-700 text-gray-600 dark:text-stone-300 hover:border-gray-300'}`}>
+              className={`text-xs px-3 py-2 rounded-xl border text-left font-medium transition-colors ${templateId === t.key ? 'border-green-500 bg-green-50 text-green-700' : 'border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300 hover:border-stone-300'}`}>
               {t.name}
             </button>
           ))}
           <button onClick={() => { setTemplateId('custom'); setEditing(false); }}
-            className={`text-xs px-3 py-2 rounded-xl border text-left font-medium transition-colors ${templateId === 'custom' ? 'border-green-500 bg-green-50 text-green-700' : 'border-stone-200 dark:border-stone-700 text-gray-600 dark:text-stone-300 hover:border-gray-300'}`}>
+            className={`text-xs px-3 py-2 rounded-xl border text-left font-medium transition-colors ${templateId === 'custom' ? 'border-green-500 bg-green-50 text-green-700' : 'border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300 hover:border-stone-300'}`}>
             Personnalisé
           </button>
         </div>
@@ -460,7 +460,7 @@ function EnvoyerTab() {
         ) : (
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-xs text-gray-400 dark:text-stone-500">{editing ? 'Modifier (Darija / Arabe / Français)' : (orders.length > 0 ? 'Aperçu (premier client)' : 'Aperçu (exemple)')}</p>
+              <p className="text-xs text-stone-400 dark:text-stone-500">{editing ? 'Modifier (Darija / Arabe / Français)' : (orders.length > 0 ? 'Aperçu (premier client)' : 'Aperçu (exemple)')}</p>
               <button onClick={() => setEditing(e => !e)} className="text-xs font-medium text-green-600 hover:text-green-700 flex items-center gap-1">
                 {editing ? '✓ Terminé' : '✏️ Modifier ce message'}
               </button>
@@ -468,7 +468,7 @@ function EnvoyerTab() {
             {editing && template ? (
               <TemplateEditCard key={template.key} inline tpl={template} def={defaults.find(d => d.key === template.key)} onSave={saveTemplate} />
             ) : (
-              <div className="bg-green-50 rounded-xl p-4 text-sm text-gray-800 dark:text-stone-100 whitespace-pre-line border border-green-100 text-right leading-relaxed" dir="rtl">
+              <div className="bg-green-50 rounded-xl p-4 text-sm text-stone-800 dark:text-stone-100 whitespace-pre-line border border-green-100 text-right leading-relaxed" dir="rtl">
                 {renderTemplate(template?.content_darija ?? '', previewOrder)}
               </div>
             )}
@@ -483,10 +483,10 @@ function EnvoyerTab() {
       <div className="bg-white dark:bg-stone-900 rounded-2xl border border-blue-100 shadow-sm p-5 space-y-3">
         <div className="flex items-center gap-2">
           <Smartphone size={16} className="text-blue-500" />
-          <h3 className="font-semibold text-gray-900 dark:text-stone-100">Tester la reception</h3>
+          <h3 className="font-semibold text-stone-900 dark:text-stone-100">Tester la reception</h3>
           <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-medium">Test</span>
         </div>
-        <p className="text-xs text-gray-500 dark:text-stone-400">Entre un numero pour verifier que le message arrive bien avant d'envoyer en masse.</p>
+        <p className="text-xs text-stone-500 dark:text-stone-400">Entre un numero pour verifier que le message arrive bien avant d'envoyer en masse.</p>
         <div className="flex gap-2">
           <input
             value={testPhone}
@@ -506,9 +506,9 @@ function EnvoyerTab() {
       <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm overflow-hidden">
         <div className="p-4 border-b border-stone-100 dark:border-stone-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2 flex-wrap">
-            <Users size={16} className="text-gray-500 dark:text-stone-400" />
-            <h3 className="font-semibold text-gray-900 dark:text-stone-100">Destinataires</h3>
-            <span className="text-xs text-gray-400 dark:text-stone-500">({subSituationFilter ? displayedOrders.length : total} commandes{subSituationFilter ? ` — ${subSituationFilter}` : ''})</span>
+            <Users size={16} className="text-stone-500 dark:text-stone-400" />
+            <h3 className="font-semibold text-stone-900 dark:text-stone-100">Destinataires</h3>
+            <span className="text-xs text-stone-400 dark:text-stone-500">({subSituationFilter ? displayedOrders.length : total} commandes{subSituationFilter ? ` — ${subSituationFilter}` : ''})</span>
             {selected.size > 0 && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">{selected.size} selectionne(s)</span>}
           </div>
           <button onClick={sendMessages} disabled={sending || selected.size === 0 || !connected}
@@ -518,7 +518,7 @@ function EnvoyerTab() {
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-xs text-gray-500 dark:text-stone-400 uppercase">
+            <thead className="bg-stone-50 text-xs text-stone-500 dark:text-stone-400 uppercase">
               <tr>
                 <th className="px-4 py-3"><input type="checkbox" checked={ordersWithPhone.length > 0 && ordersWithPhone.every(o => selected.has(o.id))} onChange={toggleAll} className="rounded" /></th>
                 <th className="px-4 py-3 text-left">Client</th>
@@ -530,20 +530,20 @@ function EnvoyerTab() {
             </thead>
             <tbody className="divide-y divide-stone-50 dark:divide-stone-800">
               {loadingOrders ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 dark:text-stone-500">Chargement...</td></tr>
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-stone-400 dark:text-stone-500">Chargement...</td></tr>
               ) : displayedOrders.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 dark:text-stone-500">Aucune commande</td></tr>
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-stone-400 dark:text-stone-500">Aucune commande</td></tr>
               ) : displayedOrders.map(order => {
                 const hasPhone = !!(order.customer_whatsapp && order.customer_whatsapp.length > 5);
                 return (
                   <tr key={order.id} className={`transition-colors ${hasPhone ? 'hover:bg-stone-50 dark:hover:bg-stone-800 cursor-pointer' : 'opacity-40'}`}
                     onClick={() => { if (!hasPhone) return; setSelected(s => { const n = new Set(s); n.has(order.id) ? n.delete(order.id) : n.add(order.id); return n; }); }}>
                     <td className="px-4 py-3"><input type="checkbox" checked={selected.has(order.id)} disabled={!hasPhone} readOnly className="rounded" /></td>
-                    <td className="px-4 py-3 font-medium text-gray-900 dark:text-stone-100">{order.customer_name || '—'}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-gray-600 dark:text-stone-300">{order.tracking_number}</td>
-                    <td className="px-4 py-3 text-xs"><span className="bg-gray-100 text-gray-600 dark:text-stone-300 px-2 py-0.5 rounded-full">{order.situation || statusToLabel(order.delivery_status)}</span></td>
-                    <td className="px-4 py-3 text-gray-500 dark:text-stone-400">{order.wilaya || '—'}</td>
-                    <td className="px-4 py-3 text-gray-500 dark:text-stone-400">{order.customer_whatsapp || <span className="text-red-400 text-xs">Aucun</span>}</td>
+                    <td className="px-4 py-3 font-medium text-stone-900 dark:text-stone-100">{order.customer_name || '—'}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-stone-600 dark:text-stone-300">{order.tracking_number}</td>
+                    <td className="px-4 py-3 text-xs"><span className="bg-stone-100 text-stone-600 dark:text-stone-300 px-2 py-0.5 rounded-full">{order.situation || statusToLabel(order.delivery_status)}</span></td>
+                    <td className="px-4 py-3 text-stone-500 dark:text-stone-400">{order.wilaya || '—'}</td>
+                    <td className="px-4 py-3 text-stone-500 dark:text-stone-400">{order.customer_whatsapp || <span className="text-red-400 text-xs">Aucun</span>}</td>
                   </tr>
                 );
               })}
@@ -552,7 +552,7 @@ function EnvoyerTab() {
         </div>
         {totalPages > 1 && !subSituationFilter && (
           <div className="px-4 py-3 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between">
-            <span className="text-sm text-gray-500 dark:text-stone-400">Page {page} / {totalPages}</span>
+            <span className="text-sm text-stone-500 dark:text-stone-400">Page {page} / {totalPages}</span>
             <div className="flex gap-2">
               <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-1.5 border rounded-lg disabled:opacity-40 hover:bg-stone-50 dark:hover:bg-stone-800"><ChevronLeft size={14} /></button>
               <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-1.5 border rounded-lg disabled:opacity-40 hover:bg-stone-50 dark:hover:bg-stone-800"><ChevronRight size={14} /></button>
@@ -744,8 +744,8 @@ function HistoriqueTab() {
       <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm overflow-hidden">
         <div className="p-4 border-b border-stone-100 dark:border-stone-800 flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2">
-            <History size={16} className="text-gray-500 dark:text-stone-400" />
-            <h3 className="font-semibold text-gray-900 dark:text-stone-100">Historique des messages</h3>
+            <History size={16} className="text-stone-500 dark:text-stone-400" />
+            <h3 className="font-semibold text-stone-900 dark:text-stone-100">Historique des messages</h3>
             {echecCount > 0 && <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-0.5 rounded-full">{echecCount} echec</span>}
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -761,22 +761,22 @@ function HistoriqueTab() {
             )}
             <button
               onClick={() => setFilterEchec(f => !f)}
-              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl border font-medium transition-colors ${filterEchec ? 'bg-red-600 text-white border-red-600' : 'border-stone-200 dark:border-stone-700 text-gray-600 dark:text-stone-300 hover:border-red-400 hover:text-red-600'}`}
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl border font-medium transition-colors ${filterEchec ? 'bg-red-600 text-white border-red-600' : 'border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300 hover:border-red-400 hover:text-red-600'}`}
             >
               <AlertCircle size={12} />
               Echec seulement
             </button>
             <button onClick={fetchMessages} className="p-1.5 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-lg">
-              <RefreshCw size={14} className="text-gray-400 dark:text-stone-500" />
+              <RefreshCw size={14} className="text-stone-400 dark:text-stone-500" />
             </button>
           </div>
         </div>
 
         <div className="divide-y divide-stone-50 dark:divide-stone-800">
           {loading ? (
-            <div className="flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-gray-400 dark:text-stone-500" /></div>
+            <div className="flex items-center justify-center py-12"><Loader2 size={20} className="animate-spin text-stone-400 dark:text-stone-500" /></div>
           ) : displayed.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-gray-400 dark:text-stone-500">
+            <div className="flex flex-col items-center justify-center py-12 text-stone-400 dark:text-stone-500">
               <MessageSquare size={32} className="mb-2 opacity-30" />
               <p className="text-sm">{filterEchec ? 'Aucun message en echec' : 'Aucun message envoye'}</p>
             </div>
@@ -788,12 +788,12 @@ function HistoriqueTab() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="font-medium text-gray-900 dark:text-stone-100 text-sm">{msg.customer_name}</span>
-                      <span className="text-xs text-gray-400 dark:text-stone-500">{msg.customer_whatsapp}</span>
-                      {msg.tracking_number && <span className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-500 dark:text-stone-400">{msg.tracking_number}</span>}
+                      <span className="font-medium text-stone-900 dark:text-stone-100 text-sm">{msg.customer_name}</span>
+                      <span className="text-xs text-stone-400 dark:text-stone-500">{msg.customer_whatsapp}</span>
+                      {msg.tracking_number && <span className="text-xs font-mono bg-stone-100 px-1.5 py-0.5 rounded text-stone-500 dark:text-stone-400">{msg.tracking_number}</span>}
                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg.bg}`}>{cfg.label}</span>
                     </div>
-                    <p className="text-xs text-gray-500 dark:text-stone-400 line-clamp-2 whitespace-pre-line text-right" dir="rtl">{msg.message}</p>
+                    <p className="text-xs text-stone-500 dark:text-stone-400 line-clamp-2 whitespace-pre-line text-right" dir="rtl">{msg.message}</p>
                     {/* Raison de l'échec — visible directement sur la ligne, plus
                         besoin de cliquer Renvoyer pour comprendre pourquoi */}
                     {msg.status === 'echec' && msg.error_message && (
@@ -804,7 +804,7 @@ function HistoriqueTab() {
                     )}
                   </div>
                   <div className="flex flex-col items-end gap-2 shrink-0">
-                    <span className="text-[10px] text-gray-400 dark:text-stone-500">{new Date(msg.sent_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                    <span className="text-[10px] text-stone-400 dark:text-stone-500">{new Date(msg.sent_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
                     {msg.status === 'echec' && (
                       <button
                         onClick={() => resend(msg)}
@@ -862,18 +862,18 @@ function TemplateEditCard({ tpl, def, onSave, inline }: { tpl: EditableTemplate;
       {!inline && (
       <button onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between px-5 py-4 hover:bg-stone-50 dark:hover:bg-stone-800 transition-colors">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center"><MessageSquare size={15} className="text-green-600" /></div>
-          <span className="font-semibold text-gray-900 dark:text-stone-100">{tpl.name}</span>
-          <span className="text-xs text-gray-400 dark:text-stone-500 font-mono">{tpl.key}</span>
+          <div className="w-8 h-8 bg-green-100 dark:bg-green-500/15 rounded-lg flex items-center justify-center"><MessageSquare size={15} className="text-green-600" /></div>
+          <span className="font-semibold text-stone-900 dark:text-stone-100">{tpl.name}</span>
+          <span className="text-xs text-stone-400 dark:text-stone-500 font-mono">{tpl.key}</span>
         </div>
-        {open ? <ChevronUp size={16} className="text-gray-400 dark:text-stone-500" /> : <ChevronDown size={16} className="text-gray-400 dark:text-stone-500" />}
+        {open ? <ChevronUp size={16} className="text-stone-400 dark:text-stone-500" /> : <ChevronDown size={16} className="text-stone-400 dark:text-stone-500" />}
       </button>
       )}
       {open && (
         <div className={`space-y-4 ${inline ? 'p-4 bg-stone-50/60 dark:bg-stone-800/40' : 'border-t border-stone-100 dark:border-stone-800 p-5'}`}>
-          <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+          <div className="flex gap-1 bg-stone-100 p-1 rounded-xl w-fit">
             {TPL_LANGS.map(l => (
-              <button key={l.id} onClick={() => setLang(l.id as LangKey)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${lang === l.id ? 'bg-white dark:bg-stone-900 text-gray-900 dark:text-stone-100 shadow-sm' : 'text-gray-500 dark:text-stone-400'}`}>{l.label}</button>
+              <button key={l.id} onClick={() => setLang(l.id as LangKey)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${lang === l.id ? 'bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 shadow-sm' : 'text-stone-500 dark:text-stone-400'}`}>{l.label}</button>
             ))}
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -884,7 +884,7 @@ function TemplateEditCard({ tpl, def, onSave, inline }: { tpl: EditableTemplate;
           <textarea value={content} onChange={e => setForm(f => ({ ...f, [lang]: e.target.value }))} rows={5} dir={langCfg.dir} className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none" />
           <div className="flex gap-2">
             {def && (
-              <button onClick={() => setForm(f => ({ ...f, [lang]: def[lang] as string }))} className="flex items-center gap-1.5 text-xs px-3 py-2 border border-stone-200 dark:border-stone-700 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800 text-gray-500 dark:text-stone-400"><RotateCcw size={12} /> Réinitialiser</button>
+              <button onClick={() => setForm(f => ({ ...f, [lang]: def[lang] as string }))} className="flex items-center gap-1.5 text-xs px-3 py-2 border border-stone-200 dark:border-stone-700 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800 text-stone-500 dark:text-stone-400"><RotateCcw size={12} /> Réinitialiser</button>
             )}
             <button onClick={save} disabled={saving} className="flex items-center gap-1.5 text-sm px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium ml-auto">{saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />} Sauvegarder</button>
           </div>
@@ -906,12 +906,12 @@ export default function MessagesPage() {
     <AppLayout>
       <div className="max-w-screen-xl mx-auto px-6 py-6 space-y-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center"><MessageSquare size={20} className="text-green-600" /></div>
-          <div><h1 className="text-xl font-bold text-gray-900 dark:text-stone-100">Messages WhatsApp</h1><p className="text-sm text-gray-500 dark:text-stone-400">Envoyer des notifications en darija a tes clients</p></div>
+          <div className="w-10 h-10 bg-green-100 dark:bg-green-500/15 rounded-xl flex items-center justify-center"><MessageSquare size={20} className="text-green-600" /></div>
+          <div><h1 className="text-xl font-bold text-stone-900 dark:text-stone-100">Messages WhatsApp</h1><p className="text-sm text-stone-500 dark:text-stone-400">Envoyer des notifications en darija a tes clients</p></div>
         </div>
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+        <div className="flex gap-1 bg-stone-100 p-1 rounded-xl w-fit">
           {TABS.map(t => { const Icon = t.icon; return (
-            <button key={t.id} onClick={() => setTab(t.id)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === t.id ? 'bg-white dark:bg-stone-900 text-gray-900 dark:text-stone-100 shadow-sm' : 'text-gray-500 dark:text-stone-400 hover:text-gray-700 dark:text-stone-200'}`}>
+            <button key={t.id} onClick={() => setTab(t.id)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === t.id ? 'bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 shadow-sm' : 'text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:text-stone-200'}`}>
               <Icon size={15} />{t.label}
             </button>
           ); })}

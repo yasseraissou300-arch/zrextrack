@@ -37,12 +37,12 @@ export default function RapportsPage() {
     <AppLayout>
       <div className="max-w-screen-2xl mx-auto px-6 py-6 space-y-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
+          <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-500/15 rounded-xl flex items-center justify-center">
             <BarChart3 size={20} className="text-indigo-600" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-stone-100">Rapports</h1>
-            <p className="text-sm text-gray-500 dark:text-stone-400">Statistiques et analyses de vos commandes</p>
+            <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100">Rapports</h1>
+            <p className="text-sm text-stone-500 dark:text-stone-400">Statistiques et analyses de vos commandes</p>
           </div>
         </div>
 
@@ -57,28 +57,28 @@ export default function RapportsPage() {
             { label: 'Taux livraison', value: `${stats.rate || 0}%`, icon: TrendingUp, color: 'indigo' },
           ].map(s => (
             <div key={s.label} className="bg-white dark:bg-stone-900 rounded-2xl p-4 shadow-sm border border-stone-100 dark:border-stone-800">
-              <p className="text-2xl font-bold text-gray-900 dark:text-stone-100">{loading ? '—' : s.value ?? 0}</p>
-              <p className="text-sm text-gray-500 dark:text-stone-400 mt-1">{s.label}</p>
+              <p className="text-2xl font-bold text-stone-900 dark:text-stone-100">{loading ? '—' : s.value ?? 0}</p>
+              <p className="text-sm text-stone-500 dark:text-stone-400 mt-1">{s.label}</p>
             </div>
           ))}
         </div>
 
         {/* Top wilayas */}
         <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 p-6">
-          <h2 className="font-semibold text-gray-900 dark:text-stone-100 mb-4">Top Wilayas</h2>
-          {loading ? <p className="text-gray-400 dark:text-stone-500">Chargement...</p> : byWilaya.length === 0 ? (
-            <p className="text-gray-400 dark:text-stone-500">Aucune donnée disponible</p>
+          <h2 className="font-semibold text-stone-900 dark:text-stone-100 mb-4">Top Wilayas</h2>
+          {loading ? <p className="text-stone-400 dark:text-stone-500">Chargement...</p> : byWilaya.length === 0 ? (
+            <p className="text-stone-400 dark:text-stone-500">Aucune donnée disponible</p>
           ) : (
             <div className="space-y-3">
               {byWilaya.map((w, i) => (
                 <div key={w.wilaya} className="flex items-center gap-3">
-                  <span className="text-xs text-gray-400 dark:text-stone-500 w-4">{i + 1}</span>
+                  <span className="text-xs text-stone-400 dark:text-stone-500 w-4">{i + 1}</span>
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium text-gray-700 dark:text-stone-200">{w.wilaya}</span>
-                      <span className="text-sm font-bold text-gray-900 dark:text-stone-100">{w.count}</span>
+                      <span className="text-sm font-medium text-stone-700 dark:text-stone-200">{w.wilaya}</span>
+                      <span className="text-sm font-bold text-stone-900 dark:text-stone-100">{w.count}</span>
                     </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-indigo-500 rounded-full"
                         style={{ width: `${Math.round((w.count / (byWilaya[0]?.count || 1)) * 100)}%` }}

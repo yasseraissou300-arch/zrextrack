@@ -26,7 +26,7 @@ function rate(a: Agg): number {
 const TILES = [
   { key: 'livrees' as const, label: 'Livrées', icon: CheckCircle2, fg: 'text-green-600', bg: 'bg-green-50 dark:bg-green-900/20' },
   { key: 'echecs'  as const, label: 'Échecs',  icon: XCircle,      fg: 'text-red-500',   bg: 'bg-red-50 dark:bg-red-900/20' },
-  { key: 'retours' as const, label: 'Retours', icon: RotateCcw,    fg: 'text-gray-500 dark:text-stone-400', bg: 'bg-gray-50 dark:bg-stone-800/60' },
+  { key: 'retours' as const, label: 'Retours', icon: RotateCcw,    fg: 'text-stone-500 dark:text-stone-400', bg: 'bg-stone-50 dark:bg-stone-800/60' },
   { key: 'en_cours' as const, label: 'En cours', icon: Truck,      fg: 'text-blue-500',  bg: 'bg-blue-50 dark:bg-blue-900/20' },
 ];
 
@@ -79,10 +79,10 @@ export default function PeriodStatsPanel() {
     <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-6">
       <div className="flex items-start justify-between mb-5 flex-wrap gap-3">
         <div>
-          <h2 className="text-lg font-bold text-gray-900 dark:text-stone-100">
+          <h2 className="text-lg font-bold text-stone-900 dark:text-stone-100">
             {period === 'today' ? "Aujourd'hui" : '7 derniers jours'}
           </h2>
-          <p className="text-xs text-gray-400 dark:text-stone-500 mt-0.5">{subtitle}</p>
+          <p className="text-xs text-stone-400 dark:text-stone-500 mt-0.5">{subtitle}</p>
         </div>
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1.5 text-sm font-bold px-3 py-1.5 rounded-full bg-violet-50 text-violet-700 dark:bg-violet-900/20 dark:text-violet-400">
@@ -115,9 +115,9 @@ export default function PeriodStatsPanel() {
             <div key={t.key} className={`rounded-xl p-4 ${t.bg}`}>
               <div className="flex items-center gap-1.5 mb-2">
                 <Icon size={16} className={t.fg} />
-                <span className="text-xs font-medium text-gray-500 dark:text-stone-400">{t.label}</span>
+                <span className="text-xs font-medium text-stone-500 dark:text-stone-400">{t.label}</span>
               </div>
-              <div className="text-3xl font-bold tabular-nums text-gray-900 dark:text-stone-100">{agg[t.key]}</div>
+              <div className="text-3xl font-bold tabular-nums text-stone-900 dark:text-stone-100">{agg[t.key]}</div>
             </div>
           );
         })}
@@ -134,9 +134,9 @@ export default function PeriodStatsPanel() {
       </div>
 
       {agg.total === 0 && (
-        <p className="text-sm text-gray-500 dark:text-stone-400 mt-3">
+        <p className="text-sm text-stone-500 dark:text-stone-400 mt-3">
           Aucune activité {period === 'today' ? "aujourd'hui" : 'sur les 7 derniers jours'}.
-          {period === 'today' && <span className="text-gray-400 dark:text-stone-500"> Essayez « 7 derniers jours ».</span>}
+          {period === 'today' && <span className="text-stone-400 dark:text-stone-500"> Essayez « 7 derniers jours ».</span>}
         </p>
       )}
     </div>

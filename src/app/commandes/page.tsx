@@ -9,12 +9,12 @@ export default function CommandesPage() {
     <AppLayout>
       <div className="max-w-screen-2xl mx-auto px-6 py-6 space-y-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+          <div className="w-10 h-10 bg-blue-100 dark:bg-blue-500/15 rounded-xl flex items-center justify-center">
             <Package size={20} className="text-blue-600" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-stone-100">Commandes</h1>
-            <p className="text-sm text-gray-500 dark:text-stone-400">Toutes vos commandes ZREXpress</p>
+            <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100">Commandes</h1>
+            <p className="text-sm text-stone-500 dark:text-stone-400">Toutes vos commandes ZREXpress</p>
           </div>
         </div>
         <OrdersTable />

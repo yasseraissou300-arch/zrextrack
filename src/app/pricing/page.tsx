@@ -68,10 +68,10 @@ export default function PricingPage() {
           <div className="inline-flex items-center gap-2 bg-green-100 text-green-700 text-sm font-medium px-4 py-1.5 rounded-full mb-4">
             <Zap size={14} /> Tarifs simples et transparents
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+          <h1 className="text-4xl font-bold text-stone-900 mb-4">
             Choisissez votre plan
           </h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+          <p className="text-lg text-stone-600 max-w-2xl mx-auto">
             Commencez gratuitement, évoluez selon vos besoins. Pas de surprise, pas d'engagement.
           </p>
         </div>
@@ -90,18 +90,18 @@ export default function PricingPage() {
               )}
 
               <div className="mb-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-1">{plan.name}</h3>
-                <p className="text-gray-500 text-sm mb-4">{plan.description}</p>
+                <h3 className="text-xl font-bold text-stone-900 mb-1">{plan.name}</h3>
+                <p className="text-stone-500 text-sm mb-4">{plan.description}</p>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-4xl font-bold text-gray-900">{plan.price}€</span>
-                  {plan.price > 0 && <span className="text-gray-500">/mois</span>}
-                  {plan.price === 0 && <span className="text-gray-500">pour toujours</span>}
+                  <span className="text-4xl font-bold text-stone-900">{plan.price}€</span>
+                  {plan.price > 0 && <span className="text-stone-500">/mois</span>}
+                  {plan.price === 0 && <span className="text-stone-500">pour toujours</span>}
                 </div>
               </div>
 
               <ul className="space-y-3 mb-8">
                 {plan.features.map((feature) => (
-                  <li key={feature} className="flex items-start gap-2.5 text-sm text-gray-700">
+                  <li key={feature} className="flex items-start gap-2.5 text-sm text-stone-700">
                     <Check size={16} className="text-green-500 mt-0.5 shrink-0" />
                     {feature}
                   </li>
@@ -120,13 +120,13 @@ export default function PricingPage() {
 
         {/* FAQ simple */}
         <div className="text-center">
-          <p className="text-gray-500 text-sm">
+          <p className="text-stone-500 text-sm">
             Des questions ? Contactez-nous à{' '}
             <a href="mailto:yasseraissou300@gmail.com" className="text-blue-600 hover:underline">
               yasseraissou300@gmail.com
             </a>
           </p>
-          <Link href="/login" className="inline-block mt-4 text-sm text-gray-600 hover:text-gray-900 underline">
+          <Link href="/login" className="inline-block mt-4 text-sm text-stone-600 hover:text-stone-900 underline">
             ← Retour à la connexion
           </Link>
         </div>
