@@ -29,7 +29,7 @@ const STATUS_CONFIG: Record<string, { label: string; badge: string; bg: string; 
   en_livraison:   { label: 'En livraison',    badge: 'bg-amber-100 text-amber-700',  bg: 'bg-amber-50',  border: 'border-amber-200' },
   livre:          { label: 'Livré ✓',         badge: 'bg-green-100 text-green-700',  bg: 'bg-green-50',  border: 'border-green-200' },
   echec:          { label: 'Échec',           badge: 'bg-red-100 text-red-700',      bg: 'bg-red-50',    border: 'border-red-200' },
-  retourne:       { label: 'Retourné',        badge: 'bg-gray-100 text-gray-600 dark:text-stone-300',    bg: 'bg-gray-50',   border: 'border-stone-200 dark:border-stone-700' },
+  retourne:       { label: 'Retourné',        badge: 'bg-stone-100 text-stone-600 dark:text-stone-300',    bg: 'bg-stone-50',   border: 'border-stone-200 dark:border-stone-700' },
 };
 
 const STEPS = ['en_preparation', 'en_transit', 'en_livraison', 'livre'];
@@ -98,11 +98,11 @@ export default function OrderDetailModal({ order, onClose, onDeleted }: Props) {
                 {meta.label}
               </span>
               {order.situation && order.situation !== meta.label && (
-                <span className="text-xs text-gray-500 dark:text-stone-400">{order.situation}</span>
+                <span className="text-xs text-stone-500 dark:text-stone-400">{order.situation}</span>
               )}
             </div>
-            <p className="font-mono font-bold text-gray-900 dark:text-stone-100 text-lg">{order.tracking_number}</p>
-            <p className="text-sm text-gray-500 dark:text-stone-400 mt-0.5">{order.customer_name}</p>
+            <p className="font-mono font-bold text-stone-900 dark:text-stone-100 text-lg">{order.tracking_number}</p>
+            <p className="text-sm text-stone-500 dark:text-stone-400 mt-0.5">{order.customer_name}</p>
           </div>
           <div className="flex items-center gap-2">
             <a
@@ -112,13 +112,13 @@ export default function OrderDetailModal({ order, onClose, onDeleted }: Props) {
               className="p-2 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 hover:bg-stone-50 dark:hover:bg-stone-800 transition-colors"
               title="Voir page de suivi"
             >
-              <ExternalLink size={14} className="text-gray-500 dark:text-stone-400" />
+              <ExternalLink size={14} className="text-stone-500 dark:text-stone-400" />
             </a>
             <button
               onClick={onClose}
               className="p-2 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 hover:bg-stone-50 dark:hover:bg-stone-800 transition-colors"
             >
-              <X size={14} className="text-gray-500 dark:text-stone-400" />
+              <X size={14} className="text-stone-500 dark:text-stone-400" />
             </button>
           </div>
         </div>
@@ -128,7 +128,7 @@ export default function OrderDetailModal({ order, onClose, onDeleted }: Props) {
           {/* Barre de progression */}
           {!isTerminal && (
             <div>
-              <p className="text-xs font-semibold text-gray-400 dark:text-stone-500 uppercase tracking-wide mb-3">Progression</p>
+              <p className="text-xs font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wide mb-3">Progression</p>
               <div className="flex items-center">
                 {STEPS.map((step, idx) => {
                   const isActive = idx === stepIdx;
@@ -139,16 +139,16 @@ export default function OrderDetailModal({ order, onClose, onDeleted }: Props) {
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 text-xs font-bold transition-all ${
                           isDone ? 'bg-green-500 border-green-500 text-white'
                             : isActive ? 'bg-white dark:bg-stone-900 border-green-500 text-green-600'
-                            : 'bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-700 text-gray-300 dark:text-stone-600'
+                            : 'bg-white dark:bg-stone-900 border-stone-200 dark:border-stone-700 text-stone-300 dark:text-stone-600'
                         }`}>
                           {isDone ? '✓' : idx + 1}
                         </div>
                         <span className={`text-[10px] font-medium text-center leading-tight ${
-                          isDone ? 'text-green-600' : isActive ? 'text-gray-800 dark:text-stone-100' : 'text-gray-300 dark:text-stone-600'
+                          isDone ? 'text-green-600' : isActive ? 'text-stone-800 dark:text-stone-100' : 'text-stone-300 dark:text-stone-600'
                         }`}>{STEP_LABELS[idx]}</span>
                       </div>
                       {idx < STEPS.length - 1 && (
-                        <div className={`flex-1 h-0.5 mx-1 mb-4 rounded-full ${idx < stepIdx ? 'bg-green-400' : 'bg-gray-200'}`} />
+                        <div className={`flex-1 h-0.5 mx-1 mb-4 rounded-full ${idx < stepIdx ? 'bg-green-400' : 'bg-stone-200'}`} />
                       )}
                     </React.Fragment>
                   );
@@ -159,24 +159,24 @@ export default function OrderDetailModal({ order, onClose, onDeleted }: Props) {
 
           {/* Infos client */}
           <div>
-            <p className="text-xs font-semibold text-gray-400 dark:text-stone-500 uppercase tracking-wide mb-2">Client</p>
+            <p className="text-xs font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wide mb-2">Client</p>
             <div className="grid grid-cols-2 gap-2">
-              <div className="bg-gray-50 rounded-xl p-3">
-                <p className="text-[10px] text-gray-400 dark:text-stone-500 mb-0.5">Nom</p>
-                <p className="text-sm font-semibold text-gray-800 dark:text-stone-100">{order.customer_name || '—'}</p>
+              <div className="bg-stone-50 rounded-xl p-3">
+                <p className="text-[10px] text-stone-400 dark:text-stone-500 mb-0.5">Nom</p>
+                <p className="text-sm font-semibold text-stone-800 dark:text-stone-100">{order.customer_name || '—'}</p>
               </div>
-              <div className="bg-gray-50 rounded-xl p-3">
-                <p className="text-[10px] text-gray-400 dark:text-stone-500 mb-0.5 flex items-center gap-1"><Phone size={9}/>WhatsApp</p>
-                <p className="text-sm font-semibold text-gray-800 dark:text-stone-100">{order.customer_whatsapp || '—'}</p>
+              <div className="bg-stone-50 rounded-xl p-3">
+                <p className="text-[10px] text-stone-400 dark:text-stone-500 mb-0.5 flex items-center gap-1"><Phone size={9}/>WhatsApp</p>
+                <p className="text-sm font-semibold text-stone-800 dark:text-stone-100">{order.customer_whatsapp || '—'}</p>
               </div>
-              <div className="bg-gray-50 rounded-xl p-3">
-                <p className="text-[10px] text-gray-400 dark:text-stone-500 mb-0.5 flex items-center gap-1"><MapPin size={9}/>Wilaya</p>
-                <p className="text-sm font-semibold text-gray-800 dark:text-stone-100">{order.wilaya || '—'}</p>
+              <div className="bg-stone-50 rounded-xl p-3">
+                <p className="text-[10px] text-stone-400 dark:text-stone-500 mb-0.5 flex items-center gap-1"><MapPin size={9}/>Wilaya</p>
+                <p className="text-sm font-semibold text-stone-800 dark:text-stone-100">{order.wilaya || '—'}</p>
               </div>
               {order.district && order.district !== order.wilaya && (
-                <div className="bg-gray-50 rounded-xl p-3">
-                  <p className="text-[10px] text-gray-400 dark:text-stone-500 mb-0.5">Commune</p>
-                  <p className="text-sm font-semibold text-gray-800 dark:text-stone-100">{order.district}</p>
+                <div className="bg-stone-50 rounded-xl p-3">
+                  <p className="text-[10px] text-stone-400 dark:text-stone-500 mb-0.5">Commune</p>
+                  <p className="text-sm font-semibold text-stone-800 dark:text-stone-100">{order.district}</p>
                 </div>
               )}
             </div>
@@ -184,40 +184,40 @@ export default function OrderDetailModal({ order, onClose, onDeleted }: Props) {
 
           {/* Infos commande */}
           <div>
-            <p className="text-xs font-semibold text-gray-400 dark:text-stone-500 uppercase tracking-wide mb-2">Commande</p>
+            <p className="text-xs font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wide mb-2">Commande</p>
             <div className="grid grid-cols-2 gap-2">
-              <div className="bg-gray-50 rounded-xl p-3 col-span-2">
-                <p className="text-[10px] text-gray-400 dark:text-stone-500 mb-0.5 flex items-center gap-1"><Package size={9}/>Produit</p>
-                <p className="text-sm font-semibold text-gray-800 dark:text-stone-100">{order.product_name || '—'}</p>
+              <div className="bg-stone-50 rounded-xl p-3 col-span-2">
+                <p className="text-[10px] text-stone-400 dark:text-stone-500 mb-0.5 flex items-center gap-1"><Package size={9}/>Produit</p>
+                <p className="text-sm font-semibold text-stone-800 dark:text-stone-100">{order.product_name || '—'}</p>
               </div>
-              <div className="bg-gray-50 rounded-xl p-3">
-                <p className="text-[10px] text-gray-400 dark:text-stone-500 mb-0.5 flex items-center gap-1"><CreditCard size={9}/>Montant COD</p>
-                <p className="text-sm font-bold text-gray-900 dark:text-stone-100">
+              <div className="bg-stone-50 rounded-xl p-3">
+                <p className="text-[10px] text-stone-400 dark:text-stone-500 mb-0.5 flex items-center gap-1"><CreditCard size={9}/>Montant COD</p>
+                <p className="text-sm font-bold text-stone-900 dark:text-stone-100">
                   {order.cod ? `${Number(order.cod).toLocaleString('fr-DZ')} DA` : '—'}
                 </p>
               </div>
-              <div className="bg-gray-50 rounded-xl p-3">
-                <p className="text-[10px] text-gray-400 dark:text-stone-500 mb-0.5 flex items-center gap-1"><Truck size={9}/>Frais livraison</p>
-                <p className="text-sm font-semibold text-gray-800 dark:text-stone-100">
+              <div className="bg-stone-50 rounded-xl p-3">
+                <p className="text-[10px] text-stone-400 dark:text-stone-500 mb-0.5 flex items-center gap-1"><Truck size={9}/>Frais livraison</p>
+                <p className="text-sm font-semibold text-stone-800 dark:text-stone-100">
                   {order.delivery_fees ? `${Number(order.delivery_fees).toLocaleString('fr-DZ')} DA` : '—'}
                 </p>
               </div>
-              <div className="bg-gray-50 rounded-xl p-3">
-                <p className="text-[10px] text-gray-400 dark:text-stone-500 mb-0.5 flex items-center gap-1"><Truck size={9}/>Type livraison</p>
-                <p className="text-sm font-semibold text-gray-800 dark:text-stone-100">{order.delivery_type || '—'}</p>
+              <div className="bg-stone-50 rounded-xl p-3">
+                <p className="text-[10px] text-stone-400 dark:text-stone-500 mb-0.5 flex items-center gap-1"><Truck size={9}/>Type livraison</p>
+                <p className="text-sm font-semibold text-stone-800 dark:text-stone-100">{order.delivery_type || '—'}</p>
               </div>
-              <div className="bg-gray-50 rounded-xl p-3">
-                <p className="text-[10px] text-gray-400 dark:text-stone-500 mb-0.5 flex items-center gap-1"><RotateCcw size={9}/>Tentatives</p>
-                <p className="text-sm font-bold text-gray-900 dark:text-stone-100">{order.attempts ?? 0}</p>
+              <div className="bg-stone-50 rounded-xl p-3">
+                <p className="text-[10px] text-stone-400 dark:text-stone-500 mb-0.5 flex items-center gap-1"><RotateCcw size={9}/>Tentatives</p>
+                <p className="text-sm font-bold text-stone-900 dark:text-stone-100">{order.attempts ?? 0}</p>
               </div>
             </div>
           </div>
 
           {/* Footer */}
           <div className="flex items-center justify-between border-t border-stone-100 dark:border-stone-800 pt-3">
-            <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-stone-500">
+            <div className="flex items-center gap-1.5 text-xs text-stone-400 dark:text-stone-500">
               <Clock size={11} />
-              Mis à jour le <span className="font-medium text-gray-600 dark:text-stone-300 ml-1">{formatDate(order.last_update)}</span>
+              Mis à jour le <span className="font-medium text-stone-600 dark:text-stone-300 ml-1">{formatDate(order.last_update)}</span>
             </div>
             <button
               onClick={handleDelete}

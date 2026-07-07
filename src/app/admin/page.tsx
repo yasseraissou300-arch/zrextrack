@@ -78,40 +78,40 @@ export default function AdminPage() {
   };
 
   const planColors: Record<string, string> = {
-    basic: 'bg-slate-100 text-slate-700',
-    pro: 'bg-blue-100 text-blue-700',
-    business: 'bg-purple-100 text-purple-700',
+    basic: 'bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300',
+    pro: 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300',
+    business: 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300',
   };
 
   // Pendant la vérification du rôle (ou juste avant redirection), on n'affiche
   // rien de l'interface admin.
   if (authorized !== true) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <RefreshCw size={20} className="animate-spin text-gray-400" />
+      <div className="min-h-screen bg-stone-50 dark:bg-stone-950 flex items-center justify-center">
+        <RefreshCw size={20} className="animate-spin text-stone-400" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-stone-50 dark:bg-stone-950">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
+      <div className="bg-white dark:bg-stone-900 border-b border-stone-200 dark:border-stone-800 px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
-              <Crown size={16} className="text-white" />
+            <div className="w-9 h-9 bg-violet-100 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300 rounded-xl flex items-center justify-center">
+              <Crown size={18} />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-gray-900">Admin Autotim</h1>
-              <p className="text-xs text-gray-500">Gestion des utilisateurs</p>
+              <h1 className="text-lg font-bold text-stone-900 dark:text-stone-100">Super Admin</h1>
+              <p className="text-xs text-stone-500 dark:text-stone-400">Gestion des clients Autotim</p>
             </div>
           </div>
           <div className="flex gap-3">
-            <button onClick={fetchUsers} className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-100">
+            <button onClick={fetchUsers} className="flex items-center gap-2 text-sm text-stone-600 dark:text-stone-300 hover:text-stone-900 dark:hover:text-stone-100 px-3 py-2 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800">
               <RefreshCw size={14} /> Actualiser
             </button>
-            <a href="/admin-dashboard" className="flex items-center gap-2 text-sm bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600">
+            <a href="/admin-dashboard" className="flex items-center gap-2 text-sm bg-violet-600 text-white px-4 py-2 rounded-lg hover:bg-violet-700">
               <Package size={14} /> Dashboard
             </a>
           </div>
@@ -122,64 +122,64 @@ export default function AdminPage() {
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           {[
-            { label: 'Total inscrits', value: stats.total, icon: Users, color: 'text-blue-600 bg-blue-50' },
-            { label: 'Comptes actifs', value: stats.active, icon: CheckCircle, color: 'text-green-600 bg-green-50' },
-            { label: 'Comptes bloqués', value: stats.blocked, icon: Ban, color: 'text-red-600 bg-red-50' },
-            { label: 'Plans payants', value: stats.pro, icon: TrendingUp, color: 'text-purple-600 bg-purple-50' },
+            { label: 'Total inscrits', value: stats.total, icon: Users, color: 'text-blue-600 bg-blue-50 dark:text-blue-300 dark:bg-blue-500/15' },
+            { label: 'Comptes actifs', value: stats.active, icon: CheckCircle, color: 'text-green-600 bg-green-50 dark:text-green-300 dark:bg-green-500/15' },
+            { label: 'Comptes bloqués', value: stats.blocked, icon: Ban, color: 'text-red-600 bg-red-50 dark:text-red-300 dark:bg-red-500/15' },
+            { label: 'Plans payants', value: stats.pro, icon: TrendingUp, color: 'text-violet-600 bg-violet-50 dark:text-violet-300 dark:bg-violet-500/15' },
           ].map((stat) => (
-            <div key={stat.label} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div key={stat.label} className="bg-white dark:bg-stone-900 rounded-xl p-4 shadow-sm border border-stone-100 dark:border-stone-800">
               <div className={`w-10 h-10 rounded-lg ${stat.color} flex items-center justify-center mb-3`}>
                 <stat.icon size={20} />
               </div>
-              <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-              <p className="text-sm text-gray-500 mt-1">{stat.label}</p>
+              <p className="text-2xl font-bold text-stone-900 dark:text-stone-100 tabular-nums">{stat.value}</p>
+              <p className="text-sm text-stone-500 dark:text-stone-400 mt-1">{stat.label}</p>
             </div>
           ))}
         </div>
 
         {/* Users Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100">
-            <h2 className="font-semibold text-gray-900">Tous les utilisateurs ({users.length})</h2>
+        <div className="bg-white dark:bg-stone-900 rounded-xl shadow-sm border border-stone-100 dark:border-stone-800 overflow-hidden">
+          <div className="px-6 py-4 border-b border-stone-100 dark:border-stone-800">
+            <h2 className="font-semibold text-stone-900 dark:text-stone-100">Tous les utilisateurs ({users.length})</h2>
           </div>
 
           {loading ? (
-            <div className="flex items-center justify-center py-12 text-gray-400">Chargement...</div>
+            <div className="flex items-center justify-center py-12 text-stone-400">Chargement...</div>
           ) : users.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+            <div className="flex flex-col items-center justify-center py-12 text-stone-400 dark:text-stone-500">
               <Users size={48} className="mb-3 opacity-30" />
               <p>Aucun utilisateur inscrit pour l'instant</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50">
+                <thead className="bg-stone-50 dark:bg-stone-800/50">
                   <tr>
-                    <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Utilisateur</th>
-                    <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Plan</th>
-                    <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Statut</th>
-                    <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Inscrit le</th>
-                    <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-3">Actions</th>
+                    <th className="text-left text-xs font-medium text-stone-500 dark:text-stone-400 uppercase px-6 py-3">Utilisateur</th>
+                    <th className="text-left text-xs font-medium text-stone-500 dark:text-stone-400 uppercase px-6 py-3">Plan</th>
+                    <th className="text-left text-xs font-medium text-stone-500 dark:text-stone-400 uppercase px-6 py-3">Statut</th>
+                    <th className="text-left text-xs font-medium text-stone-500 dark:text-stone-400 uppercase px-6 py-3">Inscrit le</th>
+                    <th className="text-left text-xs font-medium text-stone-500 dark:text-stone-400 uppercase px-6 py-3">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-stone-50 dark:divide-stone-800">
                   {users.map((user) => (
-                    <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={user.id} className="hover:bg-stone-50 dark:hover:bg-stone-800/40 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           {user.avatar_url ? (
                             <img src={user.avatar_url} alt="" className="w-9 h-9 rounded-full" />
                           ) : (
-                            <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-semibold text-sm">
+                            <div className="w-9 h-9 rounded-full bg-violet-100 dark:bg-violet-500/15 flex items-center justify-center text-violet-700 dark:text-violet-300 font-semibold text-sm">
                               {(user.full_name || user.email || 'U')[0].toUpperCase()}
                             </div>
                           )}
                           <div>
-                            <p className="font-medium text-gray-900 text-sm">{user.full_name || 'Nom inconnu'}</p>
-                            <p className="text-xs text-gray-500">{user.email}</p>
+                            <p className="font-medium text-stone-900 dark:text-stone-100 text-sm">{user.full_name || 'Nom inconnu'}</p>
+                            <p className="text-xs text-stone-500 dark:text-stone-400">{user.email}</p>
                           </div>
                           {user.role === 'admin' && (
-                            <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-medium">Admin</span>
+                            <span className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300 px-2 py-0.5 rounded-full font-medium">Admin</span>
                           )}
                         </div>
                       </td>
@@ -196,18 +196,18 @@ export default function AdminPage() {
                       </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full ${
-                          user.status === 'active' ? 'bg-green-100 text-green-700' :
-                          user.status === 'blocked' ? 'bg-red-100 text-red-700' :
-                          'bg-yellow-100 text-yellow-700'
+                          user.status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300' :
+                          user.status === 'blocked' ? 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300' :
+                          'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'
                         }`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${
                             user.status === 'active' ? 'bg-green-500' :
-                            user.status === 'blocked' ? 'bg-red-500' : 'bg-yellow-500'
+                            user.status === 'blocked' ? 'bg-red-500' : 'bg-amber-500'
                           }`} />
                           {user.status === 'active' ? 'Actif' : user.status === 'blocked' ? 'Bloqué' : 'En attente'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
+                      <td className="px-6 py-4 text-sm text-stone-500 dark:text-stone-400">
                         {new Date(user.created_at).toLocaleDateString('fr-FR')}
                       </td>
                       <td className="px-6 py-4">
@@ -216,8 +216,8 @@ export default function AdminPage() {
                             onClick={() => toggleUserStatus(user.id, user.status)}
                             className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors ${
                               user.status === 'active'
-                                ? 'bg-red-50 text-red-600 hover:bg-red-100'
-                                : 'bg-green-50 text-green-600 hover:bg-green-100'
+                                ? 'bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-500/15 dark:text-red-300 dark:hover:bg-red-500/25'
+                                : 'bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-500/15 dark:text-green-300 dark:hover:bg-green-500/25'
                             }`}
                           >
                             {user.status === 'active' ? <><Ban size={12} /> Bloquer</> : <><CheckCircle size={12} /> Activer</>}

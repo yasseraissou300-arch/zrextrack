@@ -21,10 +21,10 @@ function CustomTooltip({ active, payload }: any) {
     <div className="bg-white dark:bg-stone-900 border border-stone-100 dark:border-stone-800 rounded-xl shadow-lg p-3">
       <div className="flex items-center gap-2 text-sm mb-1">
         <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.payload.color }} />
-        <span className="font-medium text-gray-800 dark:text-stone-100">{item.name}</span>
+        <span className="font-medium text-stone-800 dark:text-stone-100">{item.name}</span>
       </div>
-      <p className="text-lg font-bold tabular-nums text-gray-900 dark:text-stone-100">{item.value.toLocaleString('fr-DZ')}</p>
-      <p className="text-xs text-gray-400 dark:text-stone-500">{total > 0 ? ((item.value / total) * 100).toFixed(1) : 0}% du total</p>
+      <p className="text-lg font-bold tabular-nums text-stone-900 dark:text-stone-100">{item.value.toLocaleString('fr-DZ')}</p>
+      <p className="text-xs text-stone-400 dark:text-stone-500">{total > 0 ? ((item.value / total) * 100).toFixed(1) : 0}% du total</p>
     </div>
   );
 }
@@ -73,15 +73,15 @@ export default function StatusDistributionChart() {
   return (
     <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 p-5 h-full shadow-sm">
       <div className="mb-4">
-        <h2 className="text-sm font-semibold text-gray-800 dark:text-stone-100">Répartition des statuts</h2>
-        <p className="text-xs text-gray-400 dark:text-stone-500 mt-0.5">
+        <h2 className="text-sm font-semibold text-stone-800 dark:text-stone-100">Répartition des statuts</h2>
+        <p className="text-xs text-stone-400 dark:text-stone-500 mt-0.5">
           {loading ? '...' : `${total.toLocaleString('fr-DZ')} commandes au total`}
         </p>
       </div>
       {loading ? (
-        <div className="h-[180px] flex items-center justify-center text-gray-300 dark:text-stone-600 text-sm">Chargement...</div>
+        <div className="h-[180px] flex items-center justify-center text-stone-300 dark:text-stone-600 text-sm">Chargement...</div>
       ) : data.length === 0 ? (
-        <div className="h-[180px] flex items-center justify-center text-gray-300 dark:text-stone-600 text-sm">Aucune donnée</div>
+        <div className="h-[180px] flex items-center justify-center text-stone-300 dark:text-stone-600 text-sm">Aucune donnée</div>
       ) : (
         <ResponsiveContainer width="100%" height={180}>
           <PieChart>
@@ -95,15 +95,15 @@ export default function StatusDistributionChart() {
       <div className="space-y-2 mt-3">
         {data.map((item) => (
           <div key={item.key} className="flex items-center justify-between text-xs">
-            <span className="flex items-center gap-2 text-gray-500 dark:text-stone-400">
+            <span className="flex items-center gap-2 text-stone-500 dark:text-stone-400">
               <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
               {item.name}
             </span>
             <div className="flex items-center gap-2">
-              <div className="w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div className="w-20 h-1.5 bg-stone-100 rounded-full overflow-hidden">
                 <div className="h-full rounded-full" style={{ width: `${total > 0 ? (item.value / total) * 100 : 0}%`, backgroundColor: item.color }} />
               </div>
-              <span className="tabular-nums font-semibold text-gray-700 dark:text-stone-200 w-8 text-right">{item.value}</span>
+              <span className="tabular-nums font-semibold text-stone-700 dark:text-stone-200 w-8 text-right">{item.value}</span>
             </div>
           </div>
         ))}
