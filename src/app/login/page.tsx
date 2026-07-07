@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import Image from 'next/image';
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
@@ -25,27 +24,27 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-stone-950 via-stone-900 to-violet-950 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Logo */}
+        {/* Logo — identique à la sidebar (dégradé violet→fuchsia + « Autotim ») */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center">
+            <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-xl flex items-center justify-center shadow-lg shadow-violet-500/30">
               <span className="text-white font-bold text-xl">Z</span>
             </div>
-            <div className="text-left">
-              <h1 className="text-2xl font-bold text-white">Autotim</h1>
-              <p className="text-slate-400 text-sm">Suivi Commandes ZREXpress</p>
+            <div className="text-left leading-tight">
+              <h1 className="text-2xl font-bold text-white tracking-tight">Autotim</h1>
+              <p className="text-violet-300/70 text-[11px] font-medium tracking-wide uppercase">Suivi Commandes ZRExpress</p>
             </div>
           </div>
         </div>
 
         {/* Card */}
-        <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-8 shadow-2xl">
+        <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-8 shadow-2xl">
           <h2 className="text-xl font-semibold text-white text-center mb-2">
             Bienvenue 👋
           </h2>
-          <p className="text-slate-400 text-center text-sm mb-8">
+          <p className="text-stone-400 text-center text-sm mb-8">
             Connectez-vous avec votre compte Google pour accéder à votre espace
           </p>
 
@@ -70,22 +69,22 @@ export default function LoginPage() {
           </button>
 
           <div className="mt-6 pt-6 border-t border-white/10">
-            <p className="text-slate-500 text-xs text-center">
-              Pas encore de compte ? La connexion Google crée automatiquement votre compte avec le plan <span className="text-green-400 font-medium">Basic gratuit</span>.
+            <p className="text-stone-500 text-xs text-center">
+              Pas encore de compte ? La connexion Google crée automatiquement votre compte avec le plan <span className="text-violet-300 font-medium">Basic gratuit</span>.
             </p>
           </div>
         </div>
 
-        {/* Plans preview */}
+        {/* Aperçu des plans */}
         <div className="mt-6 grid grid-cols-3 gap-3">
           {[
-            { name: 'Basic', price: 'Gratuit', color: 'text-slate-300' },
-            { name: 'Pro', price: '29€/mois', color: 'text-blue-400' },
-            { name: 'Business', price: '79€/mois', color: 'text-purple-400' },
+            { name: 'Basic', price: 'Gratuit', color: 'text-stone-300' },
+            { name: 'Pro', price: '1 900 DA/mois', color: 'text-violet-300' },
+            { name: 'Business', price: '4 900 DA/mois', color: 'text-fuchsia-300' },
           ].map((plan) => (
             <div key={plan.name} className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
               <p className={`font-semibold text-sm ${plan.color}`}>{plan.name}</p>
-              <p className="text-slate-500 text-xs mt-1">{plan.price}</p>
+              <p className="text-stone-500 text-xs mt-1">{plan.price}</p>
             </div>
           ))}
         </div>
