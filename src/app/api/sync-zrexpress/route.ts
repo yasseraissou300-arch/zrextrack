@@ -180,13 +180,21 @@ async function drainNotifications(
   userTpl: Map<string, string>,
 ): Promise<number> {
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const { count: sentToday } = await supabase
-    .from('messages')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .eq('status', 'envoye')
-    .gte('sent_at', since);
-  const budget = Math.min(remainingDailyQuota(sentToday ?? 0), DRAIN_PER_SYNC);
+  const [{ count: sentToday }, { data: prof }] = await Promise.all([
+    supabase
+      .from('messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('status', 'envoye')
+      .gte('sent_at', since),
+    supabase
+      .from('profiles')
+      .select('whatsapp_warmup_started_at')
+      .eq('id', userId)
+      .single(),
+  ]);
+  const warmupStartedAt = prof?.whatsapp_warmup_started_at ?? null;
+  const budget = Math.min(remainingDailyQuota(sentToday ?? 0, warmupStartedAt), DRAIN_PER_SYNC);
   if (budget <= 0) return 0;
 
   // Numéro Evolution connecté de l'utilisateur (instance auto_confirmation)

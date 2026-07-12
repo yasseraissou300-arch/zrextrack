@@ -81,8 +81,69 @@ export function varyMessage(text: string): string {
   return injectZWS(withEmoji);
 }
 
-// Calcule combien de messages on peut encore envoyer aujourd'hui pour ce user
-// avant de toucher le plafond.
-export function remainingDailyQuota(sentToday: number): number {
-  return Math.max(0, ANTI_SPAM.DAILY_LIMIT - sentToday);
+// ─── WARM-UP PROGRESSIF ──────────────────────────────────────────────────────
+//
+// Un numéro WhatsApp neuf qui envoie 40 messages/jour d'un coup est TRÈS
+// suspect pour l'algo de WhatsApp — surtout si le numéro n'a jamais reçu de
+// conversations. Résultat classique : ban dans les 48h.
+//
+// Le warm-up consiste à monter DOUCEMENT le rythme sur ~2 semaines pour laisser
+// WhatsApp construire une « réputation » sur le numéro : commencer petit,
+// répondre à quelques messages entrants humainement, envoyer aux contacts qui
+// répondent, etc. Ici on couvre l'aspect volume : le plafond monte tout seul.
+//
+// Le compte à rebours démarre au moment où le user active le warm-up
+// (colonne `profiles.whatsapp_warmup_started_at`). Si nulle → régime normal.
+
+export const WARMUP_PHASES: Array<{ dayStart: number; dayEnd: number; limit: number; label: string }> = [
+  { dayStart: 0,  dayEnd: 3,        limit: 8,  label: 'Jours 1-3 (démarrage doux)' },
+  { dayStart: 3,  dayEnd: 7,        limit: 15, label: 'Jours 4-7 (échauffement)' },
+  { dayStart: 7,  dayEnd: 14,       limit: 25, label: 'Semaine 2 (montée en régime)' },
+  { dayStart: 14, dayEnd: Infinity, limit: ANTI_SPAM.DAILY_LIMIT, label: 'Régime normal atteint' },
+];
+
+function daysSince(iso: string): number {
+  return (Date.now() - new Date(iso).getTime()) / 86_400_000;
+}
+
+export interface WarmupState {
+  isActive: boolean;
+  limit: number;
+  label: string;
+  daysElapsed: number;
+  nextPhaseInDays: number | null;  // combien de jours avant la prochaine palier (null si déjà au max)
+  startedAt: string | null;
+}
+
+// État du warm-up pour un user donné. warmupStartedAt = colonne DB (null si pas
+// démarré). Toujours safe à appeler.
+export function warmupState(warmupStartedAt: string | null | undefined): WarmupState {
+  if (!warmupStartedAt) {
+    return {
+      isActive: false, limit: ANTI_SPAM.DAILY_LIMIT, label: 'Warm-up non activé',
+      daysElapsed: 0, nextPhaseInDays: null, startedAt: null,
+    };
+  }
+  const d = daysSince(warmupStartedAt);
+  const phase = WARMUP_PHASES.find(p => d >= p.dayStart && d < p.dayEnd) ?? WARMUP_PHASES[WARMUP_PHASES.length - 1];
+  const nextPhase = WARMUP_PHASES.find(p => p.dayStart > d);
+  return {
+    isActive: phase.limit < ANTI_SPAM.DAILY_LIMIT,
+    limit: phase.limit,
+    label: phase.label,
+    daysElapsed: d,
+    nextPhaseInDays: nextPhase ? Math.max(0, nextPhase.dayStart - d) : null,
+    startedAt: warmupStartedAt,
+  };
+}
+
+// Plafond effectif du user pour aujourd'hui (compte tenu du warm-up).
+export function effectiveDailyLimit(warmupStartedAt: string | null | undefined): number {
+  return warmupState(warmupStartedAt).limit;
+}
+
+// Combien de messages on peut encore envoyer aujourd'hui avant de toucher le
+// plafond (warm-up pris en compte si warmupStartedAt fourni).
+export function remainingDailyQuota(sentToday: number, warmupStartedAt: string | null | undefined = null): number {
+  return Math.max(0, effectiveDailyLimit(warmupStartedAt) - sentToday);
 }

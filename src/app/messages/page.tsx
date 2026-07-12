@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
-import { MessageSquare, Wifi, WifiOff, QrCode, Send, History, CheckCircle, RefreshCw, ChevronLeft, ChevronRight, AlertCircle, Users, Loader2, Smartphone, Filter, Copy, RotateCcw, ChevronDown, ChevronUp, Bell } from 'lucide-react';
+import { MessageSquare, Wifi, WifiOff, QrCode, Send, History, CheckCircle, RefreshCw, ChevronLeft, ChevronRight, AlertCircle, Users, Loader2, Smartphone, Filter, Copy, RotateCcw, ChevronDown, ChevronUp, Bell, Flame, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { loadSyncSettings, saveSyncSettings } from '@/lib/sync-settings-client';
 
@@ -146,6 +146,88 @@ function StatusBadge({ connected }: { connected: boolean }) {
   );
 }
 
+// Carte « Warm-up » — laisse l'user démarrer/arrêter le régime progressif pour
+// un nouveau numéro WhatsApp. C'est la protection principale contre le ban :
+// un numéro neuf commence à 8 msg/j puis monte à 15, 25 et 40 sur ~2 semaines.
+function WarmupCard() {
+  interface State { isActive: boolean; limit: number; label: string; daysElapsed: number; nextPhaseInDays: number | null; startedAt: string | null }
+  const [state, setState] = useState<State | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(() => {
+    fetch('/api/whatsapp/warmup')
+      .then(r => r.json())
+      .then(setState)
+      .catch(() => setState(null));
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const post = async (action: 'start' | 'stop') => {
+    setBusy(true);
+    const r = await fetch('/api/whatsapp/warmup', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action }),
+    });
+    const j = await r.json();
+    if (!r.ok) { toast.error(j.error || 'Erreur'); setBusy(false); return; }
+    setState(j);
+    toast.success(action === 'start' ? 'Warm-up démarré — le plafond montera automatiquement' : 'Warm-up désactivé — plafond normal 40/24h');
+    setBusy(false);
+  };
+
+  if (!state) return null;
+  const days = Math.floor(state.daysElapsed);
+
+  return (
+    <div className={`rounded-2xl p-4 border ${state.isActive ? 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30' : 'bg-stone-50 dark:bg-stone-800/50 border-stone-200 dark:border-stone-700'}`}>
+      <div className="flex items-start gap-3">
+        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${state.isActive ? 'bg-amber-500 text-white' : 'bg-stone-200 dark:bg-stone-700 text-stone-500 dark:text-stone-400'}`}>
+          {state.isActive ? <Flame size={17} /> : <Zap size={17} />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="font-semibold text-stone-900 dark:text-stone-100 text-sm">Warm-up numéro WhatsApp</p>
+            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${state.isActive ? 'bg-amber-500 text-white' : 'bg-stone-200 dark:bg-stone-700 text-stone-600 dark:text-stone-300'}`}>
+              {state.limit} msg/24h
+            </span>
+          </div>
+          <p className="text-xs text-stone-600 dark:text-stone-300 mt-0.5">{state.label}</p>
+          {state.isActive && (
+            <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-1">
+              Jour {days + 1} du warm-up
+              {state.nextPhaseInDays != null && state.nextPhaseInDays > 0 && (
+                <> · palier suivant dans {Math.ceil(state.nextPhaseInDays)}&nbsp;j</>
+              )}
+            </p>
+          )}
+          {!state.isActive && (
+            <p className="text-[11px] text-stone-500 dark:text-stone-400 mt-1">
+              Active-le quand tu connectes un <strong>nouveau numéro</strong> pour éviter un ban.
+            </p>
+          )}
+          <div className="mt-3 flex gap-2">
+            {state.isActive ? (
+              <>
+                <button onClick={() => post('start')} disabled={busy} className="text-xs font-medium px-3 py-1.5 rounded-lg bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-200 hover:bg-stone-50 dark:hover:bg-stone-700 disabled:opacity-50">
+                  Réinitialiser
+                </button>
+                <button onClick={() => post('stop')} disabled={busy} className="text-xs font-medium px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-500/10 disabled:opacity-50">
+                  Arrêter
+                </button>
+              </>
+            ) : (
+              <button onClick={() => post('start')} disabled={busy} className="text-xs font-medium px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white disabled:opacity-50">
+                Démarrer le warm-up
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ConnexionTab() {
   const [connected, setConnected] = useState<boolean | null>(null);
   const [phone, setPhone] = useState('');
@@ -255,6 +337,9 @@ function ConnexionTab() {
           </div>
         </div>
       </div>
+
+      {/* Warm-up — protège un nouveau numéro d'un ban */}
+      <WarmupCard />
 
       {/* QR Code */}
       {!connected && (

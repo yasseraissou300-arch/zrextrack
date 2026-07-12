@@ -21,6 +21,10 @@ import type { NextRequest } from 'next/server';
 export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
+  // '/' est publique (landing page vitrine du SaaS). Match exact — sinon un
+  // startsWith('/') laisserait passer TOUT le dashboard.
+  if (pathname === '/') return NextResponse.next();
+
   // Routes publiques — aucune auth nécessaire.
   // NB : '/track' (sans slash) couvre la page de recherche /track ET les pages
   // résultat /track/<numero>. Avant, seul '/track/' était listé → la page
