@@ -8,7 +8,8 @@ export async function GET(request: Request) {
   const origin = requestUrl.origin;
 
   if (code) {
-    const cookieStore = cookies();
+    // Next 15 : cookies() est async, il faut l'awaiter.
+    const cookieStore = await cookies();
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

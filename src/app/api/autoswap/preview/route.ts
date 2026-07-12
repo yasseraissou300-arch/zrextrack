@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
-import { fetchAllParcels } from '@/app/api/sync-zrexpress/route';
+import { fetchAllParcels } from '@/lib/zrexpress/parcels';
 import { matchSwappables, splitSourcesAndTargets } from '@/lib/autoswap/matcher';
 import type { PreviewResponse, ZRParcel } from '@/lib/autoswap/types';
 

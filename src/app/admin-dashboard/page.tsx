@@ -6,6 +6,8 @@ import PeriodStatsPanel from './components/PeriodStatsPanel';
 import ChartsRow from './components/ChartsRow';
 import OrdersTable from './components/OrdersTable';
 import WhatsAppMessageLog from './components/WhatsAppMessageLog';
+import OnboardingChecklist from '@/components/OnboardingChecklist';
+import QuotaBanner from '@/components/QuotaBanner';
 import { Toaster } from 'sonner';
 
 export default function AdminDashboardPage() {
@@ -15,6 +17,8 @@ export default function AdminDashboardPage() {
       <div className="min-h-screen bg-[hsl(var(--background))]">
         <div className="max-w-screen-2xl mx-auto px-6 lg:px-8 xl:px-10 py-6 space-y-6">
           <DashboardHeader />
+          <OnboardingChecklist />
+          <QuotaBanner />
           <KPIBentoGrid />
           <PeriodStatsPanel />
           <ChartsRow />
