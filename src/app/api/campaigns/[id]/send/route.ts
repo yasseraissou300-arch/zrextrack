@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
-import { ANTI_SPAM, randomThrottle, sleep, varyMessage, remainingDailyQuota } from '@/lib/whatsapp/anti-spam';
+import { ANTI_SPAM, randomThrottle, sleep, varyMessage, remainingDailyQuota, effectiveDailyLimit } from '@/lib/whatsapp/anti-spam';
 
 // Envoi de campagne — utilise le MÊME numéro WhatsApp connecté (Evolution,
 // instance « auto_confirmation ») et les MÊMES protections anti-suspension que
@@ -173,22 +173,34 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   // ── ANTI-SPAM : plafond journalier PARTAGÉ (table messages, 24h glissant) ──
+  // Le plafond peut être RÉDUIT si l'user a activé le warm-up d'un nouveau
+  // numéro (progressif 8→15→25→40 sur ~2 semaines).
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const { count: sentToday } = await supabase
-    .from('messages')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', user.id)
-    .eq('status', 'envoye')
-    .gte('sent_at', since);
-
-  const remaining = remainingDailyQuota(sentToday ?? 0);
+  const [{ count: sentToday }, { data: prof }] = await Promise.all([
+    supabase
+      .from('messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('status', 'envoye')
+      .gte('sent_at', since),
+    supabase
+      .from('profiles')
+      .select('whatsapp_warmup_started_at')
+      .eq('id', user.id)
+      .single(),
+  ]);
+  const warmupStartedAt = prof?.whatsapp_warmup_started_at ?? null;
+  const dailyLimit = effectiveDailyLimit(warmupStartedAt);
+  const remaining = remainingDailyQuota(sentToday ?? 0, warmupStartedAt);
   if (remaining <= 0) {
     return NextResponse.json({
-      error: `Plafond journalier atteint (${ANTI_SPAM.DAILY_LIMIT} messages/24h) — protège ton numéro d'une suspension.`,
+      error: `Plafond journalier atteint (${dailyLimit} messages/24h) — protège ton numéro d'une suspension.`,
       code: 'DAILY_LIMIT_REACHED',
-      hint: 'Attends que la fenêtre de 24h se libère, puis relance la campagne pour envoyer le reste.',
+      hint: warmupStartedAt
+        ? 'Warm-up en cours : le plafond monte au fil des jours. Attends la fenêtre de 24h ou la prochaine palier.'
+        : 'Attends que la fenêtre de 24h se libère, puis relance la campagne pour envoyer le reste.',
       sentToday: sentToday ?? 0,
-      dailyLimit: ANTI_SPAM.DAILY_LIMIT,
+      dailyLimit,
     }, { status: 429 });
   }
   const willSend = Math.min(validOrders.length, remaining);
@@ -217,7 +229,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     let errorMsg = '';
 
     if (i >= willSend) {
-      errorMsg = `Quota journalier dépassé (${ANTI_SPAM.DAILY_LIMIT}/24h) — non envoyé`;
+      errorMsg = `Quota journalier dépassé (${dailyLimit}/24h) — non envoyé`;
     } else if (!to || to.length < 11) {
       errorMsg = `Numéro invalide : "${order.customer_whatsapp}"`;
     } else if (sessionDead) {
@@ -282,7 +294,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     failed,
     total: validOrders.length,
     sentToday: (sentToday ?? 0) + sent,
-    dailyLimit: ANTI_SPAM.DAILY_LIMIT,
+    dailyLimit,
     ...(circuitBroken && { circuitBroken: true, hint: 'Campagne stoppée après plusieurs échecs consécutifs (protection numéro).' }),
     ...(sessionDead && { sessionDead: true, hint: 'Session WhatsApp expirée — reconnecte dans Messages → Connexion.' }),
   });
