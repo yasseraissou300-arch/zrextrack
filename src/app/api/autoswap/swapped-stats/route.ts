@@ -11,7 +11,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { fetchAllParcels } from '@/app/api/sync-zrexpress/route';
+import { fetchAllParcels } from '@/lib/zrexpress/parcels';
 import { classifySwappedDelivery, type DeliveryBucket } from '@/lib/zrexpress/status';
 
 type Bucket = DeliveryBucket;

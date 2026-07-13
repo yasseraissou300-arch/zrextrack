@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { mapStatus } from '@/lib/zrexpress/status';
+import { fetchAllParcels } from '@/lib/zrexpress/parcels';
 import { remainingDailyQuota, sleep, varyMessage } from '@/lib/whatsapp/anti-spam';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
+import { countOrdersThisMonth, quotaStateFor } from '@/lib/plan-quotas';
 
-const ZREXPRESS_API = 'https://api.zrexpress.app/api/v1.0';
 const APP_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://zrextrack6753.builtwithrocket.new';
 
 // Statuts qui déclenchent une notification WhatsApp
@@ -77,47 +78,6 @@ async function sendWhatsApp(phoneNumberId: string, accessToken: string, phone: s
 // La classification ZRExpress état+situation → statut interne vit désormais
 // dans @/lib/zrexpress/status (partagée avec /api/autoswap/swapped-stats).
 // mapStatus est importée en haut du fichier.
-
-// Fetch all pages from ZREXpress
-export async function fetchAllParcels(token: string, tenantId: string): Promise<any[]> {
-  const all: any[] = [];
-  let pageNumber = 1;
-  const pageSize = 100;
-  let totalPages = 1;
-
-  while (pageNumber <= totalPages) {
-    const res = await fetch(`${ZREXPRESS_API}/parcels/search`, {
-      method: 'POST',
-      headers: {
-        'X-Api-Key': token,
-        'X-Tenant': tenantId,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ pageNumber, pageSize }),
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`ZREXpress API error ${res.status}: ${text.slice(0, 200)}`);
-    }
-
-    const data = await res.json();
-
-    if (Array.isArray(data)) {
-      all.push(...data);
-      break;
-    }
-
-    const items = data.content || data.items || data.data || data.parcels || [];
-    all.push(...items);
-
-    totalPages = data.totalPages ?? data.total_pages ?? 1;
-    pageNumber++;
-    if (pageNumber > 50) break;
-  }
-
-  return all;
-}
 
 function mapParcel(p: any, syncedAt: string) {
   const tracking =
@@ -306,6 +266,28 @@ export async function POST(request: NextRequest) {
         .map((t: { key: string; content_darija: string }) => [t.key, t.content_darija])
     );
 
+    // ── Enforcement quota mensuel (Basic 200, Pro 2000, Business ∞) ──
+    // On lit plan + usage courant, et on refuse tôt si l'user est déjà au-delà.
+    // La sync ne fait alors PAS d'appel ZRExpress → pas de gaspillage réseau.
+    let quotaState: ReturnType<typeof quotaStateFor> | null = null;
+    if (userId) {
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('plan_id, role')
+        .eq('id', userId)
+        .maybeSingle();
+      const used = await countOrdersThisMonth(supabase, userId);
+      quotaState = quotaStateFor(prof?.plan_id ?? 'basic', prof?.role ?? null, used);
+      if (quotaState.isOver) {
+        return NextResponse.json({
+          error: `Quota mensuel atteint (${quotaState.used} / ${quotaState.quota} commandes en plan ${quotaState.planLabel}).`,
+          code: 'PLAN_QUOTA_REACHED',
+          hint: 'Passez au plan supérieur pour continuer à synchroniser ce mois-ci.',
+          quota: quotaState,
+        }, { status: 402 });
+      }
+    }
+
     // 1. Récupérer toutes les commandes depuis ZREXpress
     const parcels = await fetchAllParcels(token, tenantId);
     if (parcels.length === 0) {
@@ -320,11 +302,19 @@ export async function POST(request: NextRequest) {
       .map(r => ({ ...r, user_id: userId }));
 
     const seen = new Set<string>();
-    const rows = allRows.filter(r => {
+    let rows = allRows.filter(r => {
       if (seen.has(r.tracking_number)) return false;
       seen.add(r.tracking_number);
       return true;
     });
+
+    // Si non-illimité : ne pas dépasser le quota mensuel restant. On tronque
+    // pour ne pousser au maximum que ce qui rentre dans le plan.
+    let quotaTruncated = 0;
+    if (quotaState && !quotaState.isUnlimited && quotaState.remaining != null && rows.length > quotaState.remaining) {
+      quotaTruncated = rows.length - quotaState.remaining;
+      rows = rows.slice(0, quotaState.remaining);
+    }
 
     const trackingNums = rows.map(r => r.tracking_number);
 
@@ -408,7 +398,9 @@ export async function POST(request: NextRequest) {
       total: parcels.length,
       whatsapp_sent: whatsappSent,
       notifications: toNotify.length,
-      message: `${rows.length} commandes synchronisées · ${whatsappSent} notifications WhatsApp envoyées`,
+      message: `${rows.length} commandes synchronisées · ${whatsappSent} notifications WhatsApp envoyées${quotaTruncated > 0 ? ` · ${quotaTruncated} tronquées (quota mensuel)` : ''}`,
+      ...(quotaTruncated > 0 && { quotaTruncated, quotaHint: 'Quota mensuel atteint : passez au plan supérieur pour synchroniser toutes vos commandes.' }),
+      ...(quotaState && !quotaState.isUnlimited && { quota: quotaState }),
     });
 
   } catch (err: any) {

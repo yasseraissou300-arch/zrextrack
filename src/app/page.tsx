@@ -82,6 +82,93 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── APERÇU DASHBOARD (mockup) ───────────────────────────────────────── */}
+      <section className="py-16 border-t border-stone-100 dark:border-stone-800">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl sm:text-4xl font-bold mb-3">Un tableau de bord clair</h2>
+            <p className="text-stone-500 dark:text-stone-400">Toutes vos livraisons en un coup d'œil.</p>
+          </div>
+
+          {/* Mockup : cadre "navigateur" + faux dashboard en CSS/SVG (aucune image externe). */}
+          <div className="relative max-w-4xl mx-auto rounded-2xl border border-stone-200 dark:border-stone-800 shadow-2xl shadow-violet-500/10 overflow-hidden bg-white dark:bg-stone-950">
+            {/* Barre navigateur */}
+            <div className="flex items-center gap-1.5 bg-stone-100 dark:bg-stone-900 border-b border-stone-200 dark:border-stone-800 px-3 py-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
+              <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+              <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
+              <div className="ml-4 text-[10px] font-mono text-stone-400 dark:text-stone-500">autotim.app/admin-dashboard</div>
+            </div>
+
+            {/* Contenu fake dashboard */}
+            <div className="p-4 sm:p-6 space-y-4 text-left">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-lg flex items-center justify-center">
+                  <span className="text-white font-bold text-[10px]">Z</span>
+                </div>
+                <div className="text-xs font-semibold">Dashboard</div>
+              </div>
+
+              {/* KPIs */}
+              <div className="grid grid-cols-4 gap-3">
+                {[
+                  { label: 'En prépa', value: '124', tone: 'violet' },
+                  { label: 'En transit', value: '87', tone: 'blue' },
+                  { label: 'Livrés', value: '542', tone: 'green' },
+                  { label: 'Retours', value: '18', tone: 'red' },
+                ].map(k => (
+                  <div key={k.label} className="bg-stone-50 dark:bg-stone-900 border border-stone-100 dark:border-stone-800 rounded-lg p-2.5">
+                    <div className={`text-[9px] font-semibold uppercase tracking-wide ${
+                      k.tone === 'violet' ? 'text-violet-500' :
+                      k.tone === 'blue' ? 'text-blue-500' :
+                      k.tone === 'green' ? 'text-green-500' : 'text-red-500'
+                    }`}>{k.label}</div>
+                    <div className="text-lg font-bold text-stone-900 dark:text-stone-100 tabular-nums">{k.value}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Graphique */}
+              <div className="bg-stone-50 dark:bg-stone-900 border border-stone-100 dark:border-stone-800 rounded-lg p-3">
+                <div className="text-[10px] font-semibold text-stone-500 dark:text-stone-400 mb-2">Livraisons 7 derniers jours</div>
+                <svg viewBox="0 0 400 80" className="w-full h-16">
+                  <defs>
+                    <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="rgb(139,92,246)" stopOpacity="0.4" />
+                      <stop offset="100%" stopColor="rgb(139,92,246)" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <path d="M0,60 L60,45 L120,50 L180,30 L240,35 L300,15 L360,20 L400,10" fill="none" stroke="rgb(139,92,246)" strokeWidth="2" />
+                  <path d="M0,60 L60,45 L120,50 L180,30 L240,35 L300,15 L360,20 L400,10 L400,80 L0,80 Z" fill="url(#grad)" />
+                </svg>
+              </div>
+
+              {/* Table simplifiée */}
+              <div className="bg-stone-50 dark:bg-stone-900 border border-stone-100 dark:border-stone-800 rounded-lg overflow-hidden">
+                <div className="grid grid-cols-[1fr_1fr_auto] gap-2 px-3 py-1.5 border-b border-stone-100 dark:border-stone-800 text-[9px] font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
+                  <span>Client</span><span>Wilaya</span><span>Statut</span>
+                </div>
+                {[
+                  { c: 'Ahmed B.', w: 'Alger', s: 'Livré', tone: 'green' },
+                  { c: 'Sara M.', w: 'Oran', s: 'En transit', tone: 'blue' },
+                  { c: 'Karim L.', w: 'Blida', s: 'En livraison', tone: 'amber' },
+                ].map((r, i) => (
+                  <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2 px-3 py-2 border-b border-stone-100/50 dark:border-stone-800/50 last:border-0 items-center">
+                    <span className="text-xs font-medium text-stone-800 dark:text-stone-100">{r.c}</span>
+                    <span className="text-xs text-stone-500 dark:text-stone-400">{r.w}</span>
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                      r.tone === 'green' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300' :
+                      r.tone === 'blue' ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300' :
+                      'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'
+                    }`}>{r.s}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── COMMENT ÇA MARCHE (3 étapes) ────────────────────────────────────── */}
       <section className="py-20 border-t border-stone-100 dark:border-stone-800">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
@@ -210,6 +297,53 @@ export default function HomePage() {
                   Voir tous les détails →
                 </Link>
               </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── FAQ ─────────────────────────────────────────────────────────────── */}
+      <section className="py-20 bg-stone-50 dark:bg-stone-900/50 border-t border-stone-100 dark:border-stone-800">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl sm:text-4xl font-bold mb-3">Questions fréquentes</h2>
+            <p className="text-stone-500 dark:text-stone-400">Les réponses avant que vous les posiez.</p>
+          </div>
+
+          <div className="space-y-3">
+            {[
+              {
+                q: 'Est-ce que je risque de faire suspendre mon numéro WhatsApp ?',
+                a: 'Autotim applique un rythme d\'envoi contrôlé (délai aléatoire entre chaque message), varie automatiquement chaque texte, et propose un mode « warm-up » qui monte le plafond progressivement sur 2 semaines quand vous connectez un nouveau numéro. C\'est la meilleure protection possible côté outil — WhatsApp reste imprévisible, mais vous partez avec toutes les précautions.',
+              },
+              {
+                q: 'Combien coûte l\'envoi WhatsApp ?',
+                a: 'Rien de plus que votre abonnement Autotim. Vous utilisez votre propre numéro WhatsApp (personnel ou Business), pas un service payant à côté. Le prix affiché est tout compris.',
+              },
+              {
+                q: 'Ça marche avec Yalidine, Anderson, ZR Express… ?',
+                a: 'Autotim est actuellement branché sur ZRExpress. Les intégrations Yalidine et Anderson sont sur la feuille de route — écrivez-nous si vous en avez besoin, ça peut faire remonter la priorité.',
+              },
+              {
+                q: 'Y a-t-il un engagement ?',
+                a: 'Aucun. Vous êtes en Basic gratuit tant que vous voulez, et vous pouvez upgrader ou downgrader mois par mois. Pas de contrat.',
+              },
+              {
+                q: 'Mes clients sont-ils obligés d\'installer une application ?',
+                a: 'Non. Ils reçoivent un lien WhatsApp classique qui ouvre une page web mobile-friendly. Aucune installation, aucune inscription côté client.',
+              },
+              {
+                q: 'Quelles données Autotim stocke-t-il ?',
+                a: 'Uniquement les commandes ZRExpress que vous synchronisez (tracking, nom, wilaya, statut) et les messages envoyés. Les données restent isolées par compte — aucun autre client ne peut voir vos commandes.',
+              },
+            ].map((item, i) => (
+              <details key={i} className="group bg-white dark:bg-stone-900 border border-stone-100 dark:border-stone-800 rounded-xl overflow-hidden">
+                <summary className="flex items-center justify-between gap-3 p-5 cursor-pointer list-none hover:bg-stone-50 dark:hover:bg-stone-800/50 transition-colors">
+                  <span className="font-semibold text-stone-900 dark:text-stone-100 text-sm">{item.q}</span>
+                  <span className="text-violet-500 font-bold text-lg shrink-0 group-open:rotate-45 transition-transform">+</span>
+                </summary>
+                <div className="px-5 pb-5 text-sm text-stone-600 dark:text-stone-400 leading-relaxed">{item.a}</div>
+              </details>
             ))}
           </div>
         </div>
