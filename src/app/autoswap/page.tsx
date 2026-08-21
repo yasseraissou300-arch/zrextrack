@@ -57,6 +57,8 @@ export default function AutoSwapPage() {
   const [scanning, setScanning] = useState(false);
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [diag, setDiag] = useState<any | null>(null);
+  const [diagLoading, setDiagLoading] = useState(false);
 
   const [filterConfidence, setFilterConfidence] = useState<'ALL' | Confidence>('ALL');
   const [onlySameCity, setOnlySameCity] = useState(false);
@@ -144,6 +146,30 @@ export default function AutoSwapPage() {
       setPreview(null);
     } finally {
       setScanning(false);
+    }
+  };
+
+  // Diagnostic : dump la distribution réelle des états/situations ZRExpress.
+  // Sert quand les compteurs ne collent pas avec ce qu'affiche ZRExpress —
+  // permet de voir les vrais libellés au lieu de deviner.
+  const runDiagnostic = async () => {
+    if (!credentialsReady) return;
+    setDiagLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/autoswap/diagnostic', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, tenantId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Erreur ${res.status}`);
+      setDiag(data);
+    } catch (err: any) {
+      setError(err.message);
+      setDiag(null);
+    } finally {
+      setDiagLoading(false);
     }
   };
 
@@ -333,6 +359,15 @@ export default function AutoSwapPage() {
               {scanning ? <Loader2 size={18} className="animate-spin" /> : <Search size={18} />}
               {scanning ? 'Analyse en cours…' : 'Scanner pour swaps'}
             </button>
+            <button
+              onClick={runDiagnostic}
+              disabled={diagLoading || !credentialsReady}
+              title="Affiche les vrais libellés d'états et situations renvoyés par ZRExpress"
+              className="flex items-center gap-2 border border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 disabled:opacity-50 disabled:cursor-not-allowed font-medium px-4 py-2.5 rounded-xl transition-colors"
+            >
+              {diagLoading ? <Loader2 size={16} className="animate-spin" /> : <Filter size={16} />}
+              Diagnostic
+            </button>
           </div>
         </div>
 
@@ -344,6 +379,61 @@ export default function AutoSwapPage() {
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
             <strong>Erreur :</strong> {error}
+          </div>
+        )}
+
+        {/* Diagnostic — vérité terrain des libellés ZRExpress */}
+        {diag && (
+          <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-stone-900 dark:text-stone-100">Diagnostic ZRExpress</h3>
+              <button onClick={() => setDiag(null)} className="text-xs text-stone-400 hover:text-stone-600 dark:hover:text-stone-300">Fermer</button>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+              {[
+                { label: 'Colis analysés', value: diag.total_parcels },
+                { label: 'Swappables détectés', value: diag.detected?.swappables },
+                { label: 'Cibles détectées', value: diag.detected?.targets },
+                { label: 'Flag API à true', value: diag.swap_fields?.isEligibleForSwap_true },
+              ].map((s: any) => (
+                <div key={s.label} className="bg-stone-50 dark:bg-stone-800/50 rounded-xl p-3">
+                  <div className="text-xl font-bold text-stone-900 dark:text-stone-100 tabular-nums">{s.value ?? '—'}</div>
+                  <div className="text-[10px] uppercase tracking-wide text-stone-500 dark:text-stone-400 font-semibold">{s.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {diag.swap_fields?.flag_missed_but_situation_ok > 0 && (
+              <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-xl p-3 text-xs text-amber-800 dark:text-amber-200">
+                <strong>{diag.swap_fields.flag_missed_but_situation_ok} colis</strong> récupérés par la règle « situation » alors que le flag API les ratait.
+              </div>
+            )}
+
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400 mb-2">États (state)</p>
+                <div className="space-y-1 max-h-56 overflow-y-auto">
+                  {(diag.states || []).map((s: any) => (
+                    <div key={s.name} className="flex justify-between gap-3 text-xs bg-stone-50 dark:bg-stone-800/50 rounded-lg px-2.5 py-1.5">
+                      <span className="font-mono text-stone-700 dark:text-stone-200 truncate">{s.name}</span>
+                      <span className="font-bold tabular-nums text-stone-900 dark:text-stone-100">{s.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400 mb-2">Situations</p>
+                <div className="space-y-1 max-h-56 overflow-y-auto">
+                  {(diag.situations || []).map((s: any) => (
+                    <div key={s.name} className="flex justify-between gap-3 text-xs bg-stone-50 dark:bg-stone-800/50 rounded-lg px-2.5 py-1.5">
+                      <span className="font-mono text-stone-700 dark:text-stone-200 truncate">{s.name}</span>
+                      <span className="font-bold tabular-nums text-stone-900 dark:text-stone-100">{s.count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

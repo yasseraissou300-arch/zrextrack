@@ -106,6 +106,7 @@ export interface NormalizedParcel {
   deliveryType: string | null;
   // Statut
   stateName: string;
+  situation: string;          // « Ne répond pas 3 », « Commande annulée »… — pilote l'éligibilité au swap
   // Eligibilité swap (uniquement pertinent côté source)
   swap: {
     isEligibleForSwap: boolean;

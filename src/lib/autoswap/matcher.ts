@@ -14,6 +14,28 @@ import type {
   MatchProposal,
   Confidence,
 } from './types';
+import { norm } from '@/lib/zrexpress/status';
+
+// ── Lecture défensive des champs ZRExpress ──────────────────────────────────
+// L'API n'est pas cohérente sur la forme de `state` / `situation` selon les
+// endpoints (objet {name}, camelCase à plat, ou chaîne brute). La sync utilise
+// déjà ces fallbacks ; le matcher ne lisait QUE `p.state.name` et ratait donc
+// une grande partie des colis.
+function readState(p: ZRParcel): string {
+  const any = p as any;
+  return any.state?.name || any.stateName || any.status?.name || any.statusName
+    || (typeof any.state === 'string' ? any.state : '')
+    || (typeof any.status === 'string' ? any.status : '')
+    || '';
+}
+
+function readSituation(p: ZRParcel): string {
+  const any = p as any;
+  return any.situation?.name || any.situationName
+    || any.lastSituation?.name || any.lastSituationName
+    || (typeof any.situation === 'string' ? any.situation : '')
+    || '';
+}
 
 // ── Vocabulaire ─────────────────────────────────────────────────────────────
 // Couleurs FR + EN. La valeur est le synonyme canonique (noir/noire → noir,
@@ -190,7 +212,8 @@ export function normalizeParcel(p: ZRParcel): NormalizedParcel {
     },
     hubId: p.deliveryAddress?.hubId || null,
     deliveryType: p.deliveryType ?? null,
-    stateName: p.state?.name || '',
+    stateName: readState(p),
+    situation: readSituation(p),
     swap: {
       isEligibleForSwap: !!p.swap?.isEligibleForSwap,
       swappedAt: p.swap?.swappedAt ?? null,
@@ -222,27 +245,56 @@ const RESTRICTED_WILAYAS = new Set<number>([
   58, // El Menia
 ]);
 
-// Vérifie qu'un colis est éligible côté source (swap possible).
+// Règle officielle ZRExpress (affichée sur leur page « Swaps ») :
+//   « Le swap est possible uniquement si la commande est en situation
+//     "Ne répond pas 3" ou "Commande annulée". »
 //
-// L'API ZRExpress positionne `isEligibleForSwap=true` uniquement pour les états
-// « Ne répond pas 3 » ou « Commande annulée » — on délègue ce check à l'API.
-//
-// `swap.count` est le nombre de swaps déjà effectués sur ce colis. ZRExpress
-// limite à 2 swaps par colis ; on inclut donc count=0 (jamais swappé) ET
-// count=1 (swappé une fois, encore éligible pour un 2e swap). On NE filtre PAS
-// sur `swappedAt` car ce champ est rempli après le 1er swap mais le colis reste
-// swappable jusqu'à count=2 (vérifié sur 8 colis count=1 du pool live).
-export function isSwappable(p: NormalizedParcel): boolean {
-  return p.swap.isEligibleForSwap === true
-    && p.swap.count < MAX_SWAP_COUNT;
+// Le « 3 » compte : « Ne répond pas 1 » / « 2 » ne sont PAS swappables — d'où
+// la regex qui exige explicitement le 3.
+export function isSituationSwappable(situation: string): boolean {
+  const s = norm(situation);
+  if (!s) return false;
+  if (/ne repond pas\s*0*3\b/.test(s)) return true;
+  if (s.includes('annule')) return true;   // « Commande annulée », « Annulé par le client »
+  return false;
 }
 
-// `appel_confirmation` (URL de l'UI ZRExpress) n'existe pas côté API : les vrais
-// états correspondants sont `commande_recue` et `pret_a_expedier`.
-const TARGET_STATES = new Set(['commande_recue', 'pret_a_expedier', 'appel_confirmation']);
+// Vérifie qu'un colis est éligible côté source (swap possible).
+//
+// `swap.count` = nombre de swaps déjà effectués. ZRExpress limite à 2 par colis,
+// donc count=0 et count=1 restent éligibles.
+//
+// Sur le flag `isEligibleForSwap` : l'endpoint /parcels/search ne le renseigne
+// pas de façon fiable (il ressortait à true sur 1 seul colis alors que la page
+// Swaps de ZRExpress en listait 13). On garde donc le flag comme raccourci
+// quand il est présent, et on retombe sinon sur la règle officielle basée sur
+// la SITUATION — qui est la source de vérité côté ZRExpress.
+export function isSwappable(p: NormalizedParcel): boolean {
+  if (p.swap.count >= MAX_SWAP_COUNT) return false;
+  if (p.swap.isEligibleForSwap === true) return true;
+  return isSituationSwappable(p.situation);
+}
+
+// États « pas encore expédiée » / « prêt à expédier » = commandes qui peuvent
+// recevoir un colis redirigé.
+//
+// Comparaison NORMALISÉE (sans accents, underscores → espaces, minuscules) :
+// l'API renvoie tantôt `commande_recue`, tantôt « Commande reçue ». L'ancien
+// Set en match exact ratait toutes les variantes → 12 détectées au lieu de 45.
+const TARGET_STATE_PATTERNS = [
+  'commande recue',       // Commande reçue
+  'pret a expedier',      // Prêt à expédier
+  'pas encore expediee',  // onglet agrégé ZRExpress
+  'appel confirmation',   // libellé UI
+  'en preparation',
+  'nouvelle commande',
+  'en attente de confirmation',
+];
 
 export function isTarget(p: NormalizedParcel): boolean {
-  return TARGET_STATES.has(p.stateName);
+  const s = norm(p.stateName);
+  if (!s) return false;
+  return TARGET_STATE_PATTERNS.some(pat => s.includes(pat));
 }
 
 // Vérifie la contrainte géographique du swap selon la règle ZRExpress :
