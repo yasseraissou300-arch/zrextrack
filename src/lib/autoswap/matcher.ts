@@ -360,45 +360,56 @@ function getProductKey(
 // ── Matching ────────────────────────────────────────────────────────────────
 
 // Égalité ensembliste : a et b contiennent exactement les mêmes éléments
-// (ordre ignoré, doublons ignorés). Utilisé pour exiger que TOUTES les
-// couleurs/tailles d'un colis multi-variants correspondent à la cible.
+// (ordre ignoré, doublons ignorés).
 function setsEqual<T>(a: T[], b: T[]): boolean {
   if (a.length !== b.length) return false;
   const set = new Set(b);
   return a.every(x => set.has(x));
 }
 
+// Intersection non vide entre deux ensembles.
+function intersect<T>(a: T[], b: T[]): T[] {
+  const setB = new Set(b);
+  return [...new Set(a.filter(x => setB.has(x)))];
+}
+
+// Motifs de rejet — utilisés par le diagnostic pour histogrammer POURQUOI
+// tant de paires ne matchent pas (« 0 propositions » alors qu'on a
+// 17 swappables × 44 cibles). Sans ça on tourne à l'aveugle.
+export type RejectReason =
+  | 'diff_product'      // SKU/nom fingerprint différent
+  | 'geo_restricted'    // wilaya du Sud → ne peut sortir de sa wilaya
+  | 'diff_quantity'     // colis ne contient pas le même nombre d'articles
+  | 'no_color_info'     // couleur non extraite d'un des deux côtés
+  | 'no_size_info'      // taille non extraite d'un des deux côtés
+  | 'no_color_common'   // aucune couleur en commun
+  | 'no_size_common';   // aucune taille en commun (après équivalences)
+
 // Détermine le niveau de confiance d'un match produit.
-// Mode STRICT : un swap n'est proposé que si :
-//   - même produit (SKU ou fingerprint du nom)
-//   - même quantité (contenu du colis identique)
-//   - même ENSEMBLE de couleurs (pas juste intersection : pour un colis
-//     multi-variants à 2 couleurs [noir, vert], la cible doit aussi avoir
-//     EXACTEMENT [noir, vert] — pas seulement [noir] ou [noir, blanc])
-//   - même ENSEMBLE de tailles
 //
-// La wilaya n'est PAS un critère de filtrage (juste un bonus de score).
+// EXACT   → même UUID de variante (rare, court-circuite tout le reste).
+// STRONG  → même produit + même quantité + couleurs et tailles IDENTIQUES
+//           (sets égaux après équivalences user).
+// WEAK    → même produit + même quantité + AU MOINS une couleur commune ET
+//           au moins une taille commune. Utile pour les colis multi-variants
+//           où le pack source contient [noir, bleu] mais la cible ne veut
+//           que [noir] — historiquement l'écrasante majorité des matchs
+//           utiles. Requis pour retrouver le volume de propositions habituel.
 //
-// EXACT  → même UUID variante (rare en pratique, bypass les checks de set)
-// STRONG → même produit + même quantité + sets de couleurs et tailles identiques
-function productConfidence(
+// Renvoie soit un match, soit le motif de rejet (pour le diagnostic).
+type MatchAnalysis =
+  | { kind: 'match'; confidence: Confidence; sharedColors: string[]; sharedSizes: string[] }
+  | { kind: 'reject'; reason: RejectReason };
+
+function analyzePair(
   a: NormalizedParcel,
   b: NormalizedParcel,
   sizeEquivalences: Record<string, string[][]>,
-): {
-  confidence: Confidence;
-  sharedColors: string[];
-  sharedSizes: string[];
-} | null {
-  // EXACT par UUID — bypass le check ensembliste, mais la règle géographique
-  // ZRExpress reste obligatoire (contrainte du transporteur).
+): MatchAnalysis {
+  // EXACT par UUID — court-circuite tout, mais la règle géo reste.
   if (a.productVariantId && b.productVariantId && a.productVariantId === b.productVariantId) {
-    if (!isGeoSwapAllowed(a, b)) return null;
-    return {
-      confidence: 'EXACT',
-      sharedColors: a.variantColors,
-      sharedSizes: a.variantSizes,
-    };
+    if (!isGeoSwapAllowed(a, b)) return { kind: 'reject', reason: 'geo_restricted' };
+    return { kind: 'match', confidence: 'EXACT', sharedColors: a.variantColors, sharedSizes: a.variantSizes };
   }
 
   // Même produit : SKU identique OU (les deux sans SKU mais même fingerprint nom)
@@ -406,38 +417,60 @@ function productConfidence(
   const sameName = !a.productSkuCode && !b.productSkuCode &&
                    !!a.productNameFingerprint &&
                    a.productNameFingerprint === b.productNameFingerprint;
+  if (!sameSku && !sameName) return { kind: 'reject', reason: 'diff_product' };
 
-  if (!sameSku && !sameName) return null;
+  if (!isGeoSwapAllowed(a, b)) return { kind: 'reject', reason: 'geo_restricted' };
+  if (a.quantity !== b.quantity) return { kind: 'reject', reason: 'diff_quantity' };
 
-  // Règle ZRExpress : certaines wilayas du Sud ne peuvent swap qu'en interne.
-  // Si la source est dans une wilaya restreinte, la cible doit y être aussi.
-  if (!isGeoSwapAllowed(a, b)) return null;
+  if (a.variantColors.length === 0 || b.variantColors.length === 0) {
+    return { kind: 'reject', reason: 'no_color_info' };
+  }
+  if (a.variantSizes.length === 0 || b.variantSizes.length === 0) {
+    return { kind: 'reject', reason: 'no_size_info' };
+  }
 
-  // Quantité identique (contenu du colis = ce que veut la cible).
-  if (a.quantity !== b.quantity) return null;
+  // Intersection couleurs — au moins une en commun.
+  const colorInter = intersect(a.variantColors, b.variantColors);
+  if (colorInter.length === 0) return { kind: 'reject', reason: 'no_color_common' };
 
-  // Garde-fou : il faut avoir détecté au moins une couleur ET une taille
-  // des 2 côtés. Sans info, on ne peut pas garantir la correspondance.
-  if (a.variantColors.length === 0 || b.variantColors.length === 0) return null;
-  if (a.variantSizes.length === 0 || b.variantSizes.length === 0) return null;
-
-  // Sets identiques sur les couleurs.
-  if (!setsEqual(a.variantColors, b.variantColors)) return null;
-
-  // Tailles : on applique d'abord la table d'équivalence DU USER COURANT
-  // (ex : pour hijab miral, 40/42/44 sont interchangeables) avant de comparer.
-  // Si la table connaît le produit, les tailles sont rabattues sur le
-  // représentant de leur groupe — sinon comparaison stricte.
+  // Tailles : on applique la table d'équivalence DU USER COURANT avant intersection.
   const productKey = getProductKey(a, sizeEquivalences) || getProductKey(b, sizeEquivalences);
   const aSizesNorm = a.variantSizes.map(s => normalizeSize(productKey, s, sizeEquivalences));
   const bSizesNorm = b.variantSizes.map(s => normalizeSize(productKey, s, sizeEquivalences));
-  if (!setsEqual(aSizesNorm, bSizesNorm)) return null;
+  const sizeInter = intersect(aSizesNorm, bSizesNorm);
+  if (sizeInter.length === 0) return { kind: 'reject', reason: 'no_size_common' };
+
+  // STRONG = tous les sets identiques. WEAK = seulement intersection non vide.
+  const fullColorMatch = setsEqual(a.variantColors, b.variantColors);
+  const fullSizeMatch = setsEqual(aSizesNorm, bSizesNorm);
+  const confidence: Confidence = (fullColorMatch && fullSizeMatch) ? 'STRONG' : 'WEAK';
 
   return {
-    confidence: 'STRONG',
-    sharedColors: a.variantColors,
-    sharedSizes: a.variantSizes, // on garde l'affichage des tailles réelles (pas le canonique)
+    kind: 'match',
+    confidence,
+    sharedColors: colorInter,
+    sharedSizes: sizeInter,
   };
+}
+
+function productConfidence(
+  a: NormalizedParcel,
+  b: NormalizedParcel,
+  sizeEquivalences: Record<string, string[][]>,
+): { confidence: Confidence; sharedColors: string[]; sharedSizes: string[] } | null {
+  const r = analyzePair(a, b, sizeEquivalences);
+  return r.kind === 'match'
+    ? { confidence: r.confidence, sharedColors: r.sharedColors, sharedSizes: r.sharedSizes }
+    : null;
+}
+
+// Exporté pour le diagnostic — permet d'histogrammer les motifs de rejet.
+export function analyzePairForDiagnostic(
+  a: NormalizedParcel,
+  b: NormalizedParcel,
+  sizeEquivalences: Record<string, string[][]>,
+): MatchAnalysis {
+  return analyzePair(a, b, sizeEquivalences);
 }
 
 interface MatchResult {

@@ -410,6 +410,56 @@ export default function AutoSwapPage() {
               </div>
             )}
 
+            {/* Pourquoi si peu de matchs ? Histogramme des motifs de rejet + near misses. */}
+            {diag.pair_analysis && (
+              <div className="border-t border-stone-100 dark:border-stone-800 pt-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400 mb-2">
+                  Analyse pair-à-pair — {diag.pair_analysis.total_pairs} combinaisons testées,{' '}
+                  <span className="text-violet-600 dark:text-violet-300">{diag.pair_analysis.matches} match{diag.pair_analysis.matches > 1 ? 's' : ''}</span>
+                </p>
+                <div className="space-y-1 mb-3">
+                  {(diag.pair_analysis.reject_reasons || []).map((r: any) => {
+                    const labels: Record<string, string> = {
+                      diff_product: 'Produits différents',
+                      geo_restricted: 'Bloqué géographiquement (wilaya Sud)',
+                      diff_quantity: 'Quantité d\'articles différente',
+                      no_color_info: 'Couleur non lisible dans la description',
+                      no_size_info: 'Taille non lisible dans la description',
+                      no_color_common: 'Aucune couleur en commun',
+                      no_size_common: 'Aucune taille en commun (envisage une équivalence)',
+                    };
+                    return (
+                      <div key={r.reason} className="flex justify-between gap-3 text-xs bg-stone-50 dark:bg-stone-800/50 rounded-lg px-2.5 py-1.5">
+                        <span className="text-stone-700 dark:text-stone-200">{labels[r.reason] || r.reason}</span>
+                        <span className="font-bold tabular-nums text-stone-900 dark:text-stone-100">{r.count}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {diag.pair_analysis.near_misses?.length > 0 && (
+                  <details className="text-xs">
+                    <summary className="cursor-pointer text-violet-600 dark:text-violet-300 font-semibold hover:underline">
+                      Voir {diag.pair_analysis.near_misses.length} paires « presque » ({'>'}
+                      cliquer pour voir les détails)
+                    </summary>
+                    <div className="mt-2 space-y-1 max-h-56 overflow-y-auto">
+                      {diag.pair_analysis.near_misses.map((m: any, i: number) => (
+                        <div key={i} className="bg-stone-50 dark:bg-stone-800/50 rounded-lg px-2.5 py-1.5">
+                          <div className="font-mono text-stone-700 dark:text-stone-200 truncate">
+                            {m.swappable} → {m.target}
+                          </div>
+                          <div className="text-[10px] text-stone-500 dark:text-stone-400 mt-0.5">
+                            <strong>{m.product}</strong> · {m.details}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+              </div>
+            )}
+
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400 mb-2">États (state)</p>
@@ -459,6 +509,7 @@ export default function AutoSwapPage() {
               <option value="ALL">Tous les matchs ({preview.stats.matches_count})</option>
               <option value="EXACT">Exact UUID ({preview.stats.by_confidence.EXACT})</option>
               <option value="STRONG">Couleur + taille confirmées ({preview.stats.by_confidence.STRONG})</option>
+              <option value="WEAK">Partiels — au moins 1 couleur + 1 taille communes ({preview.stats.by_confidence.WEAK})</option>
             </select>
             <label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-200">
               <input type="checkbox" checked={onlySameCity} onChange={e => setOnlySameCity(e.target.checked)} />
