@@ -45,9 +45,7 @@ export function verifyWebhookSecret(req: NextRequest, envVarName: string): Webho
   if (!expected) return { ok: true, mode: 'unenforced' };
 
   const provided =
-    req.headers.get('x-webhook-token') ||
-    new URL(req.url).searchParams.get('token') ||
-    '';
+    req.headers.get('x-webhook-token') || new URL(req.url).searchParams.get('token') || '';
 
   if (!provided) return { ok: false, reason: 'missing_token', status: 401 };
   if (!safeEqual(provided, expected)) return { ok: false, reason: 'bad_token', status: 403 };

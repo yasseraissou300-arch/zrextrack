@@ -5,7 +5,9 @@ import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const limit = Math.min(parseInt(req.nextUrl.searchParams.get('limit') || '100', 10), 500);
@@ -23,10 +25,10 @@ export async function GET(req: NextRequest) {
   const list = calls ?? [];
   const stats = {
     total: list.length,
-    confirmed: list.filter(c => c.outcome === 'confirmed').length,
-    cancelled: list.filter(c => c.outcome === 'cancelled').length,
-    no_answer: list.filter(c => c.outcome === 'no_answer' || c.outcome === 'no_response').length,
-    failed: list.filter(c => c.outcome === 'failed').length,
+    confirmed: list.filter((c) => c.outcome === 'confirmed').length,
+    cancelled: list.filter((c) => c.outcome === 'cancelled').length,
+    no_answer: list.filter((c) => c.outcome === 'no_answer' || c.outcome === 'no_response').length,
+    failed: list.filter((c) => c.outcome === 'failed').length,
     total_cost_da: list.reduce((s, c) => s + Number(c.cost_da || 0), 0),
     total_duration_seconds: list.reduce((s, c) => s + Number(c.duration_seconds || 0), 0),
   };

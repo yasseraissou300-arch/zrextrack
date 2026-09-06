@@ -25,7 +25,9 @@ export default function WhatsAppMessageLog() {
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
-  useEffect(() => { fetchMessages(); }, []);
+  useEffect(() => {
+    fetchMessages();
+  }, []);
 
   const fetchMessages = async () => {
     setLoading(true);
@@ -45,13 +47,18 @@ export default function WhatsAppMessageLog() {
           <MessageSquare size={18} className="text-green-500" />
           <h2 className="font-semibold text-stone-900 dark:text-stone-100">Messages WhatsApp</h2>
         </div>
-        <button onClick={fetchMessages} className="p-1.5 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-lg">
+        <button
+          onClick={fetchMessages}
+          className="p-1.5 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-lg"
+        >
           <RefreshCw size={14} className="text-stone-400 dark:text-stone-500" />
         </button>
       </div>
       <div className="flex-1 overflow-y-auto divide-y divide-stone-50 dark:divide-stone-800">
         {loading ? (
-          <div className="flex items-center justify-center py-10 text-stone-400 dark:text-stone-500">Chargement...</div>
+          <div className="flex items-center justify-center py-10 text-stone-400 dark:text-stone-500">
+            Chargement...
+          </div>
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 px-6 text-center">
             <div className="relative mb-3">
@@ -60,33 +67,49 @@ export default function WhatsAppMessageLog() {
                 <MessageSquare size={20} className="text-violet-500 dark:text-violet-300" />
               </div>
             </div>
-            <p className="text-sm font-medium text-stone-700 dark:text-stone-200 mb-0.5">Aucun message envoyé</p>
-            <p className="text-xs text-stone-400 dark:text-stone-500">Les notifications WhatsApp apparaîtront ici</p>
+            <p className="text-sm font-medium text-stone-700 dark:text-stone-200 mb-0.5">
+              Aucun message envoyé
+            </p>
+            <p className="text-xs text-stone-400 dark:text-stone-500">
+              Les notifications WhatsApp apparaîtront ici
+            </p>
           </div>
-        ) : messages.map(msg => {
-          const cfg = statusConfig[msg.status] || statusConfig.en_attente;
-          const Icon = cfg.icon;
-          return (
-            <div key={msg.id} className="p-4 hover:bg-stone-50 dark:hover:bg-stone-800">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium text-stone-900 dark:text-stone-100 text-sm">{msg.customer_name}</span>
-                    <span className="text-xs text-stone-400 dark:text-stone-500">{msg.customer_whatsapp}</span>
+        ) : (
+          messages.map((msg) => {
+            const cfg = statusConfig[msg.status] || statusConfig.en_attente;
+            const Icon = cfg.icon;
+            return (
+              <div key={msg.id} className="p-4 hover:bg-stone-50 dark:hover:bg-stone-800">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-medium text-stone-900 dark:text-stone-100 text-sm">
+                        {msg.customer_name}
+                      </span>
+                      <span className="text-xs text-stone-400 dark:text-stone-500">
+                        {msg.customer_whatsapp}
+                      </span>
+                    </div>
+                    {msg.tracking_number && (
+                      <span className="text-xs font-mono bg-stone-100 px-1.5 py-0.5 rounded text-stone-500 dark:text-stone-400">
+                        {msg.tracking_number}
+                      </span>
+                    )}
+                    <p className="text-xs text-stone-500 dark:text-stone-400 mt-1 line-clamp-2">
+                      {msg.message}
+                    </p>
                   </div>
-                  {msg.tracking_number && <span className="text-xs font-mono bg-stone-100 px-1.5 py-0.5 rounded text-stone-500 dark:text-stone-400">{msg.tracking_number}</span>}
-                  <p className="text-xs text-stone-500 dark:text-stone-400 mt-1 line-clamp-2">{msg.message}</p>
-                </div>
-                <div className="flex flex-col items-end gap-1 shrink-0">
-                  <Icon size={14} className={cfg.color} />
-                  <span className="text-[10px] text-stone-400 dark:text-stone-500">
-                    {new Date(msg.sent_at).toLocaleDateString('fr-FR')}
-                  </span>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <Icon size={14} className={cfg.color} />
+                    <span className="text-[10px] text-stone-400 dark:text-stone-500">
+                      {new Date(msg.sent_at).toLocaleDateString('fr-FR')}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
     </div>
   );

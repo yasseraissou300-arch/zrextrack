@@ -29,7 +29,7 @@ export interface UserCreds {
  */
 export async function getUserCreds(
   userId: string,
-  service: ServiceName,
+  service: ServiceName
 ): Promise<UserCreds | null> {
   if (!userId) return null;
   const supabase = createServiceClient();
@@ -70,7 +70,9 @@ export function missingCredentialsResponse(service: ServiceName) {
  * passent par le même serveur (le vôtre). Pas de BYOK. La signature
  * (userId, Promise) est conservée car ~10 routes l'appellent déjà.
  */
-export async function resolveEvolutionCreds(_userId?: string): Promise<{ url: string; key: string }> {
+export async function resolveEvolutionCreds(
+  _userId?: string
+): Promise<{ url: string; key: string }> {
   return {
     url: process.env.EVOLUTION_API_URL || '',
     key: process.env.EVOLUTION_API_KEY || '',
@@ -91,8 +93,8 @@ export async function resolveGeminiKeys(userId: string): Promise<string[]> {
   if (!creds?.api_key) return [];
   return creds.api_key
     .split(/[\n,;]+/)
-    .map(k => k.trim())
-    .filter(k => k.length > 0);
+    .map((k) => k.trim())
+    .filter((k) => k.length > 0);
 }
 
 /**

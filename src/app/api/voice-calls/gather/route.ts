@@ -12,7 +12,8 @@ export async function POST(req: NextRequest) {
   const guard = await guardTwilioRequest(req, 'webhook.twilio.gather');
   if (!guard.ok) {
     return new NextResponse(`<?xml version="1.0"?><Response><Hangup/></Response>`, {
-      status: guard.status, headers: { 'Content-Type': 'text/xml' },
+      status: guard.status,
+      headers: { 'Content-Type': 'text/xml' },
     });
   }
 
@@ -46,10 +47,7 @@ export async function POST(req: NextRequest) {
     say = settings?.cancel_text || 'Chokran 3la l-rad. Commande dyalek tatlghat.';
   }
 
-  await supabase
-    .from('voice_calls')
-    .update({ outcome })
-    .eq('id', cid);
+  await supabase.from('voice_calls').update({ outcome }).eq('id', cid);
 
   return xml(buildFinalTwiml(voice, say));
 }

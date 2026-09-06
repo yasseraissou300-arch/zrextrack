@@ -3,20 +3,32 @@ import { createClient } from '@/lib/supabase/server';
 
 export async function GET() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { data: sessions } = await supabase
     .from('ai_chat_sessions')
-    .select('template_type, channel, is_complete, sheets_sent, human_handover, extracted_data, created_at')
+    .select(
+      'template_type, channel, is_complete, sheets_sent, human_handover, extracted_data, created_at'
+    )
     .eq('user_id', user.id);
 
-  if (!sessions) return NextResponse.json({ total: 0, conversion_rate: 0, by_template: {}, by_channel: {}, top_wilayas: [], by_day: [] });
+  if (!sessions)
+    return NextResponse.json({
+      total: 0,
+      conversion_rate: 0,
+      by_template: {},
+      by_channel: {},
+      top_wilayas: [],
+      by_day: [],
+    });
 
   const total = sessions.length;
-  const complete = sessions.filter(s => s.is_complete).length;
-  const sheetsSent = sessions.filter(s => s.sheets_sent).length;
-  const humanHandover = sessions.filter(s => s.human_handover).length;
+  const complete = sessions.filter((s) => s.is_complete).length;
+  const sheetsSent = sessions.filter((s) => s.sheets_sent).length;
+  const humanHandover = sessions.filter((s) => s.human_handover).length;
   const conversionRate = total > 0 ? Math.round((complete / total) * 100) : 0;
 
   // By template

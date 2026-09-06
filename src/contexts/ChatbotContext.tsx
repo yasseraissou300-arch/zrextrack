@@ -14,12 +14,14 @@ const ChatbotContext = createContext<ChatbotContextValue | null>(null);
 export function ChatbotProvider({ children }: { children: React.ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
   return (
-    <ChatbotContext.Provider value={{
-      isOpen,
-      open: () => setIsOpen(true),
-      close: () => setIsOpen(false),
-      toggle: () => setIsOpen(v => !v),
-    }}>
+    <ChatbotContext.Provider
+      value={{
+        isOpen,
+        open: () => setIsOpen(true),
+        close: () => setIsOpen(false),
+        toggle: () => setIsOpen((v) => !v),
+      }}
+    >
       {children}
     </ChatbotContext.Provider>
   );

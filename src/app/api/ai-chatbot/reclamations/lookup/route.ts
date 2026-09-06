@@ -17,7 +17,7 @@ const ZREXPRESS_API = 'https://api.zrexpress.app/api/v1.0';
 interface LookupItem {
   sessionId: string;
   commande: string | null;
-  phone: string | null;       // ex "213556172674" — sans préfixe ni @
+  phone: string | null; // ex "213556172674" — sans préfixe ni @
 }
 
 interface ZRParcelMinimal {
@@ -83,7 +83,9 @@ async function fetchAllParcels(token: string, tenantId: string): Promise<ZRParce
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { token, tenantId, items } = (await req.json()) as {
@@ -92,7 +94,8 @@ export async function POST(req: NextRequest) {
     items?: LookupItem[];
   };
 
-  if (!token || !tenantId) return NextResponse.json({ error: 'Clé API ZRExpress manquante' }, { status: 400 });
+  if (!token || !tenantId)
+    return NextResponse.json({ error: 'Clé API ZRExpress manquante' }, { status: 400 });
   if (!Array.isArray(items) || items.length === 0) return NextResponse.json({ results: [] });
 
   let allParcels: ZRParcelMinimal[];
@@ -109,7 +112,11 @@ export async function POST(req: NextRequest) {
   for (const p of allParcels) {
     if (p.trackingNumber) byTracking.set(normalizeTracking(p.trackingNumber), p);
     if (p.externalId) byExternal.set(normalizeTracking(p.externalId), p);
-    const phones = [p.customer?.phone?.number1, p.customer?.phone?.number2, p.customer?.phone?.number3].filter(Boolean) as string[];
+    const phones = [
+      p.customer?.phone?.number1,
+      p.customer?.phone?.number2,
+      p.customer?.phone?.number3,
+    ].filter(Boolean) as string[];
     for (const ph of phones) {
       const n = normalizePhone(ph);
       if (!n) continue;
@@ -119,7 +126,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const results: LookupResult[] = items.map(item => {
+  const results: LookupResult[] = items.map((item) => {
     const commande = normalizeTracking(item.commande ?? '');
     const phone = normalizePhone(item.phone ?? '');
 
@@ -148,7 +155,8 @@ export async function POST(req: NextRequest) {
       return { sessionId: item.sessionId, matchedBy: null, parcel: null };
     }
 
-    const customerPhone = matched.customer?.phone?.number1 || matched.customer?.phone?.number2 || '';
+    const customerPhone =
+      matched.customer?.phone?.number1 || matched.customer?.phone?.number2 || '';
     return {
       sessionId: item.sessionId,
       matchedBy,

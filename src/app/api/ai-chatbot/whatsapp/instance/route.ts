@@ -5,7 +5,10 @@ import { webhookTokenQuery } from '@/lib/security/webhook-auth';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://zrextrack.vercel.app';
 
-interface EvCreds { url: string; key: string }
+interface EvCreds {
+  url: string;
+  key: string;
+}
 
 type ServiceType = 'auto_confirmation' | 'sav' | 'tracking';
 
@@ -37,7 +40,9 @@ async function evolutionRequest(ev: EvCreds, path: string, method = 'GET', body?
 // GET — return all instances for the user
 export async function GET() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   // BYOK : serveur Evolution de l'utilisateur (ou fallback plateforme)
@@ -58,7 +63,9 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const serviceSupabase = createServiceClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   // BYOK : serveur Evolution de l'utilisateur (ou fallback plateforme)

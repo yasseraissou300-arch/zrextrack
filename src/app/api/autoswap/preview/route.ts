@@ -11,15 +11,18 @@ import type { PreviewResponse, ZRParcel } from '@/lib/autoswap/types';
 export async function POST(request: NextRequest) {
   try {
     const { token, tenantId } = await request.json();
-    if (!token) return NextResponse.json({ error: 'Clé API (secretKey) manquante' }, { status: 400 });
+    if (!token)
+      return NextResponse.json({ error: 'Clé API (secretKey) manquante' }, { status: 400 });
     if (!tenantId) return NextResponse.json({ error: 'Tenant ID manquant' }, { status: 400 });
 
     // Charge les équivalences du user — chaque utilisateur a sa propre config
     // (ex : ami A vend du hijab miral, ami B vend autre chose avec autres groupes).
     const supabaseAuth = await createClient();
-    const { data: { user } } = await supabaseAuth.auth.getUser();
+    const {
+      data: { user },
+    } = await supabaseAuth.auth.getUser();
 
-    let sizeEquivalences: Record<string, string[][]> = {};
+    const sizeEquivalences: Record<string, string[][]> = {};
     if (user) {
       const service = createServiceClient();
       const { data: rows } = await service

@@ -22,9 +22,7 @@ export async function GET() {
     const supabase = createServiceClient();
     // Requête la moins chère possible : un count sur `plans` (3 lignes),
     // head:true → aucune donnée transférée.
-    const { error } = await supabase
-      .from('plans')
-      .select('id', { count: 'exact', head: true });
+    const { error } = await supabase.from('plans').select('id', { count: 'exact', head: true });
     if (error) throw new Error(error.message);
 
     return NextResponse.json({
@@ -35,7 +33,7 @@ export async function GET() {
   } catch (e: any) {
     return NextResponse.json(
       { status: 'error', db: 'down', detail: e?.message || 'inconnu' },
-      { status: 503 },
+      { status: 503 }
     );
   }
 }

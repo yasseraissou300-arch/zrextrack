@@ -4,7 +4,9 @@ import { resolveEvolutionCreds } from '@/lib/user-creds';
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   // BYOK : serveur Evolution de l'utilisateur (ou fallback plateforme)
@@ -30,19 +32,26 @@ export async function GET(req: NextRequest) {
       if (res.ok) {
         const json = await res.json();
         const isOpen = json.instance?.state === 'open' || json.state === 'open';
-        const phone = json.instance?.profileJid?.replace('@s.whatsapp.net', '') || instance.phone_number;
+        const phone =
+          json.instance?.profileJid?.replace('@s.whatsapp.net', '') || instance.phone_number;
 
         if (isOpen !== instance.connected || phone !== instance.phone_number) {
           createServiceClient()
             .from('whatsapp_instances')
-            .update({ connected: isOpen, phone_number: phone, updated_at: new Date().toISOString() })
+            .update({
+              connected: isOpen,
+              phone_number: phone,
+              updated_at: new Date().toISOString(),
+            })
             .eq('user_id', user.id)
             .eq('service_type', serviceType);
           instance.connected = isOpen;
           instance.phone_number = phone;
         }
       }
-    } catch { /* use cached DB value */ }
+    } catch {
+      /* use cached DB value */
+    }
   }
 
   return NextResponse.json({

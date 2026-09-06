@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
-import { ANTI_SPAM, randomThrottle, sleep, varyMessage, remainingDailyQuota } from '@/lib/whatsapp/anti-spam';
+import {
+  ANTI_SPAM,
+  randomThrottle,
+  sleep,
+  varyMessage,
+  remainingDailyQuota,
+} from '@/lib/whatsapp/anti-spam';
 
 // Envoie un message WhatsApp via Evolution API en utilisant l'instance
 // « auto_confirmation » de l'utilisateur (la même que celle de l'onglet
@@ -15,7 +21,10 @@ import { ANTI_SPAM, randomThrottle, sleep, varyMessage, remainingDailyQuota } fr
 
 const DEFAULT_SERVICE = 'auto_confirmation';
 
-interface EvCreds { url: string; key: string }
+interface EvCreds {
+  url: string;
+  key: string;
+}
 
 function normalizePhone(phone: string): string {
   const clean = (phone || '').replace(/[\s\-()+.]/g, '');
@@ -31,9 +40,15 @@ interface Instance {
   connected: boolean;
 }
 
-async function getReadyInstance(userId: string, ev: EvCreds): Promise<{ instance: Instance | null; reason?: string }> {
+async function getReadyInstance(
+  userId: string,
+  ev: EvCreds
+): Promise<{ instance: Instance | null; reason?: string }> {
   if (!ev.url || !ev.key) {
-    return { instance: null, reason: 'Evolution API non configurée (EVOLUTION_API_URL/KEY manquants)' };
+    return {
+      instance: null,
+      reason: 'Evolution API non configurée (EVOLUTION_API_URL/KEY manquants)',
+    };
   }
   const service = createServiceClient();
   const { data: row } = await service
@@ -43,7 +58,12 @@ async function getReadyInstance(userId: string, ev: EvCreds): Promise<{ instance
     .eq('service_type', DEFAULT_SERVICE)
     .single();
 
-  if (!row) return { instance: null, reason: 'Aucune instance WhatsApp pour cet utilisateur — connecte-toi d\'abord dans l\'onglet Connexion' };
+  if (!row)
+    return {
+      instance: null,
+      reason:
+        "Aucune instance WhatsApp pour cet utilisateur — connecte-toi d'abord dans l'onglet Connexion",
+    };
 
   // Confirme l'état live (évite d'envoyer dans le vide si l'instance est tombée)
   try {
@@ -53,7 +73,11 @@ async function getReadyInstance(userId: string, ev: EvCreds): Promise<{ instance
     if (r.ok) {
       const j = await r.json();
       const isOpen = (j.instance?.state || j.state) === 'open';
-      if (!isOpen) return { instance: null, reason: `WhatsApp non connecté (état Evolution : ${j.instance?.state || j.state || 'inconnu'})` };
+      if (!isOpen)
+        return {
+          instance: null,
+          reason: `WhatsApp non connecté (état Evolution : ${j.instance?.state || j.state || 'inconnu'})`,
+        };
     }
   } catch (e: any) {
     return { instance: null, reason: `Evolution injoignable : ${e?.message || 'erreur réseau'}` };
@@ -66,10 +90,19 @@ async function getReadyInstance(userId: string, ev: EvCreds): Promise<{ instance
 // On le détecte spécifiquement pour court-circuiter la boucle et afficher un
 // message d'action clair au lieu de spammer 200 lignes du même error texte.
 function isSessionDead(errText: string): boolean {
-  return /Connection Closed/i.test(errText) || /Connection Failure/i.test(errText) || /precondition/i.test(errText);
+  return (
+    /Connection Closed/i.test(errText) ||
+    /Connection Failure/i.test(errText) ||
+    /precondition/i.test(errText)
+  );
 }
 
-async function sendOne(ev: EvCreds, instanceName: string, phone: string, text: string): Promise<{ ok: boolean; error?: string; sessionDead?: boolean }> {
+async function sendOne(
+  ev: EvCreds,
+  instanceName: string,
+  phone: string,
+  text: string
+): Promise<{ ok: boolean; error?: string; sessionDead?: boolean }> {
   try {
     const res = await fetch(`${ev.url}/message/sendText/${instanceName}`, {
       method: 'POST',
@@ -95,7 +128,9 @@ async function sendOne(ev: EvCreds, instanceName: string, phone: string, text: s
 
 export async function POST(request: NextRequest) {
   const supabaseAuth = await createClient();
-  const { data: { user } } = await supabaseAuth.auth.getUser();
+  const {
+    data: { user },
+  } = await supabaseAuth.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
 
   const supabase = createServiceClient();
@@ -113,14 +148,17 @@ export async function POST(request: NextRequest) {
   // la session Evolution est tombée
   const { instance, reason } = await getReadyInstance(user.id, ev);
   if (!instance) {
-    return NextResponse.json({
-      error: reason || 'WhatsApp non prêt',
-      code: 'NOT_CONNECTED',
-      hint: 'Va dans l\'onglet Connexion et reconnecte WhatsApp avant de renvoyer.',
-      sent: 0,
-      failed: 0,
-      results: [],
-    }, { status: 503 });
+    return NextResponse.json(
+      {
+        error: reason || 'WhatsApp non prêt',
+        code: 'NOT_CONNECTED',
+        hint: "Va dans l'onglet Connexion et reconnecte WhatsApp avant de renvoyer.",
+        sent: 0,
+        failed: 0,
+        results: [],
+      },
+      { status: 503 }
+    );
   }
 
   // ── ANTI-SPAM : plafond journalier glissant ─────────────────────────────
@@ -136,16 +174,19 @@ export async function POST(request: NextRequest) {
 
   const remaining = remainingDailyQuota(sentToday ?? 0);
   if (remaining <= 0) {
-    return NextResponse.json({
-      error: `Plafond journalier atteint (${ANTI_SPAM.DAILY_LIMIT} messages/24h)`,
-      code: 'DAILY_LIMIT_REACHED',
-      hint: 'Cette limite protège ton numéro WhatsApp d\'être suspendu pour spam. Attends que la fenêtre glissante de 24h se libère.',
-      sent: 0,
-      failed: 0,
-      sentToday: sentToday ?? 0,
-      dailyLimit: ANTI_SPAM.DAILY_LIMIT,
-      results: [],
-    }, { status: 429 });
+    return NextResponse.json(
+      {
+        error: `Plafond journalier atteint (${ANTI_SPAM.DAILY_LIMIT} messages/24h)`,
+        code: 'DAILY_LIMIT_REACHED',
+        hint: "Cette limite protège ton numéro WhatsApp d'être suspendu pour spam. Attends que la fenêtre glissante de 24h se libère.",
+        sent: 0,
+        failed: 0,
+        sentToday: sentToday ?? 0,
+        dailyLimit: ANTI_SPAM.DAILY_LIMIT,
+        results: [],
+      },
+      { status: 429 }
+    );
   }
   // Si le batch dépasse le quota restant, on prévient et on coupe.
   const willSend = Math.min(recipients.length, remaining);
@@ -173,19 +214,19 @@ export async function POST(request: NextRequest) {
     } else if (!to || to.length < 11) {
       errorMsg = `Numéro invalide : "${r.whatsapp}"`;
     } else if (sessionDeadDetected) {
-      errorMsg = 'Session WhatsApp expirée — annulé (reconnecte d\'abord)';
+      errorMsg = "Session WhatsApp expirée — annulé (reconnecte d'abord)";
     } else if (circuitBroken) {
       errorMsg = `Circuit ouvert (${ANTI_SPAM.MAX_CONSECUTIVE_ERRORS} échecs consécutifs) — batch arrêté pour protéger le numéro`;
     } else {
       // Throttle entre 2 envois pour ne pas avoir un rythme robotique.
       // Seulement à partir du 2e envoi.
-      if (results.some(x => x.status === 'envoye') || consecutiveErrors > 0) {
+      if (results.some((x) => x.status === 'envoye') || consecutiveErrors > 0) {
         await sleep(randomThrottle());
       }
 
       // Variation du message (emoji + zero-width space) pour éviter la
       // détection de doublons côté WhatsApp.
-      const varied = recipients.length > 1 ? varyMessage(r.message || '') : (r.message || '');
+      const varied = recipients.length > 1 ? varyMessage(r.message || '') : r.message || '';
 
       const send = await sendOne(ev, instance.instance_name, to, varied);
       if (send.ok) {
@@ -222,8 +263,8 @@ export async function POST(request: NextRequest) {
     results.push({ tracking: r.tracking, client: r.client, status, error: errorMsg });
   }
 
-  const sent = results.filter(r => r.status === 'envoye').length;
-  const failed = results.filter(r => r.status === 'echec').length;
+  const sent = results.filter((r) => r.status === 'envoye').length;
+  const failed = results.filter((r) => r.status === 'echec').length;
   return NextResponse.json({
     sent,
     failed,

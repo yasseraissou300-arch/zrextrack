@@ -21,10 +21,18 @@ const API_DIR = path.resolve(__dirname, '../src/app/api');
 
 /** Tables portant des données propres à une entreprise. */
 const TABLES_MULTI_TENANT = [
-  'orders', 'messages', 'campaigns', 'campaign_recipients',
-  'ai_chat_sessions', 'pending_notifications', 'whatsapp_instances',
-  'chatbot_configs', 'user_api_credentials', 'user_sync_settings',
-  'message_templates', 'autoswap_size_equivalences',
+  'orders',
+  'messages',
+  'campaigns',
+  'campaign_recipients',
+  'ai_chat_sessions',
+  'pending_notifications',
+  'whatsapp_instances',
+  'chatbot_configs',
+  'user_api_credentials',
+  'user_sync_settings',
+  'message_templates',
+  'autoswap_size_equivalences',
 ];
 
 /**
@@ -85,15 +93,16 @@ describe('Isolation — toute requête multi-tenant est scopée', () => {
         const scopeDirect =
           /\.eq\(\s*['"]user_id['"]/.test(bloc) ||
           /\.eq\(\s*['"]id['"]\s*,\s*user/.test(bloc) ||
-          /user_id\s*:/.test(bloc) ||            // insert/upsert portant user_id
+          /user_id\s*:/.test(bloc) || // insert/upsert portant user_id
           /onConflict:\s*['"]user_id/.test(bloc);
 
         // Opération par clé primaire / clé étrangère de la ressource possédée,
         // acceptable UNIQUEMENT si le handler a vérifié la propriété avant.
         const parCleApresVerif =
           verifiePropriete &&
-          (/\.eq\(\s*['"]id['"]/.test(bloc) || /\.eq\(\s*['"]campaign_id['"]/.test(bloc) ||
-           /campaign_id\s*:/.test(bloc));
+          (/\.eq\(\s*['"]id['"]/.test(bloc) ||
+            /\.eq\(\s*['"]campaign_id['"]/.test(bloc) ||
+            /campaign_id\s*:/.test(bloc));
 
         if (!scopeDirect && !parCleApresVerif && !DEROGATIONS[rel]) {
           violations.push(`${rel} → ${table}`);
@@ -107,7 +116,7 @@ describe('Isolation — toute requête multi-tenant est scopée', () => {
   });
 });
 
-describe('Dérogations à l\'isolation — inventaire figé', () => {
+describe("Dérogations à l'isolation — inventaire figé", () => {
   it('chaque dérogation existe encore et est justifiée', () => {
     for (const [rel, raison] of Object.entries(DEROGATIONS)) {
       expect(fs.existsSync(path.join(API_DIR, rel)), `route absente : ${rel}`).toBe(true);
@@ -121,19 +130,19 @@ describe('Dérogations à l\'isolation — inventaire figé', () => {
 });
 
 describe('Routes en service-role (contournement RLS)', () => {
-  it('toute route service-role vérifie l\'identité, sauf webhooks authentifiés', () => {
+  it("toute route service-role vérifie l'identité, sauf webhooks authentifiés", () => {
     const AUTORISEES_SANS_GETUSER = [
-      'ai-chatbot/webhook/whatsapp/route.ts',   // secret partagé (P0-1)
-      'ai-chatbot/webhook/facebook/route.ts',   // verify_token Meta
-      'ai-chatbot/facebook/callback/route.ts',  // OAuth state
-      'ai-chatbot/relance/route.ts',            // CRON_SECRET
-      'integrations/shopify/webhook/route.ts',  // HMAC
+      'ai-chatbot/webhook/whatsapp/route.ts', // secret partagé (P0-1)
+      'ai-chatbot/webhook/facebook/route.ts', // verify_token Meta
+      'ai-chatbot/facebook/callback/route.ts', // OAuth state
+      'ai-chatbot/relance/route.ts', // CRON_SECRET
+      'integrations/shopify/webhook/route.ts', // HMAC
       'integrations/woocommerce/webhook/route.ts', // HMAC
-      'track/[tracking]/route.ts',              // public + rate-limit
-      'health/route.ts',                        // sonde publique
-      'voice-calls/twiml/route.ts',             // signature Twilio (P0-3)
-      'voice-calls/status/route.ts',            // signature Twilio (P0-3)
-      'voice-calls/gather/route.ts',            // signature Twilio (P0-3)
+      'track/[tracking]/route.ts', // public + rate-limit
+      'health/route.ts', // sonde publique
+      'voice-calls/twiml/route.ts', // signature Twilio (P0-3)
+      'voice-calls/status/route.ts', // signature Twilio (P0-3)
+      'voice-calls/gather/route.ts', // signature Twilio (P0-3)
     ];
 
     const manquantes: string[] = [];

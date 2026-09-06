@@ -4,7 +4,9 @@ import { createClient, createServiceClient } from '@/lib/supabase/server';
 export async function GET() {
   try {
     const supabaseAuth = await createClient();
-    const { data: { user } } = await supabaseAuth.auth.getUser();
+    const {
+      data: { user },
+    } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
 
     const supabase = createServiceClient();
@@ -16,8 +18,12 @@ export async function GET() {
       .eq('user_id', user.id);
 
     const distribution: Record<string, number> = {
-      livre: 0, en_transit: 0, en_livraison: 0,
-      en_preparation: 0, echec: 0, retourne: 0,
+      livre: 0,
+      en_transit: 0,
+      en_livraison: 0,
+      en_preparation: 0,
+      echec: 0,
+      retourne: 0,
     };
 
     // --- Activité 7 derniers jours ---
@@ -33,11 +39,21 @@ export async function GET() {
 
     // --- Agrégats par période (basés sur last_update) ---
     // "Aujourd'hui" = même date calendaire que maintenant. "7 jours" = derniers 7 jours.
-    type Agg = { livrees: number; echecs: number; retours: number; en_cours: number; total: number };
+    type Agg = {
+      livrees: number;
+      echecs: number;
+      retours: number;
+      en_cours: number;
+      total: number;
+    };
     const today: Agg = { livrees: 0, echecs: 0, retours: 0, en_cours: 0, total: 0 };
     const last7days: Agg = { livrees: 0, echecs: 0, retours: 0, en_cours: 0, total: 0 };
     const EN_COURS = new Set(['en_transit', 'en_livraison', 'en_preparation']);
-    const todayKey = now.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const todayKey = now.toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
 
     const bump = (agg: Agg, status: string) => {
       agg.total++;
@@ -60,7 +76,10 @@ export async function GET() {
       // Agrégat 7 jours
       bump(last7days, order.delivery_status);
       // Agrégat aujourd'hui (même date calendaire)
-      if (d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) === todayKey) {
+      if (
+        d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) ===
+        todayKey
+      ) {
         bump(today, order.delivery_status);
       }
 

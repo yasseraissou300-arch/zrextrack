@@ -23,7 +23,13 @@ export async function POST(req: NextRequest) {
 
   const update: Record<string, unknown> = { status: callStatus || null };
 
-  if (callStatus === 'completed' || callStatus === 'busy' || callStatus === 'failed' || callStatus === 'no-answer' || callStatus === 'canceled') {
+  if (
+    callStatus === 'completed' ||
+    callStatus === 'busy' ||
+    callStatus === 'failed' ||
+    callStatus === 'no-answer' ||
+    callStatus === 'canceled'
+  ) {
     update.completed_at = new Date().toISOString();
     if (callDuration > 0) {
       update.duration_seconds = callDuration;

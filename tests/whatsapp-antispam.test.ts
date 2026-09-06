@@ -6,8 +6,13 @@
 
 import { describe, it, expect } from 'vitest';
 import {
-  ANTI_SPAM, WARMUP_PHASES, warmupState, effectiveDailyLimit,
-  remainingDailyQuota, randomThrottle, varyMessage,
+  ANTI_SPAM,
+  WARMUP_PHASES,
+  warmupState,
+  effectiveDailyLimit,
+  remainingDailyQuota,
+  randomThrottle,
+  varyMessage,
 } from '@/lib/whatsapp/anti-spam';
 
 /** Date ISO située il y a `n` jours. */
@@ -40,7 +45,7 @@ describe('Paliers de warm-up 8 → 15 → 25 → 40', () => {
   });
 
   it('les paliers sont strictement croissants et plafonnés à DAILY_LIMIT', () => {
-    const limites = WARMUP_PHASES.map(p => p.limit);
+    const limites = WARMUP_PHASES.map((p) => p.limit);
     for (let i = 1; i < limites.length; i++) {
       expect(limites[i]).toBeGreaterThan(limites[i - 1]);
     }
@@ -48,7 +53,7 @@ describe('Paliers de warm-up 8 → 15 → 25 → 40', () => {
   });
 });
 
-describe('warmupState — informations affichées à l\'utilisateur', () => {
+describe("warmupState — informations affichées à l'utilisateur", () => {
   it('signale le warm-up actif tant que le plafond est réduit', () => {
     expect(warmupState(ilYaJours(1)).isActive).toBe(true);
     expect(warmupState(ilYaJours(20)).isActive).toBe(false);
@@ -100,7 +105,7 @@ describe('Throttle', () => {
     }
   });
 
-  it('l\'espacement minimal reste conservateur (≥ 20 s)', () => {
+  it("l'espacement minimal reste conservateur (≥ 20 s)", () => {
     expect(ANTI_SPAM.THROTTLE_MIN_MS).toBeGreaterThanOrEqual(20_000);
   });
 });

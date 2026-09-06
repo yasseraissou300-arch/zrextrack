@@ -21,7 +21,8 @@ async function handle(req: NextRequest) {
   const guard = await guardTwilioRequest(req, 'webhook.twilio.twiml');
   if (!guard.ok) {
     return new NextResponse(`<?xml version="1.0"?><Response><Hangup/></Response>`, {
-      status: guard.status, headers: { 'Content-Type': 'text/xml' },
+      status: guard.status,
+      headers: { 'Content-Type': 'text/xml' },
     });
   }
   const cid = guard.callId;

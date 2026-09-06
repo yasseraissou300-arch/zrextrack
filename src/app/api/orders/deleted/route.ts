@@ -4,13 +4,17 @@ import { createClient, createServiceClient } from '@/lib/supabase/server';
 export async function GET() {
   try {
     const supabaseAuth = await createClient();
-    const { data: { user } } = await supabaseAuth.auth.getUser();
+    const {
+      data: { user },
+    } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
 
     const supabase = createServiceClient();
     const { data, error } = await supabase
       .from('orders')
-      .select('id, tracking_number, customer_name, wilaya, delivery_status, product_name, cod, deleted_at')
+      .select(
+        'id, tracking_number, customer_name, wilaya, delivery_status, product_name, cod, deleted_at'
+      )
       .eq('user_id', user.id)
       .not('deleted_at', 'is', null)
       .order('deleted_at', { ascending: false });

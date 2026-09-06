@@ -35,7 +35,7 @@ export interface TwilioGuardFail {
  */
 export async function guardTwilioRequest(
   req: NextRequest,
-  scope: string,
+  scope: string
 ): Promise<TwilioGuardOk | TwilioGuardFail> {
   const cid = req.nextUrl.searchParams.get('cid') || '';
   const params = await readTwilioParams(req);
@@ -68,13 +68,19 @@ export async function guardTwilioRequest(
   const check = validateTwilioRequest({
     authToken,
     signature,
-    url: publicUrlFromRequest(req, process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL),
+    url: publicUrlFromRequest(
+      req,
+      process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL
+    ),
     params,
   });
 
   if (!check.ok) {
     logEvent('warn', scope, {
-      status: 'rejected', reason: check.reason, tenant_id: userId ?? undefined, conversation_id: cid,
+      status: 'rejected',
+      reason: check.reason,
+      tenant_id: userId ?? undefined,
+      conversation_id: cid,
     });
     return { ok: false, status: check.status, reason: check.reason };
   }

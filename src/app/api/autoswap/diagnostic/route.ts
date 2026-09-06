@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { fetchAllParcels } from '@/lib/zrexpress/parcels';
-import { normalizeParcel, isSwappable, isTarget, isSituationSwappable, analyzePairForDiagnostic } from '@/lib/autoswap/matcher';
+import {
+  normalizeParcel,
+  isSwappable,
+  isTarget,
+  isSituationSwappable,
+  analyzePairForDiagnostic,
+} from '@/lib/autoswap/matcher';
 import type { ZRParcel } from '@/lib/autoswap/types';
 
 // Diagnostic AutoSwap — dump la VÉRITÉ TERRAIN des champs ZRExpress.
@@ -31,31 +37,36 @@ export async function POST(request: NextRequest) {
     // Charge les équivalences de tailles du user pour un diagnostic fidèle
     // (sans elles, l'analyse rejetterait des paires que le user considère
     // interchangeables).
-    let sizeEquivalences: Record<string, string[][]> = {};
+    const sizeEquivalences: Record<string, string[][]> = {};
     try {
       const supabaseAuth = await createClient();
-      const { data: { user } } = await supabaseAuth.auth.getUser();
+      const {
+        data: { user },
+      } = await supabaseAuth.auth.getUser();
       if (user) {
         const service = createServiceClient();
         const { data: rows } = await service
           .from('autoswap_size_equivalences')
           .select('product_key, groups')
           .eq('user_id', user.id);
-        for (const r of (rows || [])) sizeEquivalences[r.product_key as string] = r.groups as string[][];
+        for (const r of rows || [])
+          sizeEquivalences[r.product_key as string] = r.groups as string[][];
       }
-    } catch {}
+    } catch {
+      /* équivalences optionnelles : diagnostic reste exploitable sans */
+    }
 
     const parcels = (await fetchAllParcels(token, tenantId)) as ZRParcel[];
     const normalized = parcels.map(normalizeParcel);
 
-    const swapCounts = tally(normalized.map(p => String(p.swap.count)));
-    const eligibleTrue = normalized.filter(p => p.swap.isEligibleForSwap === true).length;
-    const bySituationRule = normalized.filter(p => isSituationSwappable(p.situation)).length;
+    const swapCounts = tally(normalized.map((p) => String(p.swap.count)));
+    const eligibleTrue = normalized.filter((p) => p.swap.isEligibleForSwap === true).length;
+    const bySituationRule = normalized.filter((p) => isSituationSwappable(p.situation)).length;
 
     // Les colis que la règle situation attrape mais que le flag API rate —
     // c'est exactement l'écart qui causait « 1 swappable au lieu de 13 ».
     const flagMissed = normalized.filter(
-      p => isSituationSwappable(p.situation) && p.swap.isEligibleForSwap !== true
+      (p) => isSituationSwappable(p.situation) && p.swap.isEligibleForSwap !== true
     );
 
     // ─── Analyse par paire (swappable × target) : histogramme des motifs de
@@ -72,7 +83,13 @@ export async function POST(request: NextRequest) {
 
     const rejectTally: Record<string, number> = {};
     let matchCount = 0;
-    const nearMisses: Array<{ swappable: string; target: string; product: string; reason: string; details: string }> = [];
+    const nearMisses: Array<{
+      swappable: string;
+      target: string;
+      product: string;
+      reason: string;
+      details: string;
+    }> = [];
 
     for (const s of swappables) {
       for (const t of targets) {
@@ -83,17 +100,21 @@ export async function POST(request: NextRequest) {
           rejectTally[r.reason] = (rejectTally[r.reason] ?? 0) + 1;
           // Sample : garder les rejets liés au produit (mêmes produits mais
           // couleur/taille qui coincent) — les plus exploitables.
-          if (nearMisses.length < 20 && ['no_color_common', 'no_size_common', 'diff_quantity'].includes(r.reason)) {
+          if (
+            nearMisses.length < 20 &&
+            ['no_color_common', 'no_size_common', 'diff_quantity'].includes(r.reason)
+          ) {
             nearMisses.push({
               swappable: s.trackingNumber,
               target: t.trackingNumber,
               product: s.productName || s.productNameFingerprint || '(inconnu)',
               reason: r.reason,
-              details: r.reason === 'no_color_common'
-                ? `source [${s.variantColors.join(',')}] vs cible [${t.variantColors.join(',')}]`
-                : r.reason === 'no_size_common'
-                ? `source [${s.variantSizes.join(',')}] vs cible [${t.variantSizes.join(',')}]`
-                : `source qty=${s.quantity} vs cible qty=${t.quantity}`,
+              details:
+                r.reason === 'no_color_common'
+                  ? `source [${s.variantColors.join(',')}] vs cible [${t.variantColors.join(',')}]`
+                  : r.reason === 'no_size_common'
+                    ? `source [${s.variantSizes.join(',')}] vs cible [${t.variantSizes.join(',')}]`
+                    : `source qty=${s.quantity} vs cible qty=${t.quantity}`,
             });
           }
         }
@@ -114,8 +135,8 @@ export async function POST(request: NextRequest) {
       },
 
       // Distribution brute — LA donnée qui permet de calibrer les filtres
-      states: tally(normalized.map(p => p.stateName)),
-      situations: tally(normalized.map(p => p.situation)),
+      states: tally(normalized.map((p) => p.stateName)),
+      situations: tally(normalized.map((p) => p.situation)),
 
       swap_fields: {
         isEligibleForSwap_true: eligibleTrue,
@@ -135,7 +156,7 @@ export async function POST(request: NextRequest) {
         : null,
 
       // Aperçu des colis récupérés grâce au fallback situation
-      recovered_examples: flagMissed.slice(0, 15).map(p => ({
+      recovered_examples: flagMissed.slice(0, 15).map((p) => ({
         tracking: p.trackingNumber,
         state: p.stateName,
         situation: p.situation,

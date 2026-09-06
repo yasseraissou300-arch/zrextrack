@@ -3,33 +3,63 @@
 import AppLayout from '@/components/ui/AppLayout';
 import { useEffect, useState } from 'react';
 import {
-  RefreshCw, CheckCircle2, XCircle, Key, Package,
-  Clock, AlertTriangle, Eye, EyeOff, MessageSquare, Save, RotateCcw
+  RefreshCw,
+  CheckCircle2,
+  XCircle,
+  Key,
+  Package,
+  Clock,
+  AlertTriangle,
+  Eye,
+  EyeOff,
+  MessageSquare,
+  Save,
+  RotateCcw,
 } from 'lucide-react';
 import { loadSyncSettings, saveSyncSettings } from '@/lib/sync-settings-client';
 
 const DEFAULT_NOTIFY_ENABLED: Record<string, boolean> = {
-  en_transit:   true,
+  en_transit: true,
   en_livraison: true,
-  livre:        true,
-  echec:        true,
-  retourne:     true,
+  livre: true,
+  echec: true,
+  retourne: true,
 };
 
 const DEFAULT_TEMPLATES: Record<string, string> = {
-  en_transit:    `📦 Bonjour {client},\n\nVotre commande *{tracking}* est maintenant *en transit* vers {wilaya}.\n\nSuivez-la ici : {lien}`,
-  en_livraison:  `🚚 Bonjour {client},\n\nVotre commande *{tracking}* est *en cours de livraison* aujourd'hui !\n\nSoyez disponible. Suivi : {lien}`,
-  livre:         `✅ Bonjour {client},\n\nVotre commande *{tracking}* a été *livrée avec succès* ! 🎉\n\nMerci pour votre confiance. Suivi : {lien}`,
-  echec:         `⚠️ Bonjour {client},\n\nNous n'avons pas pu livrer votre commande *{tracking}*.\n\nVeuillez contacter le vendeur ou suivre : {lien}`,
-  retourne:      `📦 Bonjour {client},\n\nVotre commande *{tracking}* a été *retournée*.\n\nContactez le vendeur. Suivi : {lien}`,
+  en_transit: `📦 Bonjour {client},\n\nVotre commande *{tracking}* est maintenant *en transit* vers {wilaya}.\n\nSuivez-la ici : {lien}`,
+  en_livraison: `🚚 Bonjour {client},\n\nVotre commande *{tracking}* est *en cours de livraison* aujourd'hui !\n\nSoyez disponible. Suivi : {lien}`,
+  livre: `✅ Bonjour {client},\n\nVotre commande *{tracking}* a été *livrée avec succès* ! 🎉\n\nMerci pour votre confiance. Suivi : {lien}`,
+  echec: `⚠️ Bonjour {client},\n\nNous n'avons pas pu livrer votre commande *{tracking}*.\n\nVeuillez contacter le vendeur ou suivre : {lien}`,
+  retourne: `📦 Bonjour {client},\n\nVotre commande *{tracking}* a été *retournée*.\n\nContactez le vendeur. Suivi : {lien}`,
 };
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  en_transit:   { label: 'En transit',       color: 'text-blue-700',   bg: 'bg-blue-50',   border: 'border-blue-200' },
-  en_livraison: { label: 'En livraison',     color: 'text-amber-700',  bg: 'bg-amber-50',  border: 'border-amber-200' },
-  livre:        { label: 'Livré',            color: 'text-green-700',  bg: 'bg-green-50',  border: 'border-green-200' },
-  echec:        { label: 'Échec livraison',  color: 'text-red-700',    bg: 'bg-red-50',    border: 'border-red-200' },
-  retourne:     { label: 'Retourné',         color: 'text-stone-600 dark:text-stone-300',   bg: 'bg-stone-50',   border: 'border-stone-200 dark:border-stone-700' },
+  en_transit: {
+    label: 'En transit',
+    color: 'text-blue-700',
+    bg: 'bg-blue-50',
+    border: 'border-blue-200',
+  },
+  en_livraison: {
+    label: 'En livraison',
+    color: 'text-amber-700',
+    bg: 'bg-amber-50',
+    border: 'border-amber-200',
+  },
+  livre: { label: 'Livré', color: 'text-green-700', bg: 'bg-green-50', border: 'border-green-200' },
+  echec: {
+    label: 'Échec livraison',
+    color: 'text-red-700',
+    bg: 'bg-red-50',
+    border: 'border-red-200',
+  },
+  retourne: {
+    label: 'Retourné',
+    color: 'text-stone-600 dark:text-stone-300',
+    bg: 'bg-stone-50',
+    border: 'border-stone-200 dark:border-stone-700',
+  },
 };
 
 interface SyncResult {
@@ -62,12 +92,16 @@ export default function SyncPage() {
   const [templates, setTemplates] = useState<Record<string, string>>(DEFAULT_TEMPLATES);
   const [templatesSaved, setTemplatesSaved] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState<string>('en_transit');
-  const [notifyEnabled, setNotifyEnabled] = useState<Record<string, boolean>>(DEFAULT_NOTIFY_ENABLED);
+  const [notifyEnabled, setNotifyEnabled] =
+    useState<Record<string, boolean>>(DEFAULT_NOTIFY_ENABLED);
 
   useEffect(() => {
     // Load from server (cross-device) — falls back to localStorage migration if empty
-    loadSyncSettings().then(s => {
-      if (s.zrexpress_token) { setToken(s.zrexpress_token); setTokenSaved(true); }
+    loadSyncSettings().then((s) => {
+      if (s.zrexpress_token) {
+        setToken(s.zrexpress_token);
+        setTokenSaved(true);
+      }
       if (s.zrexpress_tenant_id) setTenantId(s.zrexpress_tenant_id);
       if (s.templates && Object.keys(s.templates).length) {
         setTemplates({ ...DEFAULT_TEMPLATES, ...s.templates });
@@ -78,7 +112,12 @@ export default function SyncPage() {
     });
     // Sync history reste local (purement informatif, par appareil)
     const hist = localStorage.getItem('zrexpress_sync_history');
-    if (hist) try { setHistory(JSON.parse(hist)); } catch {}
+    if (hist)
+      try {
+        setHistory(JSON.parse(hist));
+      } catch {
+        /* chargement réglages : valeurs par défaut conservées */
+      }
   }, []);
 
   const saveToken = async () => {
@@ -92,7 +131,9 @@ export default function SyncPage() {
 
   const clearToken = async () => {
     await saveSyncSettings({ zrexpress_token: '', zrexpress_tenant_id: '' });
-    setToken(''); setTenantId(''); setTokenSaved(false);
+    setToken('');
+    setTenantId('');
+    setTokenSaved(false);
   };
 
   const saveTemplates = async () => {
@@ -108,7 +149,7 @@ export default function SyncPage() {
   };
 
   const resetTemplate = (status: string) => {
-    setTemplates(prev => ({ ...prev, [status]: DEFAULT_TEMPLATES[status] }));
+    setTemplates((prev) => ({ ...prev, [status]: DEFAULT_TEMPLATES[status] }));
   };
 
   const runSync = async () => {
@@ -120,7 +161,12 @@ export default function SyncPage() {
       const res = await fetch('/api/sync-zrexpress', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: token.trim(), tenantId: tenantId.trim(), templates, notifyEnabled }),
+        body: JSON.stringify({
+          token: token.trim(),
+          tenantId: tenantId.trim(),
+          templates,
+          notifyEnabled,
+        }),
       });
       const data: SyncResult = await res.json();
       setResult(data);
@@ -144,8 +190,11 @@ export default function SyncPage() {
 
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleString('fr-FR', {
-      day: '2-digit', month: '2-digit', year: 'numeric',
-      hour: '2-digit', minute: '2-digit',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     });
 
   // Prévisualisation du template actif avec données fictives
@@ -160,61 +209,93 @@ export default function SyncPage() {
   return (
     <AppLayout>
       <div className="max-w-screen-xl mx-auto px-6 py-6 space-y-6">
-
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-green-100 dark:bg-green-500/15 rounded-xl flex items-center justify-center">
             <RefreshCw size={20} className="text-green-600" />
           </div>
           <div>
             <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100">Sync ZREXpress</h1>
-            <p className="text-sm text-stone-500 dark:text-stone-400">Importez vos commandes et configurez vos messages automatiques</p>
+            <p className="text-sm text-stone-500 dark:text-stone-400">
+              Importez vos commandes et configurez vos messages automatiques
+            </p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-5">
-
             {/* Clé API */}
             <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Key size={18} className="text-stone-500 dark:text-stone-400" />
-                <h2 className="font-semibold text-stone-900 dark:text-stone-100">Clé API ZREXpress</h2>
+                <h2 className="font-semibold text-stone-900 dark:text-stone-100">
+                  Clé API ZREXpress
+                </h2>
                 {tokenSaved && (
-                  <span className="ml-auto text-xs bg-green-100 text-green-700 font-medium px-2 py-0.5 rounded-full">✓ Enregistrée</span>
+                  <span className="ml-auto text-xs bg-green-100 text-green-700 font-medium px-2 py-0.5 rounded-full">
+                    ✓ Enregistrée
+                  </span>
                 )}
               </div>
               <p className="text-sm text-stone-500 dark:text-stone-400 mb-4">
                 Collez votre <strong>secretKey</strong> et <strong>tenantId</strong> depuis{' '}
-                <a href="https://app.zrexpress.app/api-rest/tokens" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                <a
+                  href="https://app.zrexpress.app/api-rest/tokens"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline"
+                >
                   app.zrexpress.app → API Rest → Jetons API
                 </a>
               </p>
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs font-medium text-stone-600 dark:text-stone-300 mb-1">Secret Key</label>
+                  <label className="block text-xs font-medium text-stone-600 dark:text-stone-300 mb-1">
+                    Secret Key
+                  </label>
                   <div className="relative">
-                    <input type={showToken ? 'text' : 'password'} value={token} onChange={e => setToken(e.target.value)}
+                    <input
+                      type={showToken ? 'text' : 'password'}
+                      value={token}
+                      onChange={(e) => setToken(e.target.value)}
                       placeholder="zZhWCuWz..."
-                      className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-4 py-3 pr-12 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-400" />
-                    <button onClick={() => setShowToken(!showToken)} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:text-stone-300">
+                      className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-4 py-3 pr-12 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-400"
+                    />
+                    <button
+                      onClick={() => setShowToken(!showToken)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:text-stone-300"
+                    >
                       {showToken ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-stone-600 dark:text-stone-300 mb-1">Tenant ID</label>
-                  <input type="text" value={tenantId} onChange={e => setTenantId(e.target.value)}
+                  <label className="block text-xs font-medium text-stone-600 dark:text-stone-300 mb-1">
+                    Tenant ID
+                  </label>
+                  <input
+                    type="text"
+                    value={tenantId}
+                    onChange={(e) => setTenantId(e.target.value)}
                     placeholder="3da412b7-5c9e-..."
-                    className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-400" />
+                    className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-400"
+                  />
                 </div>
               </div>
               <div className="flex gap-3 mt-4">
-                <button onClick={saveToken} disabled={!token.trim() || !tenantId.trim()}
-                  className="flex-1 bg-stone-900 text-white text-sm font-medium py-2.5 rounded-xl hover:bg-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                <button
+                  onClick={saveToken}
+                  disabled={!token.trim() || !tenantId.trim()}
+                  className="flex-1 bg-stone-900 text-white text-sm font-medium py-2.5 rounded-xl hover:bg-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
                   Enregistrer les clés
                 </button>
                 {tokenSaved && (
-                  <button onClick={clearToken} className="text-sm text-red-500 hover:text-red-700 px-4 transition-colors">Supprimer</button>
+                  <button
+                    onClick={clearToken}
+                    className="text-sm text-red-500 hover:text-red-700 px-4 transition-colors"
+                  >
+                    Supprimer
+                  </button>
                 )}
               </div>
             </div>
@@ -223,28 +304,49 @@ export default function SyncPage() {
             <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Package size={18} className="text-stone-500 dark:text-stone-400" />
-                <h2 className="font-semibold text-stone-900 dark:text-stone-100">Synchronisation</h2>
+                <h2 className="font-semibold text-stone-900 dark:text-stone-100">
+                  Synchronisation
+                </h2>
               </div>
               <p className="text-sm text-stone-500 dark:text-stone-400 mb-4">
-                Importe toutes vos commandes ZREXpress. Les statuts sont mis à jour et les messages WhatsApp envoyés automatiquement à chaque changement.
+                Importe toutes vos commandes ZREXpress. Les statuts sont mis à jour et les messages
+                WhatsApp envoyés automatiquement à chaque changement.
               </p>
-              <button onClick={runSync} disabled={loading || !token.trim() || !tenantId.trim()}
-                className="w-full flex items-center justify-center gap-3 bg-gradient-to-br from-violet-500 to-fuchsia-500 hover:shadow-lg hover:shadow-violet-500/30 shadow-md shadow-violet-500/20 disabled:bg-stone-200 disabled:text-stone-400 dark:text-stone-500 text-white font-semibold py-4 rounded-xl transition-colors text-base disabled:cursor-not-allowed">
+              <button
+                onClick={runSync}
+                disabled={loading || !token.trim() || !tenantId.trim()}
+                className="w-full flex items-center justify-center gap-3 bg-gradient-to-br from-violet-500 to-fuchsia-500 hover:shadow-lg hover:shadow-violet-500/30 shadow-md shadow-violet-500/20 disabled:bg-stone-200 disabled:text-stone-400 dark:text-stone-500 text-white font-semibold py-4 rounded-xl transition-colors text-base disabled:cursor-not-allowed"
+              >
                 <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
                 {loading ? 'Synchronisation en cours...' : 'Synchroniser maintenant'}
               </button>
               {result && (
-                <div className={`mt-4 rounded-xl p-4 flex items-start gap-3 ${result.error ? 'bg-red-50 border border-red-100' : 'bg-green-50 border border-green-100'}`}>
-                  {result.error ? <XCircle size={20} className="text-red-500 flex-shrink-0 mt-0.5" /> : <CheckCircle2 size={20} className="text-green-500 flex-shrink-0 mt-0.5" />}
+                <div
+                  className={`mt-4 rounded-xl p-4 flex items-start gap-3 ${result.error ? 'bg-red-50 border border-red-100' : 'bg-green-50 border border-green-100'}`}
+                >
+                  {result.error ? (
+                    <XCircle size={20} className="text-red-500 flex-shrink-0 mt-0.5" />
+                  ) : (
+                    <CheckCircle2 size={20} className="text-green-500 flex-shrink-0 mt-0.5" />
+                  )}
                   <div>
                     {result.error ? (
-                      <><p className="font-medium text-red-700 text-sm">Erreur de synchronisation</p><p className="text-red-600 text-sm mt-0.5">{result.error}</p></>
+                      <>
+                        <p className="font-medium text-red-700 text-sm">
+                          Erreur de synchronisation
+                        </p>
+                        <p className="text-red-600 text-sm mt-0.5">{result.error}</p>
+                      </>
                     ) : (
                       <>
-                        <p className="font-medium text-green-700 text-sm">Synchronisation réussie !</p>
+                        <p className="font-medium text-green-700 text-sm">
+                          Synchronisation réussie !
+                        </p>
                         <p className="text-green-600 text-sm mt-0.5">
                           {result.synced} commandes importées sur {result.total}
-                          {result.whatsapp_sent ? ` · ${result.whatsapp_sent} WhatsApp envoyés` : ''}
+                          {result.whatsapp_sent
+                            ? ` · ${result.whatsapp_sent} WhatsApp envoyés`
+                            : ''}
                         </p>
                       </>
                     )}
@@ -264,28 +366,38 @@ export default function SyncPage() {
                   <MessageSquare size={18} className="text-green-600" />
                 </div>
                 <span>
-                  <span className="block text-sm font-semibold text-stone-900 dark:text-stone-100">Messages WhatsApp automatiques</span>
-                  <span className="block text-xs text-stone-400 dark:text-stone-500">Activer/désactiver par statut + modifier le contenu</span>
+                  <span className="block text-sm font-semibold text-stone-900 dark:text-stone-100">
+                    Messages WhatsApp automatiques
+                  </span>
+                  <span className="block text-xs text-stone-400 dark:text-stone-500">
+                    Activer/désactiver par statut + modifier le contenu
+                  </span>
                 </span>
               </span>
               <span className="text-green-600 text-sm font-medium">Gérer →</span>
             </a>
-
           </div>
 
           {/* Colonne droite */}
           <div className="space-y-4">
             <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 p-6">
-              <h2 className="font-semibold text-stone-900 dark:text-stone-100 mb-4">Comment ça marche</h2>
+              <h2 className="font-semibold text-stone-900 dark:text-stone-100 mb-4">
+                Comment ça marche
+              </h2>
               <div className="space-y-3">
                 {[
                   { step: '1', text: 'Entrez votre secretKey et tenantId' },
                   { step: '2', text: 'Personnalisez vos templates WhatsApp' },
-                  { step: '3', text: 'Lancez une sync — les commandes s\'importent' },
-                  { step: '4', text: 'À chaque changement de statut, le client reçoit un WhatsApp automatique' },
-                ].map(s => (
+                  { step: '3', text: "Lancez une sync — les commandes s'importent" },
+                  {
+                    step: '4',
+                    text: 'À chaque changement de statut, le client reçoit un WhatsApp automatique',
+                  },
+                ].map((s) => (
                   <div key={s.step} className="flex items-start gap-3">
-                    <span className="w-6 h-6 rounded-full bg-green-100 text-green-700 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">{s.step}</span>
+                    <span className="w-6 h-6 rounded-full bg-green-100 text-green-700 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                      {s.step}
+                    </span>
                     <span className="text-sm text-stone-600 dark:text-stone-300">{s.text}</span>
                   </div>
                 ))}
@@ -300,15 +412,22 @@ export default function SyncPage() {
               {history.length === 0 ? (
                 <div className="text-center py-6">
                   <Clock size={28} className="mx-auto mb-2 text-stone-200" />
-                  <p className="text-sm text-stone-400 dark:text-stone-500">Aucune sync effectuée</p>
+                  <p className="text-sm text-stone-400 dark:text-stone-500">
+                    Aucune sync effectuée
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-2">
                   {history.map((h, i) => (
-                    <div key={i} className="flex items-start gap-2 text-xs py-2 border-b border-stone-50 last:border-0">
-                      {h.status === 'success'
-                        ? <CheckCircle2 size={14} className="text-green-500 flex-shrink-0 mt-0.5" />
-                        : <AlertTriangle size={14} className="text-red-400 flex-shrink-0 mt-0.5" />}
+                    <div
+                      key={i}
+                      className="flex items-start gap-2 text-xs py-2 border-b border-stone-50 last:border-0"
+                    >
+                      {h.status === 'success' ? (
+                        <CheckCircle2 size={14} className="text-green-500 flex-shrink-0 mt-0.5" />
+                      ) : (
+                        <AlertTriangle size={14} className="text-red-400 flex-shrink-0 mt-0.5" />
+                      )}
                       <div className="flex-1 min-w-0">
                         <p className="text-stone-700 dark:text-stone-200 font-medium truncate">
                           {h.status === 'success' ? `${h.synced} commandes` : 'Erreur'}

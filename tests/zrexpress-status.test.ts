@@ -38,6 +38,17 @@ describe('mapStatus — les 6 statuts internes', () => {
   it('livre', () => {
     expect(mapStatus('Livré')).toBe('livre');
   });
+
+  it('echec', () => {
+    expect(mapStatus('Sortie en livraison', 'Ne répond pas 1')).toBe('echec');
+    expect(mapStatus('Sortie en livraison', 'Commande annulée')).toBe('echec');
+    expect(mapStatus('En transit', 'Commune erronée')).toBe('echec');
+  });
+
+  it('retourne', () => {
+    expect(mapStatus('Retourné')).toBe('retourne');
+    expect(mapStatus('En transit', 'Retour expéditeur')).toBe('retourne');
+  });
 });
 
 // ─── BUGS CONNUS, NON CORRIGÉS EN PHASE 0 ───────────────────────────────────
@@ -72,20 +83,9 @@ describe('BUG-12 / BUG-13 — états ZRExpress non reconnus par mapStatus', () =
   it.fails('BUG-13b : « Recouvert » devrait être livre', () => {
     expect(mapStatus('Recouvert')).toBe('livre');
   });
-
-  it('echec', () => {
-    expect(mapStatus('Sortie en livraison', 'Ne répond pas 1')).toBe('echec');
-    expect(mapStatus('Sortie en livraison', 'Commande annulée')).toBe('echec');
-    expect(mapStatus('En transit', 'Commune erronée')).toBe('echec');
-  });
-
-  it('retourne', () => {
-    expect(mapStatus('Retourné')).toBe('retourne');
-    expect(mapStatus('En transit', 'Retour expéditeur')).toBe('retourne');
-  });
 });
 
-describe('mapStatus — LA SITUATION PRIME SUR L\'ÉTAT', () => {
+describe("mapStatus — LA SITUATION PRIME SUR L'ÉTAT", () => {
   it('un colis « En préparation » mais « Ne répond pas » est un échec', () => {
     // Sans cette règle, le client recevrait « on prépare votre colis »
     // alors que le livreur ne l'a jamais joint.
@@ -96,7 +96,7 @@ describe('mapStatus — LA SITUATION PRIME SUR L\'ÉTAT', () => {
     expect(mapStatus('Livré', 'Retour expéditeur')).toBe('retourne');
   });
 
-  it('situation vide → on retombe sur l\'état', () => {
+  it("situation vide → on retombe sur l'état", () => {
     expect(mapStatus('Livré', '')).toBe('livre');
   });
 });
@@ -110,8 +110,15 @@ describe('mapStatus — robustesse', () => {
   it('renvoie toujours un des 6 statuts internes', () => {
     const VALIDES = ['en_preparation', 'en_transit', 'en_livraison', 'livre', 'echec', 'retourne'];
     const echantillons = [
-      '', 'xyz', 'Livré', 'Retourné', 'En transit', 'Dispatch',
-      'Prêt à expédier', 'Sortie en livraison', 'Vers Wilaya',
+      '',
+      'xyz',
+      'Livré',
+      'Retourné',
+      'En transit',
+      'Dispatch',
+      'Prêt à expédier',
+      'Sortie en livraison',
+      'Vers Wilaya',
     ];
     for (const e of echantillons) {
       expect(VALIDES).toContain(mapStatus(e));

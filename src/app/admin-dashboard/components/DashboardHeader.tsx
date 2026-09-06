@@ -1,7 +1,18 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { RefreshCw, Download, Plus, Wifi, WifiOff, Zap, PauseCircle, PlayCircle, Trash2, AlertTriangle } from 'lucide-react';
+import {
+  RefreshCw,
+  Download,
+  Plus,
+  Wifi,
+  WifiOff,
+  Zap,
+  PauseCircle,
+  PlayCircle,
+  Trash2,
+  AlertTriangle,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { loadSyncSettings } from '@/lib/sync-settings-client';
 
@@ -23,7 +34,7 @@ export default function DashboardHeader() {
   useEffect(() => {
     // Charge depuis Supabase (cross-device). Le helper hydrate aussi le miroir
     // localStorage pour les pages qui ne sont pas encore migrées.
-    loadSyncSettings().then(s => {
+    loadSyncSettings().then((s) => {
       setHasToken(!!s.zrexpress_token && !!s.zrexpress_tenant_id);
 
       // Active l'auto-sync si token présent (sauf désactivation manuelle locale)
@@ -43,9 +54,13 @@ export default function DashboardHeader() {
     setAutoSyncEnabled(next);
     localStorage.setItem('zrextrack_autosync_disabled', next ? 'false' : 'true');
     if (next) {
-      toast.success('Auto-sync activé', { description: 'Synchronisation automatique toutes les 30 secondes.' });
+      toast.success('Auto-sync activé', {
+        description: 'Synchronisation automatique toutes les 30 secondes.',
+      });
     } else {
-      toast.info('Auto-sync arrêté', { description: 'Cliquez sur "Sync maintenant" pour synchroniser manuellement.' });
+      toast.info('Auto-sync arrêté', {
+        description: 'Cliquez sur "Sync maintenant" pour synchroniser manuellement.',
+      });
       if (intervalRef.current) clearInterval(intervalRef.current);
     }
   };
@@ -55,7 +70,10 @@ export default function DashboardHeader() {
     const token = s.zrexpress_token;
     const tenantId = s.zrexpress_tenant_id;
     if (!token || !tenantId) {
-      if (!silent) toast.error('Token ZREXpress non configuré', { description: 'Allez dans Sync ZREXpress pour configurer votre clé API.' });
+      if (!silent)
+        toast.error('Token ZREXpress non configuré', {
+          description: 'Allez dans Sync ZREXpress pour configurer votre clé API.',
+        });
       return;
     }
 
@@ -76,7 +94,14 @@ export default function DashboardHeader() {
       if (!res.ok || json.error) {
         if (!silent) toast.error('Erreur de synchronisation', { description: json.error });
       } else {
-        const now = new Date().toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const now = new Date().toLocaleString('fr-FR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        });
         setLastSync(now);
         setSyncedCount(json.synced ?? 0);
         localStorage.setItem('zrextrack_last_sync', now);
@@ -85,7 +110,9 @@ export default function DashboardHeader() {
         window.dispatchEvent(new Event(SYNC_DONE_EVENT));
 
         if (!silent) {
-          toast.success(`Sync réussie — ${json.synced ?? 0} commandes`, { description: json.message });
+          toast.success(`Sync réussie — ${json.synced ?? 0} commandes`, {
+            description: json.message,
+          });
         }
       }
     } catch (err: any) {
@@ -129,113 +156,134 @@ export default function DashboardHeader() {
 
   return (
     <>
-    {showClearModal && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-        <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 bg-red-100 dark:bg-red-500/15 rounded-xl flex items-center justify-center shrink-0">
-              <AlertTriangle size={20} className="text-red-600" />
+      {showClearModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 bg-red-100 dark:bg-red-500/15 rounded-xl flex items-center justify-center shrink-0">
+                <AlertTriangle size={20} className="text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-stone-900 dark:text-stone-100">Vider l'historique</h3>
+                <p className="text-xs text-stone-500 dark:text-stone-400">
+                  Cette action est irréversible
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-bold text-stone-900 dark:text-stone-100">Vider l'historique</h3>
-              <p className="text-xs text-stone-500 dark:text-stone-400">Cette action est irréversible</p>
+            <p className="text-sm text-stone-600 dark:text-stone-300">
+              Toutes vos commandes seront définitivement supprimées. Cette action ne peut pas être
+              annulée.
+            </p>
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={() => setShowClearModal(false)}
+                disabled={clearing}
+                className="flex-1 py-2.5 rounded-xl border border-stone-200 text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-50 transition-colors disabled:opacity-50"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleClearAll}
+                disabled={clearing}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {clearing ? <RefreshCw size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                {clearing ? 'Suppression...' : 'Tout supprimer'}
+              </button>
             </div>
           </div>
-          <p className="text-sm text-stone-600 dark:text-stone-300">
-            Toutes vos commandes seront définitivement supprimées. Cette action ne peut pas être annulée.
+        </div>
+      )}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-stone-100 dark:border-stone-800">
+        <div>
+          <div className="flex items-center gap-2.5 mb-1.5 flex-wrap">
+            <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100 tracking-tight">
+              Tableau de bord
+            </h1>
+            {hasToken ? (
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full border bg-green-50 text-green-700 border-green-200">
+                <Wifi size={10} />
+                ZREXpress connecté
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full border bg-amber-50 text-amber-700 border-amber-200">
+                <WifiOff size={10} />
+                Token non configuré
+              </span>
+            )}
+            {hasToken && (
+              <button
+                onClick={toggleAutoSync}
+                title={autoSyncEnabled ? "Arrêter l'auto-sync" : "Activer l'auto-sync"}
+                className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full border transition-all ${
+                  autoSyncEnabled
+                    ? 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100'
+                    : 'bg-stone-100 text-stone-400 dark:text-stone-500 border-stone-200 hover:bg-stone-200'
+                }`}
+              >
+                {autoSyncEnabled ? (
+                  <>
+                    <Zap size={9} className="animate-pulse" />
+                    Auto-sync 30s
+                    <PauseCircle size={10} />
+                  </>
+                ) : (
+                  <>
+                    <PlayCircle size={10} />
+                    Auto-sync OFF
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+          <p className="text-sm text-stone-500 dark:text-stone-400">
+            {lastSync ? (
+              <>
+                Dernière sync :{' '}
+                <span className="font-medium text-stone-700 dark:text-stone-200">{lastSync}</span>
+                {syncedCount !== null && (
+                  <span className="text-stone-400 dark:text-stone-500">
+                    {' '}
+                    · {syncedCount} commandes
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="text-stone-500 dark:text-stone-400">
+                {hasToken
+                  ? 'Synchronisation en cours...'
+                  : 'Configurez votre token dans Sync ZREXpress'}
+              </span>
+            )}
           </p>
-          <div className="flex gap-3 pt-1">
-            <button
-              onClick={() => setShowClearModal(false)}
-              disabled={clearing}
-              className="flex-1 py-2.5 rounded-xl border border-stone-200 text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-50 transition-colors disabled:opacity-50"
-            >
-              Annuler
-            </button>
-            <button
-              onClick={handleClearAll}
-              disabled={clearing}
-              className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {clearing ? <RefreshCw size={13} className="animate-spin" /> : <Trash2 size={13} />}
-              {clearing ? 'Suppression...' : 'Tout supprimer'}
-            </button>
-          </div>
         </div>
-      </div>
-    )}
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-stone-100 dark:border-stone-800">
-      <div>
-        <div className="flex items-center gap-2.5 mb-1.5 flex-wrap">
-          <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100 tracking-tight">
-            Tableau de bord
-          </h1>
-          {hasToken ? (
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full border bg-green-50 text-green-700 border-green-200">
-              <Wifi size={10} />
-              ZREXpress connecté
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full border bg-amber-50 text-amber-700 border-amber-200">
-              <WifiOff size={10} />
-              Token non configuré
-            </span>
-          )}
-          {hasToken && (
-            <button
-              onClick={toggleAutoSync}
-              title={autoSyncEnabled ? 'Arrêter l\'auto-sync' : 'Activer l\'auto-sync'}
-              className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full border transition-all ${
-                autoSyncEnabled
-                  ? 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100'
-                  : 'bg-stone-100 text-stone-400 dark:text-stone-500 border-stone-200 hover:bg-stone-200'
-              }`}
-            >
-              {autoSyncEnabled
-                ? <><Zap size={9} className="animate-pulse" />Auto-sync 30s<PauseCircle size={10} /></>
-                : <><PlayCircle size={10} />Auto-sync OFF</>
-              }
-            </button>
-          )}
-        </div>
-        <p className="text-sm text-stone-500 dark:text-stone-400">
-          {lastSync ? (
-            <>
-              Dernière sync : <span className="font-medium text-stone-700 dark:text-stone-200">{lastSync}</span>
-              {syncedCount !== null && <span className="text-stone-400 dark:text-stone-500"> · {syncedCount} commandes</span>}
-            </>
-          ) : (
-            <span className="text-stone-500 dark:text-stone-400">{hasToken ? 'Synchronisation en cours...' : 'Configurez votre token dans Sync ZREXpress'}</span>
-          )}
-        </p>
-      </div>
 
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => runSync(false)}
-          disabled={syncing}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-stone-200 bg-white dark:bg-stone-900 text-sm font-medium text-stone-700 dark:text-stone-200 hover:bg-stone-50 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-        >
-          <RefreshCw size={14} className={syncing ? 'animate-spin text-violet-500' : ''} />
-          {syncing ? 'Sync...' : 'Sync maintenant'}
-        </button>
-        <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 text-sm font-medium text-stone-700 dark:text-stone-200 hover:bg-stone-50 dark:hover:bg-stone-800 transition-all active:scale-95 shadow-sm">
-          <Download size={14} />
-          Exporter
-        </button>
-        <button
-          onClick={() => setShowClearModal(true)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-sm font-medium text-red-600 hover:bg-red-100 transition-all active:scale-95 shadow-sm"
-        >
-          <Trash2 size={14} />
-          Vider l'historique
-        </button>
-        <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white text-sm font-semibold hover:shadow-lg hover:shadow-violet-500/30 transition-all active:scale-95 shadow-md shadow-violet-500/20">
-          <Plus size={14} />
-          Nouvelle commande
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => runSync(false)}
+            disabled={syncing}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-stone-200 bg-white dark:bg-stone-900 text-sm font-medium text-stone-700 dark:text-stone-200 hover:bg-stone-50 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+          >
+            <RefreshCw size={14} className={syncing ? 'animate-spin text-violet-500' : ''} />
+            {syncing ? 'Sync...' : 'Sync maintenant'}
+          </button>
+          <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 text-sm font-medium text-stone-700 dark:text-stone-200 hover:bg-stone-50 dark:hover:bg-stone-800 transition-all active:scale-95 shadow-sm">
+            <Download size={14} />
+            Exporter
+          </button>
+          <button
+            onClick={() => setShowClearModal(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-sm font-medium text-red-600 hover:bg-red-100 transition-all active:scale-95 shadow-sm"
+          >
+            <Trash2 size={14} />
+            Vider l'historique
+          </button>
+          <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white text-sm font-semibold hover:shadow-lg hover:shadow-violet-500/30 transition-all active:scale-95 shadow-md shadow-violet-500/20">
+            <Plus size={14} />
+            Nouvelle commande
+          </button>
+        </div>
       </div>
-    </div>
     </>
   );
 }

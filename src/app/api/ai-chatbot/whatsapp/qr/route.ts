@@ -6,15 +6,13 @@ import { webhookTokenQuery } from '@/lib/security/webhook-auth';
 // Allow up to 60s for Evolution API to generate QR (WhatsApp handshake is slow)
 export const maxDuration = 60;
 
-
 // Extract QR (image base64/URL) from any Evolution API response shape.
 function extractQr(json: unknown): string | null {
   const j = json as Record<string, unknown>;
   const qrcode = j?.qrcode;
   // qrcode can be a string (the base64/URL directly) or an object with .base64
-  const fromQrcode = typeof qrcode === 'string'
-    ? qrcode
-    : (qrcode as Record<string, string>)?.base64 ?? null;
+  const fromQrcode =
+    typeof qrcode === 'string' ? qrcode : ((qrcode as Record<string, string>)?.base64 ?? null);
   return (
     fromQrcode ??
     (j?.base64 as string) ??
@@ -29,9 +27,10 @@ function extractQr(json: unknown): string | null {
 // types into WhatsApp, not an image they scan.
 function extractPairingCode(json: unknown): string | null {
   const j = json as Record<string, unknown>;
-  const code = (j?.pairingCode as string)
-    ?? ((j?.qrcode as Record<string, unknown>)?.pairingCode as string)
-    ?? null;
+  const code =
+    (j?.pairingCode as string) ??
+    ((j?.qrcode as Record<string, unknown>)?.pairingCode as string) ??
+    null;
   return code || null;
 }
 
@@ -48,7 +47,9 @@ function normalizePhone(raw: string): string {
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   // BYOK : serveur Evolution de l'utilisateur (ou fallback plateforme)
@@ -78,10 +79,14 @@ export async function GET(req: NextRequest) {
   }
 
   if (!EVOLUTION_URL || !EVOLUTION_KEY) {
-    return NextResponse.json({
-      error: 'Evolution API non configurée. Ajoutez EVOLUTION_API_URL et EVOLUTION_API_KEY dans Vercel.',
-      debug: { urlSet: !!EVOLUTION_URL, keySet: !!EVOLUTION_KEY },
-    }, { status: 503 });
+    return NextResponse.json(
+      {
+        error:
+          'Evolution API non configurée. Ajoutez EVOLUTION_API_URL et EVOLUTION_API_KEY dans Vercel.',
+        debug: { urlSet: !!EVOLUTION_URL, keySet: !!EVOLUTION_KEY },
+      },
+      { status: 503 }
+    );
   }
 
   const headers = { apikey: EVOLUTION_KEY };
@@ -140,7 +145,10 @@ export async function GET(req: NextRequest) {
       // Format A — GET avec query (le plus répandu)
       const urlA = `${EVOLUTION_URL}/instance/connect/${instance.instance_name}?number=${encodeURIComponent(phone)}`;
       const resA = await fetch(urlA, { headers }).catch(() => null);
-      debugLog.attemptA = { url: urlA.replace(EVOLUTION_URL, '<base>'), status: resA?.status ?? 'fetch_failed' };
+      debugLog.attemptA = {
+        url: urlA.replace(EVOLUTION_URL, '<base>'),
+        status: resA?.status ?? 'fetch_failed',
+      };
 
       let unsupported = false;
       if (resA?.ok) {
@@ -164,7 +172,10 @@ export async function GET(req: NextRequest) {
           headers: { 'Content-Type': 'application/json', apikey: EVOLUTION_KEY },
           body: JSON.stringify({ number: phone }),
         }).catch(() => null);
-        debugLog.attemptB = { url: urlB.replace(EVOLUTION_URL, '<base>'), status: resB?.status ?? 'fetch_failed' };
+        debugLog.attemptB = {
+          url: urlB.replace(EVOLUTION_URL, '<base>'),
+          status: resB?.status ?? 'fetch_failed',
+        };
         if (resB?.ok) {
           const bJson = await resB.json().catch(() => null);
           debugLog.attemptB_body = bJson;
@@ -179,7 +190,10 @@ export async function GET(req: NextRequest) {
             headers: { 'Content-Type': 'application/json', apikey: EVOLUTION_KEY },
             body: JSON.stringify({ number: phone }),
           }).catch(() => null);
-          debugLog.attemptC = { url: urlC.replace(EVOLUTION_URL, '<base>'), status: resC?.status ?? 'fetch_failed' };
+          debugLog.attemptC = {
+            url: urlC.replace(EVOLUTION_URL, '<base>'),
+            status: resC?.status ?? 'fetch_failed',
+          };
           if (resC?.ok) {
             const cJson = await resC.json().catch(() => null);
             debugLog.attemptC_body = cJson;
@@ -190,9 +204,10 @@ export async function GET(req: NextRequest) {
 
       const pairingCode = extractPairingCode(connectJson);
       if (pairingCode) {
-        const formatted = pairingCode.length === 8 && !pairingCode.includes('-')
-          ? `${pairingCode.slice(0, 4)}-${pairingCode.slice(4)}`
-          : pairingCode;
+        const formatted =
+          pairingCode.length === 8 && !pairingCode.includes('-')
+            ? `${pairingCode.slice(0, 4)}-${pairingCode.slice(4)}`
+            : pairingCode;
         return NextResponse.json({ pairingCode: formatted, phone, connected: false });
       }
 
@@ -211,21 +226,24 @@ export async function GET(req: NextRequest) {
           qr: qrData,
           connected: false,
           pairingNotSupported: true,
-          notice: 'Cette version d\'Evolution API ne supporte pas le pairing par numéro. Scanne le QR avec ton téléphone.',
+          notice:
+            "Cette version d'Evolution API ne supporte pas le pairing par numéro. Scanne le QR avec ton téléphone.",
         });
       }
 
-      return NextResponse.json({
-        error: 'Impossible de joindre Evolution API. Vérifie la configuration côté serveur.',
-        debug: debugLog,
-      }, { status: 502 });
+      return NextResponse.json(
+        {
+          error: 'Impossible de joindre Evolution API. Vérifie la configuration côté serveur.',
+          debug: debugLog,
+        },
+        { status: 502 }
+      );
     }
 
     // ── Mode QR classique (pas de numéro fourni) ──────────────────────────
-    const connectRes = await fetch(
-      `${EVOLUTION_URL}/instance/connect/${instance.instance_name}`,
-      { headers }
-    ).catch(() => null);
+    const connectRes = await fetch(`${EVOLUTION_URL}/instance/connect/${instance.instance_name}`, {
+      headers,
+    }).catch(() => null);
     debugLog.connectStatus = connectRes?.status ?? 'fetch_failed';
     connectJson = connectRes?.ok ? await connectRes.json() : null;
     debugLog.connectJson = connectJson;
@@ -274,10 +292,13 @@ export async function GET(req: NextRequest) {
       // Toujours renvoyer le debug en cas d'échec — c'est précisément quand on en a
       // besoin pour comprendre pourquoi Evolution ne livre pas de QR (instance en
       // état « connecting », session corrompue, etc.).
-      return NextResponse.json({
-        error: 'QR non disponible. Essaie de réinitialiser cette connexion.',
-        debug: debugLog,
-      }, { status: 502 });
+      return NextResponse.json(
+        {
+          error: 'QR non disponible. Essaie de réinitialiser cette connexion.',
+          debug: debugLog,
+        },
+        { status: 502 }
+      );
     }
 
     // Normalise QR: can be a data URL, a http URL, or raw base64
@@ -290,7 +311,6 @@ export async function GET(req: NextRequest) {
       qrData = `data:image/png;base64,${qr}`; // raw base64 — add prefix
     }
     return NextResponse.json({ qr: qrData, connected: false });
-
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Erreur inconnue';
     return NextResponse.json({ error: message, debug: debugLog }, { status: 502 });

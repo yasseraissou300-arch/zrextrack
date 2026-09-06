@@ -40,10 +40,16 @@ Rabi ywaffeq 🌟`,
 
 // Nettoie le template : enlève les références internes laissées par erreur
 function buildMessage(resolution: Resolution, name: string): string {
-  return MESSAGES[resolution](name).replace(/\n— fre[^\n]*$/g, '').trim();
+  return MESSAGES[resolution](name)
+    .replace(/\n— fre[^\n]*$/g, '')
+    .trim();
 }
 
-async function sendWhatsAppViaSAV(userId: string, phoneRaw: string, message: string): Promise<{ ok: boolean; reason?: string }> {
+async function sendWhatsAppViaSAV(
+  userId: string,
+  phoneRaw: string,
+  message: string
+): Promise<{ ok: boolean; reason?: string }> {
   // BYOK : serveur Evolution de l'utilisateur (ou fallback plateforme)
   const { url: EVOLUTION_URL, key: EVOLUTION_KEY } = await resolveEvolutionCreds(userId);
   if (!EVOLUTION_URL || !EVOLUTION_KEY) {
@@ -60,7 +66,10 @@ async function sendWhatsAppViaSAV(userId: string, phoneRaw: string, message: str
   if (!instance) return { ok: false, reason: 'Aucune instance SAV configurée' };
   if (!instance.connected) return { ok: false, reason: 'Instance SAV non connectée à WhatsApp' };
 
-  const cleanNumber = phoneRaw.replace('@s.whatsapp.net', '').replace('@g.us', '').replace(/[\s\-()+.]/g, '');
+  const cleanNumber = phoneRaw
+    .replace('@s.whatsapp.net', '')
+    .replace('@g.us', '')
+    .replace(/[\s\-()+.]/g, '');
   try {
     const res = await fetch(`${EVOLUTION_URL}/message/sendText/${instance.instance_name}`, {
       method: 'POST',
@@ -79,13 +88,21 @@ async function sendWhatsAppViaSAV(userId: string, phoneRaw: string, message: str
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { sessionId, resolution } = (await req.json()) as { sessionId?: string; resolution?: Resolution };
+  const { sessionId, resolution } = (await req.json()) as {
+    sessionId?: string;
+    resolution?: Resolution;
+  };
   if (!sessionId) return NextResponse.json({ error: 'sessionId manquant' }, { status: 400 });
   if (!resolution || !['exchange', 'refund', 'resolved'].includes(resolution)) {
-    return NextResponse.json({ error: 'resolution invalide (attendu: exchange | refund | resolved)' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'resolution invalide (attendu: exchange | refund | resolved)' },
+      { status: 400 }
+    );
   }
 
   const service = createServiceClient();
@@ -98,12 +115,19 @@ export async function POST(req: NextRequest) {
     .eq('user_id', user.id)
     .single();
 
-  if (fetchErr || !session) return NextResponse.json({ error: 'Réclamation introuvable' }, { status: 404 });
+  if (fetchErr || !session)
+    return NextResponse.json({ error: 'Réclamation introuvable' }, { status: 404 });
   if (session.template_type !== 'sav') {
-    return NextResponse.json({ error: 'Cette action est réservée aux sessions SAV' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'Cette action est réservée aux sessions SAV' },
+      { status: 400 }
+    );
   }
   if (session.resolution) {
-    return NextResponse.json({ error: `Réclamation déjà résolue (${session.resolution})` }, { status: 409 });
+    return NextResponse.json(
+      { error: `Réclamation déjà résolue (${session.resolution})` },
+      { status: 409 }
+    );
   }
 
   // 1) Marque la résolution en DB

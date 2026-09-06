@@ -1,14 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
-import type { MatchProposal, ExecuteResponse, ExecutionResult, SwapRequestPayload } from '@/lib/autoswap/types';
+import type {
+  MatchProposal,
+  ExecuteResponse,
+  ExecutionResult,
+  SwapRequestPayload,
+} from '@/lib/autoswap/types';
 
 // Endpoint découvert via le spec Swagger interne ZRExpress :
 //   https://api.zrexpress.app/swagger/internal-v1/swagger.json
 //   → POST /api/v1.0/parcel-modification-requests/swap
 //   → operationId : CreateSwapParcelModificationRequestEndpoint
 //   → permissions requises : SupplierAdminRole | SupplierParcelsManagerRole
-const SWAP_URL = process.env.ZREXPRESS_SWAP_ENDPOINT
-  || 'https://api.zrexpress.app/api/v1.0/parcel-modification-requests/swap';
+const SWAP_URL =
+  process.env.ZREXPRESS_SWAP_ENDPOINT ||
+  'https://api.zrexpress.app/api/v1.0/parcel-modification-requests/swap';
 
 // Construit le payload conforme au schéma CreateSwapParcelModificationRequestRequest.
 // Le swap prend le colis SOURCE (déjà en mouvement chez le livreur) et le redirige
@@ -30,7 +36,7 @@ function buildSwapPayload(swap: MatchProposal): SwapRequestPayload {
 async function callZRExpressSwap(
   token: string,
   tenantId: string,
-  swap: MatchProposal,
+  swap: MatchProposal
 ): Promise<{ ok: boolean; status: number; body: unknown }> {
   const res = await fetch(SWAP_URL, {
     method: 'POST',
@@ -60,7 +66,9 @@ export async function POST(request: NextRequest) {
     }
 
     const supabaseAuth = await createClient();
-    const { data: { user } } = await supabaseAuth.auth.getUser();
+    const {
+      data: { user },
+    } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     const userId = user.id;
     const supabase = createServiceClient();
@@ -85,8 +93,16 @@ export async function POST(request: NextRequest) {
           };
 
           const now = new Date().toISOString();
-          await supabase.from('orders').update({ delivery_status: 'swap_redirected', last_update: now }).eq('tracking_number', swap.swappable.tracking).eq('user_id', userId);
-          await supabase.from('orders').update({ delivery_status: 'swap_shipped',    last_update: now }).eq('tracking_number', swap.target.tracking).eq('user_id', userId);
+          await supabase
+            .from('orders')
+            .update({ delivery_status: 'swap_redirected', last_update: now })
+            .eq('tracking_number', swap.swappable.tracking)
+            .eq('user_id', userId);
+          await supabase
+            .from('orders')
+            .update({ delivery_status: 'swap_shipped', last_update: now })
+            .eq('tracking_number', swap.target.tracking)
+            .eq('user_id', userId);
         } else {
           failed += 1;
           result = {
@@ -107,17 +123,20 @@ export async function POST(request: NextRequest) {
         };
       }
 
-      await supabase.from('autoswap_log').insert({
-        source_tracking: swap.swappable.tracking,
-        target_tracking: swap.target.tracking,
-        confidence: swap.confidence,
-        same_city: swap.same_city,
-        estimated_savings: swap.estimated_savings,
-        zr_response: result.zr_response ?? null,
-        status: result.status,
-        error_message: result.error ?? null,
-        user_id: userId,
-      }).select();
+      await supabase
+        .from('autoswap_log')
+        .insert({
+          source_tracking: swap.swappable.tracking,
+          target_tracking: swap.target.tracking,
+          confidence: swap.confidence,
+          same_city: swap.same_city,
+          estimated_savings: swap.estimated_savings,
+          zr_response: result.zr_response ?? null,
+          status: result.status,
+          error_message: result.error ?? null,
+          user_id: userId,
+        })
+        .select();
 
       results.push(result);
     }

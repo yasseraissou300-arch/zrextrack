@@ -10,7 +10,8 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: 'Autotim — Suivi Commandes ZREXpress',
-  description: 'Plateforme de suivi des commandes ZREXpress avec automatisation WhatsApp pour les e-commerçants algériens.',
+  description:
+    'Plateforme de suivi des commandes ZREXpress avec automatisation WhatsApp pour les e-commerçants algériens.',
   icons: {
     icon: [{ url: '/favicon.ico', type: 'image/x-icon' }],
   },
@@ -28,9 +29,7 @@ const themeInitScript = `
 })();
 `;
 
-export default function RootLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="fr" suppressHydrationWarning>
       <head>

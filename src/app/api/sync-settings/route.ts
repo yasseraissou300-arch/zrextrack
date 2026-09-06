@@ -7,7 +7,9 @@ import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 export async function GET() {
   const supabaseAuth = await createClient();
-  const { data: { user } } = await supabaseAuth.auth.getUser();
+  const {
+    data: { user },
+  } = await supabaseAuth.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
 
   const supabase = createServiceClient();
@@ -31,7 +33,9 @@ export async function GET() {
 
 export async function PUT(request: NextRequest) {
   const supabaseAuth = await createClient();
-  const { data: { user } } = await supabaseAuth.auth.getUser();
+  const {
+    data: { user },
+  } = await supabaseAuth.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
 
   let body: {
@@ -57,10 +61,17 @@ export async function PUT(request: NextRequest) {
 
   const row = {
     user_id: user.id,
-    zrexpress_token: body.zrexpress_token !== undefined ? (body.zrexpress_token || null) : (existing?.zrexpress_token ?? null),
-    zrexpress_tenant_id: body.zrexpress_tenant_id !== undefined ? (body.zrexpress_tenant_id || null) : (existing?.zrexpress_tenant_id ?? null),
+    zrexpress_token:
+      body.zrexpress_token !== undefined
+        ? body.zrexpress_token || null
+        : (existing?.zrexpress_token ?? null),
+    zrexpress_tenant_id:
+      body.zrexpress_tenant_id !== undefined
+        ? body.zrexpress_tenant_id || null
+        : (existing?.zrexpress_tenant_id ?? null),
     templates: body.templates !== undefined ? body.templates : (existing?.templates ?? {}),
-    notify_enabled: body.notify_enabled !== undefined ? body.notify_enabled : (existing?.notify_enabled ?? {}),
+    notify_enabled:
+      body.notify_enabled !== undefined ? body.notify_enabled : (existing?.notify_enabled ?? {}),
     updated_at: new Date().toISOString(),
   };
 

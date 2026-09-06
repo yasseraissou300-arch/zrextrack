@@ -14,13 +14,15 @@ async function getGoogleAccessToken(): Promise<string | null> {
   try {
     const now = Math.floor(Date.now() / 1000);
     const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
-    const payload = Buffer.from(JSON.stringify({
-      iss: email,
-      scope: 'https://www.googleapis.com/auth/spreadsheets',
-      aud: 'https://oauth2.googleapis.com/token',
-      iat: now,
-      exp: now + 3600,
-    })).toString('base64url');
+    const payload = Buffer.from(
+      JSON.stringify({
+        iss: email,
+        scope: 'https://www.googleapis.com/auth/spreadsheets',
+        aud: 'https://oauth2.googleapis.com/token',
+        iat: now,
+        exp: now + 3600,
+      })
+    ).toString('base64url');
 
     const { createSign } = await import('crypto');
     const signer = createSign('RSA-SHA256');
@@ -42,7 +44,9 @@ async function getGoogleAccessToken(): Promise<string | null> {
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { sheet_url } = await req.json();
@@ -51,17 +55,25 @@ export async function POST(req: NextRequest) {
 
   const token = await getGoogleAccessToken();
   if (!token) {
-    return NextResponse.json({ error: 'Service account non configuré — ajoutez GOOGLE_SERVICE_ACCOUNT_EMAIL et GOOGLE_PRIVATE_KEY' }, { status: 503 });
+    return NextResponse.json(
+      {
+        error:
+          'Service account non configuré — ajoutez GOOGLE_SERVICE_ACCOUNT_EMAIL et GOOGLE_PRIVATE_KEY',
+      },
+      { status: 503 }
+    );
   }
 
   // Try to read the sheet to verify access
-  const res = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A1:A1`,
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
+  const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A1:A1`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
 
   if (res.status === 403 || res.status === 404) {
-    return NextResponse.json({ ok: false, error: 'Accès refusé — partagez le sheet avec notre adresse email' });
+    return NextResponse.json({
+      ok: false,
+      error: 'Accès refusé — partagez le sheet avec notre adresse email',
+    });
   }
   if (!res.ok) {
     return NextResponse.json({ ok: false, error: 'Impossible de lire le Sheet' });

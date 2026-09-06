@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
-import { ANTI_SPAM, randomThrottle, sleep, varyMessage, remainingDailyQuota, effectiveDailyLimit } from '@/lib/whatsapp/anti-spam';
+import {
+  ANTI_SPAM,
+  randomThrottle,
+  sleep,
+  varyMessage,
+  remainingDailyQuota,
+  effectiveDailyLimit,
+} from '@/lib/whatsapp/anti-spam';
 
 // Envoi de campagne — utilise le MÊME numéro WhatsApp connecté (Evolution,
 // instance « auto_confirmation ») et les MÊMES protections anti-suspension que
@@ -20,7 +27,10 @@ export const maxDuration = 300;
 
 const DEFAULT_SERVICE = 'auto_confirmation';
 
-interface EvCreds { url: string; key: string }
+interface EvCreds {
+  url: string;
+  key: string;
+}
 
 function normalizePhone(phone: string): string {
   const clean = (phone || '').replace(/[\s\-()+.]/g, '');
@@ -36,7 +46,11 @@ function interpolate(template: string, vars: Record<string, string>): string {
 }
 
 function guessFileName(url: string): string {
-  try { return new URL(url).pathname.split('/').pop() || 'file'; } catch { return 'file'; }
+  try {
+    return new URL(url).pathname.split('/').pop() || 'file';
+  } catch {
+    return 'file';
+  }
 }
 
 function mediaTypeFromUrl(url: string): 'image' | 'video' | 'document' {
@@ -46,11 +60,20 @@ function mediaTypeFromUrl(url: string): 'image' | 'video' | 'document' {
   return 'document';
 }
 
-interface Instance { instance_name: string; connected: boolean }
+interface Instance {
+  instance_name: string;
+  connected: boolean;
+}
 
-async function getReadyInstance(userId: string, ev: EvCreds): Promise<{ instance: Instance | null; reason?: string }> {
+async function getReadyInstance(
+  userId: string,
+  ev: EvCreds
+): Promise<{ instance: Instance | null; reason?: string }> {
   if (!ev.url || !ev.key) {
-    return { instance: null, reason: 'Evolution API non configurée (EVOLUTION_API_URL/KEY manquants)' };
+    return {
+      instance: null,
+      reason: 'Evolution API non configurée (EVOLUTION_API_URL/KEY manquants)',
+    };
   }
   const service = createServiceClient();
   const { data: row } = await service
@@ -60,14 +83,24 @@ async function getReadyInstance(userId: string, ev: EvCreds): Promise<{ instance
     .eq('service_type', DEFAULT_SERVICE)
     .single();
 
-  if (!row) return { instance: null, reason: 'Aucune instance WhatsApp — connecte-toi d\'abord dans Messages → Connexion' };
+  if (!row)
+    return {
+      instance: null,
+      reason: "Aucune instance WhatsApp — connecte-toi d'abord dans Messages → Connexion",
+    };
 
   try {
-    const r = await fetch(`${ev.url}/instance/connectionState/${row.instance_name}`, { headers: { apikey: ev.key } });
+    const r = await fetch(`${ev.url}/instance/connectionState/${row.instance_name}`, {
+      headers: { apikey: ev.key },
+    });
     if (r.ok) {
       const j = await r.json();
       const isOpen = (j.instance?.state || j.state) === 'open';
-      if (!isOpen) return { instance: null, reason: `WhatsApp non connecté (état : ${j.instance?.state || j.state || 'inconnu'})` };
+      if (!isOpen)
+        return {
+          instance: null,
+          reason: `WhatsApp non connecté (état : ${j.instance?.state || j.state || 'inconnu'})`,
+        };
     }
   } catch (e: any) {
     return { instance: null, reason: `Evolution injoignable : ${e?.message || 'erreur réseau'}` };
@@ -76,7 +109,11 @@ async function getReadyInstance(userId: string, ev: EvCreds): Promise<{ instance
 }
 
 function isSessionDead(errText: string): boolean {
-  return /Connection Closed/i.test(errText) || /Connection Failure/i.test(errText) || /precondition/i.test(errText);
+  return (
+    /Connection Closed/i.test(errText) ||
+    /Connection Failure/i.test(errText) ||
+    /precondition/i.test(errText)
+  );
 }
 
 async function sendText(ev: EvCreds, instanceName: string, phone: string, text: string) {
@@ -88,7 +125,11 @@ async function sendText(ev: EvCreds, instanceName: string, phone: string, text: 
     });
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
-      return { ok: false, error: `Evolution HTTP ${res.status}: ${errText.slice(0, 160)}`, sessionDead: isSessionDead(errText) };
+      return {
+        ok: false,
+        error: `Evolution HTTP ${res.status}: ${errText.slice(0, 160)}`,
+        sessionDead: isSessionDead(errText),
+      };
     }
     return { ok: true };
   } catch (e: any) {
@@ -96,16 +137,33 @@ async function sendText(ev: EvCreds, instanceName: string, phone: string, text: 
   }
 }
 
-async function sendMedia(ev: EvCreds, instanceName: string, phone: string, mediaUrl: string, fileName: string, caption: string) {
+async function sendMedia(
+  ev: EvCreds,
+  instanceName: string,
+  phone: string,
+  mediaUrl: string,
+  fileName: string,
+  caption: string
+) {
   try {
     const res = await fetch(`${ev.url}/message/sendMedia/${instanceName}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: ev.key },
-      body: JSON.stringify({ number: phone, mediatype: mediaTypeFromUrl(mediaUrl), media: mediaUrl, fileName, caption }),
+      body: JSON.stringify({
+        number: phone,
+        mediatype: mediaTypeFromUrl(mediaUrl),
+        media: mediaUrl,
+        fileName,
+        caption,
+      }),
     });
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
-      return { ok: false, error: `Evolution HTTP ${res.status}: ${errText.slice(0, 160)}`, sessionDead: isSessionDead(errText) };
+      return {
+        ok: false,
+        error: `Evolution HTTP ${res.status}: ${errText.slice(0, 160)}`,
+        sessionDead: isSessionDead(errText),
+      };
     }
     return { ok: true };
   } catch (e: any) {
@@ -116,7 +174,9 @@ async function sendMedia(ev: EvCreds, instanceName: string, phone: string, media
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabaseAuth = await createClient();
-  const { data: { user } } = await supabaseAuth.auth.getUser();
+  const {
+    data: { user },
+  } = await supabaseAuth.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
 
   const supabase = createServiceClient();
@@ -128,22 +188,33 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     .eq('user_id', user.id)
     .single();
 
-  if (cErr || !campaign) return NextResponse.json({ error: 'Campagne introuvable' }, { status: 404 });
-  if (campaign.status === 'en_cours') return NextResponse.json({ error: 'Campagne déjà en cours' }, { status: 400 });
+  if (cErr || !campaign)
+    return NextResponse.json({ error: 'Campagne introuvable' }, { status: 404 });
+  if (campaign.status === 'en_cours')
+    return NextResponse.json({ error: 'Campagne déjà en cours' }, { status: 400 });
 
   // ── Numéro = celui connecté dans Messages → Connexion (Evolution) ─────────
   const ev = await resolveEvolutionCreds(user.id);
   const { instance, reason } = await getReadyInstance(user.id, ev);
   if (!instance) {
-    return NextResponse.json({
-      error: reason || 'WhatsApp non prêt',
-      code: 'NOT_CONNECTED',
-      hint: 'Connecte ton WhatsApp dans Messages → Connexion avant de lancer la campagne.',
-    }, { status: 503 });
+    return NextResponse.json(
+      {
+        error: reason || 'WhatsApp non prêt',
+        code: 'NOT_CONNECTED',
+        hint: 'Connecte ton WhatsApp dans Messages → Connexion avant de lancer la campagne.',
+      },
+      { status: 503 }
+    );
   }
 
   // ── Construire l'audience (liste custom OU filtre par statut) ─────────────
-  let validOrders: Array<{ tracking_number: string; customer_name: string; customer_whatsapp: string; wilaya: string; cod: number | null }>;
+  let validOrders: Array<{
+    tracking_number: string;
+    customer_name: string;
+    customer_whatsapp: string;
+    wilaya: string;
+    cod: number | null;
+  }>;
   const customList = (campaign.audience_phones as string[] | null) || null;
 
   if (customList && customList.length > 0) {
@@ -153,12 +224,26 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .eq('user_id', user.id)
       .in('customer_whatsapp', customList)
       .order('updated_at', { ascending: false });
-    type KnownOrder = { tracking_number: string; customer_name: string; customer_whatsapp: string; wilaya: string; cod: number | null; updated_at: string };
+    type KnownOrder = {
+      tracking_number: string;
+      customer_name: string;
+      customer_whatsapp: string;
+      wilaya: string;
+      cod: number | null;
+      updated_at: string;
+    };
     const byPhone = new Map<string, KnownOrder>();
-    for (const o of ((knownOrders || []) as KnownOrder[])) if (!byPhone.has(o.customer_whatsapp)) byPhone.set(o.customer_whatsapp, o);
-    validOrders = customList.map(phone => {
+    for (const o of (knownOrders || []) as KnownOrder[])
+      if (!byPhone.has(o.customer_whatsapp)) byPhone.set(o.customer_whatsapp, o);
+    validOrders = customList.map((phone) => {
       const k = byPhone.get(phone);
-      return { tracking_number: k?.tracking_number || '', customer_name: k?.customer_name || '', customer_whatsapp: phone, wilaya: k?.wilaya || '', cod: k?.cod ?? null };
+      return {
+        tracking_number: k?.tracking_number || '',
+        customer_name: k?.customer_name || '',
+        customer_whatsapp: phone,
+        wilaya: k?.wilaya || '',
+        cod: k?.cod ?? null,
+      };
     });
   } else {
     let q = supabase
@@ -169,7 +254,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .neq('customer_whatsapp', '');
     if (campaign.audience_status) q = q.eq('delivery_status', campaign.audience_status);
     const { data: orders } = await q;
-    validOrders = (orders || []).filter(o => o.customer_whatsapp && o.customer_whatsapp.length > 5);
+    validOrders = (orders || []).filter(
+      (o) => o.customer_whatsapp && o.customer_whatsapp.length > 5
+    );
   }
 
   // ── ANTI-SPAM : plafond journalier PARTAGÉ (table messages, 24h glissant) ──
@@ -183,37 +270,44 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .eq('user_id', user.id)
       .eq('status', 'envoye')
       .gte('sent_at', since),
-    supabase
-      .from('profiles')
-      .select('whatsapp_warmup_started_at')
-      .eq('id', user.id)
-      .single(),
+    supabase.from('profiles').select('whatsapp_warmup_started_at').eq('id', user.id).single(),
   ]);
   const warmupStartedAt = prof?.whatsapp_warmup_started_at ?? null;
   const dailyLimit = effectiveDailyLimit(warmupStartedAt);
   const remaining = remainingDailyQuota(sentToday ?? 0, warmupStartedAt);
   if (remaining <= 0) {
-    return NextResponse.json({
-      error: `Plafond journalier atteint (${dailyLimit} messages/24h) — protège ton numéro d'une suspension.`,
-      code: 'DAILY_LIMIT_REACHED',
-      hint: warmupStartedAt
-        ? 'Warm-up en cours : le plafond monte au fil des jours. Attends la fenêtre de 24h ou la prochaine palier.'
-        : 'Attends que la fenêtre de 24h se libère, puis relance la campagne pour envoyer le reste.',
-      sentToday: sentToday ?? 0,
-      dailyLimit,
-    }, { status: 429 });
+    return NextResponse.json(
+      {
+        error: `Plafond journalier atteint (${dailyLimit} messages/24h) — protège ton numéro d'une suspension.`,
+        code: 'DAILY_LIMIT_REACHED',
+        hint: warmupStartedAt
+          ? 'Warm-up en cours : le plafond monte au fil des jours. Attends la fenêtre de 24h ou la prochaine palier.'
+          : 'Attends que la fenêtre de 24h se libère, puis relance la campagne pour envoyer le reste.',
+        sentToday: sentToday ?? 0,
+        dailyLimit,
+      },
+      { status: 429 }
+    );
   }
   const willSend = Math.min(validOrders.length, remaining);
 
-  await supabase.from('campaigns')
-    .update({ status: 'en_cours', total_count: validOrders.length, updated_at: new Date().toISOString() })
+  await supabase
+    .from('campaigns')
+    .update({
+      status: 'en_cours',
+      total_count: validOrders.length,
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', id);
 
   const mediaUrl: string = campaign.media_url || '';
   const fileName = mediaUrl ? guessFileName(mediaUrl) : '';
 
-  let sent = 0, failed = 0;
-  let consecutiveErrors = 0, circuitBroken = false, sessionDead = false;
+  let sent = 0,
+    failed = 0;
+  let consecutiveErrors = 0,
+    circuitBroken = false,
+    sessionDead = false;
 
   for (let i = 0; i < validOrders.length; i++) {
     const order = validOrders[i];
@@ -251,15 +345,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         consecutiveErrors++;
         if (res.sessionDead) {
           sessionDead = true;
-          await supabase.from('whatsapp_instances')
+          await supabase
+            .from('whatsapp_instances')
             .update({ connected: false, updated_at: new Date().toISOString() })
-            .eq('user_id', user.id).eq('service_type', DEFAULT_SERVICE);
+            .eq('user_id', user.id)
+            .eq('service_type', DEFAULT_SERVICE);
         }
         if (consecutiveErrors >= ANTI_SPAM.MAX_CONSECUTIVE_ERRORS) circuitBroken = true;
       }
     }
 
-    if (status === 'envoye') sent++; else failed++;
+    if (status === 'envoye') sent++;
+    else failed++;
 
     await supabase.from('campaign_recipients').insert({
       campaign_id: id,
@@ -285,8 +382,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
   }
 
-  await supabase.from('campaigns')
-    .update({ status: 'termine', sent_count: sent, failed_count: failed, updated_at: new Date().toISOString() })
+  await supabase
+    .from('campaigns')
+    .update({
+      status: 'termine',
+      sent_count: sent,
+      failed_count: failed,
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', id);
 
   return NextResponse.json({
@@ -295,7 +398,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     total: validOrders.length,
     sentToday: (sentToday ?? 0) + sent,
     dailyLimit,
-    ...(circuitBroken && { circuitBroken: true, hint: 'Campagne stoppée après plusieurs échecs consécutifs (protection numéro).' }),
-    ...(sessionDead && { sessionDead: true, hint: 'Session WhatsApp expirée — reconnecte dans Messages → Connexion.' }),
+    ...(circuitBroken && {
+      circuitBroken: true,
+      hint: 'Campagne stoppée après plusieurs échecs consécutifs (protection numéro).',
+    }),
+    ...(sessionDead && {
+      sessionDead: true,
+      hint: 'Session WhatsApp expirée — reconnecte dans Messages → Connexion.',
+    }),
   });
 }

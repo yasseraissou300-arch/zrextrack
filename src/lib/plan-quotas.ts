@@ -7,20 +7,20 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 export type PlanId = 'basic' | 'pro' | 'business';
 
 export const PLAN_QUOTAS: Record<PlanId, number | null> = {
-  basic:    200,
-  pro:      2000,
+  basic: 200,
+  pro: 2000,
   business: null,
 };
 
 export const PLAN_LABEL: Record<PlanId, string> = {
-  basic:    'Basic',
-  pro:      'Pro',
+  basic: 'Basic',
+  pro: 'Pro',
   business: 'Business',
 };
 
 export const PLAN_PRICE_DA: Record<PlanId, number> = {
-  basic:    0,
-  pro:      1900,
+  basic: 0,
+  pro: 1900,
   business: 4900,
 };
 
@@ -36,17 +36,17 @@ export interface QuotaState {
   planLabel: string;
   quota: number | null;
   used: number;
-  remaining: number | null;   // null si illimité
-  percent: number;             // 0..100, 0 si illimité
-  isOver: boolean;             // vrai quand used >= quota
-  isNear: boolean;             // ≥ 80% (à afficher en avertissement)
+  remaining: number | null; // null si illimité
+  percent: number; // 0..100, 0 si illimité
+  isOver: boolean; // vrai quand used >= quota
+  isNear: boolean; // ≥ 80% (à afficher en avertissement)
   isUnlimited: boolean;
 }
 
 // Compte les commandes créées ce mois-ci pour l'user donné.
 export async function countOrdersThisMonth(
   supabase: SupabaseClient,
-  userId: string,
+  userId: string
 ): Promise<number> {
   const { count } = await supabase
     .from('orders')
@@ -57,7 +57,11 @@ export async function countOrdersThisMonth(
 }
 
 // Construit l'état complet du quota. Ignore le plan si role = 'admin' (illimité).
-export function quotaStateFor(planId: string | null, role: string | null, used: number): QuotaState {
+export function quotaStateFor(
+  planId: string | null,
+  role: string | null,
+  used: number
+): QuotaState {
   const plan: PlanId = (planId as PlanId) in PLAN_QUOTAS ? (planId as PlanId) : 'basic';
   const isAdmin = role === 'admin';
   const quota = isAdmin ? null : PLAN_QUOTAS[plan];

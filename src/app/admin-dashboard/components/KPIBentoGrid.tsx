@@ -1,7 +1,15 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { Package, CheckCircle2, Truck, MessageSquare, XCircle, Boxes, Sparkles } from 'lucide-react';
+import {
+  Package,
+  CheckCircle2,
+  Truck,
+  MessageSquare,
+  XCircle,
+  Boxes,
+  Sparkles,
+} from 'lucide-react';
 import { SYNC_DONE_EVENT } from './DashboardHeader';
 
 interface KPIData {
@@ -63,7 +71,9 @@ export default function KPIBentoGrid() {
       if (!document.hidden) fetchKPIs();
     }, POLL_INTERVAL);
     // Quand l'utilisateur revient sur l'onglet, on rafraîchit immédiatement.
-    const onVisible = () => { if (!document.hidden) fetchKPIs(); };
+    const onVisible = () => {
+      if (!document.hidden) fetchKPIs();
+    };
     document.addEventListener('visibilitychange', onVisible);
     return () => {
       clearInterval(interval);
@@ -81,7 +91,8 @@ export default function KPIBentoGrid() {
 
   // Taux de livraison DU JOUR (livrées / commandes finalisées aujourd'hui)
   const todayFinalized = today.livrees + today.echecs + today.retours;
-  const todayRate = todayFinalized > 0 ? Math.round((today.livrees / todayFinalized) * 1000) / 10 : 0;
+  const todayRate =
+    todayFinalized > 0 ? Math.round((today.livrees / todayFinalized) * 1000) / 10 : 0;
 
   const secondaryCards: Array<{
     label: string;
@@ -90,13 +101,55 @@ export default function KPIBentoGrid() {
     iconColor: string;
     iconBg: string;
   }> = [
-    { label: 'Total commandes',       value: val(kpis?.totalOrders),     icon: Package,        iconColor: 'text-violet-600 dark:text-violet-300',  iconBg: 'bg-violet-100 dark:bg-violet-500/15' },
-    { label: 'Livrées (total)',        value: val(kpis?.delivered),       icon: CheckCircle2,   iconColor: 'text-emerald-600 dark:text-emerald-300', iconBg: 'bg-emerald-100 dark:bg-emerald-500/15' },
-    { label: 'Échecs aujourd\'hui',    value: val(today.echecs),          icon: XCircle,        iconColor: 'text-rose-600 dark:text-rose-300',       iconBg: 'bg-rose-100 dark:bg-rose-500/15' },
-    { label: 'En préparation',         value: val(kpis?.enPreparation),   icon: Boxes,          iconColor: 'text-amber-600 dark:text-amber-300',     iconBg: 'bg-amber-100 dark:bg-amber-500/15' },
-    { label: 'En transit / livraison', value: val(kpis?.inTransit),       icon: Truck,          iconColor: 'text-blue-600 dark:text-blue-300',       iconBg: 'bg-blue-100 dark:bg-blue-500/15' },
-    { label: 'Échecs (total)',         value: val(kpis?.failed),          icon: XCircle,        iconColor: 'text-rose-600 dark:text-rose-300',       iconBg: 'bg-rose-100 dark:bg-rose-500/15' },
-    { label: 'Messages WhatsApp',      value: val(kpis?.messagesSent),    icon: MessageSquare,  iconColor: 'text-fuchsia-600 dark:text-fuchsia-300', iconBg: 'bg-fuchsia-100 dark:bg-fuchsia-500/15' },
+    {
+      label: 'Total commandes',
+      value: val(kpis?.totalOrders),
+      icon: Package,
+      iconColor: 'text-violet-600 dark:text-violet-300',
+      iconBg: 'bg-violet-100 dark:bg-violet-500/15',
+    },
+    {
+      label: 'Livrées (total)',
+      value: val(kpis?.delivered),
+      icon: CheckCircle2,
+      iconColor: 'text-emerald-600 dark:text-emerald-300',
+      iconBg: 'bg-emerald-100 dark:bg-emerald-500/15',
+    },
+    {
+      label: "Échecs aujourd'hui",
+      value: val(today.echecs),
+      icon: XCircle,
+      iconColor: 'text-rose-600 dark:text-rose-300',
+      iconBg: 'bg-rose-100 dark:bg-rose-500/15',
+    },
+    {
+      label: 'En préparation',
+      value: val(kpis?.enPreparation),
+      icon: Boxes,
+      iconColor: 'text-amber-600 dark:text-amber-300',
+      iconBg: 'bg-amber-100 dark:bg-amber-500/15',
+    },
+    {
+      label: 'En transit / livraison',
+      value: val(kpis?.inTransit),
+      icon: Truck,
+      iconColor: 'text-blue-600 dark:text-blue-300',
+      iconBg: 'bg-blue-100 dark:bg-blue-500/15',
+    },
+    {
+      label: 'Échecs (total)',
+      value: val(kpis?.failed),
+      icon: XCircle,
+      iconColor: 'text-rose-600 dark:text-rose-300',
+      iconBg: 'bg-rose-100 dark:bg-rose-500/15',
+    },
+    {
+      label: 'Messages WhatsApp',
+      value: val(kpis?.messagesSent),
+      icon: MessageSquare,
+      iconColor: 'text-fuchsia-600 dark:text-fuchsia-300',
+      iconBg: 'bg-fuchsia-100 dark:bg-fuchsia-500/15',
+    },
   ];
 
   return (
@@ -122,7 +175,11 @@ export default function KPIBentoGrid() {
           <div className="mt-auto">
             <div className="flex items-end gap-2">
               <p className="text-4xl xl:text-5xl font-bold tabular-nums tracking-tight">
-                {loading ? <span className="text-white/30 animate-pulse">—</span> : val(today.livrees)}
+                {loading ? (
+                  <span className="text-white/30 animate-pulse">—</span>
+                ) : (
+                  val(today.livrees)
+                )}
               </p>
               <p className="text-sm font-medium text-white/70 mb-1.5">livrées</p>
             </div>
@@ -150,14 +207,20 @@ export default function KPIBentoGrid() {
           className="group bg-white dark:bg-stone-900 rounded-xl border border-stone-100 dark:border-stone-800 p-3.5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 animate-slide-up"
           style={{ animationDelay: `${50 + idx * 40}ms`, animationFillMode: 'backwards' }}
         >
-          <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2.5 ${card.iconBg} group-hover:scale-105 transition-transform`}>
+          <div
+            className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2.5 ${card.iconBg} group-hover:scale-105 transition-transform`}
+          >
             <card.icon size={15} className={card.iconColor} />
           </div>
           <p className="text-[11px] font-medium text-stone-500 dark:text-stone-400 mb-0.5 leading-tight">
             {card.label}
           </p>
           <p className="text-xl font-bold text-stone-900 dark:text-stone-100 tabular-nums tracking-tight">
-            {loading ? <span className="text-stone-200 dark:text-stone-700 animate-pulse">—</span> : card.value}
+            {loading ? (
+              <span className="text-stone-200 dark:text-stone-700 animate-pulse">—</span>
+            ) : (
+              card.value
+            )}
           </p>
         </div>
       ))}

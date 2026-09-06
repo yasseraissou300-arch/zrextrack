@@ -26,7 +26,7 @@ function safeEqual(a: string, b: string): boolean {
 export function computeTwilioSignature(
   authToken: string,
   url: string,
-  params: Record<string, string>,
+  params: Record<string, string>
 ): string {
   let data = url;
   for (const key of Object.keys(params).sort()) {

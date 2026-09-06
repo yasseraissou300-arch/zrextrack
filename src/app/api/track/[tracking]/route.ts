@@ -10,8 +10,8 @@ import { createServiceClient } from '@/lib/supabase/server';
 //   2. Masquage du nom — « Ahmed Belkacem » → « Ahmed B. ». L'acheteur légitime
 //      reconnaît le format, un scraper récupère beaucoup moins d'infos utiles.
 
-const RATE_WINDOW_MS = 60_000;   // 1 minute
-const RATE_MAX_REQ   = 10;        // 10 requêtes / IP / minute
+const RATE_WINDOW_MS = 60_000; // 1 minute
+const RATE_MAX_REQ = 10; // 10 requêtes / IP / minute
 
 const hits = new Map<string, { count: number; windowStart: number }>();
 
@@ -24,7 +24,10 @@ function checkRate(ip: string): { ok: boolean; retryAfter: number } {
   }
   entry.count++;
   if (entry.count > RATE_MAX_REQ) {
-    return { ok: false, retryAfter: Math.ceil((RATE_WINDOW_MS - (now - entry.windowStart)) / 1000) };
+    return {
+      ok: false,
+      retryAfter: Math.ceil((RATE_WINDOW_MS - (now - entry.windowStart)) / 1000),
+    };
   }
   return { ok: true, retryAfter: 0 };
 }
@@ -35,19 +38,25 @@ function maskName(name: string | null): string {
   if (!name) return '';
   const parts = name.trim().split(/\s+/);
   if (parts.length === 1) return parts[0];
-  return parts[0] + ' ' + parts.slice(1).map(p => p.charAt(0).toUpperCase() + '.').join(' ');
+  return (
+    parts[0] +
+    ' ' +
+    parts
+      .slice(1)
+      .map((p) => p.charAt(0).toUpperCase() + '.')
+      .join(' ')
+  );
 }
 
 function getIp(req: NextRequest): string {
-  return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-    || req.headers.get('x-real-ip')
-    || 'unknown';
+  return (
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    req.headers.get('x-real-ip') ||
+    'unknown'
+  );
 }
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ tracking: string }> }
-) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ tracking: string }> }) {
   try {
     const ip = getIp(req);
     const rate = checkRate(ip);
@@ -63,11 +72,14 @@ export async function GET(
     const supabase = createServiceClient();
     const { data, error } = await supabase
       .from('orders')
-      .select('tracking_number, customer_name, wilaya, delivery_status, attempts, last_update, product_name')
+      .select(
+        'tracking_number, customer_name, wilaya, delivery_status, attempts, last_update, product_name'
+      )
       .ilike('tracking_number', tracking.trim())
       .limit(1)
       .single();
-    if (error || !data) return NextResponse.json({ error: 'Commande introuvable' }, { status: 404 });
+    if (error || !data)
+      return NextResponse.json({ error: 'Commande introuvable' }, { status: 404 });
     return NextResponse.json({
       tracking: data.tracking_number,
       client: maskName(data.customer_name),
@@ -78,6 +90,9 @@ export async function GET(
       product: data.product_name,
     });
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Erreur' }, { status: 500 });
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Erreur' },
+      { status: 500 }
+    );
   }
 }

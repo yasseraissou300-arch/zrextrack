@@ -28,12 +28,19 @@ export default function OnboardingChecklist() {
     if (typeof window !== 'undefined' && localStorage.getItem(DISMISS_KEY) === '1') {
       setDismissed(true);
     }
-    fetch('/api/onboarding/state').then(r => r.json()).then(setState).catch(() => setState(null));
+    fetch('/api/onboarding/state')
+      .then((r) => r.json())
+      .then(setState)
+      .catch(() => setState(null));
   }, []);
 
   if (!state || state.completed || dismissed) return null;
 
-  const doneCount = [state.hasZrexpressToken, state.hasWhatsappConnected, state.hasFirstSync].filter(Boolean).length;
+  const doneCount = [
+    state.hasZrexpressToken,
+    state.hasWhatsappConnected,
+    state.hasFirstSync,
+  ].filter(Boolean).length;
   const pct = Math.round((doneCount / 3) * 100);
 
   const steps = [
@@ -84,11 +91,17 @@ export default function OnboardingChecklist() {
         </div>
         <div className="flex-1 min-w-0">
           <h2 className="font-bold text-stone-900 dark:text-stone-100">Bienvenue sur Autotim</h2>
-          <p className="text-xs text-stone-500 dark:text-stone-400">3 étapes pour commencer — moins de 5 minutes.</p>
+          <p className="text-xs text-stone-500 dark:text-stone-400">
+            3 étapes pour commencer — moins de 5 minutes.
+          </p>
         </div>
         <div className="text-right shrink-0">
-          <div className="text-lg font-bold text-violet-600 dark:text-violet-300 tabular-nums">{doneCount}/3</div>
-          <div className="text-[10px] text-stone-500 dark:text-stone-400 uppercase font-semibold tracking-wide">Progrès</div>
+          <div className="text-lg font-bold text-violet-600 dark:text-violet-300 tabular-nums">
+            {doneCount}/3
+          </div>
+          <div className="text-[10px] text-stone-500 dark:text-stone-400 uppercase font-semibold tracking-wide">
+            Progrès
+          </div>
         </div>
       </div>
 
@@ -113,15 +126,19 @@ export default function OnboardingChecklist() {
                   : 'bg-white dark:bg-stone-900 border-stone-100 dark:border-stone-800 hover:border-violet-300 dark:hover:border-violet-500/50'
               }`}
             >
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                step.done
-                  ? 'bg-green-100 dark:bg-green-500/15 text-green-600 dark:text-green-300'
-                  : 'bg-violet-100 dark:bg-violet-500/15 text-violet-600 dark:text-violet-300'
-              }`}>
+              <div
+                className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                  step.done
+                    ? 'bg-green-100 dark:bg-green-500/15 text-green-600 dark:text-green-300'
+                    : 'bg-violet-100 dark:bg-violet-500/15 text-violet-600 dark:text-violet-300'
+                }`}
+              >
                 {step.done ? <CheckCircle2 size={16} /> : <Icon size={16} />}
               </div>
               <div className="flex-1 min-w-0">
-                <p className={`font-semibold text-sm ${step.done ? 'text-stone-400 dark:text-stone-500 line-through' : 'text-stone-900 dark:text-stone-100'}`}>
+                <p
+                  className={`font-semibold text-sm ${step.done ? 'text-stone-400 dark:text-stone-500 line-through' : 'text-stone-900 dark:text-stone-100'}`}
+                >
                   {step.title}
                 </p>
                 <p className="text-xs text-stone-500 dark:text-stone-400">{step.desc}</p>
@@ -129,7 +146,9 @@ export default function OnboardingChecklist() {
               {step.done ? (
                 <Circle size={14} className="text-green-500 fill-green-500" />
               ) : (
-                <span className="text-xs font-semibold text-violet-600 dark:text-violet-300">{step.cta} →</span>
+                <span className="text-xs font-semibold text-violet-600 dark:text-violet-300">
+                  {step.cta} →
+                </span>
               )}
             </Link>
           );

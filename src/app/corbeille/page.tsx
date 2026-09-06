@@ -18,15 +18,19 @@ interface DeletedOrder {
 
 const STATUS_BADGE: Record<string, string> = {
   en_preparation: 'bg-purple-100 text-purple-700',
-  en_transit:     'bg-blue-100 text-blue-700',
-  en_livraison:   'bg-amber-100 text-amber-700',
-  livre:          'bg-green-100 text-green-700',
-  echec:          'bg-red-100 text-red-700',
-  retourne:       'bg-stone-100 text-stone-600 dark:text-stone-300',
+  en_transit: 'bg-blue-100 text-blue-700',
+  en_livraison: 'bg-amber-100 text-amber-700',
+  livre: 'bg-green-100 text-green-700',
+  echec: 'bg-red-100 text-red-700',
+  retourne: 'bg-stone-100 text-stone-600 dark:text-stone-300',
 };
 const STATUS_LABEL: Record<string, string> = {
-  en_preparation: 'En préparation', en_transit: 'En transit', en_livraison: 'En livraison',
-  livre: 'Livré', echec: 'Échec', retourne: 'Retourné',
+  en_preparation: 'En préparation',
+  en_transit: 'En transit',
+  en_livraison: 'En livraison',
+  livre: 'Livré',
+  echec: 'Échec',
+  retourne: 'Retourné',
 };
 
 export default function CorbeillePage() {
@@ -42,27 +46,34 @@ export default function CorbeillePage() {
       const res = await fetch('/api/orders/deleted');
       const json = await res.json();
       setOrders(json.data || []);
-    } catch { }
+    } catch {
+      /* chargement corbeille : l état vide est déjà affiché */
+    }
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchDeleted(); }, [fetchDeleted]);
+  useEffect(() => {
+    fetchDeleted();
+  }, [fetchDeleted]);
 
-  const filtered = orders.filter(o =>
-    !search || o.tracking_number.toLowerCase().includes(search.toLowerCase()) ||
-    o.customer_name?.toLowerCase().includes(search.toLowerCase())
+  const filtered = orders.filter(
+    (o) =>
+      !search ||
+      o.tracking_number.toLowerCase().includes(search.toLowerCase()) ||
+      o.customer_name?.toLowerCase().includes(search.toLowerCase())
   );
 
-  const toggleSelect = (id: string) => setSelected(prev => {
-    const next = new Set(prev);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    return next;
-  });
+  const toggleSelect = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   const toggleAll = () => {
     if (selected.size === filtered.length) setSelected(new Set());
-    else setSelected(new Set(filtered.map(o => o.id)));
+    else setSelected(new Set(filtered.map((o) => o.id)));
   };
 
   const handleRestore = async () => {
@@ -75,19 +86,28 @@ export default function CorbeillePage() {
         body: JSON.stringify({ ids: Array.from(selected) }),
       });
       const json = await res.json();
-      if (json.error) { toast.error(json.error); }
-      else {
+      if (json.error) {
+        toast.error(json.error);
+      } else {
         toast.success(`${json.restored} commande(s) restaurée(s)`);
         setSelected(new Set());
         fetchDeleted();
       }
-    } catch (e: any) { toast.error(e.message); }
-    finally { setWorking(false); }
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setWorking(false);
+    }
   };
 
   const handleDeletePermanent = async () => {
     if (selected.size === 0) return;
-    if (!confirm(`Supprimer définitivement ${selected.size} commande(s) ? Cette action est irréversible.`)) return;
+    if (
+      !confirm(
+        `Supprimer définitivement ${selected.size} commande(s) ? Cette action est irréversible.`
+      )
+    )
+      return;
     setWorking(true);
     try {
       const res = await fetch('/api/orders/delete-permanent', {
@@ -96,23 +116,32 @@ export default function CorbeillePage() {
         body: JSON.stringify({ ids: Array.from(selected) }),
       });
       const json = await res.json();
-      if (json.error) { toast.error(json.error); }
-      else {
+      if (json.error) {
+        toast.error(json.error);
+      } else {
         toast.success(`${json.deleted} commande(s) supprimée(s) définitivement`);
         setSelected(new Set());
         fetchDeleted();
       }
-    } catch (e: any) { toast.error(e.message); }
-    finally { setWorking(false); }
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setWorking(false);
+    }
   };
 
   const formatDate = (iso: string) =>
-    new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    new Date(iso).toLocaleString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
 
   return (
     <AppLayout>
       <div className="max-w-screen-xl mx-auto px-6 py-6 space-y-5">
-
         {/* Header */}
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center">
@@ -120,10 +149,18 @@ export default function CorbeillePage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100">Corbeille</h1>
-            <p className="text-sm text-stone-400 dark:text-stone-500">Commandes supprimées — restaurez-les ou supprimez définitivement</p>
+            <p className="text-sm text-stone-400 dark:text-stone-500">
+              Commandes supprimées — restaurez-les ou supprimez définitivement
+            </p>
           </div>
-          <button onClick={fetchDeleted} className="ml-auto p-2 rounded-lg border border-stone-200 dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-800 transition-colors">
-            <RefreshCw size={15} className={`text-stone-500 dark:text-stone-400 ${loading ? 'animate-spin' : ''}`} />
+          <button
+            onClick={fetchDeleted}
+            className="ml-auto p-2 rounded-lg border border-stone-200 dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-800 transition-colors"
+          >
+            <RefreshCw
+              size={15}
+              className={`text-stone-500 dark:text-stone-400 ${loading ? 'animate-spin' : ''}`}
+            />
           </button>
         </div>
 
@@ -132,22 +169,41 @@ export default function CorbeillePage() {
           <div className="px-4 py-3 border-b border-stone-100 dark:border-stone-800 flex flex-wrap gap-3 items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="relative">
-                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 dark:text-stone-500" />
-                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher..."
-                  className="pl-8 pr-3 py-1.5 text-sm border border-stone-200 dark:border-stone-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 w-48" />
+                <Search
+                  size={13}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 dark:text-stone-500"
+                />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Rechercher..."
+                  className="pl-8 pr-3 py-1.5 text-sm border border-stone-200 dark:border-stone-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 w-48"
+                />
               </div>
-              <span className="text-xs text-stone-400 dark:text-stone-500">{filtered.length} commande(s)</span>
+              <span className="text-xs text-stone-400 dark:text-stone-500">
+                {filtered.length} commande(s)
+              </span>
             </div>
             {selected.size > 0 && (
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-stone-500 dark:text-stone-400">{selected.size} sélectionnée(s)</span>
-                <button onClick={handleRestore} disabled={working}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-50 border border-green-200 text-green-700 text-xs font-semibold hover:bg-green-100 transition-colors disabled:opacity-50">
-                  <RotateCcw size={12} />Restaurer
+                <span className="text-xs font-medium text-stone-500 dark:text-stone-400">
+                  {selected.size} sélectionnée(s)
+                </span>
+                <button
+                  onClick={handleRestore}
+                  disabled={working}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-50 border border-green-200 text-green-700 text-xs font-semibold hover:bg-green-100 transition-colors disabled:opacity-50"
+                >
+                  <RotateCcw size={12} />
+                  Restaurer
                 </button>
-                <button onClick={handleDeletePermanent} disabled={working}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 border border-red-200 text-red-600 text-xs font-semibold hover:bg-red-100 transition-colors disabled:opacity-50">
-                  <Trash2 size={12} />Supprimer définitivement
+                <button
+                  onClick={handleDeletePermanent}
+                  disabled={working}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 border border-red-200 text-red-600 text-xs font-semibold hover:bg-red-100 transition-colors disabled:opacity-50"
+                >
+                  <Trash2 size={12} />
+                  Supprimer définitivement
                 </button>
               </div>
             )}
@@ -159,50 +215,99 @@ export default function CorbeillePage() {
               <thead>
                 <tr className="border-b border-stone-100 dark:border-stone-800 bg-stone-50/60">
                   <th className="px-4 py-2.5 w-10">
-                    <input type="checkbox" checked={selected.size === filtered.length && filtered.length > 0}
-                      onChange={toggleAll} className="rounded border-stone-300" />
+                    <input
+                      type="checkbox"
+                      checked={selected.size === filtered.length && filtered.length > 0}
+                      onChange={toggleAll}
+                      className="rounded border-stone-300"
+                    />
                   </th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">Tracking</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">Client</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">Produit</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">Wilaya</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">Statut</th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">COD</th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">Supprimé le</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">
+                    Tracking
+                  </th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">
+                    Client
+                  </th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">
+                    Produit
+                  </th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">
+                    Wilaya
+                  </th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">
+                    Statut
+                  </th>
+                  <th className="px-4 py-2.5 text-right text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">
+                    COD
+                  </th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">
+                    Supprimé le
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-50 dark:divide-stone-800">
                 {loading ? (
-                  <tr><td colSpan={8} className="px-4 py-10 text-center text-stone-300 dark:text-stone-600">Chargement...</td></tr>
+                  <tr>
+                    <td
+                      colSpan={8}
+                      className="px-4 py-10 text-center text-stone-300 dark:text-stone-600"
+                    >
+                      Chargement...
+                    </td>
+                  </tr>
                 ) : filtered.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="px-4 py-16 text-center">
                       <Trash2 size={32} className="mx-auto mb-3 text-stone-200" />
-                      <p className="text-stone-400 dark:text-stone-500 text-sm">La corbeille est vide</p>
+                      <p className="text-stone-400 dark:text-stone-500 text-sm">
+                        La corbeille est vide
+                      </p>
                     </td>
                   </tr>
-                ) : filtered.map(order => (
-                  <tr key={order.id} className="hover:bg-stone-50 dark:hover:bg-stone-800/60 transition-colors">
-                    <td className="px-4 py-3">
-                      <input type="checkbox" checked={selected.has(order.id)} onChange={() => toggleSelect(order.id)} className="rounded border-stone-300" />
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="font-mono text-xs font-semibold text-stone-500 dark:text-stone-400">{order.tracking_number}</span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-stone-600 dark:text-stone-300">{order.customer_name || '—'}</td>
-                    <td className="px-4 py-3 text-sm text-stone-500 dark:text-stone-400 max-w-[140px] truncate">{order.product_name || '—'}</td>
-                    <td className="px-4 py-3 text-sm text-stone-600 dark:text-stone-300">{order.wilaya || '—'}</td>
-                    <td className="px-4 py-3">
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_BADGE[order.delivery_status] || 'bg-stone-100 text-stone-500 dark:text-stone-400'}`}>
-                        {STATUS_LABEL[order.delivery_status] || order.delivery_status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right text-sm font-medium text-stone-600 dark:text-stone-300">
-                      {order.cod ? `${Number(order.cod).toLocaleString('fr-DZ')} DA` : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-stone-400 dark:text-stone-500">{formatDate(order.deleted_at)}</td>
-                  </tr>
-                ))}
+                ) : (
+                  filtered.map((order) => (
+                    <tr
+                      key={order.id}
+                      className="hover:bg-stone-50 dark:hover:bg-stone-800/60 transition-colors"
+                    >
+                      <td className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={selected.has(order.id)}
+                          onChange={() => toggleSelect(order.id)}
+                          className="rounded border-stone-300"
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="font-mono text-xs font-semibold text-stone-500 dark:text-stone-400">
+                          {order.tracking_number}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-stone-600 dark:text-stone-300">
+                        {order.customer_name || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-stone-500 dark:text-stone-400 max-w-[140px] truncate">
+                        {order.product_name || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-stone-600 dark:text-stone-300">
+                        {order.wilaya || '—'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_BADGE[order.delivery_status] || 'bg-stone-100 text-stone-500 dark:text-stone-400'}`}
+                        >
+                          {STATUS_LABEL[order.delivery_status] || order.delivery_status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right text-sm font-medium text-stone-600 dark:text-stone-300">
+                        {order.cod ? `${Number(order.cod).toLocaleString('fr-DZ')} DA` : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-stone-400 dark:text-stone-500">
+                        {formatDate(order.deleted_at)}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -210,7 +315,8 @@ export default function CorbeillePage() {
           {filtered.length > 0 && (
             <div className="px-4 py-3 border-t border-stone-100 dark:border-stone-800 flex items-center gap-2 text-xs text-amber-600 bg-amber-50">
               <AlertTriangle size={12} />
-              La suppression définitive est irréversible. Restaurez d'abord les commandes importantes.
+              La suppression définitive est irréversible. Restaurez d'abord les commandes
+              importantes.
             </div>
           )}
         </div>

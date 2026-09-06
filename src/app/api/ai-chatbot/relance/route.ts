@@ -4,9 +4,17 @@ import { resolveEvolutionCreds } from '@/lib/user-creds';
 
 const CRON_SECRET = process.env.CRON_SECRET || '';
 
-interface EvCreds { url: string; key: string }
+interface EvCreds {
+  url: string;
+  key: string;
+}
 
-async function sendWhatsApp(ev: EvCreds, instanceName: string, number: string, text: string): Promise<void> {
+async function sendWhatsApp(
+  ev: EvCreds,
+  instanceName: string,
+  number: string,
+  text: string
+): Promise<void> {
   if (!ev.url || !ev.key) return;
   const cleanNumber = number.replace('@s.whatsapp.net', '').replace('@g.us', '');
   try {
@@ -15,7 +23,9 @@ async function sendWhatsApp(ev: EvCreds, instanceName: string, number: string, t
       headers: { 'Content-Type': 'application/json', apikey: ev.key },
       body: JSON.stringify({ number: cleanNumber, text }),
     });
-  } catch { /* non-blocking */ }
+  } catch {
+    /* non-blocking */
+  }
 }
 
 const RELANCE_MESSAGES: Record<string, string> = {
@@ -119,7 +129,10 @@ export async function GET(req: NextRequest) {
     const ev = await resolveEvolutionCreds(session.user_id);
     const msg = RELANCE_MESSAGES[session.template_type] ?? RELANCE_MESSAGES.auto_confirmation;
     await sendWhatsApp(ev, instance.instance_name, session.contact_id, msg);
-    await supabase.from('ai_chat_sessions').update({ relance_sent: true, updated_at: new Date().toISOString() }).eq('id', session.id);
+    await supabase
+      .from('ai_chat_sessions')
+      .update({ relance_sent: true, updated_at: new Date().toISOString() })
+      .eq('id', session.id);
     relanced++;
   }
   return NextResponse.json({ ok: true, relanced });

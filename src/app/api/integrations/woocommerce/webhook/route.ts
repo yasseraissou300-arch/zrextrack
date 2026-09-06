@@ -61,7 +61,10 @@ export async function POST(request: NextRequest) {
       {
         user_id: integration.user_id,
         tracking_number: tracking,
-        customer_name: `${order.billing?.first_name || ''} ${order.billing?.last_name || ''}`.trim() || order.billing?.email || 'Client',
+        customer_name:
+          `${order.billing?.first_name || ''} ${order.billing?.last_name || ''}`.trim() ||
+          order.billing?.email ||
+          'Client',
         customer_whatsapp: phone,
         product_name: order.line_items?.[0]?.name || '',
         wilaya: order.shipping?.city || order.billing?.city || '',

@@ -3,7 +3,9 @@ import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 export async function GET() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { data } = await supabase
@@ -15,13 +17,18 @@ export async function GET() {
   if (!data) return NextResponse.json({ connection: null });
 
   const pendingPages = data.pending_pages ? JSON.parse(data.pending_pages) : null;
-  return NextResponse.json({ connection: { ...data, pending_pages: undefined }, pending_pages: pendingPages });
+  return NextResponse.json({
+    connection: { ...data, pending_pages: undefined },
+    pending_pages: pendingPages,
+  });
 }
 
 // Select a page from pending_pages list (after OAuth with multiple pages)
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { page_id } = await req.json();
@@ -35,7 +42,8 @@ export async function POST(req: NextRequest) {
     .eq('user_id', user.id)
     .single();
 
-  if (!existing?.pending_pages) return NextResponse.json({ error: 'Aucune page en attente' }, { status: 400 });
+  if (!existing?.pending_pages)
+    return NextResponse.json({ error: 'Aucune page en attente' }, { status: 400 });
 
   const pages = JSON.parse(existing.pending_pages);
   const selected = pages.find((p: { id: string }) => p.id === page_id);
@@ -62,7 +70,9 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { error } = await supabase.from('facebook_connections').delete().eq('user_id', user.id);

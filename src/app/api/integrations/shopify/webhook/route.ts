@@ -51,7 +51,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    const phone: string = order.shipping_address?.phone || order.billing_address?.phone || order.phone || '';
+    const phone: string =
+      order.shipping_address?.phone || order.billing_address?.phone || order.phone || '';
     const tracking: string = order.name?.replace('#', 'SHO-') || `SHO-${order.id}`;
     const status = mapShopifyStatus(order.fulfillment_status, order.financial_status);
 
@@ -59,7 +60,10 @@ export async function POST(request: NextRequest) {
       {
         user_id: integration.user_id,
         tracking_number: tracking,
-        customer_name: `${order.shipping_address?.first_name || ''} ${order.shipping_address?.last_name || ''}`.trim() || order.email || 'Client',
+        customer_name:
+          `${order.shipping_address?.first_name || ''} ${order.shipping_address?.last_name || ''}`.trim() ||
+          order.email ||
+          'Client',
         customer_whatsapp: phone,
         product_name: order.line_items?.[0]?.name || '',
         wilaya: order.shipping_address?.city || '',

@@ -29,7 +29,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
             <div className="w-6 h-6 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-md flex items-center justify-center shadow-sm shadow-violet-500/30">
               <span className="text-white font-bold text-[10px]">Z</span>
             </div>
-            <span className="font-bold text-stone-900 dark:text-stone-100 text-sm tracking-tight">Autotim</span>
+            <span className="font-bold text-stone-900 dark:text-stone-100 text-sm tracking-tight">
+              Autotim
+            </span>
           </div>
         </div>
 
@@ -64,9 +66,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           <Sidebar />
         </div>
 
-        <main className="flex-1 overflow-y-auto scrollbar-thin pt-14 md:pt-0">
-          {children}
-        </main>
+        <main className="flex-1 overflow-y-auto scrollbar-thin pt-14 md:pt-0">{children}</main>
       </div>
       <ChatbotDrawer />
     </ChatbotProvider>

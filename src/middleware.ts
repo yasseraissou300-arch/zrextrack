@@ -30,16 +30,16 @@ export function middleware(request: NextRequest) {
   // résultat /track/<numero>. Avant, seul '/track/' était listé → la page
   // d'entrée /track redirigeait l'acheteur vers /login (inaccessible).
   const publicRoutes = ['/login', '/pricing', '/auth/callback', '/api/', '/track'];
-  if (publicRoutes.some(r => pathname.startsWith(r))) {
+  if (publicRoutes.some((r) => pathname.startsWith(r))) {
     return NextResponse.next();
   }
 
   // Vérif locale : un cookie de session Supabase existe-t-il ?
   // @supabase/ssr stocke le token dans `sb-<ref>-auth-token` (parfois découpé
   // en `.0`, `.1`...). On cherche n'importe quel cookie qui matche.
-  const hasSession = request.cookies.getAll().some(
-    c => c.name.startsWith('sb-') && c.name.includes('auth-token') && !!c.value
-  );
+  const hasSession = request.cookies
+    .getAll()
+    .some((c) => c.name.startsWith('sb-') && c.name.includes('auth-token') && !!c.value);
 
   if (!hasSession) {
     return NextResponse.redirect(new URL('/login', request.url));

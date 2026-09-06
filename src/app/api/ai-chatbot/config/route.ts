@@ -75,28 +75,29 @@ DIMA bDarija.`,
 
 export async function GET() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { data } = await supabase
-    .from('chatbot_configs')
-    .select('*')
-    .eq('user_id', user.id);
+  const { data } = await supabase.from('chatbot_configs').select('*').eq('user_id', user.id);
 
-  const templates = ['auto_confirmation', 'sav', 'tracking'].map(type => {
-    const existing = data?.find(d => d.template_type === type);
-    return existing ?? {
-      template_type: type,
-      is_active: false,
-      shop_name: '',
-      custom_prompt: '',
-      language: 'darija',
-      google_sheets_url: '',
-      admin_whatsapp: '',
-      media_url: '',
-      blocked_prefixes: [],
-      human_pause_hours: 4,
-    };
+  const templates = ['auto_confirmation', 'sav', 'tracking'].map((type) => {
+    const existing = data?.find((d) => d.template_type === type);
+    return (
+      existing ?? {
+        template_type: type,
+        is_active: false,
+        shop_name: '',
+        custom_prompt: '',
+        language: 'darija',
+        google_sheets_url: '',
+        admin_whatsapp: '',
+        media_url: '',
+        blocked_prefixes: [],
+        human_pause_hours: 4,
+      }
+    );
   });
 
   return NextResponse.json({ templates, defaults: DEFAULT_PROMPTS });
@@ -104,20 +105,36 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json();
   const {
-    template_type, is_active, shop_name, custom_prompt, language, google_sheets_url,
-    admin_whatsapp, media_url, blocked_prefixes, human_pause_hours,
+    template_type,
+    is_active,
+    shop_name,
+    custom_prompt,
+    language,
+    google_sheets_url,
+    admin_whatsapp,
+    media_url,
+    blocked_prefixes,
+    human_pause_hours,
   } = body;
 
   const { data, error } = await supabase
     .from('chatbot_configs')
     .upsert(
       {
-        user_id: user.id, template_type, is_active, shop_name, custom_prompt, language, google_sheets_url,
+        user_id: user.id,
+        template_type,
+        is_active,
+        shop_name,
+        custom_prompt,
+        language,
+        google_sheets_url,
         admin_whatsapp: admin_whatsapp ?? '',
         media_url: media_url ?? '',
         blocked_prefixes: Array.isArray(blocked_prefixes) ? blocked_prefixes : [],

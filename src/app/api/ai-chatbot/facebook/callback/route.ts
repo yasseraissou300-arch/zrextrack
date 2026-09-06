@@ -49,8 +49,12 @@ export async function GET(req: NextRequest) {
     `https://graph.facebook.com/v19.0/me/accounts?fields=id,name,access_token,picture&access_token=${userToken}`
   );
   const pagesJson = await pagesRes.json();
-  const pages: { id: string; name: string; access_token: string; picture?: { data: { url: string } } }[] =
-    pagesJson.data ?? [];
+  const pages: {
+    id: string;
+    name: string;
+    access_token: string;
+    picture?: { data: { url: string } };
+  }[] = pagesJson.data ?? [];
 
   if (pages.length === 0) return redirect('/ai-chatbot?tab=facebook&error=no_pages');
 
@@ -87,7 +91,14 @@ export async function GET(req: NextRequest) {
       page_picture: '',
       verify_token,
       connected: false,
-      pending_pages: JSON.stringify(pages.map(p => ({ id: p.id, name: p.name, access_token: p.access_token, picture: p.picture?.data?.url ?? '' }))),
+      pending_pages: JSON.stringify(
+        pages.map((p) => ({
+          id: p.id,
+          name: p.name,
+          access_token: p.access_token,
+          picture: p.picture?.data?.url ?? '',
+        }))
+      ),
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'user_id' }

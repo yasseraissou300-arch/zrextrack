@@ -12,62 +12,148 @@ import { logEvent, maskPhone } from '@/lib/security/safe-log';
 interface ResolvedCreds {
   evolutionUrl: string;
   evolutionKey: string;
-  geminiKeys: string[];   // pool — vide → le bot ne répond pas
+  geminiKeys: string[]; // pool — vide → le bot ne répond pas
 }
 
 // ─── 58 Wilayas Algeria normalization ─────────────────────────────────────────
 const WILAYA_MAP: Record<string, string> = {
-  adrar: 'Adrar', chlef: 'Chlef', chleff: 'Chlef', 'el chlef': 'Chlef',
-  laghouat: 'Laghouat', 'oum el bouaghi': 'Oum El Bouaghi', 'oum bouaghi': 'Oum El Bouaghi',
-  batna: 'Batna', bejaia: 'Béjaïa', béjaïa: 'Béjaïa', bgayet: 'Béjaïa',
-  biskra: 'Biskra', bechar: 'Béchar', béchar: 'Béchar',
-  blida: 'Blida', bouira: 'Bouira',
-  tamanrasset: 'Tamanrasset', tamanghasset: 'Tamanrasset',
-  tebessa: 'Tébessa', tébessa: 'Tébessa',
-  tlemcen: 'Tlemcen', tiaret: 'Tiaret',
-  'tizi ouzou': 'Tizi Ouzou', 'tizi-ouzou': 'Tizi Ouzou', 'tizi ouzu': 'Tizi Ouzou', tizi: 'Tizi Ouzou',
-  alger: 'Alger', algiers: 'Alger', dzair: 'Alger',
-  djelfa: 'Djelfa', jijel: 'Jijel',
-  setif: 'Sétif', sétif: 'Sétif', setiff: 'Sétif',
-  saida: 'Saïda', saïda: 'Saïda',
-  skikda: 'Skikda', 'sidi bel abbes': 'Sidi Bel Abbès', 'sidi bel abbès': 'Sidi Bel Abbès', sba: 'Sidi Bel Abbès',
-  annaba: 'Annaba', guelma: 'Guelma', constantine: 'Constantine', 'qsentina': 'Constantine',
-  medea: 'Médéa', médéa: 'Médéa',
-  mostaganem: 'Mostaganem', msila: 'M\'Sila', 'm\'sila': 'M\'Sila',
-  mascara: 'Mascara', ouargla: 'Ouargla', oran: 'Oran', wahran: 'Oran',
-  'el bayadh': 'El Bayadh', illizi: 'Illizi',
-  'bordj bou arreridj': 'Bordj Bou Arréridj', bba: 'Bordj Bou Arréridj',
-  boumerdes: 'Boumerdès', boumerdès: 'Boumerdès',
-  'el tarf': 'El Tarf', tindouf: 'Tindouf', tissemsilt: 'Tissemsilt',
-  'el oued': 'El Oued', 'eloued': 'El Oued',
-  khenchela: 'Khenchela', soukahras: 'Souk Ahras', 'souk ahras': 'Souk Ahras',
-  tipaza: 'Tipaza', tipasa: 'Tipaza', mila: 'Mila',
-  'ain defla': 'Aïn Defla', 'aïn defla': 'Aïn Defla', naama: 'Naâma', naâma: 'Naâma',
-  'ain temouchent': 'Aïn Témouchent', 'aïn témouchent': 'Aïn Témouchent',
-  ghardaia: 'Ghardaïa', ghardaïa: 'Ghardaïa',
-  relizane: 'Relizane', timimoun: 'Timimoun',
-  'bordj badji mokhtar': 'Bordj Badji Mokhtar', 'ouled djellal': 'Ouled Djellal',
-  'beni abbes': 'Béni Abbès', 'in salah': 'In Salah', 'in guezzam': 'In Guezzam',
-  touggourt: 'Touggourt', djanet: 'Djanet', 'el meghaier': 'El M\'Ghair',
+  adrar: 'Adrar',
+  chlef: 'Chlef',
+  chleff: 'Chlef',
+  'el chlef': 'Chlef',
+  laghouat: 'Laghouat',
+  'oum el bouaghi': 'Oum El Bouaghi',
+  'oum bouaghi': 'Oum El Bouaghi',
+  batna: 'Batna',
+  bejaia: 'Béjaïa',
+  béjaïa: 'Béjaïa',
+  bgayet: 'Béjaïa',
+  biskra: 'Biskra',
+  bechar: 'Béchar',
+  béchar: 'Béchar',
+  blida: 'Blida',
+  bouira: 'Bouira',
+  tamanrasset: 'Tamanrasset',
+  tamanghasset: 'Tamanrasset',
+  tebessa: 'Tébessa',
+  tébessa: 'Tébessa',
+  tlemcen: 'Tlemcen',
+  tiaret: 'Tiaret',
+  'tizi ouzou': 'Tizi Ouzou',
+  'tizi-ouzou': 'Tizi Ouzou',
+  'tizi ouzu': 'Tizi Ouzou',
+  tizi: 'Tizi Ouzou',
+  alger: 'Alger',
+  algiers: 'Alger',
+  dzair: 'Alger',
+  djelfa: 'Djelfa',
+  jijel: 'Jijel',
+  setif: 'Sétif',
+  sétif: 'Sétif',
+  setiff: 'Sétif',
+  saida: 'Saïda',
+  saïda: 'Saïda',
+  skikda: 'Skikda',
+  'sidi bel abbes': 'Sidi Bel Abbès',
+  'sidi bel abbès': 'Sidi Bel Abbès',
+  sba: 'Sidi Bel Abbès',
+  annaba: 'Annaba',
+  guelma: 'Guelma',
+  constantine: 'Constantine',
+  qsentina: 'Constantine',
+  medea: 'Médéa',
+  médéa: 'Médéa',
+  mostaganem: 'Mostaganem',
+  msila: "M'Sila",
+  "m'sila": "M'Sila",
+  mascara: 'Mascara',
+  ouargla: 'Ouargla',
+  oran: 'Oran',
+  wahran: 'Oran',
+  'el bayadh': 'El Bayadh',
+  illizi: 'Illizi',
+  'bordj bou arreridj': 'Bordj Bou Arréridj',
+  bba: 'Bordj Bou Arréridj',
+  boumerdes: 'Boumerdès',
+  boumerdès: 'Boumerdès',
+  'el tarf': 'El Tarf',
+  tindouf: 'Tindouf',
+  tissemsilt: 'Tissemsilt',
+  'el oued': 'El Oued',
+  eloued: 'El Oued',
+  khenchela: 'Khenchela',
+  soukahras: 'Souk Ahras',
+  'souk ahras': 'Souk Ahras',
+  tipaza: 'Tipaza',
+  tipasa: 'Tipaza',
+  mila: 'Mila',
+  'ain defla': 'Aïn Defla',
+  'aïn defla': 'Aïn Defla',
+  naama: 'Naâma',
+  naâma: 'Naâma',
+  'ain temouchent': 'Aïn Témouchent',
+  'aïn témouchent': 'Aïn Témouchent',
+  ghardaia: 'Ghardaïa',
+  ghardaïa: 'Ghardaïa',
+  relizane: 'Relizane',
+  timimoun: 'Timimoun',
+  'bordj badji mokhtar': 'Bordj Badji Mokhtar',
+  'ouled djellal': 'Ouled Djellal',
+  'beni abbes': 'Béni Abbès',
+  'in salah': 'In Salah',
+  'in guezzam': 'In Guezzam',
+  touggourt: 'Touggourt',
+  djanet: 'Djanet',
+  'el meghaier': "El M'Ghair",
 };
 
 function normalizeWilaya(raw: string): string {
-  const clean = raw.toLowerCase().trim()
-    .replace(/[éèê]/g, 'e').replace(/[àâ]/g, 'a').replace(/[îï]/g, 'i').replace(/[ôö]/g, 'o').replace(/[ùûü]/g, 'u');
+  const clean = raw
+    .toLowerCase()
+    .trim()
+    .replace(/[éèê]/g, 'e')
+    .replace(/[àâ]/g, 'a')
+    .replace(/[îï]/g, 'i')
+    .replace(/[ôö]/g, 'o')
+    .replace(/[ùûü]/g, 'u');
   return WILAYA_MAP[clean] ?? WILAYA_MAP[raw.toLowerCase().trim()] ?? raw;
 }
 
 // ─── Anger / frustration detection ────────────────────────────────────────────
 const ANGER_KEYWORDS = [
-  'hram', '7ram', 'malhoul', 'mahoul', 'ndir plainte', 'nchakou', 'ghachi',
-  'sba7a', 'dawir', 'faci', 'khayb', 'wahd', 'wa7d dial', 'arnab', 'nas khayba',
-  'f*** ', 'merde', 'nta khayb', 'nti khayba', 'ndir fi', 'ndiru fikom',
-  'hadchi mazal', 'mazal mazal', 'disappointed', 'furious', 'angry', 'scam', 'arnaque',
+  'hram',
+  '7ram',
+  'malhoul',
+  'mahoul',
+  'ndir plainte',
+  'nchakou',
+  'ghachi',
+  'sba7a',
+  'dawir',
+  'faci',
+  'khayb',
+  'wahd',
+  'wa7d dial',
+  'arnab',
+  'nas khayba',
+  'f*** ',
+  'merde',
+  'nta khayb',
+  'nti khayba',
+  'ndir fi',
+  'ndiru fikom',
+  'hadchi mazal',
+  'mazal mazal',
+  'disappointed',
+  'furious',
+  'angry',
+  'scam',
+  'arnaque',
 ];
 
 function isAngerDetected(text: string): boolean {
   const lower = text.toLowerCase();
-  return ANGER_KEYWORDS.some(kw => lower.includes(kw));
+  return ANGER_KEYWORDS.some((kw) => lower.includes(kw));
 }
 
 // ─── Blabla / non-serious detection ───────────────────────────────────────────
@@ -79,7 +165,7 @@ const BLABLA_PATTERNS = [
 ];
 
 function isBlabla(text: string): boolean {
-  return BLABLA_PATTERNS.some(p => p.test(text.trim()));
+  return BLABLA_PATTERNS.some((p) => p.test(text.trim()));
 }
 
 // ─── Default system prompts ────────────────────────────────────────────────────
@@ -157,19 +243,31 @@ DIMA bDarija.`,
 };
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
-interface ClaudeMessage { role: 'user' | 'assistant'; content: string; }
-interface ClaudeResult { text: string | null; tokens: number; }
+interface ClaudeMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+interface ClaudeResult {
+  text: string | null;
+  tokens: number;
+}
 
-interface GeminiCall extends ClaudeResult { quota?: boolean }
+interface GeminiCall extends ClaudeResult {
+  quota?: boolean;
+}
 
 // ─── Gemini call ──────────────────────────────────────────────────────────────
 // `quota: true` quand la clé a épuisé son quota (HTTP 429) → l'appelant peut
 // passer à la clé suivante du pool.
-async function callGemini(geminiKey: string, systemPrompt: string, messages: ClaudeMessage[]): Promise<GeminiCall> {
+async function callGemini(
+  geminiKey: string,
+  systemPrompt: string,
+  messages: ClaudeMessage[]
+): Promise<GeminiCall> {
   if (!geminiKey) return { text: null, tokens: 0 };
   try {
     // Build Gemini contents from message history
-    const contents = messages.slice(-10).map(m => ({
+    const contents = messages.slice(-10).map((m) => ({
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }],
     }));
@@ -192,7 +290,8 @@ async function callGemini(geminiKey: string, systemPrompt: string, messages: Cla
     }
     const json = await res.json();
     const text = json.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
-    const tokens = (json.usageMetadata?.promptTokenCount ?? 0) + (json.usageMetadata?.candidatesTokenCount ?? 0);
+    const tokens =
+      (json.usageMetadata?.promptTokenCount ?? 0) + (json.usageMetadata?.candidatesTokenCount ?? 0);
     return { text, tokens };
   } catch (e) {
     logEvent('error', 'ai.gemini', { status: 'exception' });
@@ -208,7 +307,7 @@ async function callAI(
   creds: ResolvedCreds,
   systemPrompt: string,
   messages: ClaudeMessage[],
-  _templateType?: string,
+  _templateType?: string
 ): Promise<ClaudeResult> {
   const keys = creds.geminiKeys;
   if (keys.length === 0) {
@@ -235,7 +334,11 @@ async function callAI(
 function extractData(text: string): Record<string, string> | null {
   const match = text.match(/<data>([\s\S]*?)<\/data>/);
   if (!match) return null;
-  try { return JSON.parse(match[1].trim()); } catch { return null; }
+  try {
+    return JSON.parse(match[1].trim());
+  } catch {
+    return null;
+  }
 }
 
 function stripDataTag(text: string): string {
@@ -243,7 +346,13 @@ function stripDataTag(text: string): string {
 }
 
 // ─── WhatsApp senders ─────────────────────────────────────────────────────────
-async function sendWhatsApp(evUrl: string, evKey: string, instanceName: string, number: string, text: string): Promise<void> {
+async function sendWhatsApp(
+  evUrl: string,
+  evKey: string,
+  instanceName: string,
+  number: string,
+  text: string
+): Promise<void> {
   if (!evUrl || !evKey) return;
   const cleanNumber = number.replace('@s.whatsapp.net', '').replace('@g.us', '');
   try {
@@ -252,10 +361,19 @@ async function sendWhatsApp(evUrl: string, evKey: string, instanceName: string, 
       headers: { 'Content-Type': 'application/json', apikey: evKey },
       body: JSON.stringify({ number: cleanNumber, text }),
     });
-  } catch { /* non-blocking */ }
+  } catch {
+    /* non-blocking */
+  }
 }
 
-async function sendWhatsAppMedia(evUrl: string, evKey: string, instanceName: string, number: string, mediaUrl: string, caption: string): Promise<void> {
+async function sendWhatsAppMedia(
+  evUrl: string,
+  evKey: string,
+  instanceName: string,
+  number: string,
+  mediaUrl: string,
+  caption: string
+): Promise<void> {
   if (!evUrl || !evKey || !mediaUrl) return;
   const cleanNumber = number.replace('@s.whatsapp.net', '').replace('@g.us', '');
   try {
@@ -264,19 +382,32 @@ async function sendWhatsAppMedia(evUrl: string, evKey: string, instanceName: str
       headers: { 'Content-Type': 'application/json', apikey: evKey },
       body: JSON.stringify({ number: cleanNumber, mediatype: 'image', media: mediaUrl, caption }),
     });
-  } catch { /* non-blocking */ }
+  } catch {
+    /* non-blocking */
+  }
 }
 
 // ─── Google Sheets notifier ───────────────────────────────────────────────────
-async function notifyGoogleSheets(webhookUrl: string, type: string, data: Record<string, unknown>): Promise<void> {
+async function notifyGoogleSheets(
+  webhookUrl: string,
+  type: string,
+  data: Record<string, unknown>
+): Promise<void> {
   if (!webhookUrl) return;
   try {
     await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type, timestamp: new Date().toISOString(), source: 'whatsapp_ai', ...data }),
+      body: JSON.stringify({
+        type,
+        timestamp: new Date().toISOString(),
+        source: 'whatsapp_ai',
+        ...data,
+      }),
     });
-  } catch { /* non-blocking */ }
+  } catch {
+    /* non-blocking */
+  }
 }
 
 // ─── Admin WhatsApp notification ──────────────────────────────────────────────
@@ -287,10 +418,12 @@ async function notifyAdmin(
   adminWA: string,
   data: Record<string, string>,
   shopName: string,
-  templateType: string,
+  templateType: string
 ): Promise<void> {
   if (!adminWA) return;
-  const lines: string[] = [`✅ *${templateType === 'sav' ? 'Réclamation' : 'Commande'} Nouvelle — ${shopName}*`];
+  const lines: string[] = [
+    `✅ *${templateType === 'sav' ? 'Réclamation' : 'Commande'} Nouvelle — ${shopName}*`,
+  ];
   if (data.nom) lines.push(`👤 Nom: ${data.nom}`);
   if (data.telephone) lines.push(`📞 Tél: ${data.telephone}`);
   if (data.wilaya) lines.push(`📍 Wilaya: ${data.wilaya}`);
@@ -343,17 +476,23 @@ export async function POST(req: NextRequest) {
     const remoteJid: string = msgData.key?.remoteJid || '';
     const fromMe: boolean = msgData.key?.fromMe ?? false;
     const messageId: string = msgData.key?.id || '';
-    const text: string = msgData.message?.conversation || msgData.message?.extendedTextMessage?.text || '';
+    const text: string =
+      msgData.message?.conversation || msgData.message?.extendedTextMessage?.text || '';
     const contactName: string = msgData.pushName || '';
 
     logEvent('info', 'webhook.whatsapp', {
-      event, instance: instanceName, message_id: messageId,
-      contact: maskPhone(remoteJid), status: 'received',
+      event,
+      instance: instanceName,
+      message_id: messageId,
+      contact: maskPhone(remoteJid),
+      status: 'received',
     });
 
     if (!text.trim() || remoteJid.includes('@g.us') || !instanceName) {
       logEvent('info', 'webhook.whatsapp', {
-        event, instance: instanceName, status: 'skipped_filter',
+        event,
+        instance: instanceName,
+        status: 'skipped_filter',
         reason: !text.trim() ? 'empty_text' : remoteJid.includes('@g.us') ? 'group' : 'no_instance',
       });
       return NextResponse.json({ ok: true });
@@ -362,7 +501,10 @@ export async function POST(req: NextRequest) {
     // ── Idempotence : un même message rejoué ne relance ni l'IA ni un envoi ──
     if (messageId && isReplay(`wa:${instanceName}:${messageId}`)) {
       logEvent('info', 'webhook.whatsapp', {
-        event, instance: instanceName, message_id: messageId, status: 'skipped_replay',
+        event,
+        instance: instanceName,
+        message_id: messageId,
+        status: 'skipped_replay',
       });
       return NextResponse.json({ ok: true, deduped: true });
     }
@@ -376,7 +518,11 @@ export async function POST(req: NextRequest) {
       .eq('instance_name', instanceName)
       .single();
     if (!waInstance) {
-      logEvent('warn', 'webhook.whatsapp', { instance: instanceName, status: 'skipped_unknown_instance', error_code: waErr?.code });
+      logEvent('warn', 'webhook.whatsapp', {
+        instance: instanceName,
+        status: 'skipped_unknown_instance',
+        error_code: waErr?.code,
+      });
       return NextResponse.json({ ok: true });
     }
     const userId = waInstance.user_id;
@@ -408,7 +554,12 @@ export async function POST(req: NextRequest) {
       .eq('is_active', true)
       .single();
     if (!config) {
-      logEvent('info', 'webhook.whatsapp', { tenant_id: userId, status: 'skipped_no_active_config', reason: serviceType, error_code: cfgErr?.code });
+      logEvent('info', 'webhook.whatsapp', {
+        tenant_id: userId,
+        status: 'skipped_no_active_config',
+        reason: serviceType,
+        error_code: cfgErr?.code,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -431,7 +582,11 @@ export async function POST(req: NextRequest) {
     const blockedPrefixes: string[] = config.blocked_prefixes ?? [];
     const cleanJid = remoteJid.replace('@s.whatsapp.net', '');
     if (blockedPrefixes.length > 0 && blockedPrefixes.some((p: string) => cleanJid.startsWith(p))) {
-      logEvent('info', 'webhook.whatsapp', { tenant_id: userId, contact: maskPhone(cleanJid), status: 'skipped_blocked_prefix' });
+      logEvent('info', 'webhook.whatsapp', {
+        tenant_id: userId,
+        contact: maskPhone(cleanJid),
+        status: 'skipped_blocked_prefix',
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -445,7 +600,11 @@ export async function POST(req: NextRequest) {
 
     // ─── Already handed over to human ─────────────────────────────────────────
     if (existingSession?.human_handover) {
-      logEvent('info', 'webhook.whatsapp', { tenant_id: userId, contact: maskPhone(remoteJid), status: 'skipped_human_handover' });
+      logEvent('info', 'webhook.whatsapp', {
+        tenant_id: userId,
+        contact: maskPhone(remoteJid),
+        status: 'skipped_human_handover',
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -461,10 +620,19 @@ export async function POST(req: NextRequest) {
           .eq('id', existingSession.id);
       } else {
         await supabase.from('ai_chat_sessions').insert({
-          user_id: userId, channel: 'whatsapp', contact_id: remoteJid, contact_name: contactName,
-          template_type: config.template_type, conversation: [], extracted_data: {},
-          is_complete: false, sheets_sent: false, human_handover: true, failure_count: 0,
-          tokens_used: 0, updated_at: new Date().toISOString(),
+          user_id: userId,
+          channel: 'whatsapp',
+          contact_id: remoteJid,
+          contact_name: contactName,
+          template_type: config.template_type,
+          conversation: [],
+          extracted_data: {},
+          is_complete: false,
+          sheets_sent: false,
+          human_handover: true,
+          failure_count: 0,
+          tokens_used: 0,
+          updated_at: new Date().toISOString(),
         });
       }
       return NextResponse.json({ ok: true });
@@ -504,9 +672,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    const defaultPrompt = DEFAULT_PROMPTS[config.template_type] ?? DEFAULT_PROMPTS.auto_confirmation;
+    const defaultPrompt =
+      DEFAULT_PROMPTS[config.template_type] ?? DEFAULT_PROMPTS.auto_confirmation;
     const rawPrompt = config.custom_prompt?.trim() || defaultPrompt;
-    const systemPrompt = rawPrompt.replace(/\[NOM_BOUTIQUE\]/g, config.shop_name || 'notre boutique');
+    const systemPrompt = rawPrompt.replace(
+      /\[NOM_BOUTIQUE\]/g,
+      config.shop_name || 'notre boutique'
+    );
 
     // Send product image on first message if configured
     if (!existingSession && config.media_url) {
@@ -514,17 +686,32 @@ export async function POST(req: NextRequest) {
     }
 
     conversation.push({ role: 'user', content: text });
-    const { text: aiReply, tokens: newTokens } = await callAI(creds, systemPrompt, conversation, config.template_type);
+    const { text: aiReply, tokens: newTokens } = await callAI(
+      creds,
+      systemPrompt,
+      conversation,
+      config.template_type
+    );
 
     const newFailureCount = aiReply ? 0 : failureCount + 1;
     const updatedTokens = totalTokens + newTokens;
 
     if (!aiReply) {
-      await sendWhatsApp(evUrl, evKey, instanceName, remoteJid, 'Smahli, kayen mushkil t9ani. 3awed 7awel ba3d chwiya.');
+      await sendWhatsApp(
+        evUrl,
+        evKey,
+        instanceName,
+        remoteJid,
+        'Smahli, kayen mushkil t9ani. 3awed 7awel ba3d chwiya.'
+      );
       if (existingSession) {
         await supabase
           .from('ai_chat_sessions')
-          .update({ failure_count: newFailureCount, tokens_used: updatedTokens, updated_at: new Date().toISOString() })
+          .update({
+            failure_count: newFailureCount,
+            tokens_used: updatedTokens,
+            updated_at: new Date().toISOString(),
+          })
           .eq('id', existingSession.id);
       }
       return NextResponse.json({ ok: true });
@@ -536,31 +723,29 @@ export async function POST(req: NextRequest) {
     conversation.push({ role: 'assistant', content: aiReply });
 
     const existingData: Record<string, string> = existingSession?.extracted_data ?? {};
-    let newData = extracted ? { ...existingData, ...extracted } : existingData;
+    const newData = extracted ? { ...existingData, ...extracted } : existingData;
     if (newData.wilaya) newData.wilaya = normalizeWilaya(newData.wilaya);
 
     const isComplete = !!extracted && Object.keys(extracted).length >= 3;
 
-    await supabase
-      .from('ai_chat_sessions')
-      .upsert(
-        {
-          user_id: userId,
-          channel: 'whatsapp',
-          contact_id: remoteJid,
-          contact_name: contactName,
-          template_type: config.template_type,
-          conversation,
-          extracted_data: newData,
-          is_complete: isComplete,
-          sheets_sent: existingSession?.sheets_sent ?? false,
-          human_handover: false,
-          failure_count: newFailureCount,
-          tokens_used: updatedTokens,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'user_id,channel,contact_id' }
-      );
+    await supabase.from('ai_chat_sessions').upsert(
+      {
+        user_id: userId,
+        channel: 'whatsapp',
+        contact_id: remoteJid,
+        contact_name: contactName,
+        template_type: config.template_type,
+        conversation,
+        extracted_data: newData,
+        is_complete: isComplete,
+        sheets_sent: existingSession?.sheets_sent ?? false,
+        human_handover: false,
+        failure_count: newFailureCount,
+        tokens_used: updatedTokens,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,channel,contact_id' }
+    );
 
     // Google Sheets + admin notification on completion
     if (isComplete && !existingSession?.sheets_sent) {
@@ -568,7 +753,15 @@ export async function POST(req: NextRequest) {
         await notifyGoogleSheets(config.google_sheets_url, config.template_type, newData);
       }
       if (config.admin_whatsapp) {
-        await notifyAdmin(evUrl, evKey, instanceName, config.admin_whatsapp, newData, config.shop_name || 'Boutique', config.template_type);
+        await notifyAdmin(
+          evUrl,
+          evKey,
+          instanceName,
+          config.admin_whatsapp,
+          newData,
+          config.shop_name || 'Boutique',
+          config.template_type
+        );
       }
       await supabase
         .from('ai_chat_sessions')
@@ -580,7 +773,6 @@ export async function POST(req: NextRequest) {
 
     await sendWhatsApp(evUrl, evKey, instanceName, remoteJid, cleanReply);
     return NextResponse.json({ ok: true });
-
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     logEvent('error', 'webhook.whatsapp', { status: 'exception', reason: message });

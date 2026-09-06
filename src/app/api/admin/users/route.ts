@@ -8,17 +8,16 @@ import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 async function requireAdmin() {
   const auth = await createClient();
-  const { data: { user } } = await auth.auth.getUser();
+  const {
+    data: { user },
+  } = await auth.auth.getUser();
   if (!user) return { ok: false as const, status: 401, error: 'Non authentifié' };
 
   const svc = createServiceClient();
-  const { data: me } = await svc
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single();
+  const { data: me } = await svc.from('profiles').select('role').eq('id', user.id).single();
 
-  if (me?.role !== 'admin') return { ok: false as const, status: 403, error: 'Accès réservé au Super Admin' };
+  if (me?.role !== 'admin')
+    return { ok: false as const, status: 403, error: 'Accès réservé au Super Admin' };
   return { ok: true as const, svc };
 }
 

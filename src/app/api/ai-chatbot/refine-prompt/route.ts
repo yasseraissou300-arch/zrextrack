@@ -7,7 +7,9 @@ import { resolveGeminiKey, missingCredentialsResponse } from '@/lib/user-creds';
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { prompt, template_type, shop_name } = await req.json();

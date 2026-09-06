@@ -3,7 +3,9 @@ import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 export async function GET() {
   const supabaseAuth = await createClient();
-  const { data: { user } } = await supabaseAuth.auth.getUser();
+  const {
+    data: { user },
+  } = await supabaseAuth.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
 
   const supabase = createServiceClient();
@@ -19,7 +21,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   const supabaseAuth = await createClient();
-  const { data: { user } } = await supabaseAuth.auth.getUser();
+  const {
+    data: { user },
+  } = await supabaseAuth.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
 
   const body = await request.json();
@@ -40,11 +44,13 @@ export async function POST(request: NextRequest) {
   // statut sur orders).
   let phones: string[] | null = null;
   if (Array.isArray(audience_phones) && audience_phones.length > 0) {
-    phones = Array.from(new Set(
-      audience_phones
-        .map(p => (p || '').replace(/[\s\-()+.]/g, ''))
-        .filter(p => p.length >= 9)
-    ));
+    phones = Array.from(
+      new Set(
+        audience_phones
+          .map((p) => (p || '').replace(/[\s\-()+.]/g, ''))
+          .filter((p) => p.length >= 9)
+      )
+    );
     if (phones.length === 0) phones = null;
   }
 
@@ -55,7 +61,7 @@ export async function POST(request: NextRequest) {
       user_id: user.id,
       name: name.trim(),
       message_template: message_template.trim(),
-      audience_status: phones ? '' : (audience_status || ''),
+      audience_status: phones ? '' : audience_status || '',
       audience_phones: phones,
       media_url: media_url?.trim() || null,
     })

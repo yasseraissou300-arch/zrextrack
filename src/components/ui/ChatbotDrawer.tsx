@@ -24,7 +24,7 @@ const QUICK_ACTIONS = [
   { label: '📦 Suivre ma commande', msg: 'Je veux suivre ma commande' },
   { label: '🛒 Nouvelle commande', msg: 'Je veux passer une commande' },
   { label: '🔄 Faire un retour', msg: 'Je veux faire un retour' },
-  { label: '🔧 Signaler un problème', msg: 'J\'ai un problème avec ma livraison' },
+  { label: '🔧 Signaler un problème', msg: "J'ai un problème avec ma livraison" },
 ];
 
 export default function ChatbotDrawer() {
@@ -49,41 +49,50 @@ export default function ChatbotDrawer() {
     }
   }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const sendMessage = useCallback(async (text?: string) => {
-    const msg = (text ?? input).trim();
-    if (!msg || loading) return;
+  const sendMessage = useCallback(
+    async (text?: string) => {
+      const msg = (text ?? input).trim();
+      if (!msg || loading) return;
 
-    setMessages(prev => [...prev, { role: 'user', content: msg }]);
-    if (!text) setInput('');
-    setLoading(true);
+      setMessages((prev) => [...prev, { role: 'user', content: msg }]);
+      if (!text) setInput('');
+      setLoading(true);
 
-    try {
-      const res = await fetch('/api/chatbot', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: msg,
-          sessionState,
-          history: messages.slice(-8),
-          channel: 'web',
-        }),
-      });
+      try {
+        const res = await fetch('/api/chatbot', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: msg,
+            sessionState,
+            history: messages.slice(-8),
+            channel: 'web',
+          }),
+        });
 
-      const json = await res.json();
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: json.reply || 'عذراً، حدث خطأ. حاول مجدداً.',
-      }]);
-      if (json.newState) setSessionState(json.newState);
-    } catch {
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: '⚠️ Erreur de connexion. Vérifiez votre réseau et réessayez.',
-      }]);
-    } finally {
-      setLoading(false);
-    }
-  }, [input, loading, messages, sessionState]);
+        const json = await res.json();
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            content: json.reply || 'عذراً، حدث خطأ. حاول مجدداً.',
+          },
+        ]);
+        if (json.newState) setSessionState(json.newState);
+      } catch {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            content: '⚠️ Erreur de connexion. Vérifiez votre réseau et réessayez.',
+          },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [input, loading, messages, sessionState]
+  );
 
   const resetChat = () => {
     setMessages([{ role: 'assistant', content: WELCOME }]);
@@ -117,7 +126,10 @@ export default function ChatbotDrawer() {
           >
             <RotateCcw size={13} />
           </button>
-          <button onClick={close} className="p-1.5 hover:bg-white dark:bg-stone-900/20 rounded-lg transition-colors">
+          <button
+            onClick={close}
+            className="p-1.5 hover:bg-white dark:bg-stone-900/20 rounded-lg transition-colors"
+          >
             <X size={14} />
           </button>
         </div>
@@ -126,7 +138,9 @@ export default function ChatbotDrawer() {
       {/* Channel badge */}
       <div className="flex items-center gap-1.5 px-4 py-2 bg-stone-50 border-b border-stone-100 dark:border-stone-800 shrink-0">
         <Globe size={11} className="text-stone-400 dark:text-stone-500" />
-        <span className="text-[11px] text-stone-500 dark:text-stone-400 font-medium">Chat Web · ZREXpress</span>
+        <span className="text-[11px] text-stone-500 dark:text-stone-400 font-medium">
+          Chat Web · ZREXpress
+        </span>
       </div>
 
       {/* Messages */}
@@ -153,7 +167,7 @@ export default function ChatbotDrawer() {
         {/* Quick actions shown only at start */}
         {messages.length === 1 && !loading && (
           <div className="flex flex-wrap gap-1.5 mt-1">
-            {QUICK_ACTIONS.map(a => (
+            {QUICK_ACTIONS.map((a) => (
               <button
                 key={a.label}
                 onClick={() => sendMessage(a.msg)}
@@ -171,9 +185,18 @@ export default function ChatbotDrawer() {
               <Bot size={12} className="text-green-600" />
             </div>
             <div className="bg-stone-100 rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-              <span className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-              <span className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              <span
+                className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce"
+                style={{ animationDelay: '0ms' }}
+              />
+              <span
+                className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce"
+                style={{ animationDelay: '150ms' }}
+              />
+              <span
+                className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce"
+                style={{ animationDelay: '300ms' }}
+              />
             </div>
           </div>
         )}
@@ -185,8 +208,8 @@ export default function ChatbotDrawer() {
         <input
           ref={inputRef}
           value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
           placeholder="Écrivez votre message..."
           className="flex-1 text-sm bg-stone-50 border border-stone-200 dark:border-stone-700 rounded-xl px-3.5 py-2.5 outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-green-400 transition-all"
           disabled={loading}

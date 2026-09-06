@@ -17,11 +17,11 @@ import { classifySwappedDelivery, type DeliveryBucket } from '@/lib/zrexpress/st
 type Bucket = DeliveryBucket;
 
 interface SwappedItem {
-  id: string;            // UUID du colis (pour le lien ZRExpress)
+  id: string; // UUID du colis (pour le lien ZRExpress)
   tracking: string;
   customer: string;
   wilaya: string;
-  state_raw: string;     // état brut ZRExpress (ex "Sortie en livraison", "Livré")
+  state_raw: string; // état brut ZRExpress (ex "Sortie en livraison", "Livré")
   situation_raw: string; // situation brute (souvent l'ANCIENNE raison pré-swap)
   bucket: Bucket;
   swap_count: number;
@@ -31,15 +31,18 @@ interface SwappedItem {
 export async function POST(request: NextRequest) {
   try {
     const { token, tenantId } = await request.json();
-    if (!token) return NextResponse.json({ error: 'Clé API (secretKey) manquante' }, { status: 400 });
+    if (!token)
+      return NextResponse.json({ error: 'Clé API (secretKey) manquante' }, { status: 400 });
     if (!tenantId) return NextResponse.json({ error: 'Tenant ID manquant' }, { status: 400 });
 
     const supabaseAuth = await createClient();
-    const { data: { user } } = await supabaseAuth.auth.getUser();
+    const {
+      data: { user },
+    } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
 
     // Récupère tous les colis ZRExpress du compte (token = compte du user)
-    const parcels = await fetchAllParcels(token, tenantId) as any[];
+    const parcels = (await fetchAllParcels(token, tenantId)) as any[];
 
     const items: SwappedItem[] = [];
     let delivered = 0;
@@ -52,8 +55,17 @@ export async function POST(request: NextRequest) {
       const isSwapped = swapCount > 0 || !!swappedAt;
       if (!isSwapped) continue;
 
-      const rawState = String(p.state?.name || p.stateName || p.status?.name || p.statusName || p.state || p.status || '');
-      const situation = String(p.situation?.name || p.situationName || p.lastSituation?.name || p.lastSituationName || p.situation || '');
+      const rawState = String(
+        p.state?.name || p.stateName || p.status?.name || p.statusName || p.state || p.status || ''
+      );
+      const situation = String(
+        p.situation?.name ||
+          p.situationName ||
+          p.lastSituation?.name ||
+          p.lastSituationName ||
+          p.situation ||
+          ''
+      );
 
       // IMPORTANT : pour un colis swappé on classe sur l'ÉTAT de livraison,
       // pas sur la situation (qui garde souvent l'ancienne raison d'échec pré-swap).
@@ -87,6 +99,9 @@ export async function POST(request: NextRequest) {
       items,
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || 'Erreur statistiques swaps' }, { status: 500 });
+    return NextResponse.json(
+      { error: err?.message || 'Erreur statistiques swaps' },
+      { status: 500 }
+    );
   }
 }
