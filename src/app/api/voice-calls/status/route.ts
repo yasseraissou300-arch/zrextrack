@@ -7,15 +7,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { estimateCostDA } from '@/lib/voice-calls/twilio';
+import { guardTwilioRequest } from '@/lib/security/twilio-guard';
 
 export async function POST(req: NextRequest) {
-  const cid = req.nextUrl.searchParams.get('cid');
-  const form = await req.formData().catch(() => null);
-  if (!form) return NextResponse.json({ ok: true });
+  // P0-3 : validation de signature Twilio + anti-rejeu.
+  const guard = await guardTwilioRequest(req, 'webhook.twilio.status');
+  if (!guard.ok) return NextResponse.json({ error: guard.reason }, { status: guard.status });
 
-  const callStatus = (form.get('CallStatus') as string | null) ?? '';
-  const callSid = (form.get('CallSid') as string | null) ?? '';
-  const callDuration = parseInt((form.get('CallDuration') as string | null) ?? '0', 10);
+  const cid = guard.callId;
+  const callStatus = guard.params.CallStatus ?? '';
+  const callSid = guard.params.CallSid ?? '';
+  const callDuration = parseInt(guard.params.CallDuration ?? '0', 10);
 
   const supabase = createServiceClient();
 

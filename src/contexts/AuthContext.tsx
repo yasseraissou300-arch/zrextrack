@@ -1,6 +1,13 @@
 
 'use client';
 
+// ⚠️ CODE MORT — CANDIDAT À SUPPRESSION (Phase 0, point 13)
+// Vérifié en Phase 0 : `AuthProvider` n'est monté nulle part et `useAuth`
+// n'est importé par aucun composant. L'application utilise `/api/auth/me`
+// (lecture serveur, bypass RLS) et le client Supabase directement.
+// Conservé tel quel pour cette phase — suppression proposée après stabilisation.
+// Voir db/baseline/000_SCHEMA_REEL.md et le rapport Phase 0.
+
 import { createContext, useContext, useEffect, useState } from 'react';
 import { createClient } from '../lib/supabase/client';
 
@@ -86,10 +93,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   // Get User Profile from Database
+  //
+  // Phase 0 — correction : ce code interrogeait `user_profiles`, table qui
+  // N'EXISTE PAS en base (vérifié par introspection : PGRST205). Tout appel
+  // aurait levé une exception. La table réelle est `profiles`.
   const getUserProfile = async () => {
     if (!user) return null;
     const { data, error } = await supabase
-      .from('user_profiles')
+      .from('profiles')
       .select('*')
       .eq('id', user.id)
       .single();

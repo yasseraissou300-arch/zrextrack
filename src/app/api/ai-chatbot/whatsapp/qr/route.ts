@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
+import { webhookTokenQuery } from '@/lib/security/webhook-auth';
 
 // Allow up to 60s for Evolution API to generate QR (WhatsApp handshake is slow)
 export const maxDuration = 60;
@@ -95,7 +96,8 @@ export async function GET(req: NextRequest) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', apikey: EVOLUTION_KEY },
     body: JSON.stringify({
-      url: `${APP_URL_BASE}/api/ai-chatbot/webhook/whatsapp`,
+      // P0-1 : secret partagé dans l'URL (Evolution ne signe pas ses payloads).
+      url: `${APP_URL_BASE}/api/ai-chatbot/webhook/whatsapp${webhookTokenQuery('WHATSAPP_WEBHOOK_SECRET')}`,
       webhook_by_events: false,
       webhook_base64: false,
       events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],

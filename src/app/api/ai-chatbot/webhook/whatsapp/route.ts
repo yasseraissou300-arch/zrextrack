@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { resolveGeminiKeys, resolveEvolutionCreds } from '@/lib/user-creds';
+import { verifyWebhookSecret, isReplay } from '@/lib/security/webhook-auth';
+import { logEvent, maskPhone } from '@/lib/security/safe-log';
 
 // Credentials résolus au début de chaque requête.
 //   - Evolution = serveur PARTAGÉ de la plateforme (connexion du numéro).
@@ -185,7 +187,7 @@ async function callGemini(geminiKey: string, systemPrompt: string, messages: Cla
     );
     if (!res.ok) {
       const err = await res.text();
-      console.error('[Gemini] Error:', res.status, err.slice(0, 200));
+      logEvent('error', 'ai.gemini', { status: 'http_error', error_code: String(res.status) });
       return { text: null, tokens: 0, quota: res.status === 429 };
     }
     const json = await res.json();
@@ -193,7 +195,7 @@ async function callGemini(geminiKey: string, systemPrompt: string, messages: Cla
     const tokens = (json.usageMetadata?.promptTokenCount ?? 0) + (json.usageMetadata?.candidatesTokenCount ?? 0);
     return { text, tokens };
   } catch (e) {
-    console.error('[Gemini] Exception:', e);
+    logEvent('error', 'ai.gemini', { status: 'exception' });
     return { text: null, tokens: 0 };
   }
 }
@@ -210,7 +212,7 @@ async function callAI(
 ): Promise<ClaudeResult> {
   const keys = creds.geminiKeys;
   if (keys.length === 0) {
-    console.log('[AI] no Gemini key configured for this user — bot stays silent');
+    logEvent('warn', 'ai.gemini', { status: 'no_key_configured' });
     return { text: null, tokens: 0 };
   }
   for (let i = 0; i < keys.length; i++) {
@@ -306,25 +308,63 @@ export async function GET() {
 // ─── POST — Evolution API incoming message handler ────────────────────────────
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    console.log('[WEBHOOK IN]', body.event, body.instance, body.data?.key?.remoteJid);
+    // ── P0-1 : authentification du webhook ──────────────────────────────────
+    // Evolution ne signe pas ses payloads → secret partagé placé par la
+    // plateforme dans l'URL enregistrée. Tant que WHATSAPP_WEBHOOK_SECRET n'est
+    // pas défini, on n'applique pas (déploiement progressif, zéro régression).
+    const auth = verifyWebhookSecret(req, 'WHATSAPP_WEBHOOK_SECRET');
+    if (!auth.ok) {
+      logEvent('warn', 'webhook.whatsapp', { status: 'rejected', reason: auth.reason });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: auth.status });
+    }
+    if (auth.mode === 'unenforced') {
+      logEvent('warn', 'webhook.whatsapp', {
+        status: 'unauthenticated_accepted',
+        reason: 'WHATSAPP_WEBHOOK_SECRET non défini — webhook ouvert',
+      });
+    }
+
+    const body = await req.json().catch(() => null);
+
+    // ── Validation de forme du payload ──────────────────────────────────────
+    if (!body || typeof body !== 'object' || typeof body.event !== 'string') {
+      logEvent('warn', 'webhook.whatsapp', { status: 'rejected', reason: 'malformed_payload' });
+      return NextResponse.json({ error: 'Bad payload' }, { status: 400 });
+    }
 
     const event: string = body.event || '';
     if (event !== 'MESSAGES_UPSERT' && event !== 'messages.upsert') {
-      console.log('[WEBHOOK SKIP] non-message event:', event);
+      logEvent('info', 'webhook.whatsapp', { event, status: 'skipped_non_message' });
       return NextResponse.json({ ok: true });
     }
 
-    const instanceName: string = body.instance || '';
+    const instanceName: string = typeof body.instance === 'string' ? body.instance : '';
     const msgData = body.data || {};
     const remoteJid: string = msgData.key?.remoteJid || '';
     const fromMe: boolean = msgData.key?.fromMe ?? false;
+    const messageId: string = msgData.key?.id || '';
     const text: string = msgData.message?.conversation || msgData.message?.extendedTextMessage?.text || '';
     const contactName: string = msgData.pushName || '';
 
+    logEvent('info', 'webhook.whatsapp', {
+      event, instance: instanceName, message_id: messageId,
+      contact: maskPhone(remoteJid), status: 'received',
+    });
+
     if (!text.trim() || remoteJid.includes('@g.us') || !instanceName) {
-      console.log('[WEBHOOK SKIP] filter: hasText=', !!text.trim(), 'isGroup=', remoteJid.includes('@g.us'), 'instance=', instanceName);
+      logEvent('info', 'webhook.whatsapp', {
+        event, instance: instanceName, status: 'skipped_filter',
+        reason: !text.trim() ? 'empty_text' : remoteJid.includes('@g.us') ? 'group' : 'no_instance',
+      });
       return NextResponse.json({ ok: true });
+    }
+
+    // ── Idempotence : un même message rejoué ne relance ni l'IA ni un envoi ──
+    if (messageId && isReplay(`wa:${instanceName}:${messageId}`)) {
+      logEvent('info', 'webhook.whatsapp', {
+        event, instance: instanceName, message_id: messageId, status: 'skipped_replay',
+      });
+      return NextResponse.json({ ok: true, deduped: true });
     }
 
     const supabase = createServiceClient();
@@ -336,7 +376,7 @@ export async function POST(req: NextRequest) {
       .eq('instance_name', instanceName)
       .single();
     if (!waInstance) {
-      console.log('[WEBHOOK SKIP] no whatsapp_instances row for instance=', instanceName, 'err=', waErr?.message);
+      logEvent('warn', 'webhook.whatsapp', { instance: instanceName, status: 'skipped_unknown_instance', error_code: waErr?.code });
       return NextResponse.json({ ok: true });
     }
     const userId = waInstance.user_id;
@@ -368,7 +408,7 @@ export async function POST(req: NextRequest) {
       .eq('is_active', true)
       .single();
     if (!config) {
-      console.log('[WEBHOOK SKIP] no active chatbot_config for user=', userId, 'template_type=', serviceType, 'err=', cfgErr?.message);
+      logEvent('info', 'webhook.whatsapp', { tenant_id: userId, status: 'skipped_no_active_config', reason: serviceType, error_code: cfgErr?.code });
       return NextResponse.json({ ok: true });
     }
 
@@ -383,7 +423,7 @@ export async function POST(req: NextRequest) {
 
     // ─── Skip bot's own outgoing messages echoed back by Evolution API ──────────
     if (fromMe) {
-      console.log('[WEBHOOK SKIP] fromMe true (own echo)');
+      logEvent('info', 'webhook.whatsapp', { tenant_id: userId, status: 'skipped_own_echo' });
       return NextResponse.json({ ok: true });
     }
 
@@ -391,21 +431,21 @@ export async function POST(req: NextRequest) {
     const blockedPrefixes: string[] = config.blocked_prefixes ?? [];
     const cleanJid = remoteJid.replace('@s.whatsapp.net', '');
     if (blockedPrefixes.length > 0 && blockedPrefixes.some((p: string) => cleanJid.startsWith(p))) {
-      console.log('[WEBHOOK SKIP] blocked prefix for jid=', cleanJid);
+      logEvent('info', 'webhook.whatsapp', { tenant_id: userId, contact: maskPhone(cleanJid), status: 'skipped_blocked_prefix' });
       return NextResponse.json({ ok: true });
     }
 
     // ─── Human pause check ─────────────────────────────────────────────────────
     if (existingSession?.human_pause_until) {
       if (Date.now() < new Date(existingSession.human_pause_until).getTime()) {
-        console.log('[WEBHOOK SKIP] human_pause active until', existingSession.human_pause_until);
+        logEvent('info', 'webhook.whatsapp', { tenant_id: userId, status: 'skipped_human_pause' });
         return NextResponse.json({ ok: true });
       }
     }
 
     // ─── Already handed over to human ─────────────────────────────────────────
     if (existingSession?.human_handover) {
-      console.log('[WEBHOOK SKIP] human_handover already true for jid=', remoteJid);
+      logEvent('info', 'webhook.whatsapp', { tenant_id: userId, contact: maskPhone(remoteJid), status: 'skipped_human_handover' });
       return NextResponse.json({ ok: true });
     }
 
@@ -543,7 +583,7 @@ export async function POST(req: NextRequest) {
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    console.error('[Webhook] Error:', message);
+    logEvent('error', 'webhook.whatsapp', { status: 'exception', reason: message });
     return NextResponse.json({ ok: true });
   }
 }
