@@ -116,6 +116,74 @@ describe('Isolation — toute requête multi-tenant est scopée', () => {
   });
 });
 
+describe('Handlers de file — isolation (Phase 1)', () => {
+  // Les handlers exécutent le travail HORS requête utilisateur : il n'y a plus
+  // de session pour borner l'accès. Toute leur sûreté repose donc sur le
+  // scoping explicite par `job.tenant_id`. Ce bloc le verrouille.
+  const HANDLERS_DIR = path.resolve(__dirname, '../src/lib/queue/handlers');
+
+  const fichiersHandler = fs.existsSync(HANDLERS_DIR)
+    ? fs
+        .readdirSync(HANDLERS_DIR)
+        .filter((f) => f.endsWith('.ts'))
+        .map((f) => path.join(HANDLERS_DIR, f))
+    : [];
+
+  it('des handlers existent et sont analysés', () => {
+    expect(fichiersHandler.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('chaque handler dérive son périmètre de job.tenant_id', () => {
+    const sansTenant: string[] = [];
+    for (const f of fichiersHandler) {
+      const src = fs.readFileSync(f, 'utf8');
+      if (!/job\.tenant_id/.test(src)) sansTenant.push(path.basename(f));
+    }
+    expect(sansTenant).toEqual([]);
+  });
+
+  it('aucune requête multi-tenant sans scoping dans les handlers', () => {
+    const violations: string[] = [];
+
+    for (const f of fichiersHandler) {
+      const nom = path.basename(f);
+      const src = fs.readFileSync(f, 'utf8');
+
+      for (const table of TABLES_MULTI_TENANT) {
+        const re = new RegExp(`\\.from\\(['"]${table}['"]\\)([\\s\\S]{0,700}?);`, 'g');
+        let m: RegExpExecArray | null;
+        while ((m = re.exec(src)) !== null) {
+          const bloc = m[1];
+          const scope =
+            /\.eq\(\s*['"]user_id['"]\s*,\s*tenantId/.test(bloc) ||
+            /\.eq\(\s*['"]id['"]\s*,\s*tenantId/.test(bloc) ||
+            /user_id:\s*tenantId/.test(bloc) ||
+            // campaign_recipients est rattachée via campaign_id, lui-même déjà
+            // vérifié comme appartenant au tenant plus haut dans le handler.
+            /campaign_id:/.test(bloc);
+          if (!scope) violations.push(`${nom} → ${table}`);
+        }
+      }
+    }
+
+    expect(violations).toEqual([]);
+  });
+
+  it("le handler d'envoi n'écrit dans `messages` QUE sur succès", () => {
+    // Non-régression du bug des 532 471 lignes : l'ancien code insérait une
+    // ligne à chaque tentative avec `status: ok ? 'envoye' : 'echec'`.
+    const src = fs.readFileSync(path.join(HANDLERS_DIR, 'whatsapp-send.ts'), 'utf8');
+
+    // Aucune insertion conditionnelle au résultat.
+    expect(src).not.toMatch(/status:\s*ok\s*\?/);
+    // Aucun statut d'échec écrit dans messages.
+    const insertMessages = src.match(/\.from\('messages'\)\s*\.insert\(([\s\S]{0,400}?)\)/);
+    expect(insertMessages).not.toBeNull();
+    expect(insertMessages![1]).toContain("status: 'envoye'");
+    expect(insertMessages![1]).not.toContain('echec');
+  });
+});
+
 describe("Dérogations à l'isolation — inventaire figé", () => {
   it('chaque dérogation existe encore et est justifiée', () => {
     for (const [rel, raison] of Object.entries(DEROGATIONS)) {
@@ -143,6 +211,11 @@ describe('Routes en service-role (contournement RLS)', () => {
       'voice-calls/twiml/route.ts', // signature Twilio (P0-3)
       'voice-calls/status/route.ts', // signature Twilio (P0-3)
       'voice-calls/gather/route.ts', // signature Twilio (P0-3)
+      // Phase 1 — déclencheur machine authentifié par CRON_TICK_SECRET.
+      // Sans session utilisateur par nature. Balaie volontairement tous les
+      // tenants éligibles ; chaque job porte ensuite son tenant_id et les
+      // handlers scopent toutes leurs requêtes (voir bloc « Handlers » plus bas).
+      'cron/tick/route.ts',
     ];
 
     const manquantes: string[] = [];

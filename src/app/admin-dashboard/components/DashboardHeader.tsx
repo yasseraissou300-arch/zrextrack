@@ -27,6 +27,11 @@ export default function DashboardHeader() {
   const [syncedCount, setSyncedCount] = useState<number | null>(null);
   const [hasToken, setHasToken] = useState(false);
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
+  // Phase 1 — d'où part réellement la synchronisation.
+  // 'client' = ce navigateur seul (état initial de tous les tenants)
+  // 'both'   = transition ; l'idempotence empêche le doublon
+  // 'server' = cron ; le setInterval reste néanmoins actif en filet
+  const [syncSource, setSyncSource] = useState<'client' | 'both' | 'server'>('client');
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const [showClearModal, setShowClearModal] = useState(false);
   const [clearing, setClearing] = useState(false);
@@ -39,9 +44,27 @@ export default function DashboardHeader() {
 
       // Active l'auto-sync si token présent (sauf désactivation manuelle locale)
       const autoDisabled = localStorage.getItem('zrextrack_autosync_disabled') === 'true';
-      if (s.zrexpress_token && s.zrexpress_tenant_id && !autoDisabled) {
-        setAutoSyncEnabled(true);
-      }
+      const enabled = !!(s.zrexpress_token && s.zrexpress_tenant_id && !autoDisabled);
+      if (enabled) setAutoSyncEnabled(true);
+
+      // Phase 1 — remonte l'intention vers le serveur.
+      // Jusqu'ici, « l'auto-sync est-il activé ? » n'existait QUE dans le
+      // localStorage de ce navigateur : le serveur ne pouvait pas savoir quels
+      // tenants synchroniser. On pousse donc l'état, puis on lit la source
+      // réellement en vigueur (client / both / server).
+      fetch('/api/sync/preferences', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ auto_sync_enabled: enabled }),
+      })
+        .then(() => fetch('/api/sync/preferences'))
+        .then((r) => (r.ok ? r.json() : null))
+        .then((p) => {
+          if (p?.sync_source) setSyncSource(p.sync_source);
+        })
+        .catch(() => {
+          /* préférences serveur indisponibles : le navigateur reste maître */
+        });
     });
 
     // Dernière date de sync : reste local (info per-appareil, pas critique)
@@ -53,9 +76,23 @@ export default function DashboardHeader() {
     const next = !autoSyncEnabled;
     setAutoSyncEnabled(next);
     localStorage.setItem('zrextrack_autosync_disabled', next ? 'false' : 'true');
+
+    // Propage au serveur — sans quoi le cron ne saurait pas que ce tenant
+    // souhaite (ou ne souhaite plus) être synchronisé.
+    fetch('/api/sync/preferences', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ auto_sync_enabled: next }),
+    }).catch(() => {
+      /* non bloquant */
+    });
+
     if (next) {
       toast.success('Auto-sync activé', {
-        description: 'Synchronisation automatique toutes les 30 secondes.',
+        description:
+          syncSource === 'client'
+            ? 'Synchronisation toutes les 5 minutes tant que cet onglet reste ouvert.'
+            : 'Synchronisation côté serveur — elle continue même onglet fermé.',
       });
     } else {
       toast.info('Auto-sync arrêté', {

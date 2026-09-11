@@ -768,10 +768,19 @@ export default function CampagnesPage() {
     const res = await fetch(`/api/campaigns/${id}/send`, { method: 'POST' });
     const json = await res.json();
     if (json.error) {
-      toast.error(json.error);
+      toast.error(json.error + (json.hint ? `\n${json.hint}` : ''), { duration: 10000 });
       setCampaigns((prev) => prev.map((c) => (c.id === id ? { ...c, status: 'brouillon' } : c)));
     } else {
-      toast.success(`${json.sent} messages envoyés sur ${json.total}`);
+      // Phase 1 : l'envoi est désormais asynchrone. La route met la campagne en
+      // file et répond immédiatement — elle ne peut plus annoncer un nombre de
+      // messages envoyés, puisqu'ils partent en arrière-plan, espacés.
+      toast.success(json.message ?? 'Campagne mise en file — les envois partent en arrière-plan.', {
+        description:
+          json.remainingToday != null
+            ? `Quota du jour : ${json.sentToday}/${json.dailyLimit} · ${json.remainingToday} restant(s)`
+            : undefined,
+        duration: 9000,
+      });
       await fetchCampaigns();
     }
     setSendingId(null);
