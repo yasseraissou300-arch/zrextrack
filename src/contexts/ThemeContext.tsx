@@ -36,13 +36,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem(STORAGE_KEY, theme);
   }, [theme, mounted]);
 
-  const toggle = () => setThemeState(t => (t === 'dark' ? 'light' : 'dark'));
+  const toggle = () => setThemeState((t) => (t === 'dark' ? 'light' : 'dark'));
   const setTheme = (t: Theme) => setThemeState(t);
 
   return (
-    <ThemeContext.Provider value={{ theme, toggle, setTheme }}>
-      {children}
-    </ThemeContext.Provider>
+    <ThemeContext.Provider value={{ theme, toggle, setTheme }}>{children}</ThemeContext.Provider>
   );
 }
 

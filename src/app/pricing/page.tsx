@@ -11,14 +11,10 @@ const plans = [
     description: 'Idéal pour démarrer',
     color: 'border-stone-200 dark:border-stone-800',
     badge: null,
-    features: [
-      'Jusqu\'à 200 commandes/mois',
-      '1 utilisateur',
-      'Tableau de bord',
-      'Support email',
-    ],
+    features: ["Jusqu'à 200 commandes/mois", '1 utilisateur', 'Tableau de bord', 'Support email'],
     cta: 'Commencer gratuitement',
-    ctaStyle: 'bg-stone-900 hover:bg-stone-800 text-white dark:bg-stone-100 dark:hover:bg-white dark:text-stone-900',
+    ctaStyle:
+      'bg-stone-900 hover:bg-stone-800 text-white dark:bg-stone-100 dark:hover:bg-white dark:text-stone-900',
   },
   {
     id: 'pro',
@@ -28,7 +24,7 @@ const plans = [
     color: 'border-violet-500 ring-2 ring-violet-500',
     badge: '⭐ Populaire',
     features: [
-      'Jusqu\'à 2000 commandes/mois',
+      "Jusqu'à 2000 commandes/mois",
       '5 utilisateurs',
       'Messages WhatsApp automatiques',
       'Rapports avancés',
@@ -90,18 +86,28 @@ export default function PricingPage() {
               )}
 
               <div className="mb-6">
-                <h3 className="text-xl font-bold text-stone-900 dark:text-stone-100 mb-1">{plan.name}</h3>
-                <p className="text-stone-500 dark:text-stone-400 text-sm mb-4">{plan.description}</p>
+                <h3 className="text-xl font-bold text-stone-900 dark:text-stone-100 mb-1">
+                  {plan.name}
+                </h3>
+                <p className="text-stone-500 dark:text-stone-400 text-sm mb-4">
+                  {plan.description}
+                </p>
                 <div className="flex items-baseline gap-1.5">
                   {plan.price === 0 ? (
                     <>
-                      <span className="text-4xl font-bold text-stone-900 dark:text-stone-100">Gratuit</span>
+                      <span className="text-4xl font-bold text-stone-900 dark:text-stone-100">
+                        Gratuit
+                      </span>
                       <span className="text-stone-500 dark:text-stone-400">pour toujours</span>
                     </>
                   ) : (
                     <>
-                      <span className="text-4xl font-bold text-stone-900 dark:text-stone-100 tabular-nums">{plan.price.toLocaleString('fr-FR')}</span>
-                      <span className="text-lg font-semibold text-stone-600 dark:text-stone-300">DA</span>
+                      <span className="text-4xl font-bold text-stone-900 dark:text-stone-100 tabular-nums">
+                        {plan.price.toLocaleString('fr-FR')}
+                      </span>
+                      <span className="text-lg font-semibold text-stone-600 dark:text-stone-300">
+                        DA
+                      </span>
                       <span className="text-stone-500 dark:text-stone-400">/mois</span>
                     </>
                   )}
@@ -110,8 +116,14 @@ export default function PricingPage() {
 
               <ul className="space-y-3 mb-8">
                 {plan.features.map((feature) => (
-                  <li key={feature} className="flex items-start gap-2.5 text-sm text-stone-700 dark:text-stone-300">
-                    <Check size={16} className="text-violet-500 dark:text-violet-400 mt-0.5 shrink-0" />
+                  <li
+                    key={feature}
+                    className="flex items-start gap-2.5 text-sm text-stone-700 dark:text-stone-300"
+                  >
+                    <Check
+                      size={16}
+                      className="text-violet-500 dark:text-violet-400 mt-0.5 shrink-0"
+                    />
                     {feature}
                   </li>
                 ))}
@@ -131,11 +143,17 @@ export default function PricingPage() {
         <div className="text-center">
           <p className="text-stone-500 dark:text-stone-400 text-sm">
             Des questions ? Contactez-nous à{' '}
-            <a href="mailto:yasseraissou300@gmail.com" className="text-violet-600 dark:text-violet-400 hover:underline">
+            <a
+              href="mailto:yasseraissou300@gmail.com"
+              className="text-violet-600 dark:text-violet-400 hover:underline"
+            >
               yasseraissou300@gmail.com
             </a>
           </p>
-          <Link href="/login" className="inline-block mt-4 text-sm text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 underline">
+          <Link
+            href="/login"
+            className="inline-block mt-4 text-sm text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 underline"
+          >
             ← Retour à la connexion
           </Link>
         </div>

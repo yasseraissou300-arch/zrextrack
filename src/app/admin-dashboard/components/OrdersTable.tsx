@@ -1,7 +1,17 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, ChevronLeft, ChevronRight, RefreshCw, Copy, CheckCheck, ChevronRight as Arrow, Trash2, Wand2 } from 'lucide-react';
+import {
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  RefreshCw,
+  Copy,
+  CheckCheck,
+  ChevronRight as Arrow,
+  Trash2,
+  Wand2,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { SYNC_DONE_EVENT } from './DashboardHeader';
 import OrderDetailModal from './OrderDetailModal';
@@ -62,31 +72,34 @@ export default function OrdersTable() {
   const [pageSize, setPageSize] = useState(10);
   const [reclassifying, setReclassifying] = useState(false);
 
-  const fetchOrders = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        page: String(page),
-        pageSize: String(pageSize),
-        status: statusFilter,
-        search,
-      });
-      const res = await fetch(`/api/orders?${params}`);
-      const json = await res.json();
-      if (json.error) {
-        if (!silent) toast.error(json.error);
-      } else {
-        setOrders(json.data || []);
-        setTotal(json.count || 0);
-        setLastRefresh(new Date().toLocaleTimeString('fr-FR'));
-        setSelected(new Set()); // reset sélection après refresh
+  const fetchOrders = useCallback(
+    async (silent = false) => {
+      if (!silent) setLoading(true);
+      try {
+        const params = new URLSearchParams({
+          page: String(page),
+          pageSize: String(pageSize),
+          status: statusFilter,
+          search,
+        });
+        const res = await fetch(`/api/orders?${params}`);
+        const json = await res.json();
+        if (json.error) {
+          if (!silent) toast.error(json.error);
+        } else {
+          setOrders(json.data || []);
+          setTotal(json.count || 0);
+          setLastRefresh(new Date().toLocaleTimeString('fr-FR'));
+          setSelected(new Set()); // reset sélection après refresh
+        }
+      } catch (err: any) {
+        if (!silent) toast.error(err.message);
+      } finally {
+        if (!silent) setLoading(false);
       }
-    } catch (err: any) {
-      if (!silent) toast.error(err.message);
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  }, [page, statusFilter, search, pageSize]);
+    },
+    [page, statusFilter, search, pageSize]
+  );
 
   // Polling silencieux — uniquement quand l'onglet est visible.
   useEffect(() => {
@@ -94,7 +107,9 @@ export default function OrdersTable() {
     const interval = setInterval(() => {
       if (!document.hidden) fetchOrders(true);
     }, POLL_INTERVAL);
-    const onVisible = () => { if (!document.hidden) fetchOrders(true); };
+    const onVisible = () => {
+      if (!document.hidden) fetchOrders(true);
+    };
     document.addEventListener('visibilitychange', onVisible);
     return () => {
       clearInterval(interval);
@@ -118,9 +133,10 @@ export default function OrdersTable() {
 
   const toggleSelect = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setSelected(prev => {
+    setSelected((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
@@ -129,7 +145,7 @@ export default function OrdersTable() {
     if (selected.size === orders.length && orders.length > 0) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(orders.map(o => o.id)));
+      setSelected(new Set(orders.map((o) => o.id)));
     }
   };
 
@@ -163,197 +179,292 @@ export default function OrdersTable() {
     const res = await fetch('/api/orders/reclassify', { method: 'POST' });
     const json = await res.json();
     if (json.error) toast.error(json.error);
-    else { toast.success(json.message); fetchOrders(true); }
+    else {
+      toast.success(json.message);
+      fetchOrders(true);
+    }
     setReclassifying(false);
   };
-
 
   const totalPages = Math.ceil(total / pageSize);
   const allSelected = orders.length > 0 && selected.size === orders.length;
 
   return (
     <>
-    <OrderDetailModal order={selectedOrder} onClose={() => setSelectedOrder(null)} onDeleted={() => fetchOrders(true)} />
+      <OrderDetailModal
+        order={selectedOrder}
+        onClose={() => setSelectedOrder(null)}
+        onDeleted={() => fetchOrders(true)}
+      />
 
-    <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 overflow-hidden">
-      <div className="px-5 py-3.5 border-b border-stone-100 dark:border-stone-800 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h2 className="font-semibold text-stone-800 dark:text-stone-100 text-sm">Commandes récentes <span className="text-stone-400 dark:text-stone-500 font-normal">({total})</span></h2>
-          {lastRefresh && <span className="text-[10px] text-stone-300 dark:text-stone-600 font-mono">{lastRefresh}</span>}
-        </div>
-        <div className="flex gap-2 flex-wrap items-center">
-          {selected.size > 0 && (
-            <div className="flex items-center gap-2 mr-1">
-              <span className="text-xs font-medium text-stone-500 dark:text-stone-400 bg-stone-100 px-2 py-1 rounded-lg">{selected.size} sélectionnée(s)</span>
-              <button
-                onClick={handleBulkDelete}
-                disabled={deleting}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 border border-red-200 text-red-600 text-xs font-semibold hover:bg-red-100 transition-colors disabled:opacity-50"
-              >
-                <Trash2 size={12} />
-                {deleting ? 'Suppression...' : 'Mettre à la corbeille'}
-              </button>
-            </div>
-          )}
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 dark:text-stone-500" />
-            <input
-              value={search}
-              onChange={e => { setSearch(e.target.value); setPage(1); }}
-              placeholder="Rechercher..."
-              className="pl-8 pr-3 py-1.5 text-sm border border-stone-200 dark:border-stone-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-            />
+      <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-stone-100 dark:border-stone-800 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h2 className="font-semibold text-stone-800 dark:text-stone-100 text-sm">
+              Commandes récentes{' '}
+              <span className="text-stone-400 dark:text-stone-500 font-normal">({total})</span>
+            </h2>
+            {lastRefresh && (
+              <span className="text-[10px] text-stone-300 dark:text-stone-600 font-mono">
+                {lastRefresh}
+              </span>
+            )}
           </div>
-          <select
-            value={statusFilter}
-            onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
-            className="text-sm border border-stone-200 dark:border-stone-700 rounded-lg px-2 py-1.5 focus:outline-none"
-          >
-            <option value="all">Tous les statuts</option>
-            <option value="en_preparation">En préparation</option>
-            <option value="en_transit">En transit</option>
-            <option value="en_livraison">En livraison</option>
-            <option value="livre">Livrés</option>
-            <option value="echec">Échecs</option>
-            <option value="retourne">Retournés</option>
-          </select>
-          <select
-            value={pageSize}
-            onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
-            className="text-sm border border-stone-200 dark:border-stone-700 rounded-lg px-2 py-1.5 focus:outline-none text-stone-600 dark:text-stone-300"
-            title="Commandes par page"
-          >
-            <option value={10}>10 / page</option>
-            <option value={25}>25 / page</option>
-            <option value={50}>50 / page</option>
-            <option value={100}>100 / page</option>
-          </select>
-          <button
-            onClick={reclassify}
-            disabled={reclassifying}
-            title="Recorrige les statuts mal classifiés (Appelé sans réponse, Annulé, Erroné…)"
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border border-amber-200 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 disabled:opacity-50 transition-colors"
-          >
-            <Wand2 size={12} className={reclassifying ? 'animate-spin' : ''} />
-            {reclassifying ? 'Correction...' : 'Corriger statuts'}
-          </button>
-          <button onClick={() => fetchOrders()} className="p-1.5 border border-stone-200 dark:border-stone-700 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800">
-            <RefreshCw size={14} className="text-stone-500 dark:text-stone-400" />
-          </button>
+          <div className="flex gap-2 flex-wrap items-center">
+            {selected.size > 0 && (
+              <div className="flex items-center gap-2 mr-1">
+                <span className="text-xs font-medium text-stone-500 dark:text-stone-400 bg-stone-100 px-2 py-1 rounded-lg">
+                  {selected.size} sélectionnée(s)
+                </span>
+                <button
+                  onClick={handleBulkDelete}
+                  disabled={deleting}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 border border-red-200 text-red-600 text-xs font-semibold hover:bg-red-100 transition-colors disabled:opacity-50"
+                >
+                  <Trash2 size={12} />
+                  {deleting ? 'Suppression...' : 'Mettre à la corbeille'}
+                </button>
+              </div>
+            )}
+            <div className="relative">
+              <Search
+                size={14}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 dark:text-stone-500"
+              />
+              <input
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
+                placeholder="Rechercher..."
+                className="pl-8 pr-3 py-1.5 text-sm border border-stone-200 dark:border-stone-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
+              />
+            </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setPage(1);
+              }}
+              className="text-sm border border-stone-200 dark:border-stone-700 rounded-lg px-2 py-1.5 focus:outline-none"
+            >
+              <option value="all">Tous les statuts</option>
+              <option value="en_preparation">En préparation</option>
+              <option value="en_transit">En transit</option>
+              <option value="en_livraison">En livraison</option>
+              <option value="livre">Livrés</option>
+              <option value="echec">Échecs</option>
+              <option value="retourne">Retournés</option>
+            </select>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setPage(1);
+              }}
+              className="text-sm border border-stone-200 dark:border-stone-700 rounded-lg px-2 py-1.5 focus:outline-none text-stone-600 dark:text-stone-300"
+              title="Commandes par page"
+            >
+              <option value={10}>10 / page</option>
+              <option value={25}>25 / page</option>
+              <option value={50}>50 / page</option>
+              <option value={100}>100 / page</option>
+            </select>
+            <button
+              onClick={reclassify}
+              disabled={reclassifying}
+              title="Recorrige les statuts mal classifiés (Appelé sans réponse, Annulé, Erroné…)"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border border-amber-200 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 disabled:opacity-50 transition-colors"
+            >
+              <Wand2 size={12} className={reclassifying ? 'animate-spin' : ''} />
+              {reclassifying ? 'Correction...' : 'Corriger statuts'}
+            </button>
+            <button
+              onClick={() => fetchOrders()}
+              className="p-1.5 border border-stone-200 dark:border-stone-700 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800"
+            >
+              <RefreshCw size={14} className="text-stone-500 dark:text-stone-400" />
+            </button>
+          </div>
         </div>
-      </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-stone-100 dark:border-stone-800 bg-stone-50/60">
-              <th className="px-4 py-2.5 w-10">
-                <input
-                  type="checkbox"
-                  checked={allSelected}
-                  onChange={toggleAll}
-                  className="rounded border-stone-300 cursor-pointer"
-                />
-              </th>
-              <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">Tracking</th>
-              <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">Client</th>
-              <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">Produit</th>
-              <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">Wilaya</th>
-              <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">Statut</th>
-              <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">Livraison</th>
-              <th className="px-4 py-2.5 text-right text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">COD</th>
-              <th className="px-4 py-2.5 text-center text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">Tentatives</th>
-              <th className="px-2 py-2.5 w-6"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-stone-50 dark:divide-stone-800">
-            {loading ? (
-              <tr><td colSpan={10} className="px-4 py-8 text-center text-stone-400 dark:text-stone-500">Chargement...</td></tr>
-            ) : orders.length === 0 ? (
-              <tr>
-                <td colSpan={10} className="px-4 py-12 text-center">
-                  <div className="flex flex-col items-center gap-2.5">
-                    <div className="relative">
-                      <div className="absolute inset-0 bg-gradient-to-br from-violet-200 to-fuchsia-200 dark:from-violet-500/20 dark:to-fuchsia-500/20 blur-xl rounded-full" />
-                      <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-violet-100 to-fuchsia-100 dark:from-violet-500/15 dark:to-fuchsia-500/15 flex items-center justify-center">
-                        <Search size={18} className="text-violet-500 dark:text-violet-300" />
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-stone-700 dark:text-stone-200">Aucune commande trouvée</p>
-                      <p className="text-xs text-stone-400 dark:text-stone-500 mt-0.5">Essayez de modifier les filtres ou lancez un sync</p>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            ) : orders.map(order => (
-              <tr
-                key={order.id}
-                onClick={() => setSelectedOrder(order)}
-                className={`border-b border-stone-50 dark:border-stone-800 hover:bg-stone-50 dark:hover:bg-stone-800/40 transition-colors cursor-pointer group ${selected.has(order.id) ? 'bg-red-50/40 dark:bg-red-500/10' : ''}`}
-              >
-                <td className="px-4 py-3" onClick={e => toggleSelect(order.id, e)}>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-stone-100 dark:border-stone-800 bg-stone-50/60">
+                <th className="px-4 py-2.5 w-10">
                   <input
                     type="checkbox"
-                    checked={selected.has(order.id)}
-                    onChange={() => {}}
+                    checked={allSelected}
+                    onChange={toggleAll}
                     className="rounded border-stone-300 cursor-pointer"
                   />
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-mono text-xs font-semibold text-violet-600">{order.tracking_number}</span>
-                    <button
-                      onClick={e => { e.stopPropagation(); copyTracking(order.tracking_number); }}
-                      className="text-stone-300 dark:text-stone-600 hover:text-stone-500 dark:text-stone-400 transition-colors"
-                    >
-                      {copiedId === order.tracking_number ? <CheckCheck size={11} className="text-green-500" /> : <Copy size={11} />}
-                    </button>
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  <p className="text-sm font-medium text-stone-800 dark:text-stone-100">{order.customer_name}</p>
-                  <p className="text-xs text-stone-400 dark:text-stone-500">{order.customer_whatsapp}</p>
-                </td>
-                <td className="px-4 py-3 text-sm text-stone-500 dark:text-stone-400 max-w-[140px] truncate">{order.product_name || '—'}</td>
-                <td className="px-4 py-3 text-sm text-stone-600 dark:text-stone-300 font-medium">{order.wilaya || '—'}</td>
-                <td className="px-4 py-3">
-                  <span className={`inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full ${statusConfig[order.delivery_status]?.badge || 'bg-stone-100 text-stone-600 dark:text-stone-300'}`}>
-                    {order.situation?.trim() || statusConfig[order.delivery_status]?.label || order.delivery_status}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-sm text-stone-500 dark:text-stone-400">{formatDeliveryType(order.delivery_type)}</td>
-                <td className="px-4 py-3 text-right text-sm font-semibold text-stone-800 dark:text-stone-100">
-                  {order.cod ? `${Number(order.cod).toLocaleString('fr-DZ')} DA` : '—'}
-                </td>
-                <td className="px-4 py-3 text-center">
-                  <span className="text-xs font-medium text-stone-500 dark:text-stone-400 bg-stone-100 rounded-md px-2 py-0.5">{order.attempts ?? 0}</span>
-                </td>
-                <td className="px-2 py-3">
-                  <Arrow size={13} className="text-stone-300 dark:text-stone-600 group-hover:text-stone-500 dark:text-stone-400 transition-colors" />
-                </td>
+                </th>
+                <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">
+                  Tracking
+                </th>
+                <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">
+                  Client
+                </th>
+                <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">
+                  Produit
+                </th>
+                <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">
+                  Wilaya
+                </th>
+                <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">
+                  Statut
+                </th>
+                <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">
+                  Livraison
+                </th>
+                <th className="px-4 py-2.5 text-right text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">
+                  COD
+                </th>
+                <th className="px-4 py-2.5 text-center text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">
+                  Tentatives
+                </th>
+                <th className="px-2 py-2.5 w-6"></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {totalPages > 1 && (
-        <div className="px-4 py-3 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between">
-          <span className="text-sm text-stone-500 dark:text-stone-400">Page {page} / {totalPages}</span>
-          <div className="flex gap-2">
-            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-              className="p-1.5 border rounded-lg disabled:opacity-40 hover:bg-stone-50 dark:hover:bg-stone-800">
-              <ChevronLeft size={14} />
-            </button>
-            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-              className="p-1.5 border rounded-lg disabled:opacity-40 hover:bg-stone-50 dark:hover:bg-stone-800">
-              <ChevronRight size={14} />
-            </button>
-          </div>
+            </thead>
+            <tbody className="divide-y divide-stone-50 dark:divide-stone-800">
+              {loading ? (
+                <tr>
+                  <td
+                    colSpan={10}
+                    className="px-4 py-8 text-center text-stone-400 dark:text-stone-500"
+                  >
+                    Chargement...
+                  </td>
+                </tr>
+              ) : orders.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className="px-4 py-12 text-center">
+                    <div className="flex flex-col items-center gap-2.5">
+                      <div className="relative">
+                        <div className="absolute inset-0 bg-gradient-to-br from-violet-200 to-fuchsia-200 dark:from-violet-500/20 dark:to-fuchsia-500/20 blur-xl rounded-full" />
+                        <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-violet-100 to-fuchsia-100 dark:from-violet-500/15 dark:to-fuchsia-500/15 flex items-center justify-center">
+                          <Search size={18} className="text-violet-500 dark:text-violet-300" />
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-stone-700 dark:text-stone-200">
+                          Aucune commande trouvée
+                        </p>
+                        <p className="text-xs text-stone-400 dark:text-stone-500 mt-0.5">
+                          Essayez de modifier les filtres ou lancez un sync
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                orders.map((order) => (
+                  <tr
+                    key={order.id}
+                    onClick={() => setSelectedOrder(order)}
+                    className={`border-b border-stone-50 dark:border-stone-800 hover:bg-stone-50 dark:hover:bg-stone-800/40 transition-colors cursor-pointer group ${selected.has(order.id) ? 'bg-red-50/40 dark:bg-red-500/10' : ''}`}
+                  >
+                    <td className="px-4 py-3" onClick={(e) => toggleSelect(order.id, e)}>
+                      <input
+                        type="checkbox"
+                        checked={selected.has(order.id)}
+                        onChange={() => {}}
+                        className="rounded border-stone-300 cursor-pointer"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-xs font-semibold text-violet-600">
+                          {order.tracking_number}
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            copyTracking(order.tracking_number);
+                          }}
+                          className="text-stone-300 dark:text-stone-600 hover:text-stone-500 dark:text-stone-400 transition-colors"
+                        >
+                          {copiedId === order.tracking_number ? (
+                            <CheckCheck size={11} className="text-green-500" />
+                          ) : (
+                            <Copy size={11} />
+                          )}
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="text-sm font-medium text-stone-800 dark:text-stone-100">
+                        {order.customer_name}
+                      </p>
+                      <p className="text-xs text-stone-400 dark:text-stone-500">
+                        {order.customer_whatsapp}
+                      </p>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-stone-500 dark:text-stone-400 max-w-[140px] truncate">
+                      {order.product_name || '—'}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-stone-600 dark:text-stone-300 font-medium">
+                      {order.wilaya || '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full ${statusConfig[order.delivery_status]?.badge || 'bg-stone-100 text-stone-600 dark:text-stone-300'}`}
+                      >
+                        {order.situation?.trim() ||
+                          statusConfig[order.delivery_status]?.label ||
+                          order.delivery_status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-stone-500 dark:text-stone-400">
+                      {formatDeliveryType(order.delivery_type)}
+                    </td>
+                    <td className="px-4 py-3 text-right text-sm font-semibold text-stone-800 dark:text-stone-100">
+                      {order.cod ? `${Number(order.cod).toLocaleString('fr-DZ')} DA` : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="text-xs font-medium text-stone-500 dark:text-stone-400 bg-stone-100 rounded-md px-2 py-0.5">
+                        {order.attempts ?? 0}
+                      </span>
+                    </td>
+                    <td className="px-2 py-3">
+                      <Arrow
+                        size={13}
+                        className="text-stone-300 dark:text-stone-600 group-hover:text-stone-500 dark:text-stone-400 transition-colors"
+                      />
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
-      )}
-    </div>
+
+        {totalPages > 1 && (
+          <div className="px-4 py-3 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between">
+            <span className="text-sm text-stone-500 dark:text-stone-400">
+              Page {page} / {totalPages}
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="p-1.5 border rounded-lg disabled:opacity-40 hover:bg-stone-50 dark:hover:bg-stone-800"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="p-1.5 border rounded-lg disabled:opacity-40 hover:bg-stone-50 dark:hover:bg-stone-800"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </>
   );
 }

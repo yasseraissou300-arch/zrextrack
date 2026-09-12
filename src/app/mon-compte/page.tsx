@@ -7,7 +7,16 @@
 import React, { useEffect, useState } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
 import { createClient } from '@/lib/supabase/client';
-import { UserCircle, Mail, Shield, LogOut, Loader2, Crown, Building2, CalendarDays } from 'lucide-react';
+import {
+  UserCircle,
+  Mail,
+  Shield,
+  LogOut,
+  Loader2,
+  Crown,
+  Building2,
+  CalendarDays,
+} from 'lucide-react';
 
 interface Profile {
   email: string;
@@ -20,14 +29,18 @@ interface Profile {
 }
 
 const PLAN_LABEL: Record<string, string> = {
-  basic: 'Basic (gratuit)', pro: 'Pro', business: 'Business',
+  basic: 'Basic (gratuit)',
+  pro: 'Pro',
+  business: 'Business',
 };
 
 function Row({ icon: Icon, label, value }: { icon: typeof Mail; label: string; value: string }) {
   return (
     <div className="flex items-center gap-3 py-2.5 border-b border-stone-100 dark:border-stone-800 last:border-0">
       <Icon size={15} className="text-stone-400 shrink-0" />
-      <span className="text-xs font-medium text-stone-400 dark:text-stone-500 w-28 shrink-0">{label}</span>
+      <span className="text-xs font-medium text-stone-400 dark:text-stone-500 w-28 shrink-0">
+        {label}
+      </span>
       <span className="text-sm text-stone-800 dark:text-stone-100 break-all">{value}</span>
     </div>
   );
@@ -43,7 +56,10 @@ export default function MonComptePage() {
     (async () => {
       // Lecture via /api/auth/me (serveur, bypass RLS) → le rôle est toujours lu.
       const res = await fetch('/api/auth/me');
-      if (res.status === 401) { window.location.href = '/login'; return; }
+      if (res.status === 401) {
+        window.location.href = '/login';
+        return;
+      }
       const j = await res.json();
       setEmail(j.email || '');
       setProfile({
@@ -74,12 +90,16 @@ export default function MonComptePage() {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100">Mon compte</h1>
-              <p className="text-sm text-stone-500 dark:text-stone-400">Vos informations de connexion</p>
+              <p className="text-sm text-stone-500 dark:text-stone-400">
+                Vos informations de connexion
+              </p>
             </div>
           </div>
 
           {loading ? (
-            <div className="flex justify-center py-16"><Loader2 size={22} className="animate-spin text-stone-400" /></div>
+            <div className="flex justify-center py-16">
+              <Loader2 size={22} className="animate-spin text-stone-400" />
+            </div>
           ) : (
             <>
               <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-sm p-6">
@@ -93,7 +113,9 @@ export default function MonComptePage() {
                     </div>
                   )}
                   <div>
-                    <p className="text-lg font-bold text-stone-900 dark:text-stone-100">{profile?.full_name || 'Sans nom'}</p>
+                    <p className="text-lg font-bold text-stone-900 dark:text-stone-100">
+                      {profile?.full_name || 'Sans nom'}
+                    </p>
                     {profile?.role === 'admin' && (
                       <span className="inline-flex items-center gap-1 text-xs bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300 px-2 py-0.5 rounded-full font-medium mt-1">
                         <Shield size={11} /> Super Admin
@@ -104,14 +126,28 @@ export default function MonComptePage() {
 
                 <div>
                   <Row icon={Mail} label="Email" value={email} />
-                  <Row icon={Crown} label="Plan" value={PLAN_LABEL[profile?.plan_id || 'basic'] || profile?.plan_id || 'Basic'} />
-                  {profile?.company_name && <Row icon={Building2} label="Entreprise" value={profile.company_name} />}
-                  {profile?.created_at && <Row icon={CalendarDays} label="Membre depuis" value={new Date(profile.created_at).toLocaleDateString('fr-FR')} />}
+                  <Row
+                    icon={Crown}
+                    label="Plan"
+                    value={PLAN_LABEL[profile?.plan_id || 'basic'] || profile?.plan_id || 'Basic'}
+                  />
+                  {profile?.company_name && (
+                    <Row icon={Building2} label="Entreprise" value={profile.company_name} />
+                  )}
+                  {profile?.created_at && (
+                    <Row
+                      icon={CalendarDays}
+                      label="Membre depuis"
+                      value={new Date(profile.created_at).toLocaleDateString('fr-FR')}
+                    />
+                  )}
                 </div>
               </div>
 
               <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/40 rounded-2xl p-4 text-sm text-blue-700 dark:text-blue-300">
-                🔐 Vous êtes connecté <strong>via Google</strong>. Il n'y a donc pas de mot de passe à gérer ici — c'est celui de votre compte Google. Pour le changer, passez par les réglages de votre compte Google.
+                🔐 Vous êtes connecté <strong>via Google</strong>. Il n'y a donc pas de mot de passe
+                à gérer ici — c'est celui de votre compte Google. Pour le changer, passez par les
+                réglages de votre compte Google.
               </div>
 
               <button

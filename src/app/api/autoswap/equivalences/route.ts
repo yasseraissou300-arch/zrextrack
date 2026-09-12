@@ -23,7 +23,9 @@ interface EquivalenceRow {
 
 export async function GET() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const service = createServiceClient();
@@ -40,7 +42,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const service = createServiceClient();
@@ -61,16 +65,21 @@ export async function POST(req: NextRequest) {
   }
   // Validation : chaque groupe est un tableau de strings non vide
   for (const g of groups) {
-    if (!Array.isArray(g) || g.length < 2 || !g.every(x => typeof x === 'string' && x.trim())) {
-      return NextResponse.json({ error: 'Chaque groupe doit contenir au moins 2 tailles' }, { status: 400 });
+    if (!Array.isArray(g) || g.length < 2 || !g.every((x) => typeof x === 'string' && x.trim())) {
+      return NextResponse.json(
+        { error: 'Chaque groupe doit contenir au moins 2 tailles' },
+        { status: 400 }
+      );
     }
   }
 
   // Normalise les tailles : trim + upper-case alpha, brut pour numérique
-  const normalizedGroups = groups.map(g => g.map(s => {
-    const t = s.trim();
-    return /^\d+$/.test(t) ? t : t.toUpperCase();
-  }));
+  const normalizedGroups = groups.map((g) =>
+    g.map((s) => {
+      const t = s.trim();
+      return /^\d+$/.test(t) ? t : t.toUpperCase();
+    })
+  );
 
   const { data, error } = await service
     .from('autoswap_size_equivalences')
@@ -93,7 +102,9 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const url = new URL(req.url);

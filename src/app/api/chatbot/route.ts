@@ -5,7 +5,16 @@ import { resolveGeminiKeys } from '@/lib/user-creds';
 
 export interface SessionState {
   intent: 'order' | 'sav' | 'complaint' | null;
-  step: 'detect' | 'collect_name' | 'collect_phone' | 'collect_products' | 'collect_address' | 'confirm' | 'done' | 'collect_complaint' | 'complaint_done';
+  step:
+    | 'detect'
+    | 'collect_name'
+    | 'collect_phone'
+    | 'collect_products'
+    | 'collect_address'
+    | 'confirm'
+    | 'done'
+    | 'collect_complaint'
+    | 'complaint_done';
   data: Record<string, string>;
 }
 
@@ -34,14 +43,19 @@ Informations clés :
 - Contact : ${kb.company.hours}
 
 Questions fréquentes :
-${kb.faq.map(f => `Q: ${f.question}\nR: ${f.answer}`).join('\n\n')}
+${kb.faq.map((f) => `Q: ${f.question}\nR: ${f.answer}`).join('\n\n')}
 
 INSTRUCTIONS : Réponds de manière claire, chaleureuse et concise (2-4 phrases max). Utilise la même langue que le client (français, arabe, darija). N'invente pas de prix ou informations non mentionnées.`;
 
 // BYOK : utilise le pool de clés Gemini de l'utilisateur connecté (mêmes clés
 // que le bot WhatsApp, configurées dans Paramètres → Clés API). Rotation
 // automatique : si une clé épuise son quota (429), on essaie la suivante.
-async function callGemini(keys: string[], systemPrompt: string, userMessage: string, history: ChatMessage[] = []): Promise<string | null> {
+async function callGemini(
+  keys: string[],
+  systemPrompt: string,
+  userMessage: string,
+  history: ChatMessage[] = []
+): Promise<string | null> {
   if (keys.length === 0) return null;
 
   const contents: { role: string; parts: { text: string }[] }[] = [];
@@ -82,15 +96,46 @@ async function callGemini(keys: string[], systemPrompt: string, userMessage: str
   return null;
 }
 
-async function detectIntent(keys: string[], message: string): Promise<'order' | 'complaint' | 'sav'> {
+async function detectIntent(
+  keys: string[],
+  message: string
+): Promise<'order' | 'complaint' | 'sav'> {
   const lower = message.toLowerCase();
 
   // Fast keyword detection before calling Gemini
-  const orderKeywords = ['commander', 'commande', 'acheter', 'achat', 'je veux', 'je voudrais', 'passer une commande', 'order', 'نطلب', 'نشري', 'طلبية جديدة', 'bghit nchri', 'bghit ndir commande'];
-  const complaintKeywords = ['problème', 'problem', 'réclamation', 'plainte', 'pas reçu', 'volé', 'abîmé', 'cassé', 'مشكل', 'شكوى', 'مشكلة', 'mashkil', 'reclamation'];
+  const orderKeywords = [
+    'commander',
+    'commande',
+    'acheter',
+    'achat',
+    'je veux',
+    'je voudrais',
+    'passer une commande',
+    'order',
+    'نطلب',
+    'نشري',
+    'طلبية جديدة',
+    'bghit nchri',
+    'bghit ndir commande',
+  ];
+  const complaintKeywords = [
+    'problème',
+    'problem',
+    'réclamation',
+    'plainte',
+    'pas reçu',
+    'volé',
+    'abîmé',
+    'cassé',
+    'مشكل',
+    'شكوى',
+    'مشكلة',
+    'mashkil',
+    'reclamation',
+  ];
 
-  if (orderKeywords.some(k => lower.includes(k))) return 'order';
-  if (complaintKeywords.some(k => lower.includes(k))) return 'complaint';
+  if (orderKeywords.some((k) => lower.includes(k))) return 'order';
+  if (complaintKeywords.some((k) => lower.includes(k))) return 'complaint';
 
   const classifyPrompt = `Classe ce message client en UN seul mot parmi: order, complaint, sav
 - "order" = veut commander/acheter
@@ -116,28 +161,40 @@ function extractTracking(text: string): string | null {
   return match ? match[1].toUpperCase() : null;
 }
 
-async function notifyWebhook(type: 'order' | 'complaint', data: Record<string, string>): Promise<void> {
+async function notifyWebhook(
+  type: 'order' | 'complaint',
+  data: Record<string, string>
+): Promise<void> {
   const webhookUrl = process.env.GOOGLE_SHEETS_WEBHOOK_URL;
   if (!webhookUrl) return;
   try {
     await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type, timestamp: new Date().toISOString(), source: 'chatbot', ...data }),
+      body: JSON.stringify({
+        type,
+        timestamp: new Date().toISOString(),
+        source: 'chatbot',
+        ...data,
+      }),
     });
-  } catch { /* non-blocking */ }
+  } catch {
+    /* non-blocking */
+  }
 }
 
 export async function POST(req: NextRequest) {
   // Assistant interne du dashboard — réservé aux utilisateurs connectés.
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
 
   // BYOK : clés Gemini de l'utilisateur (zéro consommation de la plateforme).
   const geminiKeys = await resolveGeminiKeys(user.id);
 
-  const { message, sessionState, history, channel } = await req.json() as ChatRequest;
+  const { message, sessionState, history, channel } = (await req.json()) as ChatRequest;
 
   const state: SessionState = { ...sessionState, data: { ...sessionState.data } };
   let reply = '';
@@ -163,13 +220,18 @@ export async function POST(req: NextRequest) {
         reply = `😔 Je suis désolé pour ce désagrément. Décrivez votre problème en détail et je l'enregistre immédiatement pour notre équipe :`;
       } else {
         const aiReply = await callGemini(geminiKeys, SYSTEM_CONTEXT, message, history);
-        reply = aiReply || `Je suis là pour vous aider ! Vous pouvez :\n• 📦 Suivre votre commande (envoyez le numéro de tracking)\n• 🛒 Passer une nouvelle commande\n• ❓ Poser une question sur nos services\n• 🔧 Signaler un problème`;
+        reply =
+          aiReply ||
+          `Je suis là pour vous aider ! Vous pouvez :\n• 📦 Suivre votre commande (envoyez le numéro de tracking)\n• 🛒 Passer une nouvelle commande\n• ❓ Poser une question sur nos services\n• 🔧 Signaler un problème`;
       }
       break;
     }
 
     case 'collect_name': {
-      const name = message.trim().replace(/^(je suis|mon nom est|je m'appelle|c'est|اسمي|أنا)\s*/i, '').trim();
+      const name = message
+        .trim()
+        .replace(/^(je suis|mon nom est|je m'appelle|c'est|اسمي|أنا)\s*/i, '')
+        .trim();
       if (name.length < 2) {
         reply = `Je n'ai pas bien compris votre nom. Pouvez-vous écrire votre **nom complet** ?`;
       } else {
@@ -181,7 +243,9 @@ export async function POST(req: NextRequest) {
     }
 
     case 'collect_phone': {
-      const phone = extractPhone(message) || (message.replace(/\s/g, '').match(/\d{9,10}/) ? message.replace(/\s/g, '') : null);
+      const phone =
+        extractPhone(message) ||
+        (message.replace(/\s/g, '').match(/\d{9,10}/) ? message.replace(/\s/g, '') : null);
       if (!phone || phone.length < 9) {
         reply = `Numéro invalide. Entrez un numéro de téléphone algérien valide (ex: 0555123456) :`;
       } else {

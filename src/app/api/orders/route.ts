@@ -4,8 +4,8 @@ import { createClient, createServiceClient } from '@/lib/supabase/server';
 // Map situation filter values to status column codes (for delivery-stage filters)
 const SITUATION_TO_STATUS: Record<string, string> = {
   'en cours de livraison': 'en_livraison',
-  'livr': 'livre',
-  'retour': 'retourne',
+  livr: 'livre',
+  retour: 'retourne',
   'en transit': 'en_transit',
   'en preparation': 'en_preparation',
 };
@@ -13,7 +13,9 @@ const SITUATION_TO_STATUS: Record<string, string> = {
 export async function GET(request: NextRequest) {
   try {
     const supabaseAuth = await createClient();
-    const { data: { user } } = await supabaseAuth.auth.getUser();
+    const {
+      data: { user },
+    } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
 
     const { searchParams } = new URL(request.url);
@@ -26,7 +28,11 @@ export async function GET(request: NextRequest) {
     const to = from + pageSize - 1;
 
     const supabase = createServiceClient();
-    let query = supabase.from('orders').select('*', { count: 'exact' }).eq('user_id', user.id).is('deleted_at', null);
+    let query = supabase
+      .from('orders')
+      .select('*', { count: 'exact' })
+      .eq('user_id', user.id)
+      .is('deleted_at', null);
 
     if (status !== 'all') query = query.eq('delivery_status', status);
 
@@ -41,7 +47,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    if (search) query = query.or(`tracking_number.ilike.%${search}%,customer_name.ilike.%${search}%`);
+    if (search)
+      query = query.or(`tracking_number.ilike.%${search}%,customer_name.ilike.%${search}%`);
     query = query.order('last_update', { ascending: false }).range(from, to);
 
     const { data, count, error } = await query;

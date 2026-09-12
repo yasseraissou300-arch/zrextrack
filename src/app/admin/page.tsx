@@ -30,7 +30,10 @@ export default function AdminPage() {
     const checkAccess = async () => {
       // Rôle lu via /api/auth/me (serveur, bypass RLS) — fiable.
       const res = await fetch('/api/auth/me');
-      if (res.status === 401) { window.location.href = '/login'; return; }
+      if (res.status === 401) {
+        window.location.href = '/login';
+        return;
+      }
       const me = await res.json();
       if (me?.role !== 'admin') {
         window.location.href = '/admin-dashboard';
@@ -52,9 +55,9 @@ export default function AdminPage() {
       setUsers(data);
       setStats({
         total: data.length,
-        active: data.filter(u => u.status === 'active').length,
-        blocked: data.filter(u => u.status === 'blocked').length,
-        pro: data.filter(u => u.plan_id !== 'basic').length,
+        active: data.filter((u) => u.status === 'active').length,
+        blocked: data.filter((u) => u.status === 'blocked').length,
+        pro: data.filter((u) => u.plan_id !== 'basic').length,
       });
     }
     setLoading(false);
@@ -63,7 +66,8 @@ export default function AdminPage() {
   const toggleUserStatus = async (userId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'active' ? 'blocked' : 'active';
     await fetch('/api/admin/users', {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, status: newStatus }),
     });
     fetchUsers();
@@ -71,7 +75,8 @@ export default function AdminPage() {
 
   const changePlan = async (userId: string, planId: string) => {
     await fetch('/api/admin/users', {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, plan_id: planId }),
     });
     fetchUsers();
@@ -104,14 +109,22 @@ export default function AdminPage() {
             </div>
             <div>
               <h1 className="text-lg font-bold text-stone-900 dark:text-stone-100">Super Admin</h1>
-              <p className="text-xs text-stone-500 dark:text-stone-400">Gestion des clients Autotim</p>
+              <p className="text-xs text-stone-500 dark:text-stone-400">
+                Gestion des clients Autotim
+              </p>
             </div>
           </div>
           <div className="flex gap-3">
-            <button onClick={fetchUsers} className="flex items-center gap-2 text-sm text-stone-600 dark:text-stone-300 hover:text-stone-900 dark:hover:text-stone-100 px-3 py-2 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800">
+            <button
+              onClick={fetchUsers}
+              className="flex items-center gap-2 text-sm text-stone-600 dark:text-stone-300 hover:text-stone-900 dark:hover:text-stone-100 px-3 py-2 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800"
+            >
               <RefreshCw size={14} /> Actualiser
             </button>
-            <a href="/admin-dashboard" className="flex items-center gap-2 text-sm bg-violet-600 text-white px-4 py-2 rounded-lg hover:bg-violet-700">
+            <a
+              href="/admin-dashboard"
+              className="flex items-center gap-2 text-sm bg-violet-600 text-white px-4 py-2 rounded-lg hover:bg-violet-700"
+            >
               <Package size={14} /> Dashboard
             </a>
           </div>
@@ -122,16 +135,43 @@ export default function AdminPage() {
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           {[
-            { label: 'Total inscrits', value: stats.total, icon: Users, color: 'text-blue-600 bg-blue-50 dark:text-blue-300 dark:bg-blue-500/15' },
-            { label: 'Comptes actifs', value: stats.active, icon: CheckCircle, color: 'text-green-600 bg-green-50 dark:text-green-300 dark:bg-green-500/15' },
-            { label: 'Comptes bloqués', value: stats.blocked, icon: Ban, color: 'text-red-600 bg-red-50 dark:text-red-300 dark:bg-red-500/15' },
-            { label: 'Plans payants', value: stats.pro, icon: TrendingUp, color: 'text-violet-600 bg-violet-50 dark:text-violet-300 dark:bg-violet-500/15' },
+            {
+              label: 'Total inscrits',
+              value: stats.total,
+              icon: Users,
+              color: 'text-blue-600 bg-blue-50 dark:text-blue-300 dark:bg-blue-500/15',
+            },
+            {
+              label: 'Comptes actifs',
+              value: stats.active,
+              icon: CheckCircle,
+              color: 'text-green-600 bg-green-50 dark:text-green-300 dark:bg-green-500/15',
+            },
+            {
+              label: 'Comptes bloqués',
+              value: stats.blocked,
+              icon: Ban,
+              color: 'text-red-600 bg-red-50 dark:text-red-300 dark:bg-red-500/15',
+            },
+            {
+              label: 'Plans payants',
+              value: stats.pro,
+              icon: TrendingUp,
+              color: 'text-violet-600 bg-violet-50 dark:text-violet-300 dark:bg-violet-500/15',
+            },
           ].map((stat) => (
-            <div key={stat.label} className="bg-white dark:bg-stone-900 rounded-xl p-4 shadow-sm border border-stone-100 dark:border-stone-800">
-              <div className={`w-10 h-10 rounded-lg ${stat.color} flex items-center justify-center mb-3`}>
+            <div
+              key={stat.label}
+              className="bg-white dark:bg-stone-900 rounded-xl p-4 shadow-sm border border-stone-100 dark:border-stone-800"
+            >
+              <div
+                className={`w-10 h-10 rounded-lg ${stat.color} flex items-center justify-center mb-3`}
+              >
                 <stat.icon size={20} />
               </div>
-              <p className="text-2xl font-bold text-stone-900 dark:text-stone-100 tabular-nums">{stat.value}</p>
+              <p className="text-2xl font-bold text-stone-900 dark:text-stone-100 tabular-nums">
+                {stat.value}
+              </p>
               <p className="text-sm text-stone-500 dark:text-stone-400 mt-1">{stat.label}</p>
             </div>
           ))}
@@ -140,11 +180,15 @@ export default function AdminPage() {
         {/* Users Table */}
         <div className="bg-white dark:bg-stone-900 rounded-xl shadow-sm border border-stone-100 dark:border-stone-800 overflow-hidden">
           <div className="px-6 py-4 border-b border-stone-100 dark:border-stone-800">
-            <h2 className="font-semibold text-stone-900 dark:text-stone-100">Tous les utilisateurs ({users.length})</h2>
+            <h2 className="font-semibold text-stone-900 dark:text-stone-100">
+              Tous les utilisateurs ({users.length})
+            </h2>
           </div>
 
           {loading ? (
-            <div className="flex items-center justify-center py-12 text-stone-400">Chargement...</div>
+            <div className="flex items-center justify-center py-12 text-stone-400">
+              Chargement...
+            </div>
           ) : users.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-stone-400 dark:text-stone-500">
               <Users size={48} className="mb-3 opacity-30" />
@@ -155,16 +199,29 @@ export default function AdminPage() {
               <table className="w-full">
                 <thead className="bg-stone-50 dark:bg-stone-800/50">
                   <tr>
-                    <th className="text-left text-xs font-medium text-stone-500 dark:text-stone-400 uppercase px-6 py-3">Utilisateur</th>
-                    <th className="text-left text-xs font-medium text-stone-500 dark:text-stone-400 uppercase px-6 py-3">Plan</th>
-                    <th className="text-left text-xs font-medium text-stone-500 dark:text-stone-400 uppercase px-6 py-3">Statut</th>
-                    <th className="text-left text-xs font-medium text-stone-500 dark:text-stone-400 uppercase px-6 py-3">Inscrit le</th>
-                    <th className="text-left text-xs font-medium text-stone-500 dark:text-stone-400 uppercase px-6 py-3">Actions</th>
+                    <th className="text-left text-xs font-medium text-stone-500 dark:text-stone-400 uppercase px-6 py-3">
+                      Utilisateur
+                    </th>
+                    <th className="text-left text-xs font-medium text-stone-500 dark:text-stone-400 uppercase px-6 py-3">
+                      Plan
+                    </th>
+                    <th className="text-left text-xs font-medium text-stone-500 dark:text-stone-400 uppercase px-6 py-3">
+                      Statut
+                    </th>
+                    <th className="text-left text-xs font-medium text-stone-500 dark:text-stone-400 uppercase px-6 py-3">
+                      Inscrit le
+                    </th>
+                    <th className="text-left text-xs font-medium text-stone-500 dark:text-stone-400 uppercase px-6 py-3">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-50 dark:divide-stone-800">
                   {users.map((user) => (
-                    <tr key={user.id} className="hover:bg-stone-50 dark:hover:bg-stone-800/40 transition-colors">
+                    <tr
+                      key={user.id}
+                      className="hover:bg-stone-50 dark:hover:bg-stone-800/40 transition-colors"
+                    >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           {user.avatar_url ? (
@@ -175,11 +232,17 @@ export default function AdminPage() {
                             </div>
                           )}
                           <div>
-                            <p className="font-medium text-stone-900 dark:text-stone-100 text-sm">{user.full_name || 'Nom inconnu'}</p>
-                            <p className="text-xs text-stone-500 dark:text-stone-400">{user.email}</p>
+                            <p className="font-medium text-stone-900 dark:text-stone-100 text-sm">
+                              {user.full_name || 'Nom inconnu'}
+                            </p>
+                            <p className="text-xs text-stone-500 dark:text-stone-400">
+                              {user.email}
+                            </p>
                           </div>
                           {user.role === 'admin' && (
-                            <span className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300 px-2 py-0.5 rounded-full font-medium">Admin</span>
+                            <span className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300 px-2 py-0.5 rounded-full font-medium">
+                              Admin
+                            </span>
                           )}
                         </div>
                       </td>
@@ -195,16 +258,29 @@ export default function AdminPage() {
                         </select>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full ${
-                          user.status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300' :
-                          user.status === 'blocked' ? 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300' :
-                          'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${
-                            user.status === 'active' ? 'bg-green-500' :
-                            user.status === 'blocked' ? 'bg-red-500' : 'bg-amber-500'
-                          }`} />
-                          {user.status === 'active' ? 'Actif' : user.status === 'blocked' ? 'Bloqué' : 'En attente'}
+                        <span
+                          className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full ${
+                            user.status === 'active'
+                              ? 'bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300'
+                              : user.status === 'blocked'
+                                ? 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300'
+                                : 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'
+                          }`}
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              user.status === 'active'
+                                ? 'bg-green-500'
+                                : user.status === 'blocked'
+                                  ? 'bg-red-500'
+                                  : 'bg-amber-500'
+                            }`}
+                          />
+                          {user.status === 'active'
+                            ? 'Actif'
+                            : user.status === 'blocked'
+                              ? 'Bloqué'
+                              : 'En attente'}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-stone-500 dark:text-stone-400">
@@ -220,7 +296,15 @@ export default function AdminPage() {
                                 : 'bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-500/15 dark:text-green-300 dark:hover:bg-green-500/25'
                             }`}
                           >
-                            {user.status === 'active' ? <><Ban size={12} /> Bloquer</> : <><CheckCircle size={12} /> Activer</>}
+                            {user.status === 'active' ? (
+                              <>
+                                <Ban size={12} /> Bloquer
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle size={12} /> Activer
+                              </>
+                            )}
                           </button>
                         )}
                       </td>

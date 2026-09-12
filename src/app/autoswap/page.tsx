@@ -3,9 +3,26 @@
 import AppLayout from '@/components/ui/AppLayout';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Repeat, Search, CheckCircle2, AlertTriangle, MapPin, TrendingUp,
-  Package, Filter, Loader2, ExternalLink, Info, Truck, XCircle,
-  Settings as SettingsIcon, Plus, Trash2, Save, BarChart3, X, ChevronRight,
+  Repeat,
+  Search,
+  CheckCircle2,
+  AlertTriangle,
+  MapPin,
+  TrendingUp,
+  Package,
+  Filter,
+  Loader2,
+  ExternalLink,
+  Info,
+  Truck,
+  XCircle,
+  Settings as SettingsIcon,
+  Plus,
+  Trash2,
+  Save,
+  BarChart3,
+  X,
+  ChevronRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { MatchProposal, PreviewResponse, Confidence } from '@/lib/autoswap/types';
@@ -20,10 +37,18 @@ import { loadSyncSettings } from '@/lib/sync-settings-client';
 const parcelDetailUrl = (parcelUuid: string) =>
   `https://app.zrexpress.app/parcels/default/${parcelUuid}`;
 
-const CONFIDENCE_META: Record<Confidence, { label: string; bg: string; text: string; border: string }> = {
-  EXACT:  { label: 'Exact',  bg: 'bg-green-50',  text: 'text-green-700',  border: 'border-green-200' },
-  STRONG: { label: 'Confirmé', bg: 'bg-blue-50', text: 'text-blue-700',  border: 'border-blue-200' },
-  WEAK:   { label: 'À vérifier', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
+const CONFIDENCE_META: Record<
+  Confidence,
+  { label: string; bg: string; text: string; border: string }
+> = {
+  EXACT: { label: 'Exact', bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200' },
+  STRONG: { label: 'Confirmé', bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
+  WEAK: {
+    label: 'À vérifier',
+    bg: 'bg-amber-50',
+    text: 'text-amber-700',
+    border: 'border-amber-200',
+  },
 };
 
 type SwapBucket = 'delivered' | 'cancelled' | 'in_progress';
@@ -57,6 +82,8 @@ export default function AutoSwapPage() {
   const [scanning, setScanning] = useState(false);
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [diag, setDiag] = useState<any | null>(null);
+  const [diagLoading, setDiagLoading] = useState(false);
 
   const [filterConfidence, setFilterConfidence] = useState<'ALL' | Confidence>('ALL');
   const [onlySameCity, setOnlySameCity] = useState(false);
@@ -72,20 +99,27 @@ export default function AutoSwapPage() {
   // Filtre les commandes swappées par date de swap (swapped_at) selon la période,
   // et recalcule les compteurs côté client (pas besoin de re-appeler l'API).
   const periodStats = useMemo(() => {
-    const empty = { total_swapped: 0, delivered: 0, cancelled: 0, in_progress: 0, delivery_rate: 0, items: [] as SwappedItem[] };
+    const empty = {
+      total_swapped: 0,
+      delivered: 0,
+      cancelled: 0,
+      in_progress: 0,
+      delivery_rate: 0,
+      items: [] as SwappedItem[],
+    };
     if (!swapStats) return empty;
     const now = new Date();
     const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const start7 = startToday - 6 * 24 * 60 * 60 * 1000; // 7 jours glissants (aujourd'hui inclus)
-    const items = swapStats.items.filter(it => {
+    const items = swapStats.items.filter((it) => {
       if (!it.swapped_at) return false; // sans date → non rattachable à une période
       const t = new Date(it.swapped_at).getTime();
       if (Number.isNaN(t)) return false;
       return period === 'today' ? t >= startToday : t >= start7;
     });
-    const delivered = items.filter(i => i.bucket === 'delivered').length;
-    const cancelled = items.filter(i => i.bucket === 'cancelled').length;
-    const in_progress = items.filter(i => i.bucket === 'in_progress').length;
+    const delivered = items.filter((i) => i.bucket === 'delivered').length;
+    const cancelled = items.filter((i) => i.bucket === 'cancelled').length;
+    const in_progress = items.filter((i) => i.bucket === 'in_progress').length;
     const finalized = delivered + cancelled;
     const delivery_rate = finalized > 0 ? Math.round((delivered / finalized) * 1000) / 10 : 0;
     return { total_swapped: items.length, delivered, cancelled, in_progress, delivery_rate, items };
@@ -94,7 +128,10 @@ export default function AutoSwapPage() {
   // Charge les stats des commandes DÉJÀ swappées directement depuis ZRExpress
   // (détection automatique via swap.count) — nécessite les credentials.
   const fetchSwapStats = useCallback(async (tk: string, ti: string) => {
-    if (!tk || !ti) { setStatsLoading(false); return; }
+    if (!tk || !ti) {
+      setStatsLoading(false);
+      return;
+    }
     setStatsLoading(true);
     setStatsError(null);
     try {
@@ -103,7 +140,7 @@ export default function AutoSwapPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: tk, tenantId: ti }),
       });
-      const json = await res.json().catch(() => ({} as Record<string, unknown>));
+      const json = await res.json().catch(() => ({}) as Record<string, unknown>);
       if (res.ok) {
         setSwapStats(json as SwapStats);
       } else {
@@ -117,7 +154,7 @@ export default function AutoSwapPage() {
   }, []);
 
   useEffect(() => {
-    loadSyncSettings().then(s => {
+    loadSyncSettings().then((s) => {
       setToken(s.zrexpress_token);
       setTenantId(s.zrexpress_tenant_id);
       setCredentialsReady(!!s.zrexpress_token && !!s.zrexpress_tenant_id);
@@ -147,11 +184,35 @@ export default function AutoSwapPage() {
     }
   };
 
+  // Diagnostic : dump la distribution réelle des états/situations ZRExpress.
+  // Sert quand les compteurs ne collent pas avec ce qu'affiche ZRExpress —
+  // permet de voir les vrais libellés au lieu de deviner.
+  const runDiagnostic = async () => {
+    if (!credentialsReady) return;
+    setDiagLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/autoswap/diagnostic', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, tenantId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Erreur ${res.status}`);
+      setDiag(data);
+    } catch (err: any) {
+      setError(err.message);
+      setDiag(null);
+    } finally {
+      setDiagLoading(false);
+    }
+  };
+
   const proposalKey = (p: MatchProposal) => `${p.swappable.id}::${p.target.id}`;
 
   const filteredProposals: MatchProposal[] = useMemo(() => {
     if (!preview) return [];
-    return preview.proposals.filter(p => {
+    return preview.proposals.filter((p) => {
       if (filterConfidence !== 'ALL' && p.confidence !== filterConfidence) return false;
       if (onlySameCity && !p.same_city) return false;
       return true;
@@ -167,8 +228,12 @@ export default function AutoSwapPage() {
             <Repeat size={16} className="text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100 tracking-tight">AutoSwap</h1>
-            <p className="text-sm text-stone-500 dark:text-stone-400">Détecte les swaps possibles et facilite l'exécution dans ZRExpress</p>
+            <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100 tracking-tight">
+              AutoSwap
+            </h1>
+            <p className="text-sm text-stone-500 dark:text-stone-400">
+              Détecte les swaps possibles et facilite l'exécution dans ZRExpress
+            </p>
           </div>
         </div>
 
@@ -176,10 +241,11 @@ export default function AutoSwapPage() {
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
           <Info size={18} className="text-blue-600 shrink-0 mt-0.5" />
           <div className="text-sm text-blue-900">
-            <strong>Mode copilote :</strong> ZRExpress n'autorise pas encore l'exécution des swaps via API externe.
-            AutoTim trouve les matchs (produit + couleur + taille + quantité identiques) et te donne pour chaque match
-            <strong> deux liens directs</strong> : l'ancien colis et la nouvelle commande. Tu les ouvres côte à côte dans ZRExpress
-            et tu valides le swap.
+            <strong>Mode copilote :</strong> ZRExpress n'autorise pas encore l'exécution des swaps
+            via API externe. AutoTim trouve les matchs (produit + couleur + taille + quantité
+            identiques) et te donne pour chaque match
+            <strong> deux liens directs</strong> : l'ancien colis et la nouvelle commande. Tu les
+            ouvres côte à côte dans ZRExpress et tu valides le swap.
           </div>
         </div>
 
@@ -187,7 +253,11 @@ export default function AutoSwapPage() {
         {!credentialsReady && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
             <AlertTriangle className="inline-block mr-2" size={16} />
-            Aucune clé API ZRExpress trouvée. Configurez-la d'abord sur la page <a href="/sync" className="underline font-medium">Sync</a>.
+            Aucune clé API ZRExpress trouvée. Configurez-la d'abord sur la page{' '}
+            <a href="/sync" className="underline font-medium">
+              Sync
+            </a>
+            .
           </div>
         )}
 
@@ -196,19 +266,27 @@ export default function AutoSwapPage() {
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-2">
               <BarChart3 size={16} className="text-stone-500 dark:text-stone-400" />
-              <h2 className="font-semibold text-stone-900 dark:text-stone-100">Statistiques des commandes swappées</h2>
+              <h2 className="font-semibold text-stone-900 dark:text-stone-100">
+                Statistiques des commandes swappées
+              </h2>
             </div>
             <div className="flex items-center gap-3">
               {/* Sélecteur de période — Aujourd'hui par défaut */}
               <div className="inline-flex bg-stone-100 dark:bg-stone-800 rounded-lg p-0.5">
                 <button
-                  onClick={() => { setPeriod('today'); setOpenBucket(null); }}
+                  onClick={() => {
+                    setPeriod('today');
+                    setOpenBucket(null);
+                  }}
                   className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${period === 'today' ? 'bg-white dark:bg-stone-900 text-violet-700 dark:text-violet-300 shadow-sm' : 'text-stone-500 dark:text-stone-400'}`}
                 >
                   Aujourd'hui
                 </button>
                 <button
-                  onClick={() => { setPeriod('7days'); setOpenBucket(null); }}
+                  onClick={() => {
+                    setPeriod('7days');
+                    setOpenBucket(null);
+                  }}
                   className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${period === '7days' ? 'bg-white dark:bg-stone-900 text-violet-700 dark:text-violet-300 shadow-sm' : 'text-stone-500 dark:text-stone-400'}`}
                 >
                   7 derniers jours
@@ -228,14 +306,20 @@ export default function AutoSwapPage() {
 
           {!credentialsReady ? (
             <div className="text-sm text-stone-500 dark:text-stone-400 py-2">
-              Configurez votre clé API ZRExpress sur la page <a href="/sync" className="underline font-medium">Sync</a> pour voir les statistiques.
+              Configurez votre clé API ZRExpress sur la page{' '}
+              <a href="/sync" className="underline font-medium">
+                Sync
+              </a>{' '}
+              pour voir les statistiques.
             </div>
           ) : statsError ? (
             <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
               <strong>Erreur :</strong> {statsError}
             </div>
           ) : statsLoading && !swapStats ? (
-            <div className="text-sm text-stone-400 dark:text-stone-500 py-2">Analyse des commandes swappées…</div>
+            <div className="text-sm text-stone-400 dark:text-stone-500 py-2">
+              Analyse des commandes swappées…
+            </div>
           ) : swapStats && swapStats.total_swapped === 0 ? (
             <div className="text-sm text-stone-500 dark:text-stone-400 py-2">
               Aucune commande swappée trouvée dans votre compte ZRExpress.
@@ -243,8 +327,12 @@ export default function AutoSwapPage() {
           ) : swapStats ? (
             <>
               <p className="text-xs text-stone-400 dark:text-stone-500 -mt-1">
-                Commandes swappées {period === 'today' ? "aujourd'hui" : 'sur les 7 derniers jours'}, classées par statut de livraison.
-                <span className="text-stone-300 dark:text-stone-600"> · Cliquez une carte pour voir le détail.</span>
+                Commandes swappées {period === 'today' ? "aujourd'hui" : 'sur les 7 derniers jours'}
+                , classées par statut de livraison.
+                <span className="text-stone-300 dark:text-stone-600">
+                  {' '}
+                  · Cliquez une carte pour voir le détail.
+                </span>
               </p>
 
               {/* Carrés principaux — cliquables pour afficher le détail */}
@@ -255,7 +343,7 @@ export default function AutoSwapPage() {
                   value={periodStats.total_swapped}
                   color="purple"
                   active={openBucket === 'all'}
-                  onClick={() => setOpenBucket(b => b === 'all' ? null : 'all')}
+                  onClick={() => setOpenBucket((b) => (b === 'all' ? null : 'all'))}
                 />
                 <StatCard
                   icon={<CheckCircle2 size={18} />}
@@ -263,7 +351,7 @@ export default function AutoSwapPage() {
                   value={periodStats.delivered}
                   color="green"
                   active={openBucket === 'delivered'}
-                  onClick={() => setOpenBucket(b => b === 'delivered' ? null : 'delivered')}
+                  onClick={() => setOpenBucket((b) => (b === 'delivered' ? null : 'delivered'))}
                 />
                 <StatCard
                   icon={<XCircle size={18} />}
@@ -271,7 +359,7 @@ export default function AutoSwapPage() {
                   value={periodStats.cancelled}
                   color="red"
                   active={openBucket === 'cancelled'}
-                  onClick={() => setOpenBucket(b => b === 'cancelled' ? null : 'cancelled')}
+                  onClick={() => setOpenBucket((b) => (b === 'cancelled' ? null : 'cancelled'))}
                 />
                 <StatCard
                   icon={<Truck size={18} />}
@@ -279,22 +367,30 @@ export default function AutoSwapPage() {
                   value={periodStats.in_progress}
                   color="blue"
                   active={openBucket === 'in_progress'}
-                  onClick={() => setOpenBucket(b => b === 'in_progress' ? null : 'in_progress')}
+                  onClick={() => setOpenBucket((b) => (b === 'in_progress' ? null : 'in_progress'))}
                 />
               </div>
 
               {/* Message si aucune commande dans la période choisie */}
               {periodStats.total_swapped === 0 && (
                 <div className="text-sm text-stone-500 dark:text-stone-400 py-1">
-                  Aucune commande swappée {period === 'today' ? "aujourd'hui" : 'sur les 7 derniers jours'}.
-                  {period === 'today' && <span className="text-stone-400 dark:text-stone-500"> Essayez « 7 derniers jours ».</span>}
+                  Aucune commande swappée{' '}
+                  {period === 'today' ? "aujourd'hui" : 'sur les 7 derniers jours'}.
+                  {period === 'today' && (
+                    <span className="text-stone-400 dark:text-stone-500">
+                      {' '}
+                      Essayez « 7 derniers jours ».
+                    </span>
+                  )}
                 </div>
               )}
 
               {/* Détail du bucket sélectionné */}
               {openBucket && (
                 <SwappedDetailList
-                  items={periodStats.items.filter(it => openBucket === 'all' || it.bucket === openBucket)}
+                  items={periodStats.items.filter(
+                    (it) => openBucket === 'all' || it.bucket === openBucket
+                  )}
                   bucket={openBucket}
                   onClose={() => setOpenBucket(null)}
                 />
@@ -305,7 +401,9 @@ export default function AutoSwapPage() {
                 <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 rounded-xl px-4 py-3">
                   <div className="flex items-center gap-2 text-sm">
                     <TrendingUp size={14} className="text-emerald-600 dark:text-emerald-400" />
-                    <span className="text-emerald-900 dark:text-emerald-300 font-medium">Taux de livraison des swaps</span>
+                    <span className="text-emerald-900 dark:text-emerald-300 font-medium">
+                      Taux de livraison des swaps
+                    </span>
                   </div>
                   <span className="text-lg font-bold text-emerald-700 dark:text-emerald-300">
                     {periodStats.delivery_rate}%
@@ -322,8 +420,13 @@ export default function AutoSwapPage() {
         <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 p-6">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <h2 className="font-semibold text-stone-900 dark:text-stone-100">Scanner les opportunités de swap</h2>
-              <p className="text-sm text-stone-500 dark:text-stone-400 mt-1">Récupère tous les colis ZRExpress et détecte les matchs stricts (produit + couleur + taille).</p>
+              <h2 className="font-semibold text-stone-900 dark:text-stone-100">
+                Scanner les opportunités de swap
+              </h2>
+              <p className="text-sm text-stone-500 dark:text-stone-400 mt-1">
+                Récupère tous les colis ZRExpress et détecte les matchs stricts (produit + couleur +
+                taille).
+              </p>
             </div>
             <button
               onClick={runScan}
@@ -333,12 +436,20 @@ export default function AutoSwapPage() {
               {scanning ? <Loader2 size={18} className="animate-spin" /> : <Search size={18} />}
               {scanning ? 'Analyse en cours…' : 'Scanner pour swaps'}
             </button>
+            <button
+              onClick={runDiagnostic}
+              disabled={diagLoading || !credentialsReady}
+              title="Affiche les vrais libellés d'états et situations renvoyés par ZRExpress"
+              className="flex items-center gap-2 border border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 disabled:opacity-50 disabled:cursor-not-allowed font-medium px-4 py-2.5 rounded-xl transition-colors"
+            >
+              {diagLoading ? <Loader2 size={16} className="animate-spin" /> : <Filter size={16} />}
+              Diagnostic
+            </button>
           </div>
         </div>
 
         {/* Équivalences de tailles personnalisées */}
         <SizeEquivalencesCard />
-
 
         {/* Error banner */}
         {error && (
@@ -347,13 +458,178 @@ export default function AutoSwapPage() {
           </div>
         )}
 
+        {/* Diagnostic — vérité terrain des libellés ZRExpress */}
+        {diag && (
+          <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-stone-900 dark:text-stone-100">Diagnostic ZRExpress</h3>
+              <button
+                onClick={() => setDiag(null)}
+                className="text-xs text-stone-400 hover:text-stone-600 dark:hover:text-stone-300"
+              >
+                Fermer
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+              {[
+                { label: 'Colis analysés', value: diag.total_parcels },
+                { label: 'Swappables détectés', value: diag.detected?.swappables },
+                { label: 'Cibles détectées', value: diag.detected?.targets },
+                { label: 'Flag API à true', value: diag.swap_fields?.isEligibleForSwap_true },
+              ].map((s: any) => (
+                <div key={s.label} className="bg-stone-50 dark:bg-stone-800/50 rounded-xl p-3">
+                  <div className="text-xl font-bold text-stone-900 dark:text-stone-100 tabular-nums">
+                    {s.value ?? '—'}
+                  </div>
+                  <div className="text-[10px] uppercase tracking-wide text-stone-500 dark:text-stone-400 font-semibold">
+                    {s.label}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {diag.swap_fields?.flag_missed_but_situation_ok > 0 && (
+              <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-xl p-3 text-xs text-amber-800 dark:text-amber-200">
+                <strong>{diag.swap_fields.flag_missed_but_situation_ok} colis</strong> récupérés par
+                la règle « situation » alors que le flag API les ratait.
+              </div>
+            )}
+
+            {/* Pourquoi si peu de matchs ? Histogramme des motifs de rejet + near misses. */}
+            {diag.pair_analysis && (
+              <div className="border-t border-stone-100 dark:border-stone-800 pt-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400 mb-2">
+                  Analyse pair-à-pair — {diag.pair_analysis.total_pairs} combinaisons testées,{' '}
+                  <span className="text-violet-600 dark:text-violet-300">
+                    {diag.pair_analysis.matches} match{diag.pair_analysis.matches > 1 ? 's' : ''}
+                  </span>
+                </p>
+                <div className="space-y-1 mb-3">
+                  {(diag.pair_analysis.reject_reasons || []).map((r: any) => {
+                    const labels: Record<string, string> = {
+                      diff_product: 'Produits différents',
+                      geo_restricted: 'Bloqué géographiquement (wilaya Sud)',
+                      diff_quantity: "Quantité d'articles différente",
+                      no_color_info: 'Couleur non lisible dans la description',
+                      no_size_info: 'Taille non lisible dans la description',
+                      no_color_common: 'Aucune couleur en commun',
+                      no_size_common: 'Aucune taille en commun (envisage une équivalence)',
+                    };
+                    return (
+                      <div
+                        key={r.reason}
+                        className="flex justify-between gap-3 text-xs bg-stone-50 dark:bg-stone-800/50 rounded-lg px-2.5 py-1.5"
+                      >
+                        <span className="text-stone-700 dark:text-stone-200">
+                          {labels[r.reason] || r.reason}
+                        </span>
+                        <span className="font-bold tabular-nums text-stone-900 dark:text-stone-100">
+                          {r.count}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {diag.pair_analysis.near_misses?.length > 0 && (
+                  <details className="text-xs">
+                    <summary className="cursor-pointer text-violet-600 dark:text-violet-300 font-semibold hover:underline">
+                      Voir {diag.pair_analysis.near_misses.length} paires « presque » ({'>'}
+                      cliquer pour voir les détails)
+                    </summary>
+                    <div className="mt-2 space-y-1 max-h-56 overflow-y-auto">
+                      {diag.pair_analysis.near_misses.map((m: any, i: number) => (
+                        <div
+                          key={i}
+                          className="bg-stone-50 dark:bg-stone-800/50 rounded-lg px-2.5 py-1.5"
+                        >
+                          <div className="font-mono text-stone-700 dark:text-stone-200 truncate">
+                            {m.swappable} → {m.target}
+                          </div>
+                          <div className="text-[10px] text-stone-500 dark:text-stone-400 mt-0.5">
+                            <strong>{m.product}</strong> · {m.details}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+              </div>
+            )}
+
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400 mb-2">
+                  États (state)
+                </p>
+                <div className="space-y-1 max-h-56 overflow-y-auto">
+                  {(diag.states || []).map((s: any) => (
+                    <div
+                      key={s.name}
+                      className="flex justify-between gap-3 text-xs bg-stone-50 dark:bg-stone-800/50 rounded-lg px-2.5 py-1.5"
+                    >
+                      <span className="font-mono text-stone-700 dark:text-stone-200 truncate">
+                        {s.name}
+                      </span>
+                      <span className="font-bold tabular-nums text-stone-900 dark:text-stone-100">
+                        {s.count}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400 mb-2">
+                  Situations
+                </p>
+                <div className="space-y-1 max-h-56 overflow-y-auto">
+                  {(diag.situations || []).map((s: any) => (
+                    <div
+                      key={s.name}
+                      className="flex justify-between gap-3 text-xs bg-stone-50 dark:bg-stone-800/50 rounded-lg px-2.5 py-1.5"
+                    >
+                      <span className="font-mono text-stone-700 dark:text-stone-200 truncate">
+                        {s.name}
+                      </span>
+                      <span className="font-bold tabular-nums text-stone-900 dark:text-stone-100">
+                        {s.count}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Stats */}
         {preview && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <StatCard icon={<Package size={18} />} label="Colis swappables" value={preview.stats.total_swappable} color="amber" />
-            <StatCard icon={<Package size={18} />} label="Commandes en attente" value={preview.stats.total_targets} color="blue" />
-            <StatCard icon={<CheckCircle2 size={18} />} label="Matchs détectés" value={preview.stats.matches_count} color="purple" />
-            <StatCard icon={<TrendingUp size={18} />} label="Économies estimées" value={`${preview.stats.total_savings.toFixed(0)} DA`} color="green" />
+            <StatCard
+              icon={<Package size={18} />}
+              label="Colis swappables"
+              value={preview.stats.total_swappable}
+              color="amber"
+            />
+            <StatCard
+              icon={<Package size={18} />}
+              label="Commandes en attente"
+              value={preview.stats.total_targets}
+              color="blue"
+            />
+            <StatCard
+              icon={<CheckCircle2 size={18} />}
+              label="Matchs détectés"
+              value={preview.stats.matches_count}
+              color="purple"
+            />
+            <StatCard
+              icon={<TrendingUp size={18} />}
+              label="Économies estimées"
+              value={`${preview.stats.total_savings.toFixed(0)} DA`}
+              color="green"
+            />
           </div>
         )}
 
@@ -363,30 +639,44 @@ export default function AutoSwapPage() {
             <Filter size={16} className="text-stone-400 dark:text-stone-500" />
             <select
               value={filterConfidence}
-              onChange={e => setFilterConfidence(e.target.value as 'ALL' | Confidence)}
+              onChange={(e) => setFilterConfidence(e.target.value as 'ALL' | Confidence)}
               className="text-sm border border-stone-200 dark:border-stone-700 rounded-lg px-3 py-1.5"
             >
               <option value="ALL">Tous les matchs ({preview.stats.matches_count})</option>
               <option value="EXACT">Exact UUID ({preview.stats.by_confidence.EXACT})</option>
-              <option value="STRONG">Couleur + taille confirmées ({preview.stats.by_confidence.STRONG})</option>
+              <option value="STRONG">
+                Couleur + taille confirmées ({preview.stats.by_confidence.STRONG})
+              </option>
+              <option value="WEAK">
+                Partiels — au moins 1 couleur + 1 taille communes (
+                {preview.stats.by_confidence.WEAK})
+              </option>
             </select>
             <label className="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-200">
-              <input type="checkbox" checked={onlySameCity} onChange={e => setOnlySameCity(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={onlySameCity}
+                onChange={(e) => setOnlySameCity(e.target.checked)}
+              />
               Même ville uniquement
             </label>
           </div>
         )}
 
         {/* Proposals table */}
-        {preview && (
-          preview.proposals.length === 0 ? (
+        {preview &&
+          (preview.proposals.length === 0 ? (
             <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 p-12 text-center">
               <Package size={36} className="mx-auto text-stone-300 dark:text-stone-600 mb-3" />
-              <h3 className="font-semibold text-stone-900 dark:text-stone-100 mb-1">Aucun match trouvé</h3>
+              <h3 className="font-semibold text-stone-900 dark:text-stone-100 mb-1">
+                Aucun match trouvé
+              </h3>
               <p className="text-sm text-stone-500 dark:text-stone-400">
-                {preview.stats.total_swappable} colis swappable{preview.stats.total_swappable > 1 ? 's' : ''} ·
-                {' '}{preview.stats.total_targets} commande{preview.stats.total_targets > 1 ? 's' : ''} en attente.
-                <br />Aucune correspondance produit + couleur + taille détectée.
+                {preview.stats.total_swappable} colis swappable
+                {preview.stats.total_swappable > 1 ? 's' : ''} · {preview.stats.total_targets}{' '}
+                commande{preview.stats.total_targets > 1 ? 's' : ''} en attente.
+                <br />
+                Aucune correspondance produit + couleur + taille détectée.
               </p>
             </div>
           ) : (
@@ -408,21 +698,38 @@ export default function AutoSwapPage() {
                       const key = proposalKey(p);
                       const meta = CONFIDENCE_META[p.confidence];
                       return (
-                        <tr key={key} className="hover:bg-stone-50 dark:hover:bg-stone-800 align-top">
+                        <tr
+                          key={key}
+                          className="hover:bg-stone-50 dark:hover:bg-stone-800 align-top"
+                        >
                           <td className="px-4 py-3">
-                            <div className="font-mono text-xs text-stone-900 dark:text-stone-100">{p.swappable.tracking}</div>
-                            <div className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">{p.swappable.customer || '—'}</div>
-                            <span className={`inline-block mt-1 text-[10px] font-medium px-1.5 py-0.5 rounded border ${meta.bg} ${meta.text} ${meta.border}`}>
+                            <div className="font-mono text-xs text-stone-900 dark:text-stone-100">
+                              {p.swappable.tracking}
+                            </div>
+                            <div className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
+                              {p.swappable.customer || '—'}
+                            </div>
+                            <span
+                              className={`inline-block mt-1 text-[10px] font-medium px-1.5 py-0.5 rounded border ${meta.bg} ${meta.text} ${meta.border}`}
+                            >
                               {meta.label}
                             </span>
                           </td>
                           <td className="px-4 py-3">
-                            <div className="font-medium text-stone-900 dark:text-stone-100">{p.target.customer || '—'}</div>
-                            <div className="text-xs text-stone-500 dark:text-stone-400">{p.target.customerPhone}</div>
-                            <div className="font-mono text-[10px] text-stone-400 dark:text-stone-500 mt-0.5">{p.target.tracking}</div>
+                            <div className="font-medium text-stone-900 dark:text-stone-100">
+                              {p.target.customer || '—'}
+                            </div>
+                            <div className="text-xs text-stone-500 dark:text-stone-400">
+                              {p.target.customerPhone}
+                            </div>
+                            <div className="font-mono text-[10px] text-stone-400 dark:text-stone-500 mt-0.5">
+                              {p.target.tracking}
+                            </div>
                           </td>
                           <td className="px-4 py-3">
-                            <div className="text-stone-900 dark:text-stone-100">{p.swappable.product}</div>
+                            <div className="text-stone-900 dark:text-stone-100">
+                              {p.swappable.product}
+                            </div>
                             <div className="text-xs text-stone-500 dark:text-stone-400">
                               {p.swappable.variantColor && `${p.swappable.variantColor}`}
                               {p.swappable.variantSize && ` · T.${p.swappable.variantSize}`}
@@ -431,11 +738,20 @@ export default function AutoSwapPage() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1 text-stone-900 dark:text-stone-100 text-xs">
-                              <MapPin size={11} className={p.same_city ? 'text-green-600' : 'text-stone-400 dark:text-stone-500'} />
+                              <MapPin
+                                size={11}
+                                className={
+                                  p.same_city
+                                    ? 'text-green-600'
+                                    : 'text-stone-400 dark:text-stone-500'
+                                }
+                              />
                               {p.swappable.city}
                             </div>
                             {!p.same_city && (
-                              <div className="text-[10px] text-stone-400 dark:text-stone-500 mt-0.5">→ {p.target.city}</div>
+                              <div className="text-[10px] text-stone-400 dark:text-stone-500 mt-0.5">
+                                → {p.target.city}
+                              </div>
                             )}
                             {p.same_city && (
                               <div className="text-[10px] text-green-600 mt-0.5">✓ même ville</div>
@@ -480,15 +796,20 @@ export default function AutoSwapPage() {
                 </div>
               )}
             </div>
-          )
-        )}
-
+          ))}
       </div>
     </AppLayout>
   );
 }
 
-function StatCard({ icon, label, value, color, onClick, active }: {
+function StatCard({
+  icon,
+  label,
+  value,
+  color,
+  onClick,
+  active,
+}: {
   icon: React.ReactNode;
   label: string;
   value: number | string;
@@ -497,15 +818,18 @@ function StatCard({ icon, label, value, color, onClick, active }: {
   active?: boolean;
 }) {
   const palette: Record<string, string> = {
-    amber:  'bg-amber-50 text-amber-700',
-    blue:   'bg-blue-50 text-blue-700',
+    amber: 'bg-amber-50 text-amber-700',
+    blue: 'bg-blue-50 text-blue-700',
     purple: 'bg-purple-50 text-purple-700',
-    green:  'bg-green-50 text-green-700',
-    red:    'bg-red-50 text-red-700',
+    green: 'bg-green-50 text-green-700',
+    red: 'bg-red-50 text-red-700',
   };
   const ringByColor: Record<string, string> = {
-    amber: 'ring-amber-400', blue: 'ring-blue-400', purple: 'ring-purple-400',
-    green: 'ring-green-400', red: 'ring-red-400',
+    amber: 'ring-amber-400',
+    blue: 'ring-blue-400',
+    purple: 'ring-purple-400',
+    green: 'ring-green-400',
+    red: 'ring-red-400',
   };
   const interactive = !!onClick;
   return (
@@ -513,15 +837,33 @@ function StatCard({ icon, label, value, color, onClick, active }: {
       onClick={onClick}
       role={interactive ? 'button' : undefined}
       tabIndex={interactive ? 0 : undefined}
-      onKeyDown={interactive ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.(); } } : undefined}
+      onKeyDown={
+        interactive
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onClick?.();
+              }
+            }
+          : undefined
+      }
       className={`bg-white dark:bg-stone-900 rounded-2xl shadow-sm border p-4 transition-all ${
-        interactive ? 'cursor-pointer hover:shadow-md hover:border-stone-300 dark:hover:border-stone-600 active:scale-[0.98]' : ''
+        interactive
+          ? 'cursor-pointer hover:shadow-md hover:border-stone-300 dark:hover:border-stone-600 active:scale-[0.98]'
+          : ''
       } ${active ? `ring-2 ${ringByColor[color]} border-transparent` : 'border-stone-100 dark:border-stone-800'}`}
     >
       <div className="flex items-center gap-2 mb-2">
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${palette[color]}`}>{icon}</div>
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${palette[color]}`}>
+          {icon}
+        </div>
         <span className="text-xs text-stone-500 dark:text-stone-400">{label}</span>
-        {interactive && <ChevronRight size={13} className={`ml-auto text-stone-300 dark:text-stone-600 transition-transform ${active ? 'rotate-90' : ''}`} />}
+        {interactive && (
+          <ChevronRight
+            size={13}
+            className={`ml-auto text-stone-300 dark:text-stone-600 transition-transform ${active ? 'rotate-90' : ''}`}
+          />
+        )}
       </div>
       <div className="text-2xl font-bold text-stone-900 dark:text-stone-100">{value}</div>
     </div>
@@ -530,7 +872,11 @@ function StatCard({ icon, label, value, color, onClick, active }: {
 
 // Tableau de détail des colis swappés pour un bucket donné. Chaque ligne a un
 // lien direct vers la fiche ZRExpress pour vérifier le statut réel.
-function SwappedDetailList({ items, bucket, onClose }: {
+function SwappedDetailList({
+  items,
+  bucket,
+  onClose,
+}: {
   items: SwappedItem[];
   bucket: SwapBucket | 'all';
   onClose: () => void;
@@ -545,14 +891,21 @@ function SwappedDetailList({ items, bucket, onClose }: {
     <div className="border border-stone-200 dark:border-stone-700 rounded-xl overflow-hidden">
       <div className="flex items-center justify-between px-4 py-2.5 bg-stone-50 dark:bg-stone-800/50 border-b border-stone-100 dark:border-stone-800">
         <span className="text-sm font-medium text-stone-700 dark:text-stone-200">
-          {title[bucket]} <span className="text-stone-400 dark:text-stone-500">({items.length})</span>
+          {title[bucket]}{' '}
+          <span className="text-stone-400 dark:text-stone-500">({items.length})</span>
         </span>
-        <button onClick={onClose} className="text-stone-400 dark:text-stone-500 hover:text-stone-700 dark:hover:text-stone-200" title="Fermer">
+        <button
+          onClick={onClose}
+          className="text-stone-400 dark:text-stone-500 hover:text-stone-700 dark:hover:text-stone-200"
+          title="Fermer"
+        >
           <X size={15} />
         </button>
       </div>
       {items.length === 0 ? (
-        <div className="px-4 py-6 text-center text-sm text-stone-400 dark:text-stone-500">Aucune commande dans cette catégorie.</div>
+        <div className="px-4 py-6 text-center text-sm text-stone-400 dark:text-stone-500">
+          Aucune commande dans cette catégorie.
+        </div>
       ) : (
         <div className="max-h-96 overflow-y-auto">
           <table className="w-full text-sm">
@@ -569,16 +922,26 @@ function SwappedDetailList({ items, bucket, onClose }: {
             <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
               {items.map((it, i) => (
                 <tr key={`${it.id}-${i}`} className="hover:bg-stone-50 dark:hover:bg-stone-800/50">
-                  <td className="px-4 py-2 font-mono text-xs text-stone-900 dark:text-stone-100">{it.tracking || '—'}</td>
-                  <td className="px-4 py-2 text-stone-700 dark:text-stone-200">{it.customer || '—'}</td>
-                  <td className="px-4 py-2 text-stone-600 dark:text-stone-300">{it.wilaya || '—'}</td>
+                  <td className="px-4 py-2 font-mono text-xs text-stone-900 dark:text-stone-100">
+                    {it.tracking || '—'}
+                  </td>
+                  <td className="px-4 py-2 text-stone-700 dark:text-stone-200">
+                    {it.customer || '—'}
+                  </td>
+                  <td className="px-4 py-2 text-stone-600 dark:text-stone-300">
+                    {it.wilaya || '—'}
+                  </td>
                   <td className="px-4 py-2">
                     <div className="text-stone-800 dark:text-stone-100">{it.state_raw || '—'}</div>
                     {it.situation_raw && (
-                      <div className="text-[10px] text-stone-400 dark:text-stone-500">situation : {it.situation_raw}</div>
+                      <div className="text-[10px] text-stone-400 dark:text-stone-500">
+                        situation : {it.situation_raw}
+                      </div>
                     )}
                   </td>
-                  <td className="px-4 py-2 text-center text-stone-500 dark:text-stone-400">{it.swap_count}</td>
+                  <td className="px-4 py-2 text-center text-stone-500 dark:text-stone-400">
+                    {it.swap_count}
+                  </td>
                   <td className="px-4 py-2 text-center">
                     {it.id ? (
                       <a
@@ -590,7 +953,9 @@ function SwappedDetailList({ items, bucket, onClose }: {
                       >
                         <ExternalLink size={12} /> Ouvrir
                       </a>
-                    ) : '—'}
+                    ) : (
+                      '—'
+                    )}
                   </td>
                 </tr>
               ))}
@@ -632,7 +997,9 @@ function SizeEquivalencesCard() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const addNew = async () => {
     if (!newKey.trim() || !newGroupsText.trim()) {
@@ -643,8 +1010,13 @@ function SizeEquivalencesCard() {
     // ex : "40, 42, 44\n46, 48, 50"
     const groups = newGroupsText
       .split('\n')
-      .map(line => line.split(/[,;\s]+/).map(s => s.trim()).filter(Boolean))
-      .filter(g => g.length >= 2);
+      .map((line) =>
+        line
+          .split(/[,;\s]+/)
+          .map((s) => s.trim())
+          .filter(Boolean)
+      )
+      .filter((g) => g.length >= 2);
 
     if (groups.length === 0) {
       toast.error('Chaque groupe doit contenir au moins 2 tailles');
@@ -665,7 +1037,9 @@ function SizeEquivalencesCard() {
     if (json.error) toast.error(json.error);
     else {
       toast.success('Produit enregistré');
-      setNewKey(''); setNewLabel(''); setNewGroupsText('');
+      setNewKey('');
+      setNewLabel('');
+      setNewGroupsText('');
       load();
     }
     setSaving(false);
@@ -673,23 +1047,30 @@ function SizeEquivalencesCard() {
 
   const remove = async (key: string) => {
     if (!confirm(`Supprimer les équivalences pour « ${key} » ?`)) return;
-    const res = await fetch(`/api/autoswap/equivalences?key=${encodeURIComponent(key)}`, { method: 'DELETE' });
+    const res = await fetch(`/api/autoswap/equivalences?key=${encodeURIComponent(key)}`, {
+      method: 'DELETE',
+    });
     const json = await res.json();
     if (json.error) toast.error(json.error);
-    else { toast.success('Supprimé'); load(); }
+    else {
+      toast.success('Supprimé');
+      load();
+    }
   };
 
   return (
     <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 overflow-hidden">
       <button
-        onClick={() => setExpanded(e => !e)}
+        onClick={() => setExpanded((e) => !e)}
         className="w-full p-4 flex items-center gap-3 hover:bg-stone-50 dark:hover:bg-stone-800 transition-colors text-left"
       >
         <div className="w-9 h-9 rounded-lg bg-violet-50 dark:bg-violet-500/10 flex items-center justify-center">
           <SettingsIcon size={16} className="text-violet-600 dark:text-violet-400" />
         </div>
         <div className="flex-1">
-          <h2 className="font-semibold text-stone-900 dark:text-stone-100 text-sm">Mes équivalences de tailles</h2>
+          <h2 className="font-semibold text-stone-900 dark:text-stone-100 text-sm">
+            Mes équivalences de tailles
+          </h2>
           <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
             {items.length === 0
               ? 'Aucun produit configuré — utilise les défauts ou ajoute les tiens'
@@ -702,7 +1083,9 @@ function SizeEquivalencesCard() {
       {expanded && (
         <div className="border-t border-stone-100 dark:border-stone-800 p-4 space-y-4">
           {loading ? (
-            <div className="flex justify-center py-6"><Loader2 className="animate-spin text-stone-400" size={18} /></div>
+            <div className="flex justify-center py-6">
+              <Loader2 className="animate-spin text-stone-400" size={18} />
+            </div>
           ) : (
             <>
               {/* État vide : message générique, pas de fuite de produits */}
@@ -710,9 +1093,9 @@ function SizeEquivalencesCard() {
                 <div className="bg-stone-50 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl p-4 text-sm text-stone-700 dark:text-stone-200">
                   <p className="font-medium">Aucun produit configuré.</p>
                   <p className="text-xs mt-1 text-stone-500 dark:text-stone-400">
-                    Ajoute ci-dessous les produits pour lesquels certaines tailles sont interchangeables.
-                    Sans configuration, AutoSwap matche les tailles à l'identique strict (un colis taille 42
-                    ne matchera qu'une commande taille 42).
+                    Ajoute ci-dessous les produits pour lesquels certaines tailles sont
+                    interchangeables. Sans configuration, AutoSwap matche les tailles à l'identique
+                    strict (un colis taille 42 ne matchera qu'une commande taille 42).
                   </p>
                 </div>
               )}
@@ -720,16 +1103,26 @@ function SizeEquivalencesCard() {
               {/* Liste des équivalences existantes */}
               {items.length > 0 && (
                 <div className="space-y-2">
-                  {items.map(item => (
-                    <div key={item.id} className="flex items-start gap-3 p-3 bg-stone-50 dark:bg-stone-800 rounded-xl">
+                  {items.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-start gap-3 p-3 bg-stone-50 dark:bg-stone-800 rounded-xl"
+                    >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="font-semibold text-sm text-stone-900 dark:text-stone-100">{item.product_label || item.product_key}</span>
-                          <code className="text-[10px] font-mono bg-white dark:bg-stone-900 px-1.5 py-0.5 rounded text-stone-500">{item.product_key}</code>
+                          <span className="font-semibold text-sm text-stone-900 dark:text-stone-100">
+                            {item.product_label || item.product_key}
+                          </span>
+                          <code className="text-[10px] font-mono bg-white dark:bg-stone-900 px-1.5 py-0.5 rounded text-stone-500">
+                            {item.product_key}
+                          </code>
                         </div>
                         <div className="flex flex-wrap gap-1.5">
                           {item.groups.map((g, i) => (
-                            <span key={i} className="text-[11px] bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-300 px-2 py-0.5 rounded-md font-medium">
+                            <span
+                              key={i}
+                              className="text-[11px] bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-300 px-2 py-0.5 rounded-md font-medium"
+                            >
                               {g.join(' · ')}
                             </span>
                           ))}
@@ -757,22 +1150,24 @@ function SizeEquivalencesCard() {
                   <input
                     type="text"
                     value={newKey}
-                    onChange={e => setNewKey(e.target.value)}
+                    onChange={(e) => setNewKey(e.target.value)}
                     placeholder="Clé produit (SKU ou nom, ex : « mrl » ou « hijab miral »)"
                     className="w-full px-3 py-2 text-sm border border-stone-200 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
                   />
                   <input
                     type="text"
                     value={newLabel}
-                    onChange={e => setNewLabel(e.target.value)}
+                    onChange={(e) => setNewLabel(e.target.value)}
                     placeholder="Nom lisible (optionnel, ex : « Hijab Miral »)"
                     className="w-full px-3 py-2 text-sm border border-stone-200 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
                   />
                   <textarea
                     value={newGroupsText}
-                    onChange={e => setNewGroupsText(e.target.value)}
+                    onChange={(e) => setNewGroupsText(e.target.value)}
                     rows={3}
-                    placeholder={'Groupes de tailles équivalentes — 1 ligne par groupe, virgules entre tailles\n\nExemple :\n40, 42, 44\n46, 48, 50'}
+                    placeholder={
+                      'Groupes de tailles équivalentes — 1 ligne par groupe, virgules entre tailles\n\nExemple :\n40, 42, 44\n46, 48, 50'
+                    }
                     className="w-full px-3 py-2 text-sm font-mono border border-stone-200 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
                   />
                   <button
@@ -785,7 +1180,9 @@ function SizeEquivalencesCard() {
                   </button>
                 </div>
                 <p className="text-[10px] text-stone-400 mt-2">
-                  💡 La clé doit correspondre au SKU détecté dans <code>productsDescription</code> (ex : <code>mrl</code>) ou au nom normalisé du produit (ex : <code>hijab miral</code>). Le matcher essaie les 2.
+                  💡 La clé doit correspondre au SKU détecté dans <code>productsDescription</code>{' '}
+                  (ex : <code>mrl</code>) ou au nom normalisé du produit (ex :{' '}
+                  <code>hijab miral</code>). Le matcher essaie les 2.
                 </p>
               </div>
             </>

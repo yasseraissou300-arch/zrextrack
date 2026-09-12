@@ -2,11 +2,41 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
 import {
-  Bot, CheckCircle2, HeadphonesIcon, MapPin, ToggleLeft, ToggleRight,
-  Globe, Loader2, Save, RefreshCw, QrCode, Wifi, WifiOff,
-  ChevronDown, ChevronUp, ExternalLink, Copy, Trash2, Sheet, AlertCircle,
-  MessageSquare, Phone, User, BarChart3, TrendingUp, Users,
-  Sparkles, Bell, Image, Shield, Clock, Stethoscope, CheckCircle, XCircle, Wrench,
+  Bot,
+  CheckCircle2,
+  HeadphonesIcon,
+  MapPin,
+  ToggleLeft,
+  ToggleRight,
+  Globe,
+  Loader2,
+  Save,
+  RefreshCw,
+  QrCode,
+  Wifi,
+  WifiOff,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  Copy,
+  Trash2,
+  Sheet,
+  AlertCircle,
+  MessageSquare,
+  Phone,
+  User,
+  BarChart3,
+  TrendingUp,
+  Users,
+  Sparkles,
+  Bell,
+  Image,
+  Shield,
+  Clock,
+  Stethoscope,
+  CheckCircle,
+  XCircle,
+  Wrench,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -24,11 +54,23 @@ interface TemplateConfig {
   human_pause_hours: number;
 }
 
-interface FBConnection { page_id: string; page_name: string; page_access_token: string; verify_token: string; connected: boolean; }
+interface FBConnection {
+  page_id: string;
+  page_name: string;
+  page_access_token: string;
+  verify_token: string;
+  connected: boolean;
+}
 interface Session {
-  id: string; channel: string; contact_id: string; contact_name: string;
-  template_type: string; extracted_data: Record<string, string>;
-  is_complete: boolean; sheets_sent: boolean; updated_at: string;
+  id: string;
+  channel: string;
+  contact_id: string;
+  contact_name: string;
+  template_type: string;
+  extracted_data: Record<string, string>;
+  is_complete: boolean;
+  sheets_sent: boolean;
+  updated_at: string;
   // Résolution SAV (null tant que l'opérateur n'a pas validé)
   resolution?: 'exchange' | 'refund' | 'resolved' | null;
   resolved_at?: string | null;
@@ -60,9 +102,27 @@ const TEMPLATE_META = {
 } as const;
 
 const COLOR_MAP = {
-  green: { bg: 'bg-green-50', icon: 'bg-green-100 text-green-600', badge: 'bg-green-100 text-green-700', border: 'border-green-200', ring: 'ring-green-500' },
-  amber: { bg: 'bg-amber-50', icon: 'bg-amber-100 text-amber-600', badge: 'bg-amber-100 text-amber-700', border: 'border-amber-200', ring: 'ring-amber-500' },
-  blue: { bg: 'bg-blue-50', icon: 'bg-blue-100 text-blue-600', badge: 'bg-blue-100 text-blue-700', border: 'border-blue-200', ring: 'ring-blue-500' },
+  green: {
+    bg: 'bg-green-50',
+    icon: 'bg-green-100 text-green-600',
+    badge: 'bg-green-100 text-green-700',
+    border: 'border-green-200',
+    ring: 'ring-green-500',
+  },
+  amber: {
+    bg: 'bg-amber-50',
+    icon: 'bg-amber-100 text-amber-600',
+    badge: 'bg-amber-100 text-amber-700',
+    border: 'border-amber-200',
+    ring: 'ring-amber-500',
+  },
+  blue: {
+    bg: 'bg-blue-50',
+    icon: 'bg-blue-100 text-blue-600',
+    badge: 'bg-blue-100 text-blue-700',
+    border: 'border-blue-200',
+    ring: 'ring-blue-500',
+  },
 };
 
 // ─── TemplatesTab ─────────────────────────────────────────────────────────────
@@ -83,10 +143,18 @@ function TemplatesTab() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchConfigs(); }, [fetchConfigs]);
+  useEffect(() => {
+    fetchConfigs();
+  }, [fetchConfigs]);
 
-  const updateConfig = (type: string, field: string, value: string | boolean | number | string[]) => {
-    setConfigs(prev => prev.map(c => c.template_type === type ? { ...c, [field]: value } : c));
+  const updateConfig = (
+    type: string,
+    field: string,
+    value: string | boolean | number | string[]
+  ) => {
+    setConfigs((prev) =>
+      prev.map((c) => (c.template_type === type ? { ...c, [field]: value } : c))
+    );
   };
 
   const saveConfig = async (config: TemplateConfig) => {
@@ -104,23 +172,35 @@ function TemplatesTab() {
 
   const refinePrompt = async (config: TemplateConfig) => {
     const prompt = config.custom_prompt?.trim() || defaults[config.template_type] || '';
-    if (!prompt) { toast.error('Écrivez d\'abord un prompt à améliorer'); return; }
+    if (!prompt) {
+      toast.error("Écrivez d'abord un prompt à améliorer");
+      return;
+    }
     setRefining(config.template_type);
     const res = await fetch('/api/ai-chatbot/refine-prompt', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, template_type: config.template_type, shop_name: config.shop_name }),
+      body: JSON.stringify({
+        prompt,
+        template_type: config.template_type,
+        shop_name: config.shop_name,
+      }),
     });
     const json = await res.json();
     if (json.error) toast.error(json.error);
     else {
       updateConfig(config.template_type, 'custom_prompt', json.refined);
-      toast.success('Prompt amélioré par l\'IA ✨');
+      toast.success("Prompt amélioré par l'IA ✨");
     }
     setRefining(null);
   };
 
-  if (loading) return <div className="flex justify-center py-20"><Loader2 size={24} className="animate-spin text-stone-400 dark:text-stone-500" /></div>;
+  if (loading)
+    return (
+      <div className="flex justify-center py-20">
+        <Loader2 size={24} className="animate-spin text-stone-400 dark:text-stone-500" />
+      </div>
+    );
 
   return (
     <div className="space-y-4">
@@ -128,11 +208,15 @@ function TemplatesTab() {
         <AlertCircle size={16} className="text-blue-600 shrink-0 mt-0.5" />
         <div className="text-sm text-blue-800 space-y-1">
           <p className="font-semibold">Comment ça marche ?</p>
-          <p>L'IA répond en <strong>Darija Algérienne</strong> (arabe + arabizi latin). Elle extrait automatiquement les données structurées et les envoie vers votre Google Sheets dès la conversation complète.</p>
+          <p>
+            L'IA répond en <strong>Darija Algérienne</strong> (arabe + arabizi latin). Elle extrait
+            automatiquement les données structurées et les envoie vers votre Google Sheets dès la
+            conversation complète.
+          </p>
         </div>
       </div>
 
-      {configs.map(config => {
+      {configs.map((config) => {
         const meta = TEMPLATE_META[config.template_type];
         const colors = COLOR_MAP[meta.color];
         const Icon = meta.icon;
@@ -140,39 +224,56 @@ function TemplatesTab() {
         const isSaving = saving === config.template_type;
 
         return (
-          <div key={config.template_type} className={`bg-white dark:bg-stone-900 rounded-2xl border shadow-sm overflow-hidden ${config.is_active ? `border-${meta.color}-200` : 'border-stone-100 dark:border-stone-800'}`}>
+          <div
+            key={config.template_type}
+            className={`bg-white dark:bg-stone-900 rounded-2xl border shadow-sm overflow-hidden ${config.is_active ? `border-${meta.color}-200` : 'border-stone-100 dark:border-stone-800'}`}
+          >
             {/* Card header */}
             <div className="p-5 flex items-start gap-4">
-              <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${colors.icon}`}>
+              <div
+                className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${colors.icon}`}
+              >
                 <Icon size={20} />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap mb-1">
                   <h3 className="font-semibold text-stone-900 dark:text-stone-100">{meta.label}</h3>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${colors.badge}`}>{meta.badge}</span>
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${colors.badge}`}
+                  >
+                    {meta.badge}
+                  </span>
                   {config.is_active && (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700 flex items-center gap-1">
-                      <span className="w-1 h-1 bg-green-500 rounded-full animate-pulse" />ACTIF
+                      <span className="w-1 h-1 bg-green-500 rounded-full animate-pulse" />
+                      ACTIF
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-stone-500 dark:text-stone-400 leading-relaxed">{meta.desc}</p>
+                <p className="text-xs text-stone-500 dark:text-stone-400 leading-relaxed">
+                  {meta.desc}
+                </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <button
                   onClick={() => updateConfig(config.template_type, 'is_active', !config.is_active)}
                   className="shrink-0"
                 >
-                  {config.is_active
-                    ? <ToggleRight size={36} className="text-green-600" />
-                    : <ToggleLeft size={36} className="text-stone-300 dark:text-stone-600" />
-                  }
+                  {config.is_active ? (
+                    <ToggleRight size={36} className="text-green-600" />
+                  ) : (
+                    <ToggleLeft size={36} className="text-stone-300 dark:text-stone-600" />
+                  )}
                 </button>
                 <button
                   onClick={() => setExpanded(isExpanded ? null : config.template_type)}
                   className="p-2 hover:bg-stone-50 dark:hover:bg-stone-800 rounded-lg transition-colors"
                 >
-                  {isExpanded ? <ChevronUp size={16} className="text-stone-400 dark:text-stone-500" /> : <ChevronDown size={16} className="text-stone-400 dark:text-stone-500" />}
+                  {isExpanded ? (
+                    <ChevronUp size={16} className="text-stone-400 dark:text-stone-500" />
+                  ) : (
+                    <ChevronDown size={16} className="text-stone-400 dark:text-stone-500" />
+                  )}
                 </button>
               </div>
             </div>
@@ -180,7 +281,6 @@ function TemplatesTab() {
             {/* Config expand */}
             {isExpanded && (
               <div className="border-t border-stone-100 dark:border-stone-800 p-5 space-y-4 bg-stone-50/50">
-
                 {/* Custom prompt — FIRST so it's immediately visible */}
                 <div className="space-y-1.5 bg-white dark:bg-stone-900 rounded-2xl border border-green-200 p-4">
                   <div className="flex items-center justify-between mb-1">
@@ -194,7 +294,11 @@ function TemplatesTab() {
                         disabled={refining === config.template_type}
                         className="text-[11px] flex items-center gap-1 text-purple-600 hover:text-purple-800 font-medium disabled:opacity-50"
                       >
-                        {refining === config.template_type ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
+                        {refining === config.template_type ? (
+                          <Loader2 size={10} className="animate-spin" />
+                        ) : (
+                          <Sparkles size={10} />
+                        )}
                         Améliorer avec IA
                       </button>
                       <button
@@ -207,38 +311,54 @@ function TemplatesTab() {
                   </div>
                   <textarea
                     value={config.custom_prompt}
-                    onChange={e => updateConfig(config.template_type, 'custom_prompt', e.target.value)}
-                    placeholder={defaults[config.template_type] || 'Laissez vide pour utiliser le prompt Darija par défaut...'}
+                    onChange={(e) =>
+                      updateConfig(config.template_type, 'custom_prompt', e.target.value)
+                    }
+                    placeholder={
+                      defaults[config.template_type] ||
+                      'Laissez vide pour utiliser le prompt Darija par défaut...'
+                    }
                     rows={10}
                     className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 resize-y font-mono text-stone-700 dark:text-stone-200"
                   />
                   <p className="text-[11px] text-stone-400 dark:text-stone-500">
-                    Utilisez <code className="bg-stone-100 px-1 rounded">[NOM_BOUTIQUE]</code> pour insérer le nom de boutique.
-                    L'IA extrait les données avec la balise <code className="bg-stone-100 px-1 rounded">&lt;data&gt;{'{...}'}&lt;/data&gt;</code>
+                    Utilisez <code className="bg-stone-100 px-1 rounded">[NOM_BOUTIQUE]</code> pour
+                    insérer le nom de boutique. L'IA extrait les données avec la balise{' '}
+                    <code className="bg-stone-100 px-1 rounded">
+                      &lt;data&gt;{'{...}'}&lt;/data&gt;
+                    </code>
                   </p>
                 </div>
 
                 {/* Shop name */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-stone-600 dark:text-stone-300">Nom de la boutique</label>
+                  <label className="text-xs font-semibold text-stone-600 dark:text-stone-300">
+                    Nom de la boutique
+                  </label>
                   <input
                     value={config.shop_name}
-                    onChange={e => updateConfig(config.template_type, 'shop_name', e.target.value)}
+                    onChange={(e) =>
+                      updateConfig(config.template_type, 'shop_name', e.target.value)
+                    }
                     placeholder="Ex: Boutique Yassin"
                     className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400"
                   />
-                  <p className="text-[11px] text-stone-400 dark:text-stone-500">Remplace [NOM_BOUTIQUE] dans le prompt</p>
+                  <p className="text-[11px] text-stone-400 dark:text-stone-500">
+                    Remplace [NOM_BOUTIQUE] dans le prompt
+                  </p>
                 </div>
 
                 {/* Language */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-stone-600 dark:text-stone-300">Langue principale</label>
+                  <label className="text-xs font-semibold text-stone-600 dark:text-stone-300">
+                    Langue principale
+                  </label>
                   <div className="grid grid-cols-3 gap-2">
                     {[
                       { v: 'darija', l: 'Darija 🇩🇿', s: 'Dialecte algérien' },
                       { v: 'arabic', l: 'عربية فصحى', s: 'Arabe classique' },
                       { v: 'french', l: 'Français 🇫🇷', s: 'Français standard' },
-                    ].map(lang => (
+                    ].map((lang) => (
                       <button
                         key={lang.v}
                         onClick={() => updateConfig(config.template_type, 'language', lang.v)}
@@ -259,11 +379,15 @@ function TemplatesTab() {
                   </label>
                   <input
                     value={config.google_sheets_url}
-                    onChange={e => updateConfig(config.template_type, 'google_sheets_url', e.target.value)}
+                    onChange={(e) =>
+                      updateConfig(config.template_type, 'google_sheets_url', e.target.value)
+                    }
                     placeholder="https://hook.eu1.make.com/xxx ou https://n8n.yourdomain.com/webhook/..."
                     className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-400 font-mono"
                   />
-                  <p className="text-[11px] text-stone-400 dark:text-stone-500">Recevra un POST JSON avec : type, timestamp, nom, telephone, wilaya, produit</p>
+                  <p className="text-[11px] text-stone-400 dark:text-stone-500">
+                    Recevra un POST JSON avec : type, timestamp, nom, telephone, wilaya, produit
+                  </p>
                 </div>
 
                 {/* Admin notification */}
@@ -274,11 +398,16 @@ function TemplatesTab() {
                   </label>
                   <input
                     value={(config as TemplateConfig).admin_whatsapp ?? ''}
-                    onChange={e => updateConfig(config.template_type, 'admin_whatsapp', e.target.value)}
+                    onChange={(e) =>
+                      updateConfig(config.template_type, 'admin_whatsapp', e.target.value)
+                    }
                     placeholder="Ex: 213661234567"
                     className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 font-mono"
                   />
-                  <p className="text-[11px] text-stone-400 dark:text-stone-500">Reçoit un résumé WhatsApp dès qu'une commande est complète. Format : 213XXXXXXXXX</p>
+                  <p className="text-[11px] text-stone-400 dark:text-stone-500">
+                    Reçoit un résumé WhatsApp dès qu'une commande est complète. Format :
+                    213XXXXXXXXX
+                  </p>
                 </div>
 
                 {/* Product media */}
@@ -289,11 +418,15 @@ function TemplatesTab() {
                   </label>
                   <input
                     value={(config as TemplateConfig).media_url ?? ''}
-                    onChange={e => updateConfig(config.template_type, 'media_url', e.target.value)}
+                    onChange={(e) =>
+                      updateConfig(config.template_type, 'media_url', e.target.value)
+                    }
                     placeholder="https://..."
                     className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 font-mono"
                   />
-                  <p className="text-[11px] text-stone-400 dark:text-stone-500">Envoyée automatiquement au premier message du client</p>
+                  <p className="text-[11px] text-stone-400 dark:text-stone-500">
+                    Envoyée automatiquement au premier message du client
+                  </p>
                 </div>
 
                 {/* Blocked prefixes */}
@@ -304,14 +437,20 @@ function TemplatesTab() {
                   </label>
                   <input
                     value={((config as TemplateConfig).blocked_prefixes ?? []).join(', ')}
-                    onChange={e => {
-                      const prefixes = e.target.value.split(',').map(p => p.trim()).filter(Boolean);
+                    onChange={(e) => {
+                      const prefixes = e.target.value
+                        .split(',')
+                        .map((p) => p.trim())
+                        .filter(Boolean);
                       updateConfig(config.template_type, 'blocked_prefixes', prefixes);
                     }}
                     placeholder="Ex: 213550, 213551 (séparés par virgule)"
                     className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-400 font-mono"
                   />
-                  <p className="text-[11px] text-stone-400 dark:text-stone-500">Le bot ignorera les messages de ces numéros (utile pour exclure concurrents ou tests)</p>
+                  <p className="text-[11px] text-stone-400 dark:text-stone-500">
+                    Le bot ignorera les messages de ces numéros (utile pour exclure concurrents ou
+                    tests)
+                  </p>
                 </div>
 
                 {/* Human pause hours */}
@@ -325,10 +464,18 @@ function TemplatesTab() {
                     min={1}
                     max={48}
                     value={(config as TemplateConfig).human_pause_hours ?? 4}
-                    onChange={e => updateConfig(config.template_type, 'human_pause_hours', parseInt(e.target.value) || 4)}
+                    onChange={(e) =>
+                      updateConfig(
+                        config.template_type,
+                        'human_pause_hours',
+                        parseInt(e.target.value) || 4
+                      )
+                    }
                     className="w-32 border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400"
                   />
-                  <p className="text-[11px] text-stone-400 dark:text-stone-500">Quand vous répondez manuellement, le bot se met en pause pour X heures</p>
+                  <p className="text-[11px] text-stone-400 dark:text-stone-500">
+                    Quand vous répondez manuellement, le bot se met en pause pour X heures
+                  </p>
                 </div>
 
                 <button
@@ -357,18 +504,21 @@ interface WAServiceStatus {
   instance: { instance_name: string; service_type: string } | null;
 }
 
-const WA_SERVICE_META: Record<WAServiceType, {
-  label: string;
-  desc: string;
-  icon: React.ComponentType<{ size: number; className?: string }>;
-  iconCls: string;
-  badgeCls: string;
-  borderCls: string;
-  headerConnectedCls: string;
-  statusConnectedCls: string;
-  qrHoverCls: string;
-  linkBtnCls: string;
-}> = {
+const WA_SERVICE_META: Record<
+  WAServiceType,
+  {
+    label: string;
+    desc: string;
+    icon: React.ComponentType<{ size: number; className?: string }>;
+    iconCls: string;
+    badgeCls: string;
+    borderCls: string;
+    headerConnectedCls: string;
+    statusConnectedCls: string;
+    qrHoverCls: string;
+    linkBtnCls: string;
+  }
+> = {
   auto_confirmation: {
     label: 'Auto-Confirmation',
     desc: 'Confirme les commandes et collecte les infos client',
@@ -408,7 +558,11 @@ const WA_SERVICE_META: Record<WAServiceType, {
 };
 
 function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType }) {
-  const [status, setStatus] = useState<WAServiceStatus>({ connected: false, phone: '', instance: null });
+  const [status, setStatus] = useState<WAServiceStatus>({
+    connected: false,
+    phone: '',
+    instance: null,
+  });
   const [qr, setQr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [qrLoading, setQrLoading] = useState(false);
@@ -426,7 +580,9 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
   const [showDebug, setShowDebug] = useState(false);
   // Numéro attendu (entré par l'utilisateur), à comparer avec status.phone après connexion.
   const [expectedPhone, setExpectedPhone] = useState<string | null>(null);
-  const [phoneMismatch, setPhoneMismatch] = useState<{ expected: string; actual: string } | null>(null);
+  const [phoneMismatch, setPhoneMismatch] = useState<{ expected: string; actual: string } | null>(
+    null
+  );
   // Erreur QR persistante (ne disparaît pas comme un toast) + debug pour diagnostic
   const [qrError, setQrError] = useState<string | null>(null);
   const [qrDebug, setQrDebug] = useState<unknown>(null);
@@ -441,7 +597,11 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
   const fetchStatus = useCallback(async () => {
     const res = await fetch(`/api/ai-chatbot/whatsapp/status?service=${serviceType}`);
     const json = await res.json();
-    setStatus({ connected: json.connected ?? false, phone: json.phone ?? '', instance: json.instance ?? null });
+    setStatus({
+      connected: json.connected ?? false,
+      phone: json.phone ?? '',
+      instance: json.instance ?? null,
+    });
     return json.connected as boolean;
   }, [serviceType]);
 
@@ -508,7 +668,10 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
     });
     const json = await res.json();
     if (json.error) toast.error(json.error);
-    else { await fetchStatus(); fetchQr(); }
+    else {
+      await fetchStatus();
+      fetchQr();
+    }
     setCreating(false);
   };
 
@@ -555,7 +718,9 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
     setPairingDebug(null);
     setPhoneMismatch(null);
     try {
-      const res = await fetch(`/api/ai-chatbot/whatsapp/qr?service=${serviceType}&number=${encodeURIComponent(rawPhone)}&debug=1`);
+      const res = await fetch(
+        `/api/ai-chatbot/whatsapp/qr?service=${serviceType}&number=${encodeURIComponent(rawPhone)}&debug=1`
+      );
       const json = await res.json();
       if (json.pairingCode) {
         // Cas idéal : Evolution v2.x+ a retourné un code à 8 caractères
@@ -614,7 +779,7 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
         toast.success('Déjà connecté !');
         fetchStatus();
       } else {
-        const errMsg = json.error || 'QR non disponible — Evolution API n\'a rien renvoyé.';
+        const errMsg = json.error || "QR non disponible — Evolution API n'a rien renvoyé.";
         setQrError(errMsg);
         if (json.debug) setQrDebug(json.debug);
         // Pas de toast — on garde l'erreur visible dans la bannière persistante
@@ -630,7 +795,12 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
   // Utile quand Evolution est coincée en état « connecting » ou que la session
   // est corrompue (cas le plus fréquent quand le QR ne s'affiche pas).
   const resetConnection = async () => {
-    if (!confirm('Réinitialiser cette connexion ? L\'instance actuelle sera supprimée et recréée. Tu devras re-scanner un nouveau QR.')) return;
+    if (
+      !confirm(
+        "Réinitialiser cette connexion ? L'instance actuelle sera supprimée et recréée. Tu devras re-scanner un nouveau QR."
+      )
+    )
+      return;
     setResetting(true);
     setQrError(null);
     setQrDebug(null);
@@ -673,24 +843,40 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
   }
 
   return (
-    <div className={`bg-white dark:bg-stone-900 rounded-2xl border shadow-sm overflow-hidden ${status.connected ? meta.borderCls : 'border-stone-100 dark:border-stone-800'}`}>
+    <div
+      className={`bg-white dark:bg-stone-900 rounded-2xl border shadow-sm overflow-hidden ${status.connected ? meta.borderCls : 'border-stone-100 dark:border-stone-800'}`}
+    >
       {/* Header */}
-      <div className={`p-4 flex items-center gap-3 ${status.connected ? meta.headerConnectedCls : 'bg-stone-50 border-b border-stone-100 dark:border-stone-800'}`}>
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${meta.iconCls}`}>
+      <div
+        className={`p-4 flex items-center gap-3 ${status.connected ? meta.headerConnectedCls : 'bg-stone-50 border-b border-stone-100 dark:border-stone-800'}`}
+      >
+        <div
+          className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${meta.iconCls}`}
+        >
           <Icon size={18} />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-stone-900 dark:text-stone-100 text-sm">{meta.label}</h3>
+            <h3 className="font-semibold text-stone-900 dark:text-stone-100 text-sm">
+              {meta.label}
+            </h3>
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${meta.badgeCls}`}>
-              {serviceType === 'auto_confirmation' ? 'Commandes' : serviceType === 'sav' ? 'Support' : 'Livraison'}
+              {serviceType === 'auto_confirmation'
+                ? 'Commandes'
+                : serviceType === 'sav'
+                  ? 'Support'
+                  : 'Livraison'}
             </span>
           </div>
           <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5 truncate">{meta.desc}</p>
         </div>
-        <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium shrink-0 ${
-          status.connected ? meta.statusConnectedCls : 'bg-stone-100 text-stone-500 dark:text-stone-400'
-        }`}>
+        <div
+          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium shrink-0 ${
+            status.connected
+              ? meta.statusConnectedCls
+              : 'bg-stone-100 text-stone-500 dark:text-stone-400'
+          }`}
+        >
           {status.connected ? <Wifi size={11} /> : <WifiOff size={11} />}
           {status.connected ? 'Connecté' : 'Déconnecté'}
         </div>
@@ -714,9 +900,16 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
               <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 text-[11px] text-amber-800">
                 <AlertCircle size={12} className="shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <strong>Attention :</strong> tu attendais <span className="font-mono">+{phoneMismatch.expected}</span> mais c'est <span className="font-mono">+{phoneMismatch.actual}</span> qui s'est connecté.
+                  <strong>Attention :</strong> tu attendais{' '}
+                  <span className="font-mono">+{phoneMismatch.expected}</span> mais c'est{' '}
+                  <span className="font-mono">+{phoneMismatch.actual}</span> qui s'est connecté.
                 </div>
-                <button onClick={() => setPhoneMismatch(null)} className="text-amber-400 hover:text-amber-600 text-sm leading-none">×</button>
+                <button
+                  onClick={() => setPhoneMismatch(null)}
+                  className="text-amber-400 hover:text-amber-600 text-sm leading-none"
+                >
+                  ×
+                </button>
               </div>
             )}
             <div className="flex items-center justify-between">
@@ -724,7 +917,10 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
                 <Phone size={13} className="text-stone-400 dark:text-stone-500" />
                 <span className="font-mono">{status.phone ? '+' + status.phone : '—'}</span>
               </div>
-              <button onClick={() => fetchStatus()} className="p-1.5 hover:bg-stone-100 rounded-lg transition-colors">
+              <button
+                onClick={() => fetchStatus()}
+                className="p-1.5 hover:bg-stone-100 rounded-lg transition-colors"
+              >
                 <RefreshCw size={12} className="text-stone-400 dark:text-stone-500" />
               </button>
             </div>
@@ -739,7 +935,10 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
           // ── Mode pairing code : affichage du code à 8 caractères ────────
           <div className="flex flex-col items-center gap-3 py-2">
             <p className="text-xs text-stone-500 dark:text-stone-400 text-center px-2">
-              Sur ton téléphone : <strong className="text-stone-700 dark:text-stone-200">WhatsApp → ⚙️ Appareils liés → Lier avec un numéro de téléphone</strong>
+              Sur ton téléphone :{' '}
+              <strong className="text-stone-700 dark:text-stone-200">
+                WhatsApp → ⚙️ Appareils liés → Lier avec un numéro de téléphone
+              </strong>
             </p>
             <button
               type="button"
@@ -752,17 +951,26 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
               title="Cliquer pour copier"
             >
               <span className="font-mono text-2xl tracking-[0.3em] font-bold">{pairingCode}</span>
-              <Copy size={16} className="text-stone-400 dark:text-stone-500 group-hover:text-stone-600 dark:text-stone-300" />
+              <Copy
+                size={16}
+                className="text-stone-400 dark:text-stone-500 group-hover:text-stone-600 dark:text-stone-300"
+              />
             </button>
             <p className="text-[11px] text-stone-400 dark:text-stone-500 text-center">
-              {codeCopied ? '✓ Code copié — colle-le dans WhatsApp' : 'Entre ce code (8 caractères) dans WhatsApp'}
+              {codeCopied
+                ? '✓ Code copié — colle-le dans WhatsApp'
+                : 'Entre ce code (8 caractères) dans WhatsApp'}
             </p>
             <div className="flex items-center gap-2 text-[11px] text-stone-500 dark:text-stone-400 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-md">
               <Loader2 size={12} className="animate-spin text-blue-600" />
               En attente de confirmation depuis ton téléphone…
             </div>
             <button
-              onClick={() => { setPairingCode(null); setPhoneInput(''); fetchQr(); }}
+              onClick={() => {
+                setPairingCode(null);
+                setPhoneInput('');
+                fetchQr();
+              }}
               className="text-[11px] text-stone-400 dark:text-stone-500 hover:text-stone-600 dark:text-stone-300 underline mt-1"
             >
               ← Choisir une autre méthode
@@ -779,12 +987,21 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
                   <div className="flex-1">
                     <strong>Erreur :</strong> {pairingError}
                   </div>
-                  <button onClick={() => { setPairingError(null); setPairingDebug(null); setShowDebug(false); }} className="text-red-400 hover:text-red-600 text-base leading-none">×</button>
+                  <button
+                    onClick={() => {
+                      setPairingError(null);
+                      setPairingDebug(null);
+                      setShowDebug(false);
+                    }}
+                    className="text-red-400 hover:text-red-600 text-base leading-none"
+                  >
+                    ×
+                  </button>
                 </div>
                 {pairingDebug !== null && (
                   <div className="pt-1 border-t border-red-100">
                     <button
-                      onClick={() => setShowDebug(s => !s)}
+                      onClick={() => setShowDebug((s) => !s)}
                       className="text-[10px] text-red-500 hover:text-red-700 underline"
                     >
                       {showDebug ? '▼ Masquer' : '▶ Voir détails techniques'}
@@ -807,7 +1024,16 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
                   <div className="flex-1">
                     <strong>QR non disponible :</strong> {qrError}
                   </div>
-                  <button onClick={() => { setQrError(null); setQrDebug(null); setShowQrDebug(false); }} className="text-red-400 hover:text-red-600 text-base leading-none">×</button>
+                  <button
+                    onClick={() => {
+                      setQrError(null);
+                      setQrDebug(null);
+                      setShowQrDebug(false);
+                    }}
+                    className="text-red-400 hover:text-red-600 text-base leading-none"
+                  >
+                    ×
+                  </button>
                 </div>
                 <div className="flex items-center gap-2 pt-1 border-t border-red-100">
                   <button
@@ -815,12 +1041,16 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
                     disabled={resetting}
                     className="flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 bg-red-100 hover:bg-red-200 text-red-800 rounded-md disabled:opacity-50"
                   >
-                    {resetting ? <Loader2 size={10} className="animate-spin" /> : <RefreshCw size={10} />}
+                    {resetting ? (
+                      <Loader2 size={10} className="animate-spin" />
+                    ) : (
+                      <RefreshCw size={10} />
+                    )}
                     {resetting ? 'Réinitialisation…' : 'Réinitialiser la connexion'}
                   </button>
                   {qrDebug !== null && (
                     <button
-                      onClick={() => setShowQrDebug(s => !s)}
+                      onClick={() => setShowQrDebug((s) => !s)}
                       className="text-[10px] text-red-500 hover:text-red-700 underline"
                     >
                       {showQrDebug ? '▼ Masquer' : '▶ Détails techniques'}
@@ -862,7 +1092,9 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
                 className={`w-full flex items-center justify-center gap-2 py-8 border-2 border-dashed rounded-xl transition-colors text-stone-400 dark:text-stone-500 ${meta.qrHoverCls} disabled:opacity-50`}
               >
                 {qrLoading ? <Loader2 size={18} className="animate-spin" /> : <QrCode size={18} />}
-                <span className="text-sm font-medium">{qrLoading ? 'Génération du QR...' : 'Afficher le QR code'}</span>
+                <span className="text-sm font-medium">
+                  {qrLoading ? 'Génération du QR...' : 'Afficher le QR code'}
+                </span>
               </button>
             )}
 
@@ -876,8 +1108,11 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
                   type="tel"
                   placeholder="0XXXXXXXXX"
                   value={phoneInput}
-                  onChange={e => setPhoneInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter' && !pairingLoading && phoneInput.trim()) fetchPairingCode(); }}
+                  onChange={(e) => setPhoneInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !pairingLoading && phoneInput.trim())
+                      fetchPairingCode();
+                  }}
                   disabled={pairingLoading}
                   className="flex-1 text-sm px-2.5 py-1.5 border border-stone-200 dark:border-stone-700 rounded-md focus:outline-none focus:border-stone-400 disabled:bg-stone-50"
                 />
@@ -886,7 +1121,11 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
                   disabled={pairingLoading || !phoneInput.trim()}
                   className={`flex items-center justify-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md border transition-colors ${meta.linkBtnCls} disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
-                  {pairingLoading ? <Loader2 size={12} className="animate-spin" /> : <Phone size={12} />}
+                  {pairingLoading ? (
+                    <Loader2 size={12} className="animate-spin" />
+                  ) : (
+                    <Phone size={12} />
+                  )}
                   {pairingLoading ? 'Génération…' : 'Lier'}
                 </button>
               </div>
@@ -976,8 +1215,8 @@ function WhatsAppTab() {
 
   useEffect(() => {
     fetch('/api/ai-chatbot/whatsapp/instance')
-      .then(r => r.json())
-      .then(json => setEvolutionConfigured(json.evolutionConfigured ?? false));
+      .then((r) => r.json())
+      .then((json) => setEvolutionConfigured(json.evolutionConfigured ?? false));
   }, []);
 
   const runDiagnostic = async () => {
@@ -1007,8 +1246,10 @@ function WhatsAppTab() {
       } else {
         const r = json as RepairResult;
         setRepairResult(r);
-        if (r.verified === r.total) toast.success(`${r.verified}/${r.total} webhook(s) vérifiés OK`);
-        else toast.error(`Seulement ${r.verified}/${r.total} webhook(s) vérifiés — voir les détails`);
+        if (r.verified === r.total)
+          toast.success(`${r.verified}/${r.total} webhook(s) vérifiés OK`);
+        else
+          toast.error(`Seulement ${r.verified}/${r.total} webhook(s) vérifiés — voir les détails`);
         await runDiagnostic();
       }
     } catch (e) {
@@ -1034,7 +1275,12 @@ function WhatsAppTab() {
               <p>EVOLUTION_API_KEY=votre-clé-api</p>
               <p className="text-amber-700">Pour la clé Gemini : utilisez Paramètres → Clés API</p>
             </div>
-            <a href="https://github.com/EvolutionAPI/evolution-api" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-amber-700 hover:underline font-medium">
+            <a
+              href="https://github.com/EvolutionAPI/evolution-api"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-amber-700 hover:underline font-medium"
+            >
               Documentation Evolution API <ExternalLink size={11} />
             </a>
           </div>
@@ -1043,8 +1289,12 @@ function WhatsAppTab() {
 
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-stone-700 dark:text-stone-200">Connexions WhatsApp par service</h2>
-          <p className="text-xs text-stone-400 dark:text-stone-500 mt-0.5">Chaque service utilise un numéro WhatsApp indépendant et isolé.</p>
+          <h2 className="text-sm font-semibold text-stone-700 dark:text-stone-200">
+            Connexions WhatsApp par service
+          </h2>
+          <p className="text-xs text-stone-400 dark:text-stone-500 mt-0.5">
+            Chaque service utilise un numéro WhatsApp indépendant et isolé.
+          </p>
         </div>
         <button
           onClick={runDiagnostic}
@@ -1062,7 +1312,9 @@ function WhatsAppTab() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Stethoscope size={14} className="text-stone-500 dark:text-stone-400" />
-              <h3 className="font-semibold text-sm text-stone-900 dark:text-stone-100">Résultat diagnostic</h3>
+              <h3 className="font-semibold text-sm text-stone-900 dark:text-stone-100">
+                Résultat diagnostic
+              </h3>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -1074,7 +1326,12 @@ function WhatsAppTab() {
                 {repairing ? <Loader2 size={12} className="animate-spin" /> : <Wrench size={12} />}
                 Réparer les webhooks
               </button>
-              <button onClick={() => setDiagOpen(false)} className="text-xs text-stone-400 dark:text-stone-500 hover:text-stone-700 dark:text-stone-200">Fermer</button>
+              <button
+                onClick={() => setDiagOpen(false)}
+                className="text-xs text-stone-400 dark:text-stone-500 hover:text-stone-700 dark:text-stone-200"
+              >
+                Fermer
+              </button>
             </div>
           </div>
 
@@ -1086,27 +1343,60 @@ function WhatsAppTab() {
 
           {repairResult && (
             <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 space-y-2 text-xs">
-              <p className="font-semibold text-blue-900">Résultat réparation — {repairResult.verified}/{repairResult.total} vérifié(s)</p>
+              <p className="font-semibold text-blue-900">
+                Résultat réparation — {repairResult.verified}/{repairResult.total} vérifié(s)
+              </p>
               <div className="text-blue-800 space-y-0.5">
-                <p>URL envoyée à Evolution : <code className="break-all">{repairResult.webhook_url_sent}</code></p>
-                <p>NEXT_PUBLIC_APP_URL : <code>{repairResult.app_url_from_env ?? '(non défini → fallback)'}</code></p>
+                <p>
+                  URL envoyée à Evolution :{' '}
+                  <code className="break-all">{repairResult.webhook_url_sent}</code>
+                </p>
+                <p>
+                  NEXT_PUBLIC_APP_URL :{' '}
+                  <code>{repairResult.app_url_from_env ?? '(non défini → fallback)'}</code>
+                </p>
               </div>
               <div className="space-y-1.5">
                 {repairResult.results.map((r, i) => (
-                  <div key={i} className="border border-blue-100 bg-white dark:bg-stone-900 rounded p-2">
+                  <div
+                    key={i}
+                    className="border border-blue-100 bg-white dark:bg-stone-900 rounded p-2"
+                  >
                     <p className="font-mono text-[11px] flex items-center gap-1.5">
-                      {r.verified ? <CheckCircle size={11} className="text-green-600" /> : <XCircle size={11} className="text-red-600" />}
-                      {r.instance_name} <span className="text-stone-400 dark:text-stone-500">({r.service_type})</span>
+                      {r.verified ? (
+                        <CheckCircle size={11} className="text-green-600" />
+                      ) : (
+                        <XCircle size={11} className="text-red-600" />
+                      )}
+                      {r.instance_name}{' '}
+                      <span className="text-stone-400 dark:text-stone-500">({r.service_type})</span>
                     </p>
-                    <p className="text-stone-600 dark:text-stone-300 mt-1">Après réparation → URL: <code className="break-all">{r.final_url ?? 'aucun'}</code></p>
-                    <p className="text-stone-600 dark:text-stone-300">Events: <code>{r.final_events ? r.final_events.join(', ') : 'aucun'}</code></p>
+                    <p className="text-stone-600 dark:text-stone-300 mt-1">
+                      Après réparation → URL:{' '}
+                      <code className="break-all">{r.final_url ?? 'aucun'}</code>
+                    </p>
+                    <p className="text-stone-600 dark:text-stone-300">
+                      Events: <code>{r.final_events ? r.final_events.join(', ') : 'aucun'}</code>
+                    </p>
                     <details className="mt-1">
-                      <summary className="text-stone-500 dark:text-stone-400 cursor-pointer">Détails tentatives ({r.attempts.length})</summary>
+                      <summary className="text-stone-500 dark:text-stone-400 cursor-pointer">
+                        Détails tentatives ({r.attempts.length})
+                      </summary>
                       <div className="mt-1 space-y-1 ml-2">
                         {r.attempts.map((a, j) => (
-                          <div key={j} className="text-stone-600 dark:text-stone-300 border-l-2 border-stone-200 dark:border-stone-700 pl-2">
-                            <p><span className="font-mono text-stone-500 dark:text-stone-400">{a.format}</span> → HTTP {a.status}</p>
-                            <p className="text-[10px] text-stone-400 dark:text-stone-500 break-all">{a.response_snippet}</p>
+                          <div
+                            key={j}
+                            className="text-stone-600 dark:text-stone-300 border-l-2 border-stone-200 dark:border-stone-700 pl-2"
+                          >
+                            <p>
+                              <span className="font-mono text-stone-500 dark:text-stone-400">
+                                {a.format}
+                              </span>{' '}
+                              → HTTP {a.status}
+                            </p>
+                            <p className="text-[10px] text-stone-400 dark:text-stone-500 break-all">
+                              {a.response_snippet}
+                            </p>
                           </div>
                         ))}
                       </div>
@@ -1119,13 +1409,17 @@ function WhatsAppTab() {
 
           {diag && (
             <div className="space-y-3 text-xs">
-              <div className={`rounded-lg p-3 ${diag.issues.length === 0 ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-amber-50 border border-amber-200 text-amber-900'}`}>
+              <div
+                className={`rounded-lg p-3 ${diag.issues.length === 0 ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-amber-50 border border-amber-200 text-amber-900'}`}
+              >
                 <p className="font-semibold">{diag.summary}</p>
               </div>
 
               {diag.issues.length > 0 && (
                 <div className="space-y-1.5">
-                  <p className="font-semibold text-stone-700 dark:text-stone-200">Problèmes détectés :</p>
+                  <p className="font-semibold text-stone-700 dark:text-stone-200">
+                    Problèmes détectés :
+                  </p>
                   <ul className="space-y-1">
                     {diag.issues.map((iss, i) => (
                       <li key={i} className="flex gap-2 items-start text-red-700">
@@ -1138,29 +1432,93 @@ function WhatsAppTab() {
               )}
 
               <div>
-                <p className="font-semibold text-stone-700 dark:text-stone-200 mb-1">Variables d'environnement :</p>
+                <p className="font-semibold text-stone-700 dark:text-stone-200 mb-1">
+                  Variables d'environnement :
+                </p>
                 <ul className="space-y-0.5 ml-1">
-                  <li className="flex items-center gap-1.5">{diag.env.evolutionUrlSet ? <CheckCircle size={11} className="text-green-600" /> : <XCircle size={11} className="text-red-600" />} EVOLUTION_API_URL</li>
-                  <li className="flex items-center gap-1.5">{diag.env.evolutionKeySet ? <CheckCircle size={11} className="text-green-600" /> : <XCircle size={11} className="text-red-600" />} EVOLUTION_API_KEY</li>
-                  <li className="flex items-center gap-1.5">{diag.env.aiKeys.gemini ? <CheckCircle size={11} className="text-green-600" /> : <XCircle size={11} className="text-red-600" />} Clé Gemini (votre compte)</li>
-                  <li className="text-stone-500 dark:text-stone-400 mt-1 break-all">NEXT_PUBLIC_APP_URL : <code>{diag.env.appUrl}</code></li>
-                  <li className="text-stone-500 dark:text-stone-400 break-all">Webhook attendu : <code>{diag.env.expectedWebhookUrl}</code></li>
+                  <li className="flex items-center gap-1.5">
+                    {diag.env.evolutionUrlSet ? (
+                      <CheckCircle size={11} className="text-green-600" />
+                    ) : (
+                      <XCircle size={11} className="text-red-600" />
+                    )}{' '}
+                    EVOLUTION_API_URL
+                  </li>
+                  <li className="flex items-center gap-1.5">
+                    {diag.env.evolutionKeySet ? (
+                      <CheckCircle size={11} className="text-green-600" />
+                    ) : (
+                      <XCircle size={11} className="text-red-600" />
+                    )}{' '}
+                    EVOLUTION_API_KEY
+                  </li>
+                  <li className="flex items-center gap-1.5">
+                    {diag.env.aiKeys.gemini ? (
+                      <CheckCircle size={11} className="text-green-600" />
+                    ) : (
+                      <XCircle size={11} className="text-red-600" />
+                    )}{' '}
+                    Clé Gemini (votre compte)
+                  </li>
+                  <li className="text-stone-500 dark:text-stone-400 mt-1 break-all">
+                    NEXT_PUBLIC_APP_URL : <code>{diag.env.appUrl}</code>
+                  </li>
+                  <li className="text-stone-500 dark:text-stone-400 break-all">
+                    Webhook attendu : <code>{diag.env.expectedWebhookUrl}</code>
+                  </li>
                 </ul>
               </div>
 
               {diag.instances.length > 0 && (
                 <div>
-                  <p className="font-semibold text-stone-700 dark:text-stone-200 mb-1">Instances WhatsApp :</p>
+                  <p className="font-semibold text-stone-700 dark:text-stone-200 mb-1">
+                    Instances WhatsApp :
+                  </p>
                   <div className="space-y-2">
                     {diag.instances.map((inst, i) => (
-                      <div key={i} className="border border-stone-100 dark:border-stone-800 rounded-lg p-2 space-y-1">
-                        <p className="font-mono text-[11px] text-stone-600 dark:text-stone-300">{inst.instance_name} <span className="text-stone-400 dark:text-stone-500">({inst.service_type})</span></p>
+                      <div
+                        key={i}
+                        className="border border-stone-100 dark:border-stone-800 rounded-lg p-2 space-y-1"
+                      >
+                        <p className="font-mono text-[11px] text-stone-600 dark:text-stone-300">
+                          {inst.instance_name}{' '}
+                          <span className="text-stone-400 dark:text-stone-500">
+                            ({inst.service_type})
+                          </span>
+                        </p>
                         <ul className="space-y-0.5 ml-1">
-                          <li className="flex items-center gap-1.5">{inst.evolution_state === 'open' ? <CheckCircle size={11} className="text-green-600" /> : <XCircle size={11} className="text-red-600" />} État Evolution : <span className="font-mono">{inst.evolution_state ?? 'inconnu'}</span></li>
-                          <li className="flex items-center gap-1.5">{inst.webhook_matches_expected ? <CheckCircle size={11} className="text-green-600" /> : <XCircle size={11} className="text-red-600" />} Webhook correctement configuré</li>
-                          {inst.webhook_url && <li className="text-stone-500 dark:text-stone-400 ml-4 break-all">URL: <code>{inst.webhook_url}</code></li>}
-                          {inst.webhook_events && <li className="text-stone-500 dark:text-stone-400 ml-4">Events: <code>{inst.webhook_events.join(', ')}</code></li>}
-                          {inst.errors.length > 0 && <li className="text-red-600 ml-4">Erreurs: {inst.errors.join(' / ')}</li>}
+                          <li className="flex items-center gap-1.5">
+                            {inst.evolution_state === 'open' ? (
+                              <CheckCircle size={11} className="text-green-600" />
+                            ) : (
+                              <XCircle size={11} className="text-red-600" />
+                            )}{' '}
+                            État Evolution :{' '}
+                            <span className="font-mono">{inst.evolution_state ?? 'inconnu'}</span>
+                          </li>
+                          <li className="flex items-center gap-1.5">
+                            {inst.webhook_matches_expected ? (
+                              <CheckCircle size={11} className="text-green-600" />
+                            ) : (
+                              <XCircle size={11} className="text-red-600" />
+                            )}{' '}
+                            Webhook correctement configuré
+                          </li>
+                          {inst.webhook_url && (
+                            <li className="text-stone-500 dark:text-stone-400 ml-4 break-all">
+                              URL: <code>{inst.webhook_url}</code>
+                            </li>
+                          )}
+                          {inst.webhook_events && (
+                            <li className="text-stone-500 dark:text-stone-400 ml-4">
+                              Events: <code>{inst.webhook_events.join(', ')}</code>
+                            </li>
+                          )}
+                          {inst.errors.length > 0 && (
+                            <li className="text-red-600 ml-4">
+                              Erreurs: {inst.errors.join(' / ')}
+                            </li>
+                          )}
                         </ul>
                       </div>
                     ))}
@@ -1170,13 +1528,21 @@ function WhatsAppTab() {
 
               {diag.configs.length > 0 && (
                 <div>
-                  <p className="font-semibold text-stone-700 dark:text-stone-200 mb-1">Configs chatbot :</p>
+                  <p className="font-semibold text-stone-700 dark:text-stone-200 mb-1">
+                    Configs chatbot :
+                  </p>
                   <ul className="space-y-1">
                     {diag.configs.map((c, i) => (
                       <li key={i} className="flex items-center gap-1.5">
-                        {c.is_active ? <CheckCircle size={11} className="text-green-600" /> : <XCircle size={11} className="text-red-600" />}
+                        {c.is_active ? (
+                          <CheckCircle size={11} className="text-green-600" />
+                        ) : (
+                          <XCircle size={11} className="text-red-600" />
+                        )}
                         <span className="font-mono">{c.template_type}</span>
-                        <span className="text-stone-400 dark:text-stone-500">— {c.is_active ? 'active' : 'inactive'} · shop={c.shop_name}</span>
+                        <span className="text-stone-400 dark:text-stone-500">
+                          — {c.is_active ? 'active' : 'inactive'} · shop={c.shop_name}
+                        </span>
                       </li>
                     ))}
                   </ul>
@@ -1187,7 +1553,7 @@ function WhatsAppTab() {
         </div>
       )}
 
-      {(['auto_confirmation', 'sav', 'tracking'] as WAServiceType[]).map(serviceType => (
+      {(['auto_confirmation', 'sav', 'tracking'] as WAServiceType[]).map((serviceType) => (
         <ServiceConnectionBlock key={serviceType} serviceType={serviceType} />
       ))}
 
@@ -1195,15 +1561,22 @@ function WhatsAppTab() {
       <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-4 space-y-3">
         <div className="flex items-center gap-2">
           <ExternalLink size={13} className="text-stone-400 dark:text-stone-500" />
-          <h3 className="font-semibold text-stone-900 dark:text-stone-100 text-sm">URL Webhook Evolution API</h3>
+          <h3 className="font-semibold text-stone-900 dark:text-stone-100 text-sm">
+            URL Webhook Evolution API
+          </h3>
         </div>
-        <p className="text-xs text-stone-400 dark:text-stone-500">Les 3 instances pointent vers ce webhook — le routage par service est automatique.</p>
+        <p className="text-xs text-stone-400 dark:text-stone-500">
+          Les 3 instances pointent vers ce webhook — le routage par service est automatique.
+        </p>
         <div className="flex gap-2">
           <code className="flex-1 bg-stone-50 border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2 text-xs text-stone-700 dark:text-stone-200 break-all">
             {webhookUrl}
           </code>
           <button
-            onClick={() => { navigator.clipboard.writeText(webhookUrl); toast.success('Copié !'); }}
+            onClick={() => {
+              navigator.clipboard.writeText(webhookUrl);
+              toast.success('Copié !');
+            }}
             className="p-2 border border-stone-200 dark:border-stone-700 rounded-xl hover:bg-stone-50 dark:hover:bg-stone-800 shrink-0"
           >
             <Copy size={13} className="text-stone-500 dark:text-stone-400" />
@@ -1215,8 +1588,19 @@ function WhatsAppTab() {
 }
 
 // ─── FacebookTab ──────────────────────────────────────────────────────────────
-interface PendingPage { id: string; name: string; access_token: string; picture: string; }
-interface FBConn { page_id: string; page_name: string; page_picture: string; verify_token: string; connected: boolean; }
+interface PendingPage {
+  id: string;
+  name: string;
+  access_token: string;
+  picture: string;
+}
+interface FBConn {
+  page_id: string;
+  page_name: string;
+  page_picture: string;
+  verify_token: string;
+  connected: boolean;
+}
 
 function FacebookTab() {
   const [connection, setConnection] = useState<FBConn | null>(null);
@@ -1244,14 +1628,17 @@ function FacebookTab() {
     if (error === 'no_pages') toast.error('Aucune page Facebook trouvée sur ce compte');
     if (success || error) {
       const url = new URL(window.location.href);
-      url.searchParams.delete('success'); url.searchParams.delete('error'); url.searchParams.delete('tab');
+      url.searchParams.delete('success');
+      url.searchParams.delete('error');
+      url.searchParams.delete('tab');
       window.history.replaceState({}, '', url.toString());
     }
   }, []);
 
   const disconnect = async () => {
     await fetch('/api/ai-chatbot/facebook', { method: 'DELETE' });
-    setConnection(null); setPendingPages([]);
+    setConnection(null);
+    setPendingPages([]);
     toast.success('Déconnecté');
   };
 
@@ -1264,35 +1651,62 @@ function FacebookTab() {
     });
     const json = await res.json();
     if (json.error) toast.error(json.error);
-    else { toast.success(`Page "${page.name}" connectée !`); setConnection(json.connection); setPendingPages([]); }
+    else {
+      toast.success(`Page "${page.name}" connectée !`);
+      setConnection(json.connection);
+      setPendingPages([]);
+    }
     setSelecting(false);
   };
 
   const appUrl = typeof window !== 'undefined' ? window.location.origin : '';
   const webhookUrl = `${appUrl}/api/ai-chatbot/webhook/facebook`;
 
-  if (loading) return <div className="flex justify-center py-20"><Loader2 size={24} className="animate-spin text-stone-400 dark:text-stone-500" /></div>;
+  if (loading)
+    return (
+      <div className="flex justify-center py-20">
+        <Loader2 size={24} className="animate-spin text-stone-400 dark:text-stone-500" />
+      </div>
+    );
 
   return (
     <div className="space-y-4 max-w-2xl">
       {/* Status card */}
-      <div className={`rounded-2xl border p-5 flex items-center gap-4 ${connection?.connected ? 'bg-blue-50 border-blue-200' : 'bg-stone-50 border-stone-200 dark:border-stone-700'}`}>
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden shrink-0 ${connection?.connected ? 'bg-blue-100' : 'bg-stone-100'}`}>
-          {connection?.page_picture
-            ? <img src={connection.page_picture} alt="" className="w-full h-full object-cover" />
-            : <svg viewBox="0 0 24 24" className={`w-5 h-5 ${connection?.connected ? 'fill-blue-600' : 'fill-stone-400'}`}><path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.3 2.246.464 3.443.464 6.627 0 12-4.974 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.131 3.259L19.752 8l-6.561 6.963z" /></svg>
-          }
+      <div
+        className={`rounded-2xl border p-5 flex items-center gap-4 ${connection?.connected ? 'bg-blue-50 border-blue-200' : 'bg-stone-50 border-stone-200 dark:border-stone-700'}`}
+      >
+        <div
+          className={`w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden shrink-0 ${connection?.connected ? 'bg-blue-100' : 'bg-stone-100'}`}
+        >
+          {connection?.page_picture ? (
+            <img src={connection.page_picture} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <svg
+              viewBox="0 0 24 24"
+              className={`w-5 h-5 ${connection?.connected ? 'fill-blue-600' : 'fill-stone-400'}`}
+            >
+              <path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.3 2.246.464 3.443.464 6.627 0 12-4.974 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.131 3.259L19.752 8l-6.561 6.963z" />
+            </svg>
+          )}
         </div>
         <div className="flex-1">
           <p className="font-semibold text-stone-900 dark:text-stone-100">
-            {connection?.connected ? connection.page_name || 'Page connectée' : 'Aucune page connectée'}
+            {connection?.connected
+              ? connection.page_name || 'Page connectée'
+              : 'Aucune page connectée'}
           </p>
           <p className="text-sm text-stone-500 dark:text-stone-400">
-            {connection?.connected ? `Page ID : ${connection.page_id}` : 'Connectez votre page Messenger en un clic'}
+            {connection?.connected
+              ? `Page ID : ${connection.page_id}`
+              : 'Connectez votre page Messenger en un clic'}
           </p>
         </div>
         {connection?.connected && (
-          <button onClick={disconnect} className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors" title="Déconnecter">
+          <button
+            onClick={disconnect}
+            className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors"
+            title="Déconnecter"
+          >
             <Trash2 size={14} />
           </button>
         )}
@@ -1301,21 +1715,34 @@ function FacebookTab() {
       {/* Page selection (after OAuth with multiple pages) */}
       {pendingPages.length > 0 && (
         <div className="bg-white dark:bg-stone-900 rounded-2xl border border-blue-200 shadow-sm p-5 space-y-3">
-          <p className="font-semibold text-stone-900 dark:text-stone-100 text-sm">Choisissez votre page Facebook</p>
+          <p className="font-semibold text-stone-900 dark:text-stone-100 text-sm">
+            Choisissez votre page Facebook
+          </p>
           <div className="space-y-2">
-            {pendingPages.map(page => (
+            {pendingPages.map((page) => (
               <button
                 key={page.id}
                 onClick={() => selectPage(page)}
                 disabled={selecting}
                 className="w-full flex items-center gap-3 p-3 rounded-xl border border-stone-200 dark:border-stone-700 hover:border-blue-400 hover:bg-blue-50 transition-colors text-left disabled:opacity-50"
               >
-                {page.picture
-                  ? <img src={page.picture} alt="" className="w-9 h-9 rounded-xl object-cover shrink-0" />
-                  : <div className="w-9 h-9 bg-blue-100 dark:bg-blue-500/15 rounded-xl flex items-center justify-center shrink-0"><svg viewBox="0 0 24 24" className="w-4 h-4 fill-blue-600"><path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.3 2.246.464 3.443.464 6.627 0 12-4.974 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.131 3.259L19.752 8l-6.561 6.963z" /></svg></div>
-                }
+                {page.picture ? (
+                  <img
+                    src={page.picture}
+                    alt=""
+                    className="w-9 h-9 rounded-xl object-cover shrink-0"
+                  />
+                ) : (
+                  <div className="w-9 h-9 bg-blue-100 dark:bg-blue-500/15 rounded-xl flex items-center justify-center shrink-0">
+                    <svg viewBox="0 0 24 24" className="w-4 h-4 fill-blue-600">
+                      <path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.3 2.246.464 3.443.464 6.627 0 12-4.974 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.131 3.259L19.752 8l-6.561 6.963z" />
+                    </svg>
+                  </div>
+                )}
                 <div>
-                  <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">{page.name}</p>
+                  <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">
+                    {page.name}
+                  </p>
                   <p className="text-xs text-stone-400 dark:text-stone-500">ID : {page.id}</p>
                 </div>
                 {selecting && <Loader2 size={14} className="animate-spin text-blue-500 ml-auto" />}
@@ -1331,7 +1758,9 @@ function FacebookTab() {
           href="/api/ai-chatbot/facebook/oauth"
           className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl bg-[#1877F2] text-white font-semibold text-sm hover:bg-[#166fe5] transition-colors shadow-sm active:scale-[0.98]"
         >
-          <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white"><path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.3 2.246.464 3.443.464 6.627 0 12-4.974 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.131 3.259L19.752 8l-6.561 6.963z" /></svg>
+          <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white">
+            <path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.3 2.246.464 3.443.464 6.627 0 12-4.974 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.131 3.259L19.752 8l-6.561 6.963z" />
+          </svg>
           Se connecter avec Facebook
         </a>
       )}
@@ -1339,16 +1768,26 @@ function FacebookTab() {
       {/* Webhook info (visible once connected) */}
       {connection?.connected && (
         <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5 space-y-3">
-          <h3 className="font-semibold text-stone-900 dark:text-stone-100 text-sm">Webhook Meta (configuré automatiquement)</h3>
+          <h3 className="font-semibold text-stone-900 dark:text-stone-100 text-sm">
+            Webhook Meta (configuré automatiquement)
+          </h3>
           {[
             { label: 'URL du Webhook', value: webhookUrl },
             { label: 'Token de vérification', value: connection.verify_token },
-          ].map(item => (
+          ].map((item) => (
             <div key={item.label} className="space-y-1">
               <p className="text-xs text-stone-500 dark:text-stone-400">{item.label}</p>
               <div className="flex gap-2">
-                <code className="flex-1 bg-stone-50 border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2 text-xs text-stone-700 dark:text-stone-200 break-all">{item.value}</code>
-                <button onClick={() => { navigator.clipboard.writeText(item.value); toast.success('Copié !'); }} className="p-2 border border-stone-200 dark:border-stone-700 rounded-xl hover:bg-stone-50 dark:hover:bg-stone-800">
+                <code className="flex-1 bg-stone-50 border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2 text-xs text-stone-700 dark:text-stone-200 break-all">
+                  {item.value}
+                </code>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(item.value);
+                    toast.success('Copié !');
+                  }}
+                  className="p-2 border border-stone-200 dark:border-stone-700 rounded-xl hover:bg-stone-50 dark:hover:bg-stone-800"
+                >
                   <Copy size={12} className="text-stone-500 dark:text-stone-400" />
                 </button>
               </div>
@@ -1369,7 +1808,9 @@ const TEMPLATE_LABELS: Record<string, string> = {
 
 function GoogleSheetsTab() {
   const [serviceEmail, setServiceEmail] = useState('');
-  const [configs, setConfigs] = useState<{ template_type: string; google_sheets_url: string }[]>([]);
+  const [configs, setConfigs] = useState<{ template_type: string; google_sheets_url: string }[]>(
+    []
+  );
   const [sheetUrls, setSheetUrls] = useState<Record<string, string>>({});
   const [testing, setTesting] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
@@ -1377,25 +1818,30 @@ function GoogleSheetsTab() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/ai-chatbot/googlesheets').then(r => r.json()).then(json => {
-      setServiceEmail(json.service_email || '');
-      setConfigs(json.configs || []);
-      const urls: Record<string, string> = {};
-      for (const c of (json.configs || [])) {
-        // Show the original Sheet URL if it's a sheets.googleapis.com URL (extract ID and rebuild)
-        const idMatch = c.google_sheets_url?.match(/spreadsheets\/([a-zA-Z0-9_-]+)/);
-        urls[c.template_type] = idMatch
-          ? `https://docs.google.com/spreadsheets/d/${idMatch[1]}/edit`
-          : (c.google_sheets_url || '');
-      }
-      setSheetUrls(urls);
-      setLoading(false);
-    });
+    fetch('/api/ai-chatbot/googlesheets')
+      .then((r) => r.json())
+      .then((json) => {
+        setServiceEmail(json.service_email || '');
+        setConfigs(json.configs || []);
+        const urls: Record<string, string> = {};
+        for (const c of json.configs || []) {
+          // Show the original Sheet URL if it's a sheets.googleapis.com URL (extract ID and rebuild)
+          const idMatch = c.google_sheets_url?.match(/spreadsheets\/([a-zA-Z0-9_-]+)/);
+          urls[c.template_type] = idMatch
+            ? `https://docs.google.com/spreadsheets/d/${idMatch[1]}/edit`
+            : c.google_sheets_url || '';
+        }
+        setSheetUrls(urls);
+        setLoading(false);
+      });
   }, []);
 
   const testConnection = async (templateType: string) => {
     const url = sheetUrls[templateType] || '';
-    if (!url) { toast.error('Collez l\'URL de votre Sheet d\'abord'); return; }
+    if (!url) {
+      toast.error("Collez l'URL de votre Sheet d'abord");
+      return;
+    }
     setTesting(templateType);
     const res = await fetch('/api/ai-chatbot/googlesheets/test', {
       method: 'POST',
@@ -1404,10 +1850,10 @@ function GoogleSheetsTab() {
     });
     const json = await res.json();
     if (json.ok) {
-      setTestResults(prev => ({ ...prev, [templateType]: 'ok' }));
+      setTestResults((prev) => ({ ...prev, [templateType]: 'ok' }));
       toast.success('Connexion réussie ! Le bot peut écrire dans ce Sheet ✅');
     } else {
-      setTestResults(prev => ({ ...prev, [templateType]: 'error' }));
+      setTestResults((prev) => ({ ...prev, [templateType]: 'error' }));
       toast.error(json.error || 'Accès refusé');
     }
     setTesting(null);
@@ -1418,7 +1864,10 @@ function GoogleSheetsTab() {
     const res = await fetch('/api/ai-chatbot/googlesheets', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ template_type: templateType, sheet_url: sheetUrls[templateType] || '' }),
+      body: JSON.stringify({
+        template_type: templateType,
+        sheet_url: sheetUrls[templateType] || '',
+      }),
     });
     const json = await res.json();
     if (json.error) toast.error(json.error);
@@ -1426,7 +1875,12 @@ function GoogleSheetsTab() {
     setSaving(null);
   };
 
-  if (loading) return <div className="flex justify-center py-20"><Loader2 size={24} className="animate-spin text-stone-400 dark:text-stone-500" /></div>;
+  if (loading)
+    return (
+      <div className="flex justify-center py-20">
+        <Loader2 size={24} className="animate-spin text-stone-400 dark:text-stone-500" />
+      </div>
+    );
 
   return (
     <div className="space-y-5 max-w-2xl">
@@ -1435,22 +1889,36 @@ function GoogleSheetsTab() {
         <CheckCircle2 size={16} className="text-green-600 shrink-0 mt-0.5" />
         <div className="text-sm text-green-800 space-y-1">
           <p className="font-semibold">Connexion directe — sans Make ni Zapier</p>
-          <p>Le bot écrit automatiquement les données clients dans votre Google Sheet dès qu'une conversation est complète.</p>
+          <p>
+            Le bot écrit automatiquement les données clients dans votre Google Sheet dès qu'une
+            conversation est complète.
+          </p>
         </div>
       </div>
 
       {/* Step 1 — Share with service account */}
       <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5 space-y-3">
         <div className="flex items-center gap-2 mb-1">
-          <span className="w-6 h-6 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-xs font-bold shrink-0">1</span>
-          <h3 className="font-semibold text-stone-900 dark:text-stone-100 text-sm">Partagez votre Sheet avec notre bot</h3>
+          <span className="w-6 h-6 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-xs font-bold shrink-0">
+            1
+          </span>
+          <h3 className="font-semibold text-stone-900 dark:text-stone-100 text-sm">
+            Partagez votre Sheet avec notre bot
+          </h3>
         </div>
-        <p className="text-xs text-stone-500 dark:text-stone-400 ml-8">Ouvrez votre Google Sheet → Partager → Collez cet email → Éditeur → Envoyer</p>
+        <p className="text-xs text-stone-500 dark:text-stone-400 ml-8">
+          Ouvrez votre Google Sheet → Partager → Collez cet email → Éditeur → Envoyer
+        </p>
         {serviceEmail ? (
           <div className="flex gap-2 ml-8">
-            <code className="flex-1 bg-indigo-50 border border-indigo-200 rounded-xl px-3 py-2.5 text-sm text-indigo-700 font-mono break-all">{serviceEmail}</code>
+            <code className="flex-1 bg-indigo-50 border border-indigo-200 rounded-xl px-3 py-2.5 text-sm text-indigo-700 font-mono break-all">
+              {serviceEmail}
+            </code>
             <button
-              onClick={() => { navigator.clipboard.writeText(serviceEmail); toast.success('Email copié !'); }}
+              onClick={() => {
+                navigator.clipboard.writeText(serviceEmail);
+                toast.success('Email copié !');
+              }}
               className="p-2.5 bg-indigo-100 text-indigo-600 rounded-xl hover:bg-indigo-200 transition-colors shrink-0"
             >
               <Copy size={14} />
@@ -1459,7 +1927,12 @@ function GoogleSheetsTab() {
         ) : (
           <div className="ml-8 bg-amber-50 border border-amber-200 rounded-xl p-3">
             <p className="text-xs text-amber-700 font-medium">Service account non configuré</p>
-            <p className="text-xs text-amber-600 mt-0.5">Ajoutez <code className="bg-amber-100 px-1 rounded">GOOGLE_SERVICE_ACCOUNT_EMAIL</code> et <code className="bg-amber-100 px-1 rounded">GOOGLE_PRIVATE_KEY</code> dans vos variables d'environnement.</p>
+            <p className="text-xs text-amber-600 mt-0.5">
+              Ajoutez{' '}
+              <code className="bg-amber-100 px-1 rounded">GOOGLE_SERVICE_ACCOUNT_EMAIL</code> et{' '}
+              <code className="bg-amber-100 px-1 rounded">GOOGLE_PRIVATE_KEY</code> dans vos
+              variables d'environnement.
+            </p>
           </div>
         )}
       </div>
@@ -1467,24 +1940,32 @@ function GoogleSheetsTab() {
       {/* Step 2 — Paste Sheet URL per template */}
       <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5 space-y-4">
         <div className="flex items-center gap-2 mb-1">
-          <span className="w-6 h-6 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-xs font-bold shrink-0">2</span>
-          <h3 className="font-semibold text-stone-900 dark:text-stone-100 text-sm">Collez l'URL de votre Sheet par template</h3>
+          <span className="w-6 h-6 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-xs font-bold shrink-0">
+            2
+          </span>
+          <h3 className="font-semibold text-stone-900 dark:text-stone-100 text-sm">
+            Collez l'URL de votre Sheet par template
+          </h3>
         </div>
 
-        {['auto_confirmation', 'sav', 'tracking'].map(type => {
+        {['auto_confirmation', 'sav', 'tracking'].map((type) => {
           const result = testResults[type];
           return (
             <div key={type} className="ml-8 space-y-2">
-              <label className="text-xs font-semibold text-stone-600 dark:text-stone-300">{TEMPLATE_LABELS[type]}</label>
+              <label className="text-xs font-semibold text-stone-600 dark:text-stone-300">
+                {TEMPLATE_LABELS[type]}
+              </label>
               <div className="flex gap-2">
                 <input
                   value={sheetUrls[type] || ''}
-                  onChange={e => setSheetUrls(prev => ({ ...prev, [type]: e.target.value }))}
+                  onChange={(e) => setSheetUrls((prev) => ({ ...prev, [type]: e.target.value }))}
                   placeholder="https://docs.google.com/spreadsheets/d/..."
                   className={`flex-1 border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 font-mono text-xs transition-colors ${
-                    result === 'ok' ? 'border-green-400 bg-green-50 focus:ring-green-500/20' :
-                    result === 'error' ? 'border-red-300 bg-red-50 focus:ring-red-500/20' :
-                    'border-stone-200 dark:border-stone-700 focus:ring-indigo-500/20 focus:border-indigo-400'
+                    result === 'ok'
+                      ? 'border-green-400 bg-green-50 focus:ring-green-500/20'
+                      : result === 'error'
+                        ? 'border-red-300 bg-red-50 focus:ring-red-500/20'
+                        : 'border-stone-200 dark:border-stone-700 focus:ring-indigo-500/20 focus:border-indigo-400'
                   }`}
                 />
                 <button
@@ -1493,9 +1974,13 @@ function GoogleSheetsTab() {
                   title="Tester la connexion"
                   className="px-3 py-2.5 border border-stone-200 dark:border-stone-700 rounded-xl text-xs font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 disabled:opacity-50 transition-colors shrink-0 flex items-center gap-1.5"
                 >
-                  {testing === type ? <Loader2 size={12} className="animate-spin" /> :
-                   result === 'ok' ? <CheckCircle2 size={12} className="text-green-600" /> :
-                   <RefreshCw size={12} />}
+                  {testing === type ? (
+                    <Loader2 size={12} className="animate-spin" />
+                  ) : result === 'ok' ? (
+                    <CheckCircle2 size={12} className="text-green-600" />
+                  ) : (
+                    <RefreshCw size={12} />
+                  )}
                   Tester
                 </button>
                 <button
@@ -1503,12 +1988,25 @@ function GoogleSheetsTab() {
                   disabled={saving === type || !sheetUrls[type]}
                   className="px-3 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-semibold hover:bg-indigo-700 disabled:opacity-50 transition-colors shrink-0 flex items-center gap-1.5"
                 >
-                  {saving === type ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                  {saving === type ? (
+                    <Loader2 size={12} className="animate-spin" />
+                  ) : (
+                    <Save size={12} />
+                  )}
                   Sauver
                 </button>
               </div>
-              {result === 'ok' && <p className="text-xs text-green-600 flex items-center gap-1"><CheckCircle2 size={10} />Connexion OK — le bot peut écrire dans ce Sheet</p>}
-              {result === 'error' && <p className="text-xs text-red-500">Accès refusé — vérifiez que vous avez partagé avec l'email ci-dessus</p>}
+              {result === 'ok' && (
+                <p className="text-xs text-green-600 flex items-center gap-1">
+                  <CheckCircle2 size={10} />
+                  Connexion OK — le bot peut écrire dans ce Sheet
+                </p>
+              )}
+              {result === 'error' && (
+                <p className="text-xs text-red-500">
+                  Accès refusé — vérifiez que vous avez partagé avec l'email ci-dessus
+                </p>
+              )}
             </div>
           );
         })}
@@ -1516,10 +2014,17 @@ function GoogleSheetsTab() {
 
       {/* Columns written */}
       <div className="bg-stone-50 rounded-2xl p-4 space-y-2">
-        <p className="text-xs font-semibold text-stone-600 dark:text-stone-300">Colonnes écrites automatiquement :</p>
+        <p className="text-xs font-semibold text-stone-600 dark:text-stone-300">
+          Colonnes écrites automatiquement :
+        </p>
         <div className="flex flex-wrap gap-2">
-          {['Date', 'Client', 'Téléphone', 'Wilaya', 'Produit', 'Statut', 'Canal'].map(col => (
-            <span key={col} className="text-[11px] bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300 px-2 py-1 rounded-lg font-mono">{col}</span>
+          {['Date', 'Client', 'Téléphone', 'Wilaya', 'Produit', 'Statut', 'Canal'].map((col) => (
+            <span
+              key={col}
+              className="text-[11px] bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300 px-2 py-1 rounded-lg font-mono"
+            >
+              {col}
+            </span>
           ))}
         </div>
       </div>
@@ -1545,17 +2050,27 @@ function DonneesTab() {
     setLoading(false);
   }, [filter, completeOnly]);
 
-  useEffect(() => { fetchSessions(); }, [fetchSessions]);
+  useEffect(() => {
+    fetchSessions();
+  }, [fetchSessions]);
 
   const deleteSession = async (id: string) => {
-    await fetch('/api/ai-chatbot/sessions', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
-    setSessions(prev => prev.filter(s => s.id !== id));
+    await fetch('/api/ai-chatbot/sessions', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+    setSessions((prev) => prev.filter((s) => s.id !== id));
     toast.success('Session supprimée');
   };
 
   const CHANNEL_ICONS: Record<string, React.ReactNode> = {
     whatsapp: <Phone size={11} className="text-green-600" />,
-    facebook: <svg viewBox="0 0 24 24" className="w-3 h-3 fill-blue-600"><path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.3 2.246.464 3.443.464 6.627 0 12-4.974 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.131 3.259L19.752 8l-6.561 6.963z" /></svg>,
+    facebook: (
+      <svg viewBox="0 0 24 24" className="w-3 h-3 fill-blue-600">
+        <path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.3 2.246.464 3.443.464 6.627 0 12-4.974 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.131 3.259L19.752 8l-6.561 6.963z" />
+      </svg>
+    ),
     web: <Globe size={11} className="text-purple-600" />,
   };
 
@@ -1563,28 +2078,52 @@ function DonneesTab() {
     <div className="space-y-4">
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
-        <select value={filter} onChange={e => setFilter(e.target.value)} className="border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 bg-white dark:bg-stone-900">
+        <select
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          className="border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 bg-white dark:bg-stone-900"
+        >
           <option value="">Tous les templates</option>
           <option value="auto_confirmation">Auto-Confirmation</option>
           <option value="sav">SAV & Réclamations</option>
           <option value="tracking">Suivi de Commande</option>
         </select>
         <label className="flex items-center gap-2 text-sm text-stone-600 dark:text-stone-300 cursor-pointer">
-          <input type="checkbox" checked={completeOnly} onChange={e => setCompleteOnly(e.target.checked)} className="rounded" />
+          <input
+            type="checkbox"
+            checked={completeOnly}
+            onChange={(e) => setCompleteOnly(e.target.checked)}
+            className="rounded"
+          />
           Données complètes uniquement
         </label>
         <button onClick={fetchSessions} className="ml-auto p-2 hover:bg-stone-100 rounded-lg">
-          <RefreshCw size={14} className={`text-stone-400 dark:text-stone-500 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw
+            size={14}
+            className={`text-stone-400 dark:text-stone-500 ${loading ? 'animate-spin' : ''}`}
+          />
         </button>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Total sessions', value: sessions.length, color: 'bg-stone-50 text-stone-700 dark:text-stone-200' },
-          { label: 'Données complètes', value: sessions.filter(s => s.is_complete).length, color: 'bg-green-50 text-green-700' },
-          { label: 'Envoyés Sheets', value: sessions.filter(s => s.sheets_sent).length, color: 'bg-blue-50 text-blue-700' },
-        ].map(s => (
+          {
+            label: 'Total sessions',
+            value: sessions.length,
+            color: 'bg-stone-50 text-stone-700 dark:text-stone-200',
+          },
+          {
+            label: 'Données complètes',
+            value: sessions.filter((s) => s.is_complete).length,
+            color: 'bg-green-50 text-green-700',
+          },
+          {
+            label: 'Envoyés Sheets',
+            value: sessions.filter((s) => s.sheets_sent).length,
+            color: 'bg-blue-50 text-blue-700',
+          },
+        ].map((s) => (
           <div key={s.label} className={`rounded-2xl p-4 text-center ${s.color}`}>
             <p className="text-2xl font-bold">{s.value}</p>
             <p className="text-xs mt-0.5 opacity-80">{s.label}</p>
@@ -1595,66 +2134,121 @@ function DonneesTab() {
       {/* Table */}
       <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm overflow-hidden">
         {loading ? (
-          <div className="flex justify-center py-16"><Loader2 size={20} className="animate-spin text-stone-400 dark:text-stone-500" /></div>
+          <div className="flex justify-center py-16">
+            <Loader2 size={20} className="animate-spin text-stone-400 dark:text-stone-500" />
+          </div>
         ) : sessions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-stone-400 dark:text-stone-500">
             <MessageSquare size={32} className="mb-2 opacity-30" />
             <p className="text-sm">Aucune session IA pour l'instant</p>
-            <p className="text-xs mt-1">Les données apparaîtront dès qu'un client écrira à votre bot</p>
+            <p className="text-xs mt-1">
+              Les données apparaîtront dès qu'un client écrira à votre bot
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-stone-50 border-b border-stone-100 dark:border-stone-800">
                 <tr>
-                  {['Canal', 'Contact', 'Template', 'Données extraites', 'Statut', 'Date', ''].map(h => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide">{h}</th>
-                  ))}
+                  {['Canal', 'Contact', 'Template', 'Données extraites', 'Statut', 'Date', ''].map(
+                    (h) => (
+                      <th
+                        key={h}
+                        className="px-4 py-3 text-left text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide"
+                      >
+                        {h}
+                      </th>
+                    )
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-50">
-                {sessions.map(session => {
+                {sessions.map((session) => {
                   const d = session.extracted_data;
                   return (
                     <tr key={session.id} className="hover:bg-stone-50 dark:hover:bg-stone-800">
                       <td className="px-4 py-3">
                         <span className="flex items-center gap-1.5">
                           {CHANNEL_ICONS[session.channel] ?? null}
-                          <span className="text-xs capitalize text-stone-600 dark:text-stone-300">{session.channel}</span>
+                          <span className="text-xs capitalize text-stone-600 dark:text-stone-300">
+                            {session.channel}
+                          </span>
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <p className="font-medium text-stone-900 dark:text-stone-100 text-xs">{session.contact_name || '—'}</p>
-                        <p className="text-[10px] text-stone-400 dark:text-stone-500 font-mono">{session.contact_id.replace('@s.whatsapp.net', '').slice(-12)}</p>
+                        <p className="font-medium text-stone-900 dark:text-stone-100 text-xs">
+                          {session.contact_name || '—'}
+                        </p>
+                        <p className="text-[10px] text-stone-400 dark:text-stone-500 font-mono">
+                          {session.contact_id.replace('@s.whatsapp.net', '').slice(-12)}
+                        </p>
                       </td>
                       <td className="px-4 py-3">
                         <span className="text-[10px] font-medium bg-stone-100 text-stone-600 dark:text-stone-300 px-2 py-0.5 rounded-full">
-                          {TEMPLATE_META[session.template_type as keyof typeof TEMPLATE_META]?.label ?? session.template_type}
+                          {TEMPLATE_META[session.template_type as keyof typeof TEMPLATE_META]
+                            ?.label ?? session.template_type}
                         </span>
                       </td>
                       <td className="px-4 py-3">
                         {Object.keys(d).length > 0 ? (
                           <div className="space-y-0.5">
-                            {d.nom && <p className="text-xs text-stone-700 dark:text-stone-200 flex items-center gap-1"><User size={10} className="text-stone-400 dark:text-stone-500" />{d.nom}</p>}
-                            {d.telephone && <p className="text-xs text-stone-700 dark:text-stone-200 flex items-center gap-1"><Phone size={10} className="text-stone-400 dark:text-stone-500" />{d.telephone}</p>}
-                            {d.wilaya && <p className="text-xs text-stone-700 dark:text-stone-200 flex items-center gap-1"><MapPin size={10} className="text-stone-400 dark:text-stone-500" />{d.wilaya}</p>}
-                            {d.produit && <p className="text-xs text-stone-500 dark:text-stone-400 truncate max-w-[140px]">{d.produit}</p>}
+                            {d.nom && (
+                              <p className="text-xs text-stone-700 dark:text-stone-200 flex items-center gap-1">
+                                <User size={10} className="text-stone-400 dark:text-stone-500" />
+                                {d.nom}
+                              </p>
+                            )}
+                            {d.telephone && (
+                              <p className="text-xs text-stone-700 dark:text-stone-200 flex items-center gap-1">
+                                <Phone size={10} className="text-stone-400 dark:text-stone-500" />
+                                {d.telephone}
+                              </p>
+                            )}
+                            {d.wilaya && (
+                              <p className="text-xs text-stone-700 dark:text-stone-200 flex items-center gap-1">
+                                <MapPin size={10} className="text-stone-400 dark:text-stone-500" />
+                                {d.wilaya}
+                              </p>
+                            )}
+                            {d.produit && (
+                              <p className="text-xs text-stone-500 dark:text-stone-400 truncate max-w-[140px]">
+                                {d.produit}
+                              </p>
+                            )}
                           </div>
-                        ) : <span className="text-xs text-stone-300 dark:text-stone-600">En cours...</span>}
+                        ) : (
+                          <span className="text-xs text-stone-300 dark:text-stone-600">
+                            En cours...
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-col gap-1">
-                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full w-fit ${session.is_complete ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                          <span
+                            className={`text-[10px] font-medium px-2 py-0.5 rounded-full w-fit ${session.is_complete ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}
+                          >
                             {session.is_complete ? '✓ Complet' : '… En cours'}
                           </span>
-                          {session.sheets_sent && <span className="text-[10px] font-medium px-2 py-0.5 rounded-full w-fit bg-blue-100 text-blue-700">Sheets ✓</span>}
+                          {session.sheets_sent && (
+                            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full w-fit bg-blue-100 text-blue-700">
+                              Sheets ✓
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-[10px] text-stone-400 dark:text-stone-500">
-                        {new Date(session.updated_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                        {new Date(session.updated_at).toLocaleDateString('fr-FR', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
                       </td>
                       <td className="px-4 py-3">
-                        <button onClick={() => deleteSession(session.id)} className="p-1.5 hover:bg-red-50 text-red-400 rounded-lg">
+                        <button
+                          onClick={() => deleteSession(session.id)}
+                          className="p-1.5 hover:bg-red-50 text-red-400 rounded-lg"
+                        >
                           <Trash2 size={12} />
                         </button>
                       </td>
@@ -1672,7 +2266,10 @@ function DonneesTab() {
 
 // ─── AnalyticsTab ─────────────────────────────────────────────────────────────
 interface AnalyticsData {
-  total: number; complete: number; sheets_sent: number; human_handover: number;
+  total: number;
+  complete: number;
+  sheets_sent: number;
+  human_handover: number;
   conversion_rate: number;
   by_template: Record<string, { total: number; complete: number }>;
   by_channel: Record<string, number>;
@@ -1693,11 +2290,17 @@ function AnalyticsTab() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchAnalytics(); }, [fetchAnalytics]);
+  useEffect(() => {
+    fetchAnalytics();
+  }, [fetchAnalytics]);
 
   const triggerRelance = async () => {
     setRelancing(true);
-    const res = await fetch('/api/ai-chatbot/relance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+    const res = await fetch('/api/ai-chatbot/relance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
     const json = await res.json();
     if (json.error) toast.error(json.error);
     else toast.success(`Relance envoyée à ${json.relanced} session(s) inactive(s)`);
@@ -1710,26 +2313,53 @@ function AnalyticsTab() {
     tracking: 'Suivi de Commande',
   };
 
-  const maxDay = data ? Math.max(...data.by_day.map(d => d.count), 1) : 1;
+  const maxDay = data ? Math.max(...data.by_day.map((d) => d.count), 1) : 1;
 
   return (
     <div className="space-y-5">
       {/* KPI cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total conversations', value: data?.total ?? 0, icon: MessageSquare, color: 'text-indigo-600 bg-indigo-50' },
-          { label: 'Données complètes', value: data?.complete ?? 0, icon: CheckCircle2, color: 'text-green-600 bg-green-50' },
-          { label: 'Taux de conversion', value: `${data?.conversion_rate ?? 0}%`, icon: TrendingUp, color: 'text-blue-600 bg-blue-50' },
-          { label: 'Transfert humain', value: data?.human_handover ?? 0, icon: Users, color: 'text-amber-600 bg-amber-50' },
-        ].map(kpi => {
+          {
+            label: 'Total conversations',
+            value: data?.total ?? 0,
+            icon: MessageSquare,
+            color: 'text-indigo-600 bg-indigo-50',
+          },
+          {
+            label: 'Données complètes',
+            value: data?.complete ?? 0,
+            icon: CheckCircle2,
+            color: 'text-green-600 bg-green-50',
+          },
+          {
+            label: 'Taux de conversion',
+            value: `${data?.conversion_rate ?? 0}%`,
+            icon: TrendingUp,
+            color: 'text-blue-600 bg-blue-50',
+          },
+          {
+            label: 'Transfert humain',
+            value: data?.human_handover ?? 0,
+            icon: Users,
+            color: 'text-amber-600 bg-amber-50',
+          },
+        ].map((kpi) => {
           const Icon = kpi.icon;
           return (
-            <div key={kpi.label} className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-4 flex items-start gap-3">
-              <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${kpi.color}`}>
+            <div
+              key={kpi.label}
+              className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-4 flex items-start gap-3"
+            >
+              <div
+                className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${kpi.color}`}
+              >
                 <Icon size={16} />
               </div>
               <div>
-                <p className="text-xl font-bold text-stone-900 dark:text-stone-100">{loading ? '—' : kpi.value}</p>
+                <p className="text-xl font-bold text-stone-900 dark:text-stone-100">
+                  {loading ? '—' : kpi.value}
+                </p>
                 <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">{kpi.label}</p>
               </div>
             </div>
@@ -1746,19 +2376,28 @@ function AnalyticsTab() {
               Conversations (14 jours)
             </h3>
             <button onClick={fetchAnalytics} className="p-1.5 hover:bg-stone-100 rounded-lg">
-              <RefreshCw size={12} className={`text-stone-400 dark:text-stone-500 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw
+                size={12}
+                className={`text-stone-400 dark:text-stone-500 ${loading ? 'animate-spin' : ''}`}
+              />
             </button>
           </div>
-          {loading ? <div className="h-28 flex items-center justify-center"><Loader2 size={18} className="animate-spin text-stone-300 dark:text-stone-600" /></div> : (
+          {loading ? (
+            <div className="h-28 flex items-center justify-center">
+              <Loader2 size={18} className="animate-spin text-stone-300 dark:text-stone-600" />
+            </div>
+          ) : (
             <div className="flex items-end gap-1 h-28">
-              {(data?.by_day ?? []).map(d => (
+              {(data?.by_day ?? []).map((d) => (
                 <div key={d.date} className="flex-1 flex flex-col items-center gap-1">
                   <div
                     className="w-full bg-indigo-500 rounded-t-sm min-h-[2px] transition-all"
                     style={{ height: `${Math.round((d.count / maxDay) * 96)}px` }}
                     title={`${d.date}: ${d.count}`}
                   />
-                  <span className="text-[8px] text-stone-300 dark:text-stone-600 rotate-0">{d.date.slice(8)}</span>
+                  <span className="text-[8px] text-stone-300 dark:text-stone-600 rotate-0">
+                    {d.date.slice(8)}
+                  </span>
                 </div>
               ))}
             </div>
@@ -1771,24 +2410,37 @@ function AnalyticsTab() {
             <Bot size={15} className="text-purple-500" />
             Par template
           </h3>
-          {loading ? <div className="flex justify-center py-8"><Loader2 size={18} className="animate-spin text-stone-300 dark:text-stone-600" /></div> : (
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 size={18} className="animate-spin text-stone-300 dark:text-stone-600" />
+            </div>
+          ) : (
             <div className="space-y-3">
               {Object.entries(data?.by_template ?? {}).map(([type, stats]) => {
                 const rate = stats.total > 0 ? Math.round((stats.complete / stats.total) * 100) : 0;
                 return (
                   <div key={type} className="space-y-1">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-stone-700 dark:text-stone-200 font-medium">{TEMPLATE_LABELS[type] ?? type}</span>
-                      <span className="text-xs text-stone-500 dark:text-stone-400">{stats.complete}/{stats.total} · {rate}%</span>
+                      <span className="text-stone-700 dark:text-stone-200 font-medium">
+                        {TEMPLATE_LABELS[type] ?? type}
+                      </span>
+                      <span className="text-xs text-stone-500 dark:text-stone-400">
+                        {stats.complete}/{stats.total} · {rate}%
+                      </span>
                     </div>
                     <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-purple-500 rounded-full" style={{ width: `${rate}%` }} />
+                      <div
+                        className="h-full bg-purple-500 rounded-full"
+                        style={{ width: `${rate}%` }}
+                      />
                     </div>
                   </div>
                 );
               })}
               {Object.keys(data?.by_template ?? {}).length === 0 && (
-                <p className="text-sm text-stone-400 dark:text-stone-500 text-center py-4">Aucune session pour l'instant</p>
+                <p className="text-sm text-stone-400 dark:text-stone-500 text-center py-4">
+                  Aucune session pour l'instant
+                </p>
               )}
             </div>
           )}
@@ -1800,7 +2452,11 @@ function AnalyticsTab() {
             <MapPin size={15} className="text-green-500" />
             Top Wilayas
           </h3>
-          {loading ? <div className="flex justify-center py-8"><Loader2 size={18} className="animate-spin text-stone-300 dark:text-stone-600" /></div> : (
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 size={18} className="animate-spin text-stone-300 dark:text-stone-600" />
+            </div>
+          ) : (
             <div className="space-y-2.5">
               {(data?.top_wilayas ?? []).map((w, i) => (
                 <div key={w.wilaya} className="flex items-center gap-2">
@@ -1808,16 +2464,25 @@ function AnalyticsTab() {
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-0.5">
                       <span className="text-sm text-stone-700 dark:text-stone-200">{w.wilaya}</span>
-                      <span className="text-xs font-bold text-stone-900 dark:text-stone-100">{w.count}</span>
+                      <span className="text-xs font-bold text-stone-900 dark:text-stone-100">
+                        {w.count}
+                      </span>
                     </div>
                     <div className="h-1.5 bg-stone-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-green-400 rounded-full" style={{ width: `${Math.round((w.count / (data?.top_wilayas[0]?.count || 1)) * 100)}%` }} />
+                      <div
+                        className="h-full bg-green-400 rounded-full"
+                        style={{
+                          width: `${Math.round((w.count / (data?.top_wilayas[0]?.count || 1)) * 100)}%`,
+                        }}
+                      />
                     </div>
                   </div>
                 </div>
               ))}
               {(data?.top_wilayas ?? []).length === 0 && (
-                <p className="text-sm text-stone-400 dark:text-stone-500 text-center py-4">Aucune donnée wilaya</p>
+                <p className="text-sm text-stone-400 dark:text-stone-500 text-center py-4">
+                  Aucune donnée wilaya
+                </p>
               )}
             </div>
           )}
@@ -1831,7 +2496,10 @@ function AnalyticsTab() {
           </h3>
           <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 space-y-2">
             <p className="text-sm font-semibold text-orange-800">Relance inactivité (2h)</p>
-            <p className="text-xs text-orange-600">Envoie un message de rappel aux sessions incomplètes inactives depuis plus de 2 heures.</p>
+            <p className="text-xs text-orange-600">
+              Envoie un message de rappel aux sessions incomplètes inactives depuis plus de 2
+              heures.
+            </p>
             <button
               onClick={triggerRelance}
               disabled={relancing}
@@ -1842,16 +2510,26 @@ function AnalyticsTab() {
             </button>
           </div>
           <div className="bg-stone-50 rounded-xl p-4 space-y-1">
-            <p className="text-xs font-semibold text-stone-600 dark:text-stone-300">Automatiser via Vercel Cron</p>
+            <p className="text-xs font-semibold text-stone-600 dark:text-stone-300">
+              Automatiser via Vercel Cron
+            </p>
             <code className="text-[10px] text-stone-500 dark:text-stone-400 block font-mono bg-stone-100 rounded px-2 py-1">
               POST /api/ai-chatbot/relance (every 30min)
             </code>
           </div>
           <div className="grid grid-cols-2 gap-3 pt-1">
             {[
-              { label: 'Google Sheets envoyés', value: data?.sheets_sent ?? 0, color: 'text-green-700 bg-green-50' },
-              { label: 'Transferts humains', value: data?.human_handover ?? 0, color: 'text-amber-700 bg-amber-50' },
-            ].map(s => (
+              {
+                label: 'Google Sheets envoyés',
+                value: data?.sheets_sent ?? 0,
+                color: 'text-green-700 bg-green-50',
+              },
+              {
+                label: 'Transferts humains',
+                value: data?.human_handover ?? 0,
+                color: 'text-amber-700 bg-amber-50',
+              },
+            ].map((s) => (
               <div key={s.label} className={`rounded-xl p-3 text-center ${s.color}`}>
                 <p className="text-xl font-bold">{loading ? '—' : s.value}</p>
                 <p className="text-[10px] mt-0.5 opacity-80">{s.label}</p>
@@ -1893,19 +2571,23 @@ interface ZREnrichment {
 // Mapping state ZRExpress → badge UI
 function zrStateLabel(state: string): { label: string; cls: string } {
   const s = (state || '').toLowerCase();
-  if (s.includes('livre') || s === 'delivered') return { label: 'Livré', cls: 'bg-green-100 text-green-700' };
+  if (s.includes('livre') || s === 'delivered')
+    return { label: 'Livré', cls: 'bg-green-100 text-green-700' };
   if (s.includes('retour')) return { label: 'Retourné', cls: 'bg-red-100 text-red-700' };
-  if (s.includes('echec') || s.includes('annul')) return { label: 'Échec', cls: 'bg-red-100 text-red-700' };
+  if (s.includes('echec') || s.includes('annul'))
+    return { label: 'Échec', cls: 'bg-red-100 text-red-700' };
   if (s.includes('livr')) return { label: 'En livraison', cls: 'bg-blue-100 text-blue-700' };
-  if (s.includes('transit') || s.includes('dispatch') || s.includes('expedi')) return { label: 'En transit', cls: 'bg-blue-100 text-blue-700' };
-  if (s.includes('pret') || s.includes('confirm')) return { label: 'Prêt à expédier', cls: 'bg-amber-100 text-amber-700' };
+  if (s.includes('transit') || s.includes('dispatch') || s.includes('expedi'))
+    return { label: 'En transit', cls: 'bg-blue-100 text-blue-700' };
+  if (s.includes('pret') || s.includes('confirm'))
+    return { label: 'Prêt à expédier', cls: 'bg-amber-100 text-amber-700' };
   return { label: state || 'Inconnu', cls: 'bg-stone-100 text-stone-600 dark:text-stone-300' };
 }
 
 const RESOLUTION_META: Record<string, { label: string; cls: string; emoji: string }> = {
   exchange: { label: 'Échange validé', cls: 'bg-purple-100 text-purple-700', emoji: '🔄' },
-  refund:   { label: 'Remboursement validé', cls: 'bg-emerald-100 text-emerald-700', emoji: '💰' },
-  resolved: { label: 'Résolu',                cls: 'bg-stone-100 text-stone-700 dark:text-stone-200', emoji: '✓' },
+  refund: { label: 'Remboursement validé', cls: 'bg-emerald-100 text-emerald-700', emoji: '💰' },
+  resolved: { label: 'Résolu', cls: 'bg-stone-100 text-stone-700 dark:text-stone-200', emoji: '✓' },
 };
 
 function ReclamationsTab() {
@@ -1947,7 +2629,7 @@ function ReclamationsTab() {
     setEnrichLoading(true);
     setEnrichError(null);
     try {
-      const items = sess.map(s => ({
+      const items = sess.map((s) => ({
         sessionId: s.id,
         commande: s.extracted_data?.commande ?? null,
         phone: (s.contact_id || '').replace('@s.whatsapp.net', ''),
@@ -1960,7 +2642,7 @@ function ReclamationsTab() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
       const map: Record<string, ZREnrichment> = {};
-      for (const r of (json.results || [])) {
+      for (const r of json.results || []) {
         map[r.sessionId] = { matchedBy: r.matchedBy, parcel: r.parcel };
       }
       setEnrichments(map);
@@ -1971,7 +2653,9 @@ function ReclamationsTab() {
     }
   }, []);
 
-  useEffect(() => { fetchSessions(); }, [fetchSessions]);
+  useEffect(() => {
+    fetchSessions();
+  }, [fetchSessions]);
 
   // Lance l'enrichissement quand les sessions arrivent
   useEffect(() => {
@@ -1981,15 +2665,27 @@ function ReclamationsTab() {
 
   const deleteSession = async (id: string) => {
     if (!confirm('Supprimer cette réclamation ?')) return;
-    await fetch('/api/ai-chatbot/sessions', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
-    setSessions(prev => prev.filter(s => s.id !== id));
+    await fetch('/api/ai-chatbot/sessions', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+    setSessions((prev) => prev.filter((s) => s.id !== id));
     toast.success('Réclamation supprimée');
   };
 
   // Valide une résolution : appelle le backend qui met à jour la DB + envoie le WhatsApp
-  const resolveReclamation = async (session: Session, resolution: 'exchange' | 'refund' | 'resolved') => {
+  const resolveReclamation = async (
+    session: Session,
+    resolution: 'exchange' | 'refund' | 'resolved'
+  ) => {
     const label = RESOLUTION_META[resolution].label;
-    if (!confirm(`Valider « ${label} » pour ${session.contact_name || 'ce client'} ?\nUn message WhatsApp de confirmation sera envoyé automatiquement.`)) return;
+    if (
+      !confirm(
+        `Valider « ${label} » pour ${session.contact_name || 'ce client'} ?\nUn message WhatsApp de confirmation sera envoyé automatiquement.`
+      )
+    )
+      return;
     setResolving(session.id);
     try {
       const res = await fetch('/api/ai-chatbot/reclamations/resolve', {
@@ -2001,14 +2697,18 @@ function ReclamationsTab() {
       if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
 
       // Met à jour la session locale pour refléter la résolution sans refetch
-      setSessions(prev => prev.map(s => s.id === session.id
-        ? { ...s, resolution, resolved_at: new Date().toISOString() }
-        : s));
+      setSessions((prev) =>
+        prev.map((s) =>
+          s.id === session.id ? { ...s, resolution, resolved_at: new Date().toISOString() } : s
+        )
+      );
 
       if (json.whatsapp === 'sent') {
         toast.success(`${label} ✓ — message WhatsApp envoyé`);
       } else {
-        toast.warning(`${label} enregistré ✓ — mais WhatsApp non envoyé (${json.whatsapp_error || 'raison inconnue'})`);
+        toast.warning(
+          `${label} enregistré ✓ — mais WhatsApp non envoyé (${json.whatsapp_error || 'raison inconnue'})`
+        );
       }
     } catch (e: any) {
       toast.error(e?.message || 'Erreur lors de la validation');
@@ -2017,7 +2717,7 @@ function ReclamationsTab() {
     }
   };
 
-  const filtered = sessions.filter(s => {
+  const filtered = sessions.filter((s) => {
     if (statusFilter === 'complete' && !s.is_complete) return false;
     if (statusFilter === 'pending' && s.is_complete) return false;
     if (resolvedFilter === 'pending' && s.resolution) return false;
@@ -2025,18 +2725,26 @@ function ReclamationsTab() {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     const d = s.extracted_data || {};
-    return [
-      s.contact_name,
-      s.contact_id,
-      d.reclamation,
-      d.commande,
-    ].some(v => (v || '').toLowerCase().includes(q));
+    return [s.contact_name, s.contact_id, d.reclamation, d.commande].some((v) =>
+      (v || '').toLowerCase().includes(q)
+    );
   });
 
   const exportCSV = () => {
-    if (filtered.length === 0) { toast.error('Rien à exporter'); return; }
-    const header = ['Date', 'Canal', 'Nom client', 'Téléphone', 'N° commande', 'Réclamation', 'Statut'];
-    const rows = filtered.map(s => {
+    if (filtered.length === 0) {
+      toast.error('Rien à exporter');
+      return;
+    }
+    const header = [
+      'Date',
+      'Canal',
+      'Nom client',
+      'Téléphone',
+      'N° commande',
+      'Réclamation',
+      'Statut',
+    ];
+    const rows = filtered.map((s) => {
       const d = s.extracted_data || {};
       const phone = (s.contact_id || '').replace('@s.whatsapp.net', '');
       return [
@@ -2051,7 +2759,7 @@ function ReclamationsTab() {
     });
     // Escape CSV : double les guillemets et entoure si la cellule en contient
     const esc = (v: string) => `"${String(v).replace(/"/g, '""')}"`;
-    const csv = [header, ...rows].map(r => r.map(esc).join(',')).join('\n');
+    const csv = [header, ...rows].map((r) => r.map(esc).join(',')).join('\n');
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }); // BOM pour Excel
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -2059,12 +2767,18 @@ function ReclamationsTab() {
     a.download = `reclamations-sav-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success(`${filtered.length} réclamation${filtered.length > 1 ? 's' : ''} exportée${filtered.length > 1 ? 's' : ''}`);
+    toast.success(
+      `${filtered.length} réclamation${filtered.length > 1 ? 's' : ''} exportée${filtered.length > 1 ? 's' : ''}`
+    );
   };
 
   const CHANNEL_ICONS: Record<string, React.ReactNode> = {
     whatsapp: <Phone size={11} className="text-green-600" />,
-    facebook: <svg viewBox="0 0 24 24" className="w-3 h-3 fill-blue-600"><path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.3 2.246.464 3.443.464 6.627 0 12-4.974 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.131 3.259L19.752 8l-6.561 6.963z" /></svg>,
+    facebook: (
+      <svg viewBox="0 0 24 24" className="w-3 h-3 fill-blue-600">
+        <path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.3 2.246.464 3.443.464 6.627 0 12-4.974 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.131 3.259L19.752 8l-6.561 6.963z" />
+      </svg>
+    ),
     web: <Globe size={11} className="text-purple-600" />,
   };
 
@@ -2076,17 +2790,25 @@ function ReclamationsTab() {
           <input
             type="text"
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={(e) => setSearch(e.target.value)}
             placeholder="Rechercher (nom, téléphone, commande, mot-clé...)"
             className="w-full pl-3 pr-3 py-2 text-sm border border-stone-200 dark:border-stone-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 bg-white dark:bg-stone-900"
           />
         </div>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as 'all' | 'complete' | 'pending')} className="border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-stone-900">
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as 'all' | 'complete' | 'pending')}
+          className="border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-stone-900"
+        >
           <option value="complete">Terminées (par défaut)</option>
           <option value="pending">En cours uniquement</option>
           <option value="all">Toutes</option>
         </select>
-        <select value={resolvedFilter} onChange={e => setResolvedFilter(e.target.value as 'pending' | 'resolved' | 'all')} className="border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-stone-900">
+        <select
+          value={resolvedFilter}
+          onChange={(e) => setResolvedFilter(e.target.value as 'pending' | 'resolved' | 'all')}
+          className="border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2 text-sm bg-white dark:bg-stone-900"
+        >
           <option value="pending">À traiter</option>
           <option value="resolved">Résolues</option>
           <option value="all">Toutes</option>
@@ -2100,17 +2822,32 @@ function ReclamationsTab() {
           Exporter CSV
         </button>
         <button onClick={fetchSessions} className="p-2 hover:bg-stone-100 rounded-lg">
-          <RefreshCw size={14} className={`text-stone-400 dark:text-stone-500 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw
+            size={14}
+            className={`text-stone-400 dark:text-stone-500 ${loading ? 'animate-spin' : ''}`}
+          />
         </button>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Total réclamations', value: sessions.length, color: 'bg-amber-50 text-amber-700' },
-          { label: 'Complètes', value: sessions.filter(s => s.is_complete).length, color: 'bg-green-50 text-green-700' },
-          { label: 'En cours', value: sessions.filter(s => !s.is_complete).length, color: 'bg-stone-50 text-stone-700 dark:text-stone-200' },
-        ].map(s => (
+          {
+            label: 'Total réclamations',
+            value: sessions.length,
+            color: 'bg-amber-50 text-amber-700',
+          },
+          {
+            label: 'Complètes',
+            value: sessions.filter((s) => s.is_complete).length,
+            color: 'bg-green-50 text-green-700',
+          },
+          {
+            label: 'En cours',
+            value: sessions.filter((s) => !s.is_complete).length,
+            color: 'bg-stone-50 text-stone-700 dark:text-stone-200',
+          },
+        ].map((s) => (
           <div key={s.label} className={`rounded-2xl p-4 text-center ${s.color}`}>
             <p className="text-2xl font-bold">{s.value}</p>
             <p className="text-xs mt-0.5 opacity-80">{s.label}</p>
@@ -2121,12 +2858,22 @@ function ReclamationsTab() {
       {/* Table */}
       <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm overflow-hidden">
         {loading ? (
-          <div className="flex justify-center py-16"><Loader2 size={20} className="animate-spin text-stone-400 dark:text-stone-500" /></div>
+          <div className="flex justify-center py-16">
+            <Loader2 size={20} className="animate-spin text-stone-400 dark:text-stone-500" />
+          </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-stone-400 dark:text-stone-500">
             <HeadphonesIcon size={32} className="mb-2 opacity-30" />
-            <p className="text-sm">{sessions.length === 0 ? 'Aucune réclamation pour l\'instant' : 'Aucun résultat pour ces filtres'}</p>
-            <p className="text-xs mt-1">{sessions.length === 0 ? 'Les réclamations SAV apparaîtront ici dès qu\'un client écrira' : 'Essaie d\'élargir la recherche'}</p>
+            <p className="text-sm">
+              {sessions.length === 0
+                ? "Aucune réclamation pour l'instant"
+                : 'Aucun résultat pour ces filtres'}
+            </p>
+            <p className="text-xs mt-1">
+              {sessions.length === 0
+                ? "Les réclamations SAV apparaîtront ici dès qu'un client écrira"
+                : "Essaie d'élargir la recherche"}
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -2146,22 +2893,44 @@ function ReclamationsTab() {
             <table className="w-full text-sm">
               <thead className="bg-stone-50 dark:bg-stone-800 border-b border-stone-100 dark:border-stone-700">
                 <tr>
-                  {['Date', 'Client', 'N° commande', 'Réclamation', 'Statut ZR', 'Résolution', 'Actions'].map(h => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide">{h}</th>
+                  {[
+                    'Date',
+                    'Client',
+                    'N° commande',
+                    'Réclamation',
+                    'Statut ZR',
+                    'Résolution',
+                    'Actions',
+                  ].map((h) => (
+                    <th
+                      key={h}
+                      className="px-4 py-3 text-left text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide"
+                    >
+                      {h}
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-50 dark:divide-stone-800">
-                {filtered.map(session => {
+                {filtered.map((session) => {
                   const d = session.extracted_data || {};
                   const phone = (session.contact_id || '').replace('@s.whatsapp.net', '');
                   const enrich = enrichments[session.id];
                   const isResolved = !!session.resolution;
                   const isResolving = resolving === session.id;
                   return (
-                    <tr key={session.id} className="hover:bg-stone-50 dark:hover:bg-stone-800 align-top">
+                    <tr
+                      key={session.id}
+                      className="hover:bg-stone-50 dark:hover:bg-stone-800 align-top"
+                    >
                       <td className="px-4 py-3 text-[11px] text-stone-500 dark:text-stone-400 whitespace-nowrap">
-                        {new Date(session.updated_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                        {new Date(session.updated_at).toLocaleString('fr-FR', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
                         <div className="flex items-center gap-1 mt-0.5 text-stone-400 dark:text-stone-500">
                           {CHANNEL_ICONS[session.channel] ?? null}
                           <span className="capitalize">{session.channel}</span>
@@ -2172,20 +2941,30 @@ function ReclamationsTab() {
                           <User size={11} className="text-stone-400 dark:text-stone-500" />
                           {session.contact_name || '—'}
                         </p>
-                        <p className="text-[10px] text-stone-400 dark:text-stone-500 font-mono mt-0.5 ml-[18px]">{phone}</p>
+                        <p className="text-[10px] text-stone-400 dark:text-stone-500 font-mono mt-0.5 ml-[18px]">
+                          {phone}
+                        </p>
                         {/* Affiche le vrai nom ZRExpress si différent (parfois plus complet) */}
-                        {enrich?.parcel?.customerName && enrich.parcel.customerName !== session.contact_name && (
-                          <p className="text-[10px] text-blue-600 mt-0.5 ml-[18px]" title="Nom enregistré chez ZRExpress">
-                            ZR: {enrich.parcel.customerName}
-                          </p>
-                        )}
+                        {enrich?.parcel?.customerName &&
+                          enrich.parcel.customerName !== session.contact_name && (
+                            <p
+                              className="text-[10px] text-blue-600 mt-0.5 ml-[18px]"
+                              title="Nom enregistré chez ZRExpress"
+                            >
+                              ZR: {enrich.parcel.customerName}
+                            </p>
+                          )}
                       </td>
                       <td className="px-4 py-3">
                         {d.commande ? (
                           <span className="font-mono text-xs bg-stone-100 dark:bg-stone-800 px-2 py-1 rounded-md text-stone-800 dark:text-stone-100">
                             {d.commande}
                           </span>
-                        ) : <span className="text-[10px] text-stone-300 dark:text-stone-600">non fourni</span>}
+                        ) : (
+                          <span className="text-[10px] text-stone-300 dark:text-stone-600">
+                            non fourni
+                          </span>
+                        )}
                         {/* Indique comment ZR a été matché */}
                         {enrich?.parcel && enrich.matchedBy === 'phone' && (
                           <p className="text-[9px] text-amber-600 mt-1">↳ trouvé via téléphone</p>
@@ -2196,15 +2975,21 @@ function ReclamationsTab() {
                           <p className="text-xs text-stone-700 dark:text-stone-200 leading-relaxed line-clamp-3 whitespace-pre-line">
                             {d.reclamation}
                           </p>
-                        ) : <span className="text-[10px] text-amber-600">Conversation en cours…</span>}
+                        ) : (
+                          <span className="text-[10px] text-amber-600">Conversation en cours…</span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         {enrich?.parcel ? (
                           <div className="space-y-1">
-                            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full w-fit inline-block ${zrStateLabel(enrich.parcel.state).cls}`}>
+                            <span
+                              className={`text-[10px] font-medium px-2 py-0.5 rounded-full w-fit inline-block ${zrStateLabel(enrich.parcel.state).cls}`}
+                            >
                               {zrStateLabel(enrich.parcel.state).label}
                             </span>
-                            <p className="text-[10px] text-stone-500 dark:text-stone-400">{enrich.parcel.city || '—'}</p>
+                            <p className="text-[10px] text-stone-500 dark:text-stone-400">
+                              {enrich.parcel.city || '—'}
+                            </p>
                             <a
                               href={`https://app.zrexpress.app/parcels/default/${enrich.parcel.id}`}
                               target="_blank"
@@ -2216,7 +3001,10 @@ function ReclamationsTab() {
                             </a>
                           </div>
                         ) : enrichLoading ? (
-                          <Loader2 size={12} className="animate-spin text-stone-300 dark:text-stone-600" />
+                          <Loader2
+                            size={12}
+                            className="animate-spin text-stone-300 dark:text-stone-600"
+                          />
                         ) : (
                           <span className="text-[10px] text-stone-400">Non trouvé</span>
                         )}
@@ -2224,12 +3012,19 @@ function ReclamationsTab() {
                       <td className="px-4 py-3">
                         {isResolved && session.resolution && RESOLUTION_META[session.resolution] ? (
                           <div className="flex flex-col gap-0.5">
-                            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full w-fit ${RESOLUTION_META[session.resolution].cls}`}>
-                              {RESOLUTION_META[session.resolution].emoji} {RESOLUTION_META[session.resolution].label}
+                            <span
+                              className={`text-[10px] font-medium px-2 py-0.5 rounded-full w-fit ${RESOLUTION_META[session.resolution].cls}`}
+                            >
+                              {RESOLUTION_META[session.resolution].emoji}{' '}
+                              {RESOLUTION_META[session.resolution].label}
                             </span>
                             {session.resolved_at && (
                               <p className="text-[10px] text-stone-400 dark:text-stone-500">
-                                {new Date(session.resolved_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                                {new Date(session.resolved_at).toLocaleDateString('fr-FR', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: '2-digit',
+                                })}
                               </p>
                             )}
                           </div>
@@ -2313,40 +3108,67 @@ function ReclamationsTab() {
 
       {/* Modale détails (extracted_data complet) */}
       {selected && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelected(null)}>
-          <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-xl max-w-lg w-full p-5 space-y-4" onClick={e => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setSelected(null)}
+        >
+          <div
+            className="bg-white dark:bg-stone-900 rounded-2xl shadow-xl max-w-lg w-full p-5 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h3 className="font-semibold text-stone-900 dark:text-stone-100">Détails réclamation</h3>
+                <h3 className="font-semibold text-stone-900 dark:text-stone-100">
+                  Détails réclamation
+                </h3>
                 <p className="text-xs text-stone-400 dark:text-stone-500 mt-0.5">
                   {new Date(selected.updated_at).toLocaleString('fr-FR')}
                 </p>
               </div>
-              <button onClick={() => setSelected(null)} className="text-stone-400 hover:text-stone-700 dark:hover:text-stone-200">
+              <button
+                onClick={() => setSelected(null)}
+                className="text-stone-400 hover:text-stone-700 dark:hover:text-stone-200"
+              >
                 <XCircle size={18} />
               </button>
             </div>
             <div className="space-y-3 text-sm">
               <Row label="Client" value={selected.contact_name || '—'} />
-              <Row label="Téléphone" value={(selected.contact_id || '').replace('@s.whatsapp.net', '')} mono />
+              <Row
+                label="Téléphone"
+                value={(selected.contact_id || '').replace('@s.whatsapp.net', '')}
+                mono
+              />
               <Row label="Canal" value={selected.channel} />
-              <Row label="N° commande" value={selected.extracted_data?.commande || 'non fourni'} mono />
+              <Row
+                label="N° commande"
+                value={selected.extracted_data?.commande || 'non fourni'}
+                mono
+              />
               <div>
-                <p className="text-[10px] uppercase tracking-wide text-stone-400 dark:text-stone-500 mb-1">Réclamation</p>
+                <p className="text-[10px] uppercase tracking-wide text-stone-400 dark:text-stone-500 mb-1">
+                  Réclamation
+                </p>
                 <p className="text-sm text-stone-800 dark:text-stone-100 leading-relaxed whitespace-pre-line bg-stone-50 dark:bg-stone-800 rounded-lg p-3">
                   {selected.extracted_data?.reclamation || 'En cours de collecte par le bot…'}
                 </p>
               </div>
               {/* Champs supplémentaires éventuels (si le prompt en extrait d'autres) */}
-              {Object.entries(selected.extracted_data || {}).filter(([k]) => !['commande', 'reclamation'].includes(k)).length > 0 && (
+              {Object.entries(selected.extracted_data || {}).filter(
+                ([k]) => !['commande', 'reclamation'].includes(k)
+              ).length > 0 && (
                 <div>
-                  <p className="text-[10px] uppercase tracking-wide text-stone-400 dark:text-stone-500 mb-1">Autres données</p>
+                  <p className="text-[10px] uppercase tracking-wide text-stone-400 dark:text-stone-500 mb-1">
+                    Autres données
+                  </p>
                   <div className="text-xs space-y-1 bg-stone-50 dark:bg-stone-800 rounded-lg p-3">
                     {Object.entries(selected.extracted_data || {})
                       .filter(([k]) => !['commande', 'reclamation'].includes(k))
                       .map(([k, v]) => (
                         <div key={k} className="flex gap-2">
-                          <span className="text-stone-500 dark:text-stone-400 capitalize min-w-[80px]">{k} :</span>
+                          <span className="text-stone-500 dark:text-stone-400 capitalize min-w-[80px]">
+                            {k} :
+                          </span>
                           <span className="text-stone-800 dark:text-stone-100">{String(v)}</span>
                         </div>
                       ))}
@@ -2364,19 +3186,38 @@ function ReclamationsTab() {
 function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="flex gap-3">
-      <span className="text-[10px] uppercase tracking-wide text-stone-400 dark:text-stone-500 min-w-[80px] mt-1">{label}</span>
-      <span className={`text-sm text-stone-800 dark:text-stone-100 ${mono ? 'font-mono' : ''}`}>{value}</span>
+      <span className="text-[10px] uppercase tracking-wide text-stone-400 dark:text-stone-500 min-w-[80px] mt-1">
+        {label}
+      </span>
+      <span className={`text-sm text-stone-800 dark:text-stone-100 ${mono ? 'font-mono' : ''}`}>
+        {value}
+      </span>
     </div>
   );
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-type Tab = 'templates' | 'whatsapp' | 'facebook' | 'googlesheets' | 'donnees' | 'reclamations' | 'analytics';
+type Tab =
+  | 'templates'
+  | 'whatsapp'
+  | 'facebook'
+  | 'googlesheets'
+  | 'donnees'
+  | 'reclamations'
+  | 'analytics';
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'templates', label: 'Templates IA', icon: <Bot size={14} /> },
   { id: 'whatsapp', label: 'WhatsApp', icon: <Phone size={14} /> },
-  { id: 'facebook', label: 'Facebook', icon: <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-current"><path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.3 2.246.464 3.443.464 6.627 0 12-4.974 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.131 3.259L19.752 8l-6.561 6.963z" /></svg> },
+  {
+    id: 'facebook',
+    label: 'Facebook',
+    icon: (
+      <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-current">
+        <path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.3 2.246.464 3.443.464 6.627 0 12-4.974 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.131 3.259L19.752 8l-6.561 6.963z" />
+      </svg>
+    ),
+  },
   { id: 'googlesheets', label: 'Google Sheets', icon: <Sheet size={14} /> },
   { id: 'donnees', label: 'Données extraites', icon: <MessageSquare size={14} /> },
   { id: 'reclamations', label: 'Réclamations SAV', icon: <HeadphonesIcon size={14} /> },
@@ -2397,14 +3238,16 @@ export default function AIChatbotPage() {
             </div>
             <div>
               <h1 className="text-lg font-bold text-stone-900 dark:text-stone-100">AI Chatbot</h1>
-              <p className="text-xs text-stone-500 dark:text-stone-400">Gestion des bots WhatsApp et configurations</p>
+              <p className="text-xs text-stone-500 dark:text-stone-400">
+                Gestion des bots WhatsApp et configurations
+              </p>
             </div>
           </div>
         </div>
 
         {/* Tabs */}
         <div className="flex gap-1 bg-stone-100 p-1 rounded-xl mb-6 overflow-x-auto">
-          {TABS.map(tab => (
+          {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}

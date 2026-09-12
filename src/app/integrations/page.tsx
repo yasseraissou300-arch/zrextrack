@@ -1,7 +1,19 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
-import { Plug, Copy, CheckCircle, XCircle, Loader2, Plus, Trash2, ExternalLink, ShoppingCart, Globe, Package } from 'lucide-react';
+import {
+  Plug,
+  Copy,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  Plus,
+  Trash2,
+  ExternalLink,
+  ShoppingCart,
+  Globe,
+  Package,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Integration {
@@ -62,8 +74,12 @@ const PLATFORMS = [
   },
 ];
 
-function ConnectModal({ platform, onClose, onConnect }: {
-  platform: typeof PLATFORMS[0];
+function ConnectModal({
+  platform,
+  onClose,
+  onConnect,
+}: {
+  platform: (typeof PLATFORMS)[0];
   onClose: () => void;
   onConnect: (identifier: string, secret: string) => Promise<void>;
 }) {
@@ -73,10 +89,16 @@ function ConnectModal({ platform, onClose, onConnect }: {
 
   const webhookUrl = `${APP_URL}${platform.webhookPath}`;
 
-  const copy = (text: string) => { navigator.clipboard.writeText(text); toast.success('Copié !'); };
+  const copy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success('Copié !');
+  };
 
   const handleConnect = async () => {
-    if (!identifier.trim()) { toast.error(`${platform.identifierLabel} requis`); return; }
+    if (!identifier.trim()) {
+      toast.error(`${platform.identifierLabel} requis`);
+      return;
+    }
     setSaving(true);
     await onConnect(identifier.trim(), secret.trim());
     setSaving(false);
@@ -88,21 +110,32 @@ function ConnectModal({ platform, onClose, onConnect }: {
       <div className="relative bg-white dark:bg-stone-900 rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="p-6 space-y-5">
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 ${platform.color} rounded-xl flex items-center justify-center`}>
+            <div
+              className={`w-10 h-10 ${platform.color} rounded-xl flex items-center justify-center`}
+            >
               <platform.icon size={20} className="text-white" />
             </div>
             <div>
-              <h2 className="font-bold text-stone-900 dark:text-stone-100">Connecter {platform.name}</h2>
+              <h2 className="font-bold text-stone-900 dark:text-stone-100">
+                Connecter {platform.name}
+              </h2>
               <p className="text-xs text-stone-500 dark:text-stone-400">{platform.description}</p>
             </div>
           </div>
 
           {platform.webhookPath && (
             <div className="bg-stone-50 rounded-xl p-4 space-y-2">
-              <p className="text-xs font-semibold text-stone-600 dark:text-stone-300 uppercase tracking-wide">URL Webhook</p>
+              <p className="text-xs font-semibold text-stone-600 dark:text-stone-300 uppercase tracking-wide">
+                URL Webhook
+              </p>
               <div className="flex gap-2">
-                <code className="flex-1 text-xs text-stone-700 dark:text-stone-200 break-all">{webhookUrl}</code>
-                <button onClick={() => copy(webhookUrl)} className="p-1.5 hover:bg-stone-200 rounded-lg shrink-0">
+                <code className="flex-1 text-xs text-stone-700 dark:text-stone-200 break-all">
+                  {webhookUrl}
+                </code>
+                <button
+                  onClick={() => copy(webhookUrl)}
+                  className="p-1.5 hover:bg-stone-200 rounded-lg shrink-0"
+                >
                   <Copy size={13} className="text-stone-500 dark:text-stone-400" />
                 </button>
               </div>
@@ -110,10 +143,12 @@ function ConnectModal({ platform, onClose, onConnect }: {
           )}
 
           <div className="space-y-1">
-            <label className="text-xs font-medium text-stone-600 dark:text-stone-300">{platform.identifierLabel}</label>
+            <label className="text-xs font-medium text-stone-600 dark:text-stone-300">
+              {platform.identifierLabel}
+            </label>
             <input
               value={identifier}
-              onChange={e => setIdentifier(e.target.value)}
+              onChange={(e) => setIdentifier(e.target.value)}
               placeholder={platform.identifierPlaceholder}
               className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
             />
@@ -121,10 +156,12 @@ function ConnectModal({ platform, onClose, onConnect }: {
 
           {platform.id !== 'google_sheets' && (
             <div className="space-y-1">
-              <label className="text-xs font-medium text-stone-600 dark:text-stone-300">Clé secrète (optionnel)</label>
+              <label className="text-xs font-medium text-stone-600 dark:text-stone-300">
+                Clé secrète (optionnel)
+              </label>
               <input
                 value={secret}
-                onChange={e => setSecret(e.target.value)}
+                onChange={(e) => setSecret(e.target.value)}
                 placeholder="Pour valider la signature du webhook"
                 type="password"
                 className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
@@ -136,14 +173,19 @@ function ConnectModal({ platform, onClose, onConnect }: {
             <p className="text-xs font-semibold text-blue-700">Guide de configuration</p>
             {platform.setupSteps.map((s, i) => (
               <div key={i} className="flex items-start gap-2">
-                <span className="w-4 h-4 rounded-full bg-blue-200 text-blue-800 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
+                <span className="w-4 h-4 rounded-full bg-blue-200 text-blue-800 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                  {i + 1}
+                </span>
                 <p className="text-xs text-blue-700">{s}</p>
               </div>
             ))}
           </div>
 
           <div className="flex gap-2">
-            <button onClick={onClose} className="flex-1 border border-stone-200 dark:border-stone-700 rounded-xl py-2.5 text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800">
+            <button
+              onClick={onClose}
+              className="flex-1 border border-stone-200 dark:border-stone-700 rounded-xl py-2.5 text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800"
+            >
               Annuler
             </button>
             {!platform.comingSoon && (
@@ -152,7 +194,11 @@ function ConnectModal({ platform, onClose, onConnect }: {
                 disabled={saving}
                 className="flex-1 bg-green-600 text-white rounded-xl py-2.5 text-sm font-medium hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+                {saving ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <CheckCircle size={14} />
+                )}
                 Connecter
               </button>
             )}
@@ -166,7 +212,7 @@ function ConnectModal({ platform, onClose, onConnect }: {
 export default function IntegrationsPage() {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [loading, setLoading] = useState(true);
-  const [modalPlatform, setModalPlatform] = useState<typeof PLATFORMS[0] | null>(null);
+  const [modalPlatform, setModalPlatform] = useState<(typeof PLATFORMS)[0] | null>(null);
 
   const fetch_ = useCallback(async () => {
     setLoading(true);
@@ -176,16 +222,25 @@ export default function IntegrationsPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetch_(); }, [fetch_]);
+  useEffect(() => {
+    fetch_();
+  }, [fetch_]);
 
-  const handleConnect = async (platform: typeof PLATFORMS[0], identifier: string, secret: string) => {
+  const handleConnect = async (
+    platform: (typeof PLATFORMS)[0],
+    identifier: string,
+    secret: string
+  ) => {
     const res = await fetch('/api/integrations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ platform: platform.id, identifier, secret_key: secret }),
     });
     const json = await res.json();
-    if (json.error) { toast.error(json.error); return; }
+    if (json.error) {
+      toast.error(json.error);
+      return;
+    }
     toast.success(`${platform.name} connecté !`);
     setModalPlatform(null);
     await fetch_();
@@ -202,7 +257,7 @@ export default function IntegrationsPage() {
     await fetch_();
   };
 
-  const getIntegration = (id: string) => integrations.find(i => i.platform === id && i.active);
+  const getIntegration = (id: string) => integrations.find((i) => i.platform === id && i.active);
 
   return (
     <AppLayout>
@@ -213,27 +268,40 @@ export default function IntegrationsPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100">Intégrations</h1>
-            <p className="text-sm text-stone-500 dark:text-stone-400">Connectez vos plateformes e-commerce pour synchroniser les commandes automatiquement</p>
+            <p className="text-sm text-stone-500 dark:text-stone-400">
+              Connectez vos plateformes e-commerce pour synchroniser les commandes automatiquement
+            </p>
           </div>
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-20"><Loader2 size={24} className="animate-spin text-stone-400 dark:text-stone-500" /></div>
+          <div className="flex justify-center py-20">
+            <Loader2 size={24} className="animate-spin text-stone-400 dark:text-stone-500" />
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {PLATFORMS.map(platform => {
+            {PLATFORMS.map((platform) => {
               const connected = getIntegration(platform.id);
               return (
-                <div key={platform.id} className={`bg-white dark:bg-stone-900 rounded-2xl border shadow-sm p-5 space-y-4 ${connected ? 'border-green-200' : 'border-stone-100 dark:border-stone-800'}`}>
+                <div
+                  key={platform.id}
+                  className={`bg-white dark:bg-stone-900 rounded-2xl border shadow-sm p-5 space-y-4 ${connected ? 'border-green-200' : 'border-stone-100 dark:border-stone-800'}`}
+                >
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 ${platform.color} rounded-xl flex items-center justify-center`}>
+                      <div
+                        className={`w-10 h-10 ${platform.color} rounded-xl flex items-center justify-center`}
+                      >
                         <platform.icon size={20} className="text-white" />
                       </div>
                       <div>
-                        <p className="font-semibold text-stone-900 dark:text-stone-100">{platform.name}</p>
+                        <p className="font-semibold text-stone-900 dark:text-stone-100">
+                          {platform.name}
+                        </p>
                         {platform.comingSoon && (
-                          <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">Bientôt</span>
+                          <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">
+                            Bientôt
+                          </span>
                         )}
                       </div>
                     </div>
@@ -248,14 +316,24 @@ export default function IntegrationsPage() {
                     )}
                   </div>
 
-                  <p className="text-xs text-stone-500 dark:text-stone-400">{platform.description}</p>
+                  <p className="text-xs text-stone-500 dark:text-stone-400">
+                    {platform.description}
+                  </p>
 
                   {connected && (
                     <div className="bg-stone-50 rounded-xl p-3 space-y-1 text-xs text-stone-500 dark:text-stone-400">
-                      <p><span className="font-medium">Boutique:</span> {connected.identifier}</p>
-                      <p><span className="font-medium">Commandes sync:</span> {connected.orders_synced}</p>
+                      <p>
+                        <span className="font-medium">Boutique:</span> {connected.identifier}
+                      </p>
+                      <p>
+                        <span className="font-medium">Commandes sync:</span>{' '}
+                        {connected.orders_synced}
+                      </p>
                       {connected.last_sync && (
-                        <p><span className="font-medium">Dernière sync:</span> {new Date(connected.last_sync).toLocaleDateString('fr-FR')}</p>
+                        <p>
+                          <span className="font-medium">Dernière sync:</span>{' '}
+                          {new Date(connected.last_sync).toLocaleDateString('fr-FR')}
+                        </p>
                       )}
                     </div>
                   )}
@@ -287,16 +365,32 @@ export default function IntegrationsPage() {
         <div className="bg-stone-50 rounded-2xl border border-stone-100 dark:border-stone-800 p-5 space-y-3">
           <div className="flex items-center gap-2">
             <Package size={16} className="text-stone-500 dark:text-stone-400" />
-            <p className="font-semibold text-stone-700 dark:text-stone-200">Comment ça fonctionne</p>
+            <p className="font-semibold text-stone-700 dark:text-stone-200">
+              Comment ça fonctionne
+            </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-stone-500 dark:text-stone-400">
             {[
-              { n: '1', t: 'Connecter', d: 'Renseignez votre boutique et configurez le webhook dans votre plateforme.' },
-              { n: '2', t: 'Sync automatique', d: 'Chaque nouvelle commande est automatiquement importée dans Autotim.' },
-              { n: '3', t: 'Notification WhatsApp', d: 'Le client reçoit une confirmation WhatsApp dès que la commande change de statut.' },
-            ].map(item => (
+              {
+                n: '1',
+                t: 'Connecter',
+                d: 'Renseignez votre boutique et configurez le webhook dans votre plateforme.',
+              },
+              {
+                n: '2',
+                t: 'Sync automatique',
+                d: 'Chaque nouvelle commande est automatiquement importée dans Autotim.',
+              },
+              {
+                n: '3',
+                t: 'Notification WhatsApp',
+                d: 'Le client reçoit une confirmation WhatsApp dès que la commande change de statut.',
+              },
+            ].map((item) => (
               <div key={item.n} className="flex items-start gap-2.5">
-                <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center shrink-0">{item.n}</span>
+                <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center shrink-0">
+                  {item.n}
+                </span>
                 <div>
                   <p className="font-medium text-stone-700 dark:text-stone-200">{item.t}</p>
                   <p className="mt-0.5">{item.d}</p>

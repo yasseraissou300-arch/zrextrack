@@ -17,16 +17,32 @@ export default function RapportsPage() {
       const { data } = await supabase.from('orders').select('delivery_status, wilaya, cod');
       if (data) {
         const total = data.length;
-        const livre = data.filter(o => o.delivery_status === 'livre').length;
-        const echec = data.filter(o => o.delivery_status === 'echec').length;
-        const retourne = data.filter(o => o.delivery_status === 'retourne').length;
-        const en_cours = data.filter(o => ['en_preparation','en_transit','en_livraison'].includes(o.delivery_status)).length;
-        setStats({ total, livre, echec, retourne, en_cours, rate: total > 0 ? Math.round((livre / total) * 100) : 0 });
+        const livre = data.filter((o) => o.delivery_status === 'livre').length;
+        const echec = data.filter((o) => o.delivery_status === 'echec').length;
+        const retourne = data.filter((o) => o.delivery_status === 'retourne').length;
+        const en_cours = data.filter((o) =>
+          ['en_preparation', 'en_transit', 'en_livraison'].includes(o.delivery_status)
+        ).length;
+        setStats({
+          total,
+          livre,
+          echec,
+          retourne,
+          en_cours,
+          rate: total > 0 ? Math.round((livre / total) * 100) : 0,
+        });
 
         // By wilaya
         const map = new Map<string, number>();
-        data.forEach(o => { if (o.wilaya) map.set(o.wilaya, (map.get(o.wilaya) || 0) + 1); });
-        setByWilaya(Array.from(map.entries()).map(([w, n]) => ({ wilaya: w, count: n })).sort((a, b) => b.count - a.count).slice(0, 10));
+        data.forEach((o) => {
+          if (o.wilaya) map.set(o.wilaya, (map.get(o.wilaya) || 0) + 1);
+        });
+        setByWilaya(
+          Array.from(map.entries())
+            .map(([w, n]) => ({ wilaya: w, count: n }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10)
+        );
       }
       setLoading(false);
     };
@@ -42,7 +58,9 @@ export default function RapportsPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100">Rapports</h1>
-            <p className="text-sm text-stone-500 dark:text-stone-400">Statistiques et analyses de vos commandes</p>
+            <p className="text-sm text-stone-500 dark:text-stone-400">
+              Statistiques et analyses de vos commandes
+            </p>
           </div>
         </div>
 
@@ -54,10 +72,20 @@ export default function RapportsPage() {
             { label: 'En cours', value: stats.en_cours, icon: TrendingUp, color: 'amber' },
             { label: 'Échecs', value: stats.echec, icon: XCircle, color: 'red' },
             { label: 'Retours', value: stats.retourne, icon: RotateCcw, color: 'gray' },
-            { label: 'Taux livraison', value: `${stats.rate || 0}%`, icon: TrendingUp, color: 'indigo' },
-          ].map(s => (
-            <div key={s.label} className="bg-white dark:bg-stone-900 rounded-2xl p-4 shadow-sm border border-stone-100 dark:border-stone-800">
-              <p className="text-2xl font-bold text-stone-900 dark:text-stone-100">{loading ? '—' : s.value ?? 0}</p>
+            {
+              label: 'Taux livraison',
+              value: `${stats.rate || 0}%`,
+              icon: TrendingUp,
+              color: 'indigo',
+            },
+          ].map((s) => (
+            <div
+              key={s.label}
+              className="bg-white dark:bg-stone-900 rounded-2xl p-4 shadow-sm border border-stone-100 dark:border-stone-800"
+            >
+              <p className="text-2xl font-bold text-stone-900 dark:text-stone-100">
+                {loading ? '—' : (s.value ?? 0)}
+              </p>
               <p className="text-sm text-stone-500 dark:text-stone-400 mt-1">{s.label}</p>
             </div>
           ))}
@@ -66,7 +94,9 @@ export default function RapportsPage() {
         {/* Top wilayas */}
         <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 p-6">
           <h2 className="font-semibold text-stone-900 dark:text-stone-100 mb-4">Top Wilayas</h2>
-          {loading ? <p className="text-stone-400 dark:text-stone-500">Chargement...</p> : byWilaya.length === 0 ? (
+          {loading ? (
+            <p className="text-stone-400 dark:text-stone-500">Chargement...</p>
+          ) : byWilaya.length === 0 ? (
             <p className="text-stone-400 dark:text-stone-500">Aucune donnée disponible</p>
           ) : (
             <div className="space-y-3">
@@ -75,13 +105,19 @@ export default function RapportsPage() {
                   <span className="text-xs text-stone-400 dark:text-stone-500 w-4">{i + 1}</span>
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium text-stone-700 dark:text-stone-200">{w.wilaya}</span>
-                      <span className="text-sm font-bold text-stone-900 dark:text-stone-100">{w.count}</span>
+                      <span className="text-sm font-medium text-stone-700 dark:text-stone-200">
+                        {w.wilaya}
+                      </span>
+                      <span className="text-sm font-bold text-stone-900 dark:text-stone-100">
+                        {w.count}
+                      </span>
                     </div>
                     <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-indigo-500 rounded-full"
-                        style={{ width: `${Math.round((w.count / (byWilaya[0]?.count || 1)) * 100)}%` }}
+                        style={{
+                          width: `${Math.round((w.count / (byWilaya[0]?.count || 1)) * 100)}%`,
+                        }}
                       />
                     </div>
                   </div>

@@ -2,9 +2,28 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
 import {
-  Megaphone, Plus, Send, Trash2, Loader2, CheckCircle, XCircle,
-  Clock, Users, ChevronRight, X, AlertCircle, RefreshCw, ImageIcon,
-  Phone, MapPin, ShoppingBag, TrendingUp, Search, Target, ChevronDown, Check,
+  Megaphone,
+  Plus,
+  Send,
+  Trash2,
+  Loader2,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Users,
+  ChevronRight,
+  X,
+  AlertCircle,
+  RefreshCw,
+  ImageIcon,
+  Phone,
+  MapPin,
+  ShoppingBag,
+  TrendingUp,
+  Search,
+  Target,
+  ChevronDown,
+  Check,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { loadSyncSettings } from '@/lib/sync-settings-client';
@@ -34,13 +53,25 @@ const STATUS_OPTIONS = [
 const VARIABLE_HINTS = ['{{client}}', '{{tracking}}', '{{wilaya}}', '{{cod}}'];
 
 const CAMPAIGN_STATUS_CONFIG = {
-  brouillon: { label: 'Brouillon', bg: 'bg-stone-100 text-stone-600 dark:text-stone-300', icon: Clock },
+  brouillon: {
+    label: 'Brouillon',
+    bg: 'bg-stone-100 text-stone-600 dark:text-stone-300',
+    icon: Clock,
+  },
   en_cours: { label: 'En cours', bg: 'bg-blue-100 text-blue-700', icon: Loader2 },
   termine: { label: 'Terminé', bg: 'bg-green-100 text-green-700', icon: CheckCircle },
   annule: { label: 'Annulé', bg: 'bg-red-100 text-red-600', icon: XCircle },
 };
 
-function Modal({ open, onClose, children }: { open: boolean; onClose: () => void; children: React.ReactNode }) {
+function Modal({
+  open,
+  onClose,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -52,7 +83,12 @@ function Modal({ open, onClose, children }: { open: boolean; onClose: () => void
   );
 }
 
-function CreateModal({ open, onClose, onCreate, preselectedPhones }: {
+function CreateModal({
+  open,
+  onClose,
+  onCreate,
+  preselectedPhones,
+}: {
   open: boolean;
   onClose: () => void;
   onCreate: (c: Campaign) => void;
@@ -66,24 +102,37 @@ function CreateModal({ open, onClose, onCreate, preselectedPhones }: {
   // delete si l'utilisateur change d'avis avant de créer la campagne.
   const [mediaType, setMediaType] = useState('');
   const [mediaName, setMediaName] = useState('');
-  const [mediaPath, setMediaPath] = useState('');  // path dans le bucket pour le delete
+  const [mediaPath, setMediaPath] = useState(''); // path dans le bucket pour le delete
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const reset = () => {
-    setName(''); setTemplate(''); setAudienceStatus('');
-    setMediaUrl(''); setMediaType(''); setMediaName(''); setMediaPath('');
+    setName('');
+    setTemplate('');
+    setAudienceStatus('');
+    setMediaUrl('');
+    setMediaType('');
+    setMediaName('');
+    setMediaPath('');
   };
 
-  const handleClose = () => { reset(); onClose(); };
+  const handleClose = () => {
+    reset();
+    onClose();
+  };
 
   // Suppression d'un fichier uploadé (best-effort — on tolère les échecs)
   const removeMedia = async () => {
     if (mediaPath) {
-      await fetch(`/api/campaigns/media/upload?path=${encodeURIComponent(mediaPath)}`, { method: 'DELETE' }).catch(() => {});
+      await fetch(`/api/campaigns/media/upload?path=${encodeURIComponent(mediaPath)}`, {
+        method: 'DELETE',
+      }).catch(() => {});
     }
-    setMediaUrl(''); setMediaType(''); setMediaName(''); setMediaPath('');
+    setMediaUrl('');
+    setMediaType('');
+    setMediaName('');
+    setMediaPath('');
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -92,7 +141,9 @@ function CreateModal({ open, onClose, onCreate, preselectedPhones }: {
     if (!file) return;
     // Si un upload précédent existe, on le supprime pour ne pas accumuler
     if (mediaPath) {
-      await fetch(`/api/campaigns/media/upload?path=${encodeURIComponent(mediaPath)}`, { method: 'DELETE' }).catch(() => {});
+      await fetch(`/api/campaigns/media/upload?path=${encodeURIComponent(mediaPath)}`, {
+        method: 'DELETE',
+      }).catch(() => {});
     }
     setUploading(true);
     try {
@@ -118,8 +169,14 @@ function CreateModal({ open, onClose, onCreate, preselectedPhones }: {
   };
 
   const handleCreate = async () => {
-    if (!name.trim()) { toast.error('Donne un nom à la campagne'); return; }
-    if (!template.trim()) { toast.error('Le message est requis'); return; }
+    if (!name.trim()) {
+      toast.error('Donne un nom à la campagne');
+      return;
+    }
+    if (!template.trim()) {
+      toast.error('Le message est requis');
+      return;
+    }
     setSaving(true);
     const res = await fetch('/api/campaigns', {
       method: 'POST',
@@ -135,12 +192,17 @@ function CreateModal({ open, onClose, onCreate, preselectedPhones }: {
       }),
     });
     const json = await res.json();
-    if (json.error) { toast.error(json.error); }
-    else { toast.success('Campagne créée !'); onCreate(json.data); handleClose(); }
+    if (json.error) {
+      toast.error(json.error);
+    } else {
+      toast.success('Campagne créée !');
+      onCreate(json.data);
+      handleClose();
+    }
     setSaving(false);
   };
 
-  const insertVar = (v: string) => setTemplate(t => t + v);
+  const insertVar = (v: string) => setTemplate((t) => t + v);
 
   const previewText = template
     .replace(/\{\{client\}\}/g, 'محمد')
@@ -158,16 +220,21 @@ function CreateModal({ open, onClose, onCreate, preselectedPhones }: {
             </div>
             <h2 className="font-bold text-stone-900 dark:text-stone-100">Nouvelle campagne</h2>
           </div>
-          <button onClick={handleClose} className="p-1.5 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-lg">
+          <button
+            onClick={handleClose}
+            className="p-1.5 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-lg"
+          >
             <X size={16} className="text-stone-500 dark:text-stone-400" />
           </button>
         </div>
 
         <div className="space-y-1">
-          <label className="block text-xs font-medium text-stone-600 dark:text-stone-300">Nom de la campagne</label>
+          <label className="block text-xs font-medium text-stone-600 dark:text-stone-300">
+            Nom de la campagne
+          </label>
           <input
             value={name}
-            onChange={e => setName(e.target.value)}
+            onChange={(e) => setName(e.target.value)}
             placeholder="ex: Promo Ramadan, Relance échecs..."
             className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
           />
@@ -177,20 +244,30 @@ function CreateModal({ open, onClose, onCreate, preselectedPhones }: {
           <div className="bg-violet-50 dark:bg-violet-500/10 border border-violet-200 dark:border-violet-500/30 rounded-xl p-3 flex items-start gap-2.5">
             <Target size={14} className="text-violet-600 dark:text-violet-300 shrink-0 mt-0.5" />
             <div className="text-xs text-violet-900 dark:text-violet-200">
-              <p className="font-semibold">Audience pré-sélectionnée : {preselectedPhones.length} client{preselectedPhones.length > 1 ? 's' : ''} livré{preselectedPhones.length > 1 ? 's' : ''}</p>
-              <p className="text-violet-700 dark:text-violet-300 mt-0.5">Ces numéros viennent de l'explorateur ZRExpress. Le filtre par statut est ignoré.</p>
+              <p className="font-semibold">
+                Audience pré-sélectionnée : {preselectedPhones.length} client
+                {preselectedPhones.length > 1 ? 's' : ''} livré
+                {preselectedPhones.length > 1 ? 's' : ''}
+              </p>
+              <p className="text-violet-700 dark:text-violet-300 mt-0.5">
+                Ces numéros viennent de l'explorateur ZRExpress. Le filtre par statut est ignoré.
+              </p>
             </div>
           </div>
         ) : (
           <div className="space-y-1">
-            <label className="block text-xs font-medium text-stone-600 dark:text-stone-300">Audience (statut des commandes)</label>
+            <label className="block text-xs font-medium text-stone-600 dark:text-stone-300">
+              Audience (statut des commandes)
+            </label>
             <select
               value={audienceStatus}
-              onChange={e => setAudienceStatus(e.target.value)}
+              onChange={(e) => setAudienceStatus(e.target.value)}
               className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white dark:bg-stone-900"
             >
-              {STATUS_OPTIONS.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
+              {STATUS_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
               ))}
             </select>
           </div>
@@ -198,7 +275,9 @@ function CreateModal({ open, onClose, onCreate, preselectedPhones }: {
 
         <div className="space-y-1.5">
           <label className="block text-xs font-medium text-stone-600 dark:text-stone-300">
-            <span className="flex items-center gap-1.5"><ImageIcon size={12} /> Media (optionnel — photo, vidéo, audio, PDF — max 16 MB)</span>
+            <span className="flex items-center gap-1.5">
+              <ImageIcon size={12} /> Media (optionnel — photo, vidéo, audio, PDF — max 16 MB)
+            </span>
           </label>
 
           {/* Input file caché — déclenché par le bouton ou la drop zone */}
@@ -226,8 +305,12 @@ function CreateModal({ open, onClose, onCreate, preselectedPhones }: {
               ) : (
                 <div className="text-sm text-stone-500 dark:text-stone-400">
                   <ImageIcon size={20} className="mx-auto mb-1 text-stone-400" />
-                  <span className="font-medium text-violet-600">Cliquer pour choisir un fichier</span>
-                  <p className="text-[10px] text-stone-400 mt-0.5">JPG · PNG · GIF · MP4 · MOV · MP3 · PDF</p>
+                  <span className="font-medium text-violet-600">
+                    Cliquer pour choisir un fichier
+                  </span>
+                  <p className="text-[10px] text-stone-400 mt-0.5">
+                    JPG · PNG · GIF · MP4 · MOV · MP3 · PDF
+                  </p>
                 </div>
               )}
             </button>
@@ -236,7 +319,11 @@ function CreateModal({ open, onClose, onCreate, preselectedPhones }: {
             <div className="border border-stone-200 dark:border-stone-700 rounded-xl overflow-hidden bg-stone-50 dark:bg-stone-800">
               {mediaType.startsWith('image/') && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={mediaUrl} alt="aperçu" className="w-full max-h-48 object-contain bg-black/5" />
+                <img
+                  src={mediaUrl}
+                  alt="aperçu"
+                  className="w-full max-h-48 object-contain bg-black/5"
+                />
               )}
               {mediaType.startsWith('video/') && (
                 <video src={mediaUrl} controls className="w-full max-h-48 bg-black" />
@@ -250,7 +337,12 @@ function CreateModal({ open, onClose, onCreate, preselectedPhones }: {
                 </div>
               )}
               <div className="px-3 py-2 flex items-center gap-2 text-xs border-t border-stone-200 dark:border-stone-700">
-                <span className="text-stone-600 dark:text-stone-300 truncate flex-1" title={mediaName}>{mediaName}</span>
+                <span
+                  className="text-stone-600 dark:text-stone-300 truncate flex-1"
+                  title={mediaName}
+                >
+                  {mediaName}
+                </span>
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
@@ -274,9 +366,11 @@ function CreateModal({ open, onClose, onCreate, preselectedPhones }: {
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="block text-xs font-medium text-stone-600 dark:text-stone-300">Message</label>
+            <label className="block text-xs font-medium text-stone-600 dark:text-stone-300">
+              Message
+            </label>
             <div className="flex gap-1.5">
-              {VARIABLE_HINTS.map(v => (
+              {VARIABLE_HINTS.map((v) => (
                 <button
                   key={v}
                   onClick={() => insertVar(v)}
@@ -289,7 +383,7 @@ function CreateModal({ open, onClose, onCreate, preselectedPhones }: {
           </div>
           <textarea
             value={template}
-            onChange={e => setTemplate(e.target.value)}
+            onChange={(e) => setTemplate(e.target.value)}
             placeholder="السلام عليكم {{client}} 👋&#10;طردك رقم {{tracking}} وصل!&#10;شكرا على ثقتك 🙏"
             rows={5}
             dir="rtl"
@@ -329,8 +423,7 @@ function CreateModal({ open, onClose, onCreate, preselectedPhones }: {
                 className="px-3 py-4 min-h-[140px]"
                 style={{
                   backgroundColor: '#ECE5DD',
-                  backgroundImage:
-                    'radial-gradient(rgba(0,0,0,0.04) 1px, transparent 1px)',
+                  backgroundImage: 'radial-gradient(rgba(0,0,0,0.04) 1px, transparent 1px)',
                   backgroundSize: '12px 12px',
                 }}
               >
@@ -342,25 +435,45 @@ function CreateModal({ open, onClose, onCreate, preselectedPhones }: {
                       <div className="mb-1.5 rounded-lg overflow-hidden bg-white/40 border border-black/5">
                         {/\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(mediaUrl) ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={mediaUrl} alt="media" className="w-full max-h-40 object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                          <img
+                            src={mediaUrl}
+                            alt="media"
+                            className="w-full max-h-40 object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
                         ) : (
                           <div className="px-3 py-4 text-center text-[10px] text-stone-600">
                             <ImageIcon size={20} className="mx-auto mb-1 text-stone-400" />
-                            Pièce jointe : {mediaUrl.slice(0, 40)}{mediaUrl.length > 40 ? '…' : ''}
+                            Pièce jointe : {mediaUrl.slice(0, 40)}
+                            {mediaUrl.length > 40 ? '…' : ''}
                           </div>
                         )}
                       </div>
                     )}
 
                     {/* Texte du message */}
-                    <p className="text-sm text-[#111] whitespace-pre-line leading-relaxed text-right" dir="rtl">
+                    <p
+                      className="text-sm text-[#111] whitespace-pre-line leading-relaxed text-right"
+                      dir="rtl"
+                    >
                       {previewText}
                     </p>
 
                     {/* Heure + double check WhatsApp */}
                     <div className="flex items-center justify-end gap-1 mt-1 -mb-0.5">
-                      <span className="text-[10px] text-stone-500">{new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
-                      <svg viewBox="0 0 16 11" className="w-3.5 h-3 text-[#4FC3F7]" fill="currentColor">
+                      <span className="text-[10px] text-stone-500">
+                        {new Date().toLocaleTimeString('fr-FR', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                      <svg
+                        viewBox="0 0 16 11"
+                        className="w-3.5 h-3 text-[#4FC3F7]"
+                        fill="currentColor"
+                      >
                         <path d="M11.071.653a.457.457 0 00-.304-.13c-.146 0-.286.063-.379.18l-5.846 7.43-2.405-2.516a.456.456 0 00-.66.005l-.61.625a.5.5 0 00-.005.692l3.354 3.504c.1.105.243.166.387.166.142 0 .284-.061.385-.166L12.166 1.94a.5.5 0 00.014-.692l-.61-.612a.518.518 0 00-.5-.04zM7.385 9.32l-.61-.611a.5.5 0 00-.014.692l3.354 3.504c.1.105.243.166.387.166.142 0 .284-.061.385-.166L16.166 5.94a.5.5 0 00.014-.692l-.61-.612a.518.518 0 00-.5-.04.457.457 0 00-.304-.13c-.146 0-.286.063-.379.18l-5.846 7.43-1.156-1.21z" />
                       </svg>
                     </div>
@@ -375,7 +488,8 @@ function CreateModal({ open, onClose, onCreate, preselectedPhones }: {
             </div>
 
             <p className="text-[10px] text-stone-400">
-              ⚠️ Le message réel utilisera les vraies données du client (nom, tracking, wilaya, COD).
+              ⚠️ Le message réel utilisera les vraies données du client (nom, tracking, wilaya,
+              COD).
             </p>
           </div>
         )}
@@ -401,7 +515,12 @@ function CreateModal({ open, onClose, onCreate, preselectedPhones }: {
   );
 }
 
-function CampaignCard({ campaign, onDelete, onSend, onView }: {
+function CampaignCard({
+  campaign,
+  onDelete,
+  onSend,
+  onView,
+}: {
   campaign: Campaign;
   onDelete: (id: string) => void;
   onSend: (id: string) => void;
@@ -409,28 +528,41 @@ function CampaignCard({ campaign, onDelete, onSend, onView }: {
 }) {
   const cfg = CAMPAIGN_STATUS_CONFIG[campaign.status];
   const Icon = cfg.icon;
-  const audienceLabel = STATUS_OPTIONS.find(o => o.value === campaign.audience_status)?.label || 'Tous';
-  const successRate = campaign.total_count > 0
-    ? Math.round((campaign.sent_count / campaign.total_count) * 100)
-    : null;
+  const audienceLabel =
+    STATUS_OPTIONS.find((o) => o.value === campaign.audience_status)?.label || 'Tous';
+  const successRate =
+    campaign.total_count > 0
+      ? Math.round((campaign.sent_count / campaign.total_count) * 100)
+      : null;
 
   return (
     <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5 space-y-4 hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-stone-900 dark:text-stone-100 truncate">{campaign.name}</h3>
+          <h3 className="font-semibold text-stone-900 dark:text-stone-100 truncate">
+            {campaign.name}
+          </h3>
           <p className="text-xs text-stone-400 dark:text-stone-500 mt-0.5">
-            {new Date(campaign.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
+            {new Date(campaign.created_at).toLocaleDateString('fr-FR', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric',
+            })}
           </p>
         </div>
-        <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full shrink-0 ${cfg.bg}`}>
+        <span
+          className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full shrink-0 ${cfg.bg}`}
+        >
           <Icon size={11} className={campaign.status === 'en_cours' ? 'animate-spin' : ''} />
           {cfg.label}
         </span>
       </div>
 
       <div className="bg-stone-50 rounded-xl p-3">
-        <p className="text-xs text-stone-500 dark:text-stone-400 line-clamp-2 text-right leading-relaxed" dir="rtl">
+        <p
+          className="text-xs text-stone-500 dark:text-stone-400 line-clamp-2 text-right leading-relaxed"
+          dir="rtl"
+        >
           {campaign.message_template}
         </p>
       </div>
@@ -492,16 +624,27 @@ function CampaignCard({ campaign, onDelete, onSend, onView }: {
   );
 }
 
-function DetailModal({ campaignId, open, onClose }: { campaignId: string | null; open: boolean; onClose: () => void }) {
+function DetailModal({
+  campaignId,
+  open,
+  onClose,
+}: {
+  campaignId: string | null;
+  open: boolean;
+  onClose: () => void;
+}) {
   const [data, setData] = useState<{ campaign: Campaign; recipients: any[] } | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!campaignId || !open) { setData(null); return; }
+    if (!campaignId || !open) {
+      setData(null);
+      return;
+    }
     setLoading(true);
     fetch(`/api/campaigns/${campaignId}`)
-      .then(r => r.json())
-      .then(j => setData(j))
+      .then((r) => r.json())
+      .then((j) => setData(j))
       .finally(() => setLoading(false));
   }, [campaignId, open]);
 
@@ -516,19 +659,26 @@ function DetailModal({ campaignId, open, onClose }: { campaignId: string | null;
       <div className="p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="font-bold text-stone-900 dark:text-stone-100">Détails de la campagne</h2>
-          <button onClick={onClose} className="p-1.5 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-lg">
+          <button
+            onClick={onClose}
+            className="p-1.5 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-lg"
+          >
             <X size={16} className="text-stone-500 dark:text-stone-400" />
           </button>
         </div>
         {loading ? (
-          <div className="flex justify-center py-12"><Loader2 size={24} className="animate-spin text-stone-400 dark:text-stone-500" /></div>
+          <div className="flex justify-center py-12">
+            <Loader2 size={24} className="animate-spin text-stone-400 dark:text-stone-500" />
+          </div>
         ) : !data ? (
           <p className="text-center text-stone-400 dark:text-stone-500 py-8">Aucune donnée</p>
         ) : (
           <>
             <div className="grid grid-cols-3 gap-3">
               <div className="bg-stone-50 rounded-xl p-3 text-center">
-                <p className="text-xl font-bold text-stone-900 dark:text-stone-100">{data.campaign.total_count}</p>
+                <p className="text-xl font-bold text-stone-900 dark:text-stone-100">
+                  {data.campaign.total_count}
+                </p>
                 <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">Total</p>
               </div>
               <div className="bg-green-50 rounded-xl p-3 text-center">
@@ -542,18 +692,32 @@ function DetailModal({ campaignId, open, onClose }: { campaignId: string | null;
             </div>
             <div className="max-h-80 overflow-y-auto divide-y divide-stone-50 dark:divide-stone-800 rounded-xl border border-stone-100 dark:border-stone-800">
               {data.recipients.length === 0 ? (
-                <p className="text-center text-stone-400 dark:text-stone-500 py-8 text-sm">Aucun destinataire</p>
-              ) : data.recipients.map((r: any) => (
-                <div key={r.id} className="p-3 flex items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-stone-900 dark:text-stone-100 truncate">{r.client}</p>
-                    <p className="text-xs text-stone-400 dark:text-stone-500">{r.phone} {r.tracking && `· ${r.tracking}`}</p>
+                <p className="text-center text-stone-400 dark:text-stone-500 py-8 text-sm">
+                  Aucun destinataire
+                </p>
+              ) : (
+                data.recipients.map((r: any) => (
+                  <div key={r.id} className="p-3 flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-stone-900 dark:text-stone-100 truncate">
+                        {r.client}
+                      </p>
+                      <p className="text-xs text-stone-400 dark:text-stone-500">
+                        {r.phone} {r.tracking && `· ${r.tracking}`}
+                      </p>
+                    </div>
+                    <span
+                      className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${statusCfg[r.status] || statusCfg.en_attente}`}
+                    >
+                      {r.status === 'envoye'
+                        ? 'Envoyé'
+                        : r.status === 'echec'
+                          ? 'Échec'
+                          : 'Attente'}
+                    </span>
                   </div>
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${statusCfg[r.status] || statusCfg.en_attente}`}>
-                    {r.status === 'envoye' ? 'Envoyé' : r.status === 'echec' ? 'Échec' : 'Attente'}
-                  </span>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </>
         )}
@@ -581,15 +745,17 @@ export default function CampagnesPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchCampaigns(); }, [fetchCampaigns]);
+  useEffect(() => {
+    fetchCampaigns();
+  }, [fetchCampaigns]);
 
-  const handleCreate = (c: Campaign) => setCampaigns(prev => [c, ...prev]);
+  const handleCreate = (c: Campaign) => setCampaigns((prev) => [c, ...prev]);
 
   const handleDelete = async (id: string) => {
     if (!confirm('Supprimer cette campagne ?')) return;
     const res = await fetch(`/api/campaigns/${id}`, { method: 'DELETE' });
     if (res.ok) {
-      setCampaigns(prev => prev.filter(c => c.id !== id));
+      setCampaigns((prev) => prev.filter((c) => c.id !== id));
       toast.success('Campagne supprimée');
     } else {
       toast.error('Erreur lors de la suppression');
@@ -598,21 +764,30 @@ export default function CampagnesPage() {
 
   const handleSend = async (id: string) => {
     setSendingId(id);
-    setCampaigns(prev => prev.map(c => c.id === id ? { ...c, status: 'en_cours' } : c));
+    setCampaigns((prev) => prev.map((c) => (c.id === id ? { ...c, status: 'en_cours' } : c)));
     const res = await fetch(`/api/campaigns/${id}/send`, { method: 'POST' });
     const json = await res.json();
     if (json.error) {
-      toast.error(json.error);
-      setCampaigns(prev => prev.map(c => c.id === id ? { ...c, status: 'brouillon' } : c));
+      toast.error(json.error + (json.hint ? `\n${json.hint}` : ''), { duration: 10000 });
+      setCampaigns((prev) => prev.map((c) => (c.id === id ? { ...c, status: 'brouillon' } : c)));
     } else {
-      toast.success(`${json.sent} messages envoyés sur ${json.total}`);
+      // Phase 1 : l'envoi est désormais asynchrone. La route met la campagne en
+      // file et répond immédiatement — elle ne peut plus annoncer un nombre de
+      // messages envoyés, puisqu'ils partent en arrière-plan, espacés.
+      toast.success(json.message ?? 'Campagne mise en file — les envois partent en arrière-plan.', {
+        description:
+          json.remainingToday != null
+            ? `Quota du jour : ${json.sentToday}/${json.dailyLimit} · ${json.remainingToday} restant(s)`
+            : undefined,
+        duration: 9000,
+      });
       await fetchCampaigns();
     }
     setSendingId(null);
   };
 
-  const brouillons = campaigns.filter(c => c.status === 'brouillon');
-  const terminees = campaigns.filter(c => c.status !== 'brouillon');
+  const brouillons = campaigns.filter((c) => c.status === 'brouillon');
+  const terminees = campaigns.filter((c) => c.status !== 'brouillon');
 
   const onLaunchCampaignFromList = (phones: string[]) => {
     setPreselectedPhones(phones);
@@ -630,11 +805,16 @@ export default function CampagnesPage() {
             </div>
             <div>
               <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100">Campagnes</h1>
-              <p className="text-sm text-stone-500 dark:text-stone-400">Envois groupés WhatsApp ciblés</p>
+              <p className="text-sm text-stone-500 dark:text-stone-400">
+                Envois groupés WhatsApp ciblés
+              </p>
             </div>
           </div>
           <button
-            onClick={() => { setPreselectedPhones(null); setCreateOpen(true); }}
+            onClick={() => {
+              setPreselectedPhones(null);
+              setCreateOpen(true);
+            }}
             className="flex items-center gap-2 bg-green-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-green-700 transition-colors"
           >
             <Plus size={16} />
@@ -672,78 +852,92 @@ export default function CampagnesPage() {
           <DeliveredCustomersTab onCreateCampaign={onLaunchCampaignFromList} />
         ) : (
           <>
-        {/* Info variables */}
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-start gap-3">
-          <AlertCircle size={16} className="text-blue-500 shrink-0 mt-0.5" />
-          <div className="text-sm text-blue-700">
-            <span className="font-medium">Variables disponibles dans les messages :</span>
-            <span className="ml-2">
-              {VARIABLE_HINTS.map(v => (
-                <code key={v} className="mx-1 bg-blue-100 px-1.5 py-0.5 rounded text-blue-800 text-xs font-mono">{v}</code>
-              ))}
-            </span>
-          </div>
-        </div>
+            {/* Info variables */}
+            <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-start gap-3">
+              <AlertCircle size={16} className="text-blue-500 shrink-0 mt-0.5" />
+              <div className="text-sm text-blue-700">
+                <span className="font-medium">Variables disponibles dans les messages :</span>
+                <span className="ml-2">
+                  {VARIABLE_HINTS.map((v) => (
+                    <code
+                      key={v}
+                      className="mx-1 bg-blue-100 px-1.5 py-0.5 rounded text-blue-800 text-xs font-mono"
+                    >
+                      {v}
+                    </code>
+                  ))}
+                </span>
+              </div>
+            </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 size={24} className="animate-spin text-stone-400 dark:text-stone-500" />
-          </div>
-        ) : campaigns.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-stone-400 dark:text-stone-500">
-            <Megaphone size={40} className="mb-3 opacity-20" />
-            <p className="text-base font-medium text-stone-500 dark:text-stone-400">Aucune campagne</p>
-            <p className="text-sm mt-1">Crée ta première campagne WhatsApp</p>
-            <button
-              onClick={() => setCreateOpen(true)}
-              className="mt-4 flex items-center gap-2 bg-green-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-green-700"
-            >
-              <Plus size={15} /> Créer une campagne
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {brouillons.length > 0 && (
-              <div className="space-y-3">
-                <h2 className="text-sm font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide">Prêtes à envoyer ({brouillons.length})</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {brouillons.map(c => (
-                    <CampaignCard
-                      key={c.id}
-                      campaign={sendingId === c.id ? { ...c, status: 'en_cours' } : c}
-                      onDelete={handleDelete}
-                      onSend={handleSend}
-                      onView={id => setDetailId(id)}
-                    />
-                  ))}
-                </div>
+            {loading ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 size={24} className="animate-spin text-stone-400 dark:text-stone-500" />
+              </div>
+            ) : campaigns.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-stone-400 dark:text-stone-500">
+                <Megaphone size={40} className="mb-3 opacity-20" />
+                <p className="text-base font-medium text-stone-500 dark:text-stone-400">
+                  Aucune campagne
+                </p>
+                <p className="text-sm mt-1">Crée ta première campagne WhatsApp</p>
+                <button
+                  onClick={() => setCreateOpen(true)}
+                  className="mt-4 flex items-center gap-2 bg-green-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-green-700"
+                >
+                  <Plus size={15} /> Créer une campagne
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {brouillons.length > 0 && (
+                  <div className="space-y-3">
+                    <h2 className="text-sm font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide">
+                      Prêtes à envoyer ({brouillons.length})
+                    </h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                      {brouillons.map((c) => (
+                        <CampaignCard
+                          key={c.id}
+                          campaign={sendingId === c.id ? { ...c, status: 'en_cours' } : c}
+                          onDelete={handleDelete}
+                          onSend={handleSend}
+                          onView={(id) => setDetailId(id)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {terminees.length > 0 && (
+                  <div className="space-y-3">
+                    <h2 className="text-sm font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide">
+                      Historique ({terminees.length})
+                    </h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                      {terminees.map((c) => (
+                        <CampaignCard
+                          key={c.id}
+                          campaign={c}
+                          onDelete={handleDelete}
+                          onSend={handleSend}
+                          onView={(id) => setDetailId(id)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
-            {terminees.length > 0 && (
-              <div className="space-y-3">
-                <h2 className="text-sm font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide">Historique ({terminees.length})</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {terminees.map(c => (
-                    <CampaignCard
-                      key={c.id}
-                      campaign={c}
-                      onDelete={handleDelete}
-                      onSend={handleSend}
-                      onView={id => setDetailId(id)}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
           </>
         )}
       </div>
 
       <CreateModal
         open={createOpen}
-        onClose={() => { setCreateOpen(false); setPreselectedPhones(null); }}
+        onClose={() => {
+          setCreateOpen(false);
+          setPreselectedPhones(null);
+        }}
         onCreate={handleCreate}
         preselectedPhones={preselectedPhones}
       />
@@ -777,7 +971,11 @@ interface DeliveredStats {
   by_gender: { female: number; male: number; unknown: number };
 }
 
-function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones: string[]) => void }) {
+function DeliveredCustomersTab({
+  onCreateCampaign,
+}: {
+  onCreateCampaign: (phones: string[]) => void;
+}) {
   const [customers, setCustomers] = useState<DeliveredCustomer[]>([]);
   const [stats, setStats] = useState<DeliveredStats | null>(null);
   const [loading, setLoading] = useState(false);
@@ -800,7 +998,7 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
   const [filterGender, setFilterGender] = useState<'all' | 'F' | 'M' | 'unknown'>('all');
 
   useEffect(() => {
-    loadSyncSettings().then(s => {
+    loadSyncSettings().then((s) => {
       setCredentialsReady(!!s.zrexpress_token && !!s.zrexpress_tenant_id);
     });
   }, []);
@@ -838,51 +1036,69 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
 
   const filtered = useMemo(() => {
     let list = customers;
-    if (onlyRepeat) list = list.filter(c => c.order_count >= 2);
-    if (filterWilaya) list = list.filter(c => c.wilaya === filterWilaya);
+    if (onlyRepeat) list = list.filter((c) => c.order_count >= 2);
+    if (filterWilaya) list = list.filter((c) => c.wilaya === filterWilaya);
     // Multi-produit : OR logique — le client passe si AU MOINS un de ses
     // produits est dans la sélection. Filtre inactif quand Set vide.
     if (filterProducts.size > 0) {
-      list = list.filter(c => c.products.some(p => filterProducts.has(p)));
+      list = list.filter((c) => c.products.some((p) => filterProducts.has(p)));
     }
-    if (filterGender !== 'all') list = list.filter(c => c.gender === filterGender);
+    if (filterGender !== 'all') list = list.filter((c) => c.gender === filterGender);
     if (search.trim()) {
       const q = search.toLowerCase();
-      list = list.filter(c =>
-        c.name.toLowerCase().includes(q) ||
-        c.phone.includes(q) ||
-        c.wilaya.toLowerCase().includes(q) ||
-        c.products.some(p => p.toLowerCase().includes(q))
+      list = list.filter(
+        (c) =>
+          c.name.toLowerCase().includes(q) ||
+          c.phone.includes(q) ||
+          c.wilaya.toLowerCase().includes(q) ||
+          c.products.some((p) => p.toLowerCase().includes(q))
       );
     }
     return list;
   }, [customers, search, onlyRepeat, filterWilaya, filterProducts, filterGender]);
 
   const toggleOne = (phone: string) => {
-    setSelected(s => {
+    setSelected((s) => {
       const n = new Set(s);
-      if (n.has(phone)) n.delete(phone); else n.add(phone);
+      if (n.has(phone)) n.delete(phone);
+      else n.add(phone);
       return n;
     });
   };
 
   const toggleAllVisible = () => {
-    const visiblePhones = filtered.map(c => c.phone);
-    const allSelected = visiblePhones.every(p => selected.has(p));
-    setSelected(s => {
+    const visiblePhones = filtered.map((c) => c.phone);
+    const allSelected = visiblePhones.every((p) => selected.has(p));
+    setSelected((s) => {
       const n = new Set(s);
-      if (allSelected) visiblePhones.forEach(p => n.delete(p));
-      else visiblePhones.forEach(p => n.add(p));
+      if (allSelected) visiblePhones.forEach((p) => n.delete(p));
+      else visiblePhones.forEach((p) => n.add(p));
       return n;
     });
   };
 
   const exportCSV = () => {
-    const target = selected.size > 0 ? filtered.filter(c => selected.has(c.phone)) : filtered;
-    if (target.length === 0) { toast.error('Rien à exporter'); return; }
-    const header = ['Téléphone', 'Nom', 'Genre', 'Wilaya', 'Produits', 'Nb livraisons', 'Total dépensé (DA)', 'Dernière livraison'];
-    const genderLabel: Record<DeliveredCustomer['gender'], string> = { F: 'Femme', M: 'Homme', unknown: '?' };
-    const rows = target.map(c => [
+    const target = selected.size > 0 ? filtered.filter((c) => selected.has(c.phone)) : filtered;
+    if (target.length === 0) {
+      toast.error('Rien à exporter');
+      return;
+    }
+    const header = [
+      'Téléphone',
+      'Nom',
+      'Genre',
+      'Wilaya',
+      'Produits',
+      'Nb livraisons',
+      'Total dépensé (DA)',
+      'Dernière livraison',
+    ];
+    const genderLabel: Record<DeliveredCustomer['gender'], string> = {
+      F: 'Femme',
+      M: 'Homme',
+      unknown: '?',
+    };
+    const rows = target.map((c) => [
       c.phone,
       c.name,
       genderLabel[c.gender],
@@ -893,7 +1109,7 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
       new Date(c.last_delivery).toLocaleString('fr-FR'),
     ]);
     const esc = (v: string) => `"${String(v).replace(/"/g, '""')}"`;
-    const csv = [header, ...rows].map(r => r.map(esc).join(',')).join('\n');
+    const csv = [header, ...rows].map((r) => r.map(esc).join(',')).join('\n');
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -901,7 +1117,9 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
     a.download = `clients-livres-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success(`${target.length} client${target.length > 1 ? 's' : ''} exporté${target.length > 1 ? 's' : ''}`);
+    toast.success(
+      `${target.length} client${target.length > 1 ? 's' : ''} exporté${target.length > 1 ? 's' : ''}`
+    );
   };
 
   const launchCampaign = () => {
@@ -921,7 +1139,9 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
         <div className="text-sm text-green-900 dark:text-green-200">
           <p className="font-medium">Cible tes vrais clients</p>
           <p className="text-xs text-green-700 dark:text-green-300 mt-0.5">
-            Cette liste vient directement de ZRExpress et ne contient que les clients ayant reçu leur livraison (status « livré »). Idéal pour les campagnes de fidélisation, lancement de nouveaux produits, ou récompense de clients fidèles.
+            Cette liste vient directement de ZRExpress et ne contient que les clients ayant reçu
+            leur livraison (status « livré »). Idéal pour les campagnes de fidélisation, lancement
+            de nouveaux produits, ou récompense de clients fidèles.
           </p>
         </div>
       </div>
@@ -929,7 +1149,11 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
       {!credentialsReady && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
           <AlertCircle className="inline-block mr-2" size={16} />
-          Clé API ZRExpress manquante. Configure-la sur la page <a href="/sync" className="underline font-medium">Sync</a>.
+          Clé API ZRExpress manquante. Configure-la sur la page{' '}
+          <a href="/sync" className="underline font-medium">
+            Sync
+          </a>
+          .
         </div>
       )}
 
@@ -937,7 +1161,9 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
       {customers.length === 0 && !loading && credentialsReady && !error && (
         <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 p-6 text-center">
           <Target size={32} className="mx-auto text-stone-300 mb-3" />
-          <p className="text-sm text-stone-700 dark:text-stone-200 mb-3">Charge la liste de tes clients livrés depuis ZRExpress.</p>
+          <p className="text-sm text-stone-700 dark:text-stone-200 mb-3">
+            Charge la liste de tes clients livrés depuis ZRExpress.
+          </p>
           <button
             onClick={fetchData}
             disabled={loading}
@@ -952,7 +1178,9 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">
           <strong>Erreur :</strong> {error}
-          <button onClick={fetchData} className="ml-3 underline">Réessayer</button>
+          <button onClick={fetchData} className="ml-3 underline">
+            Réessayer
+          </button>
         </div>
       )}
 
@@ -966,15 +1194,39 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
         <>
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <StatBox icon={<Users size={14} />} label="Clients uniques" value={stats.total_customers} color="text-green-700 bg-green-50" />
-            <StatBox icon={<ShoppingBag size={14} />} label="Commandes livrées" value={stats.total_orders} color="text-blue-700 bg-blue-50" />
-            <StatBox icon={<TrendingUp size={14} />} label="Total facturé" value={`${stats.total_revenue.toFixed(0)} DA`} color="text-violet-700 bg-violet-50" />
-            <StatBox icon={<RefreshCw size={14} />} label="Clients fidèles (≥2)" value={stats.repeat_customers} color="text-amber-700 bg-amber-50" />
+            <StatBox
+              icon={<Users size={14} />}
+              label="Clients uniques"
+              value={stats.total_customers}
+              color="text-green-700 bg-green-50"
+            />
+            <StatBox
+              icon={<ShoppingBag size={14} />}
+              label="Commandes livrées"
+              value={stats.total_orders}
+              color="text-blue-700 bg-blue-50"
+            />
+            <StatBox
+              icon={<TrendingUp size={14} />}
+              label="Total facturé"
+              value={`${stats.total_revenue.toFixed(0)} DA`}
+              color="text-violet-700 bg-violet-50"
+            />
+            <StatBox
+              icon={<RefreshCw size={14} />}
+              label="Clients fidèles (≥2)"
+              value={stats.repeat_customers}
+              color="text-amber-700 bg-amber-50"
+            />
           </div>
 
           {/* Diagnostic : breakdown des états ZRExpress trouvés */}
           {stateBreakdown && (
-            <details className="bg-stone-50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700 rounded-xl text-xs" open={showBreakdown} onToggle={e => setShowBreakdown((e.target as HTMLDetailsElement).open)}>
+            <details
+              className="bg-stone-50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700 rounded-xl text-xs"
+              open={showBreakdown}
+              onToggle={(e) => setShowBreakdown((e.target as HTMLDetailsElement).open)}
+            >
               <summary className="cursor-pointer px-3 py-2 text-stone-600 dark:text-stone-300 flex items-center gap-2 select-none">
                 <AlertCircle size={12} />
                 <span>Voir les états ZRExpress comptabilisés</span>
@@ -982,27 +1234,45 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
               </summary>
               <div className="px-3 pb-3 pt-1 space-y-2">
                 <p className="text-stone-500 dark:text-stone-400">
-                  AutoTim compte comme « livré » tous les colis dont l'état ZRExpress fait partie de cette liste :
+                  AutoTim compte comme « livré » tous les colis dont l'état ZRExpress fait partie de
+                  cette liste :
                 </p>
                 <div className="flex flex-wrap gap-1">
-                  {countedAsDelivered.map(s => (
-                    <code key={s} className="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-[10px] font-mono">{s}</code>
+                  {countedAsDelivered.map((s) => (
+                    <code
+                      key={s}
+                      className="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-[10px] font-mono"
+                    >
+                      {s}
+                    </code>
                   ))}
                 </div>
-                <p className="text-stone-500 dark:text-stone-400 mt-2">Répartition de TOUS les états trouvés dans tes colis :</p>
+                <p className="text-stone-500 dark:text-stone-400 mt-2">
+                  Répartition de TOUS les états trouvés dans tes colis :
+                </p>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5">
                   {Object.entries(stateBreakdown).map(([s, n]) => {
                     const counted = countedAsDelivered.includes(s);
                     return (
-                      <div key={s} className={`flex items-center justify-between gap-2 px-2 py-1 rounded ${counted ? 'bg-green-50 border border-green-200' : 'bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700'}`}>
-                        <code className="text-[10px] font-mono text-stone-700 dark:text-stone-200 truncate">{s}</code>
-                        <span className={`text-[10px] font-bold shrink-0 ${counted ? 'text-green-700' : 'text-stone-500'}`}>{n}</span>
+                      <div
+                        key={s}
+                        className={`flex items-center justify-between gap-2 px-2 py-1 rounded ${counted ? 'bg-green-50 border border-green-200' : 'bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700'}`}
+                      >
+                        <code className="text-[10px] font-mono text-stone-700 dark:text-stone-200 truncate">
+                          {s}
+                        </code>
+                        <span
+                          className={`text-[10px] font-bold shrink-0 ${counted ? 'text-green-700' : 'text-stone-500'}`}
+                        >
+                          {n}
+                        </span>
                       </div>
                     );
                   })}
                 </div>
                 <p className="text-[10px] text-stone-400 mt-2 italic">
-                  Si un état que tu considères comme « livré » est ici en gris (non comptabilisé), envoie-moi un screenshot pour qu'on l'ajoute.
+                  Si un état que tu considères comme « livré » est ici en gris (non comptabilisé),
+                  envoie-moi un screenshot pour qu'on l'ajoute.
                 </p>
               </div>
             </details>
@@ -1013,15 +1283,22 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
             {/* Ligne 1 : recherche + actions */}
             <div className="flex items-center gap-3 flex-wrap">
               <div className="relative flex-1 min-w-[200px]">
-                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+                <Search
+                  size={13}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"
+                />
                 <input
                   value={search}
-                  onChange={e => setSearch(e.target.value)}
+                  onChange={(e) => setSearch(e.target.value)}
                   placeholder="Chercher par nom, téléphone, wilaya, produit…"
                   className="w-full pl-9 pr-3 py-2 text-sm border border-stone-200 dark:border-stone-700 rounded-xl bg-white dark:bg-stone-900 focus:outline-none focus:ring-2 focus:ring-green-500/30"
                 />
               </div>
-              <button onClick={fetchData} className="p-2 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-lg" title="Recharger">
+              <button
+                onClick={fetchData}
+                className="p-2 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-lg"
+                title="Recharger"
+              >
                 <RefreshCw size={14} className="text-stone-500" />
               </button>
               <button
@@ -1046,11 +1323,15 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
 
               <select
                 value={filterWilaya}
-                onChange={e => setFilterWilaya(e.target.value)}
+                onChange={(e) => setFilterWilaya(e.target.value)}
                 className="px-2 py-1.5 border border-stone-200 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-900 text-stone-700 dark:text-stone-200"
               >
                 <option value="">Toutes wilayas ({wilayas.length})</option>
-                {wilayas.map(w => <option key={w} value={w}>{w}</option>)}
+                {wilayas.map((w) => (
+                  <option key={w} value={w}>
+                    {w}
+                  </option>
+                ))}
               </select>
 
               <ProductsMultiSelect
@@ -1059,10 +1340,9 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
                 onChange={setFilterProducts}
               />
 
-
               <select
                 value={filterGender}
-                onChange={e => setFilterGender(e.target.value as 'all' | 'F' | 'M' | 'unknown')}
+                onChange={(e) => setFilterGender(e.target.value as 'all' | 'F' | 'M' | 'unknown')}
                 className="px-2 py-1.5 border border-stone-200 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-900 text-stone-700 dark:text-stone-200"
               >
                 <option value="all">Tous genres</option>
@@ -1072,13 +1352,25 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
               </select>
 
               <label className="flex items-center gap-1.5 text-stone-600 dark:text-stone-300 cursor-pointer select-none ml-1">
-                <input type="checkbox" checked={onlyRepeat} onChange={e => setOnlyRepeat(e.target.checked)} />
+                <input
+                  type="checkbox"
+                  checked={onlyRepeat}
+                  onChange={(e) => setOnlyRepeat(e.target.checked)}
+                />
                 Fidèles (≥ 2)
               </label>
 
-              {(filterWilaya || filterProducts.size > 0 || filterGender !== 'all' || onlyRepeat) && (
+              {(filterWilaya ||
+                filterProducts.size > 0 ||
+                filterGender !== 'all' ||
+                onlyRepeat) && (
                 <button
-                  onClick={() => { setFilterWilaya(''); setFilterProducts(new Set()); setFilterGender('all'); setOnlyRepeat(false); }}
+                  onClick={() => {
+                    setFilterWilaya('');
+                    setFilterProducts(new Set());
+                    setFilterGender('all');
+                    setOnlyRepeat(false);
+                  }}
                   className="text-stone-500 hover:text-stone-700 underline ml-2"
                 >
                   Réinitialiser
@@ -1100,18 +1392,32 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
                     <th className="px-3 py-3 text-left w-8">
                       <input
                         type="checkbox"
-                        checked={filtered.length > 0 && filtered.every(c => selected.has(c.phone))}
+                        checked={
+                          filtered.length > 0 && filtered.every((c) => selected.has(c.phone))
+                        }
                         onChange={toggleAllVisible}
                         title="Tout sélectionner / désélectionner"
                       />
                     </th>
-                    {['Client', 'Wilaya', 'Produits', 'Livraisons', 'Total dépensé', 'Dernière livraison'].map(h => (
-                      <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide">{h}</th>
+                    {[
+                      'Client',
+                      'Wilaya',
+                      'Produits',
+                      'Livraisons',
+                      'Total dépensé',
+                      'Dernière livraison',
+                    ].map((h) => (
+                      <th
+                        key={h}
+                        className="px-4 py-3 text-left text-[11px] font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide"
+                      >
+                        {h}
+                      </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
-                  {filtered.map(c => {
+                  {filtered.map((c) => {
                     const isSelected = selected.has(c.phone);
                     return (
                       <tr
@@ -1119,27 +1425,40 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
                         onClick={() => toggleOne(c.phone)}
                         className={`cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-800 ${isSelected ? 'bg-green-50/50 dark:bg-green-500/5' : ''}`}
                       >
-                        <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
-                          <input type="checkbox" checked={isSelected} onChange={() => toggleOne(c.phone)} />
+                        <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleOne(c.phone)}
+                          />
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1.5">
                             {/* Pastille genre — visible si inféré, sinon vide */}
                             <span
                               className={`inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold shrink-0 ${
-                                c.gender === 'F' ? 'bg-pink-100 text-pink-700' :
-                                c.gender === 'M' ? 'bg-blue-100 text-blue-700' :
-                                'bg-stone-100 text-stone-400'
+                                c.gender === 'F'
+                                  ? 'bg-pink-100 text-pink-700'
+                                  : c.gender === 'M'
+                                    ? 'bg-blue-100 text-blue-700'
+                                    : 'bg-stone-100 text-stone-400'
                               }`}
-                              title={c.gender === 'F' ? 'Cliente femme' : c.gender === 'M' ? 'Client homme' : 'Genre non identifié'}
+                              title={
+                                c.gender === 'F'
+                                  ? 'Cliente femme'
+                                  : c.gender === 'M'
+                                    ? 'Client homme'
+                                    : 'Genre non identifié'
+                              }
                             >
                               {c.gender === 'F' ? '♀' : c.gender === 'M' ? '♂' : '?'}
                             </span>
-                            <p className="font-medium text-stone-900 dark:text-stone-100 text-xs truncate">{c.name || <span className="text-stone-400">(sans nom)</span>}</p>
+                            <p className="font-medium text-stone-900 dark:text-stone-100 text-xs truncate">
+                              {c.name || <span className="text-stone-400">(sans nom)</span>}
+                            </p>
                           </div>
                           <p className="text-[10px] text-stone-500 font-mono flex items-center gap-1 mt-0.5 ml-5">
-                            <Phone size={9} />
-                            +{c.phone}
+                            <Phone size={9} />+{c.phone}
                           </p>
                         </td>
                         <td className="px-4 py-3">
@@ -1153,17 +1472,29 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
                             <span className="text-[10px] text-stone-400">—</span>
                           ) : (
                             <div className="flex flex-wrap gap-1 max-w-[200px]">
-                              {c.products.slice(0, 2).map(p => (
-                                <span key={p} className="text-[10px] bg-violet-50 text-violet-700 px-1.5 py-0.5 rounded font-medium truncate">{p}</span>
+                              {c.products.slice(0, 2).map((p) => (
+                                <span
+                                  key={p}
+                                  className="text-[10px] bg-violet-50 text-violet-700 px-1.5 py-0.5 rounded font-medium truncate"
+                                >
+                                  {p}
+                                </span>
                               ))}
                               {c.products.length > 2 && (
-                                <span className="text-[10px] text-stone-500" title={c.products.join(', ')}>+{c.products.length - 2}</span>
+                                <span
+                                  className="text-[10px] text-stone-500"
+                                  title={c.products.join(', ')}
+                                >
+                                  +{c.products.length - 2}
+                                </span>
                               )}
                             </div>
                           )}
                         </td>
                         <td className="px-4 py-3">
-                          <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${c.order_count >= 2 ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-600'}`}>
+                          <span
+                            className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${c.order_count >= 2 ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-600'}`}
+                          >
                             {c.order_count}× livré{c.order_count > 1 ? 's' : ''}
                           </span>
                         </td>
@@ -1171,7 +1502,11 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
                           {c.total_spent.toFixed(0)} DA
                         </td>
                         <td className="px-4 py-3 text-[11px] text-stone-500">
-                          {new Date(c.last_delivery).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                          {new Date(c.last_delivery).toLocaleDateString('fr-FR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: '2-digit',
+                          })}
                         </td>
                       </tr>
                     );
@@ -1191,10 +1526,23 @@ function DeliveredCustomersTab({ onCreateCampaign }: { onCreateCampaign: (phones
   );
 }
 
-function StatBox({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number | string; color: string }) {
+function StatBox({
+  icon,
+  label,
+  value,
+  color,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number | string;
+  color: string;
+}) {
   return (
     <div className={`rounded-2xl p-3 ${color}`}>
-      <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide opacity-80">{icon}{label}</div>
+      <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide opacity-80">
+        {icon}
+        {label}
+      </div>
       <p className="text-xl font-bold mt-1">{value}</p>
     </div>
   );
@@ -1223,7 +1571,9 @@ function ProductsMultiSelect({
     const onClick = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
     document.addEventListener('mousedown', onClick);
     document.addEventListener('keydown', onKey);
     return () => {
@@ -1234,15 +1584,16 @@ function ProductsMultiSelect({
 
   const toggleOne = (p: string) => {
     const next = new Set(selected);
-    if (next.has(p)) next.delete(p); else next.add(p);
+    if (next.has(p)) next.delete(p);
+    else next.add(p);
     onChange(next);
   };
 
   const filtered = query.trim()
-    ? allProducts.filter(p => p.toLowerCase().includes(query.toLowerCase()))
+    ? allProducts.filter((p) => p.toLowerCase().includes(query.toLowerCase()))
     : allProducts;
 
-  const allFilteredSelected = filtered.length > 0 && filtered.every(p => selected.has(p));
+  const allFilteredSelected = filtered.length > 0 && filtered.every((p) => selected.has(p));
 
   const triggerLabel =
     selected.size === 0
@@ -1254,9 +1605,11 @@ function ProductsMultiSelect({
   return (
     <div ref={ref} className="relative">
       <button
-        onClick={() => setOpen(o => !o)}
+        onClick={() => setOpen((o) => !o)}
         className={`px-2.5 py-1.5 border rounded-lg bg-white dark:bg-stone-900 text-stone-700 dark:text-stone-200 flex items-center gap-1.5 min-w-[160px] max-w-[260px] ${
-          selected.size > 0 ? 'border-violet-300 bg-violet-50 dark:bg-violet-500/10' : 'border-stone-200 dark:border-stone-700'
+          selected.size > 0
+            ? 'border-violet-300 bg-violet-50 dark:bg-violet-500/10'
+            : 'border-stone-200 dark:border-stone-700'
         }`}
       >
         <span className="truncate text-left flex-1">{triggerLabel}</span>
@@ -1268,11 +1621,14 @@ function ProductsMultiSelect({
           {/* Header avec recherche + actions */}
           <div className="p-2 border-b border-stone-100 dark:border-stone-800 space-y-2">
             <div className="relative">
-              <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400" />
+              <Search
+                size={11}
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400"
+              />
               <input
                 autoFocus
                 value={query}
-                onChange={e => setQuery(e.target.value)}
+                onChange={(e) => setQuery(e.target.value)}
                 placeholder="Filtrer la liste…"
                 className="w-full pl-7 pr-2 py-1.5 text-xs border border-stone-200 dark:border-stone-700 rounded-md bg-stone-50 dark:bg-stone-800 focus:outline-none focus:ring-1 focus:ring-violet-500/30"
               />
@@ -1281,8 +1637,8 @@ function ProductsMultiSelect({
               <button
                 onClick={() => {
                   const next = new Set(selected);
-                  if (allFilteredSelected) filtered.forEach(p => next.delete(p));
-                  else filtered.forEach(p => next.add(p));
+                  if (allFilteredSelected) filtered.forEach((p) => next.delete(p));
+                  else filtered.forEach((p) => next.add(p));
                   onChange(next);
                 }}
                 className="text-violet-600 hover:text-violet-700 font-medium"
@@ -1305,7 +1661,7 @@ function ProductsMultiSelect({
             {filtered.length === 0 ? (
               <p className="text-center py-4 text-xs text-stone-400">Aucun produit</p>
             ) : (
-              filtered.map(p => {
+              filtered.map((p) => {
                 const isChecked = selected.has(p);
                 return (
                   <button
@@ -1313,7 +1669,9 @@ function ProductsMultiSelect({
                     onClick={() => toggleOne(p)}
                     className={`w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-stone-50 dark:hover:bg-stone-800 ${isChecked ? 'bg-violet-50/50 dark:bg-violet-500/5' : ''}`}
                   >
-                    <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${isChecked ? 'bg-violet-600 border-violet-600' : 'border-stone-300 dark:border-stone-600'}`}>
+                    <span
+                      className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${isChecked ? 'bg-violet-600 border-violet-600' : 'border-stone-300 dark:border-stone-600'}`}
+                    >
                       {isChecked && <Check size={10} className="text-white" />}
                     </span>
                     <span className="truncate text-stone-700 dark:text-stone-200">{p}</span>

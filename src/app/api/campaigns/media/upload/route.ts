@@ -10,42 +10,64 @@ import { createClient, createServiceClient } from '@/lib/supabase/server';
 const BUCKET = 'campaign-media';
 const MAX_SIZE = 16 * 1024 * 1024; // 16 MB — limite WhatsApp Media
 const ALLOWED_TYPES = new Set([
-  'image/jpeg', 'image/png', 'image/webp', 'image/gif',
-  'video/mp4', 'video/webm', 'video/quicktime',
-  'audio/mpeg', 'audio/ogg', 'audio/mp4',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'video/mp4',
+  'video/webm',
+  'video/quicktime',
+  'audio/mpeg',
+  'audio/ogg',
+  'audio/mp4',
   'application/pdf',
 ]);
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
 
   const formData = await req.formData().catch(() => null);
-  if (!formData) return NextResponse.json({ error: 'Formulaire multipart invalide' }, { status: 400 });
+  if (!formData)
+    return NextResponse.json({ error: 'Formulaire multipart invalide' }, { status: 400 });
 
   const file = formData.get('file');
   if (!(file instanceof File)) {
-    return NextResponse.json({ error: 'Aucun fichier fourni (champ « file » manquant)' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'Aucun fichier fourni (champ « file » manquant)' },
+      { status: 400 }
+    );
   }
 
   // Validations
   if (file.size > MAX_SIZE) {
-    return NextResponse.json({
-      error: `Fichier trop volumineux : ${(file.size / 1024 / 1024).toFixed(1)} MB. Maximum ${MAX_SIZE / 1024 / 1024} MB.`,
-      hint: 'WhatsApp refuse les médias au-delà de 16 MB. Compresse ta vidéo ou réduis la résolution.',
-    }, { status: 413 });
+    return NextResponse.json(
+      {
+        error: `Fichier trop volumineux : ${(file.size / 1024 / 1024).toFixed(1)} MB. Maximum ${MAX_SIZE / 1024 / 1024} MB.`,
+        hint: 'WhatsApp refuse les médias au-delà de 16 MB. Compresse ta vidéo ou réduis la résolution.',
+      },
+      { status: 413 }
+    );
   }
   if (!ALLOWED_TYPES.has(file.type)) {
-    return NextResponse.json({
-      error: `Type de fichier non supporté : ${file.type || 'inconnu'}`,
-      hint: 'Formats acceptés : JPG, PNG, GIF, WEBP, MP4, WEBM, MOV, MP3, OGG, PDF.',
-    }, { status: 415 });
+    return NextResponse.json(
+      {
+        error: `Type de fichier non supporté : ${file.type || 'inconnu'}`,
+        hint: 'Formats acceptés : JPG, PNG, GIF, WEBP, MP4, WEBM, MOV, MP3, OGG, PDF.',
+      },
+      { status: 415 }
+    );
   }
 
   // Construit un nom de fichier unique pour éviter les collisions et préserver
   // l'extension d'origine (utile pour l'inférence de type côté WhatsApp).
-  const ext = (file.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 5);
+  const ext = (file.name.split('.').pop() || 'bin')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .slice(0, 5);
   const stamp = Date.now();
   const rand = Math.random().toString(36).slice(2, 8);
   const objectPath = `${user.id}/${stamp}-${rand}.${ext}`;
@@ -53,13 +75,11 @@ export async function POST(req: NextRequest) {
   // Upload via le service client (bypass RLS — on a déjà vérifié l'auth ci-dessus)
   const service = createServiceClient();
   const arrayBuffer = await file.arrayBuffer();
-  const { error: upErr } = await service.storage
-    .from(BUCKET)
-    .upload(objectPath, arrayBuffer, {
-      contentType: file.type,
-      cacheControl: '3600',
-      upsert: false,
-    });
+  const { error: upErr } = await service.storage.from(BUCKET).upload(objectPath, arrayBuffer, {
+    contentType: file.type,
+    cacheControl: '3600',
+    upsert: false,
+  });
 
   if (upErr) {
     return NextResponse.json({ error: `Upload échoué : ${upErr.message}` }, { status: 500 });
@@ -83,7 +103,9 @@ export async function POST(req: NextRequest) {
 // avant de créer la campagne, pour éviter d'accumuler des fichiers orphelins).
 export async function DELETE(req: NextRequest) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
 
   const url = new URL(req.url);

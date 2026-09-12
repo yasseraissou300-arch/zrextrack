@@ -20,11 +20,20 @@ export default function ClientsPage() {
 
       if (data) {
         // Group by customer
-        const map = new Map<string, { client: string; whatsapp: string; wilaya: string; total: number; livre: number }>();
-        data.forEach(o => {
+        const map = new Map<
+          string,
+          { client: string; whatsapp: string; wilaya: string; total: number; livre: number }
+        >();
+        data.forEach((o) => {
           const key = o.customer_whatsapp || o.customer_name;
           if (!map.has(key)) {
-            map.set(key, { client: o.customer_name, whatsapp: o.customer_whatsapp, wilaya: o.wilaya, total: 0, livre: 0 });
+            map.set(key, {
+              client: o.customer_name,
+              whatsapp: o.customer_whatsapp,
+              wilaya: o.wilaya,
+              total: 0,
+              livre: 0,
+            });
           }
           const entry = map.get(key)!;
           entry.total++;
@@ -46,13 +55,17 @@ export default function ClientsPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100">Clients</h1>
-            <p className="text-sm text-stone-500 dark:text-stone-400">Tous vos clients extraits des commandes</p>
+            <p className="text-sm text-stone-500 dark:text-stone-400">
+              Tous vos clients extraits des commandes
+            </p>
           </div>
         </div>
 
         <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 overflow-hidden">
           <div className="px-6 py-4 border-b border-stone-100 dark:border-stone-800">
-            <h2 className="font-semibold text-stone-900 dark:text-stone-100">Liste clients ({clients.length})</h2>
+            <h2 className="font-semibold text-stone-900 dark:text-stone-100">
+              Liste clients ({clients.length})
+            </h2>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -67,22 +80,48 @@ export default function ClientsPage() {
               </thead>
               <tbody className="divide-y divide-stone-50 dark:divide-stone-800">
                 {loading ? (
-                  <tr><td colSpan={5} className="px-4 py-8 text-center text-stone-400 dark:text-stone-500">Chargement...</td></tr>
-                ) : clients.length === 0 ? (
-                  <tr><td colSpan={5} className="px-4 py-8 text-center text-stone-400 dark:text-stone-500">Aucun client — ajoutez des commandes d'abord</td></tr>
-                ) : clients.map((c, i) => (
-                  <tr key={i} className="hover:bg-stone-50 dark:hover:bg-stone-800">
-                    <td className="px-4 py-3 font-medium text-stone-900 dark:text-stone-100">{c.client}</td>
-                    <td className="px-4 py-3 text-stone-500 dark:text-stone-400">{c.whatsapp || '—'}</td>
-                    <td className="px-4 py-3 text-stone-500 dark:text-stone-400">{c.wilaya || '—'}</td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full">{c.total}</span>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded-full">{c.livre}</span>
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="px-4 py-8 text-center text-stone-400 dark:text-stone-500"
+                    >
+                      Chargement...
                     </td>
                   </tr>
-                ))}
+                ) : clients.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="px-4 py-8 text-center text-stone-400 dark:text-stone-500"
+                    >
+                      Aucun client — ajoutez des commandes d'abord
+                    </td>
+                  </tr>
+                ) : (
+                  clients.map((c, i) => (
+                    <tr key={i} className="hover:bg-stone-50 dark:hover:bg-stone-800">
+                      <td className="px-4 py-3 font-medium text-stone-900 dark:text-stone-100">
+                        {c.client}
+                      </td>
+                      <td className="px-4 py-3 text-stone-500 dark:text-stone-400">
+                        {c.whatsapp || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-stone-500 dark:text-stone-400">
+                        {c.wilaya || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                          {c.total}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                          {c.livre}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

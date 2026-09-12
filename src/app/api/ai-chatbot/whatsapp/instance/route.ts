@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
+import { webhookTokenQuery } from '@/lib/security/webhook-auth';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://zrextrack.vercel.app';
 
-interface EvCreds { url: string; key: string }
+interface EvCreds {
+  url: string;
+  key: string;
+}
 
 type ServiceType = 'auto_confirmation' | 'sav' | 'tracking';
 
@@ -36,7 +40,9 @@ async function evolutionRequest(ev: EvCreds, path: string, method = 'GET', body?
 // GET — return all instances for the user
 export async function GET() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   // BYOK : serveur Evolution de l'utilisateur (ou fallback plateforme)
@@ -57,7 +63,9 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const serviceSupabase = createServiceClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   // BYOK : serveur Evolution de l'utilisateur (ou fallback plateforme)
@@ -84,7 +92,8 @@ export async function POST(req: NextRequest) {
     // Set webhook separately after creation — Evolution API requires events array
     // when setting webhook (can't be done in createBody without events)
     await evolutionRequest(ev, `/webhook/set/${instanceName}`, 'POST', {
-      url: `${APP_URL}/api/ai-chatbot/webhook/whatsapp`,
+      // P0-1 : secret partagé dans l'URL (Evolution ne signe pas ses payloads).
+      url: `${APP_URL}/api/ai-chatbot/webhook/whatsapp${webhookTokenQuery('WHATSAPP_WEBHOOK_SECRET')}`,
       webhook_by_events: false,
       webhook_base64: false,
       events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],

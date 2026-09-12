@@ -32,6 +32,15 @@
       }
     ],
     "@typescript-eslint/no-explicit-any": "warn",
+    "react/no-unescaped-entities": [
+      "error",
+      {
+        "forbid": [
+          ">",
+          "}"
+        ]
+      }
+    ],
     "no-console": [
       "warn",
       {

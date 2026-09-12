@@ -8,51 +8,130 @@
 // via des listes connues. Ça permet d'extraire la variante même quand le format
 // n'a aucune structure.
 
-import type {
-  ZRParcel,
-  NormalizedParcel,
-  MatchProposal,
-  Confidence,
-} from './types';
+import type { ZRParcel, NormalizedParcel, MatchProposal, Confidence } from './types';
+import { norm } from '@/lib/zrexpress/status';
+
+// ── Lecture défensive des champs ZRExpress ──────────────────────────────────
+// L'API n'est pas cohérente sur la forme de `state` / `situation` selon les
+// endpoints (objet {name}, camelCase à plat, ou chaîne brute). La sync utilise
+// déjà ces fallbacks ; le matcher ne lisait QUE `p.state.name` et ratait donc
+// une grande partie des colis.
+function readState(p: ZRParcel): string {
+  const any = p as any;
+  return (
+    any.state?.name ||
+    any.stateName ||
+    any.status?.name ||
+    any.statusName ||
+    (typeof any.state === 'string' ? any.state : '') ||
+    (typeof any.status === 'string' ? any.status : '') ||
+    ''
+  );
+}
+
+function readSituation(p: ZRParcel): string {
+  const any = p as any;
+  return (
+    any.situation?.name ||
+    any.situationName ||
+    any.lastSituation?.name ||
+    any.lastSituationName ||
+    (typeof any.situation === 'string' ? any.situation : '') ||
+    ''
+  );
+}
 
 // ── Vocabulaire ─────────────────────────────────────────────────────────────
 // Couleurs FR + EN. La valeur est le synonyme canonique (noir/noire → noir,
 // bleu/blue/bleue → bleu). Permet de matcher "blue" côté source avec "bleu" côté
 // target sans manipulation manuelle.
 const COLOR_ALIASES: Record<string, string> = {
-  noir: 'noir', noire: 'noir', black: 'noir',
-  blanc: 'blanc', blanche: 'blanc', white: 'blanc',
-  beige: 'beige', creme: 'beige', cream: 'beige',
-  bleu: 'bleu', bleue: 'bleu', blue: 'bleu', azur: 'bleu',
-  vert: 'vert', verte: 'vert', green: 'vert',
-  gris: 'gris', grise: 'gris', grey: 'gris', gray: 'gris',
-  marron: 'marron', brown: 'marron', chocolat: 'marron',
-  rouge: 'rouge', red: 'rouge',
-  jaune: 'jaune', yellow: 'jaune',
-  rose: 'rose', pink: 'rose',
-  violet: 'violet', mauve: 'violet', purple: 'violet',
+  noir: 'noir',
+  noire: 'noir',
+  black: 'noir',
+  blanc: 'blanc',
+  blanche: 'blanc',
+  white: 'blanc',
+  beige: 'beige',
+  creme: 'beige',
+  cream: 'beige',
+  bleu: 'bleu',
+  bleue: 'bleu',
+  blue: 'bleu',
+  azur: 'bleu',
+  vert: 'vert',
+  verte: 'vert',
+  green: 'vert',
+  gris: 'gris',
+  grise: 'gris',
+  grey: 'gris',
+  gray: 'gris',
+  marron: 'marron',
+  brown: 'marron',
+  chocolat: 'marron',
+  rouge: 'rouge',
+  red: 'rouge',
+  jaune: 'jaune',
+  yellow: 'jaune',
+  rose: 'rose',
+  pink: 'rose',
+  violet: 'violet',
+  mauve: 'violet',
+  purple: 'violet',
   orange: 'orange',
-  kaki: 'kaki', khaki: 'kaki', olive: 'kaki',
+  kaki: 'kaki',
+  khaki: 'kaki',
+  olive: 'kaki',
   turquoise: 'turquoise',
 };
 
 // Tailles standards alpha. Les tailles numériques (38, 40, 42…) sont détectées
 // par regex `^\d{2,3}$`.
-const ALPHA_SIZES = new Set(['xs', 's', 'm', 'l', 'xl', 'xxl', 'xxxl', 'xxxxl', '2xl', '3xl', '4xl', '5xl']);
+const ALPHA_SIZES = new Set([
+  'xs',
+  's',
+  'm',
+  'l',
+  'xl',
+  'xxl',
+  'xxxl',
+  'xxxxl',
+  '2xl',
+  '3xl',
+  '4xl',
+  '5xl',
+]);
 const NUMERIC_SIZE_RE = /^\d{2,3}$/;
 
 // Mots parasites à ignorer (n'apportent ni couleur ni taille).
-const JUNK_TOKENS = new Set(['taille', 'size', 'couleur', 'color', 'pour', 'avec', 'et', 'and', 'or', 'ou', 'de', 'du', 'des', 'le', 'la', 'les']);
+const JUNK_TOKENS = new Set([
+  'taille',
+  'size',
+  'couleur',
+  'color',
+  'pour',
+  'avec',
+  'et',
+  'and',
+  'or',
+  'ou',
+  'de',
+  'du',
+  'des',
+  'le',
+  'la',
+  'les',
+]);
 
 // ── Parsing ─────────────────────────────────────────────────────────────────
 
 interface ParsedDescription {
   productName: string;
   productSkuCode: string | null;
-  variantColors: string[];   // toutes les couleurs détectées (multi-variants ok)
-  variantSizes: string[];    // toutes les tailles détectées
+  variantColors: string[]; // toutes les couleurs détectées (multi-variants ok)
+  variantSizes: string[]; // toutes les tailles détectées
   productVariantId: string | null;
-  quantity: number;          // nombre total d'articles dans le colis (extrait de " - N" en fin)
+  quantity: number; // nombre total d'articles dans le colis (extrait de " - N" en fin)
 }
 
 // Extrait la quantité totale du colis depuis productsDescription.
@@ -86,16 +165,16 @@ function cleanToken(s: string): string {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
-    .replace(/[{}\[\]"]/g, '')
+    .replace(/[{}[\]"]/g, '')
     .trim();
 }
 
 // Découpe une chaîne en tokens : sépare sur tout sauf lettres et chiffres.
 function tokenize(s: string): string[] {
   return s
-    .split(/[\s,/()\\\-]+/)
-    .map(t => cleanToken(t))
-    .filter(t => t.length > 0 && !JUNK_TOKENS.has(t));
+    .split(/[\s,/()\\-]+/)
+    .map((t) => cleanToken(t))
+    .filter((t) => t.length > 0 && !JUNK_TOKENS.has(t));
 }
 
 function classifyToken(tok: string): { type: 'color' | 'size'; canonical: string } | null {
@@ -108,7 +187,14 @@ function classifyToken(tok: string): { type: 'color' | 'size'; canonical: string
 export function parseProductsDescription(raw: string): ParsedDescription {
   const desc = (raw || '').trim();
   if (!desc) {
-    return { productName: '', productSkuCode: null, variantColors: [], variantSizes: [], productVariantId: null, quantity: 1 };
+    return {
+      productName: '',
+      productSkuCode: null,
+      variantColors: [],
+      variantSizes: [],
+      productVariantId: null,
+      quantity: 1,
+    };
   }
 
   const { name, sku } = extractNameAndSku(desc);
@@ -140,8 +226,8 @@ export function parseProductsDescription(raw: string): ParsedDescription {
 // "Pontalon lain sport" et "pantalon lain sport" → "pantalon lain sport".
 function nameFingerprint(name: string): string {
   return tokenize(name)
-    .filter(t => !COLOR_ALIASES[t] && !ALPHA_SIZES.has(t) && !NUMERIC_SIZE_RE.test(t))
-    .map(t => t.replace(/^p[oa]ntalon$/, 'pantalon')) // correction faute fréquente "pontalon"
+    .filter((t) => !COLOR_ALIASES[t] && !ALPHA_SIZES.has(t) && !NUMERIC_SIZE_RE.test(t))
+    .map((t) => t.replace(/^p[oa]ntalon$/, 'pantalon')) // correction faute fréquente "pontalon"
     .sort()
     .join(' ');
 }
@@ -190,7 +276,8 @@ export function normalizeParcel(p: ZRParcel): NormalizedParcel {
     },
     hubId: p.deliveryAddress?.hubId || null,
     deliveryType: p.deliveryType ?? null,
-    stateName: p.state?.name || '',
+    stateName: readState(p),
+    situation: readSituation(p),
     swap: {
       isEligibleForSwap: !!p.swap?.isEligibleForSwap,
       swappedAt: p.swap?.swappedAt ?? null,
@@ -209,8 +296,8 @@ const MAX_SWAP_COUNT = 2;
 // Wilayas du Sud algérien qui ne peuvent swapper que dans la même wilaya
 // (interdiction cross-wilaya pour ces régions). Codes officiels ZRExpress.
 const RESTRICTED_WILAYAS = new Set<number>([
-  1,  // Adrar
-  8,  // Bechar
+  1, // Adrar
+  8, // Bechar
   11, // Tamanrasset
   30, // Ouargla
   32, // El Bayadh
@@ -222,27 +309,56 @@ const RESTRICTED_WILAYAS = new Set<number>([
   58, // El Menia
 ]);
 
-// Vérifie qu'un colis est éligible côté source (swap possible).
+// Règle officielle ZRExpress (affichée sur leur page « Swaps ») :
+//   « Le swap est possible uniquement si la commande est en situation
+//     "Ne répond pas 3" ou "Commande annulée". »
 //
-// L'API ZRExpress positionne `isEligibleForSwap=true` uniquement pour les états
-// « Ne répond pas 3 » ou « Commande annulée » — on délègue ce check à l'API.
-//
-// `swap.count` est le nombre de swaps déjà effectués sur ce colis. ZRExpress
-// limite à 2 swaps par colis ; on inclut donc count=0 (jamais swappé) ET
-// count=1 (swappé une fois, encore éligible pour un 2e swap). On NE filtre PAS
-// sur `swappedAt` car ce champ est rempli après le 1er swap mais le colis reste
-// swappable jusqu'à count=2 (vérifié sur 8 colis count=1 du pool live).
-export function isSwappable(p: NormalizedParcel): boolean {
-  return p.swap.isEligibleForSwap === true
-    && p.swap.count < MAX_SWAP_COUNT;
+// Le « 3 » compte : « Ne répond pas 1 » / « 2 » ne sont PAS swappables — d'où
+// la regex qui exige explicitement le 3.
+export function isSituationSwappable(situation: string): boolean {
+  const s = norm(situation);
+  if (!s) return false;
+  if (/ne repond pas\s*0*3\b/.test(s)) return true;
+  if (s.includes('annule')) return true; // « Commande annulée », « Annulé par le client »
+  return false;
 }
 
-// `appel_confirmation` (URL de l'UI ZRExpress) n'existe pas côté API : les vrais
-// états correspondants sont `commande_recue` et `pret_a_expedier`.
-const TARGET_STATES = new Set(['commande_recue', 'pret_a_expedier', 'appel_confirmation']);
+// Vérifie qu'un colis est éligible côté source (swap possible).
+//
+// `swap.count` = nombre de swaps déjà effectués. ZRExpress limite à 2 par colis,
+// donc count=0 et count=1 restent éligibles.
+//
+// Sur le flag `isEligibleForSwap` : l'endpoint /parcels/search ne le renseigne
+// pas de façon fiable (il ressortait à true sur 1 seul colis alors que la page
+// Swaps de ZRExpress en listait 13). On garde donc le flag comme raccourci
+// quand il est présent, et on retombe sinon sur la règle officielle basée sur
+// la SITUATION — qui est la source de vérité côté ZRExpress.
+export function isSwappable(p: NormalizedParcel): boolean {
+  if (p.swap.count >= MAX_SWAP_COUNT) return false;
+  if (p.swap.isEligibleForSwap === true) return true;
+  return isSituationSwappable(p.situation);
+}
+
+// États « pas encore expédiée » / « prêt à expédier » = commandes qui peuvent
+// recevoir un colis redirigé.
+//
+// Comparaison NORMALISÉE (sans accents, underscores → espaces, minuscules) :
+// l'API renvoie tantôt `commande_recue`, tantôt « Commande reçue ». L'ancien
+// Set en match exact ratait toutes les variantes → 12 détectées au lieu de 45.
+const TARGET_STATE_PATTERNS = [
+  'commande recue', // Commande reçue
+  'pret a expedier', // Prêt à expédier
+  'pas encore expediee', // onglet agrégé ZRExpress
+  'appel confirmation', // libellé UI
+  'en preparation',
+  'nouvelle commande',
+  'en attente de confirmation',
+];
 
 export function isTarget(p: NormalizedParcel): boolean {
-  return TARGET_STATES.has(p.stateName);
+  const s = norm(p.stateName);
+  if (!s) return false;
+  return TARGET_STATE_PATTERNS.some((pat) => s.includes(pat));
 }
 
 // Vérifie la contrainte géographique du swap selon la règle ZRExpress :
@@ -296,10 +412,7 @@ function normalizeSize(
 
 // Pour un colis donné, retourne la clé produit la plus précise disponible
 // (SKU si présent, sinon nameFingerprint). Sert au lookup des équivalences.
-function getProductKey(
-  p: NormalizedParcel,
-  table: Record<string, string[][]>
-): string | null {
+function getProductKey(p: NormalizedParcel, table: Record<string, string[][]>): string | null {
   if (p.productSkuCode && table[p.productSkuCode]) return p.productSkuCode;
   if (p.productNameFingerprint && table[p.productNameFingerprint]) return p.productNameFingerprint;
   return null;
@@ -308,41 +421,57 @@ function getProductKey(
 // ── Matching ────────────────────────────────────────────────────────────────
 
 // Égalité ensembliste : a et b contiennent exactement les mêmes éléments
-// (ordre ignoré, doublons ignorés). Utilisé pour exiger que TOUTES les
-// couleurs/tailles d'un colis multi-variants correspondent à la cible.
+// (ordre ignoré, doublons ignorés).
 function setsEqual<T>(a: T[], b: T[]): boolean {
   if (a.length !== b.length) return false;
   const set = new Set(b);
-  return a.every(x => set.has(x));
+  return a.every((x) => set.has(x));
 }
 
+// Intersection non vide entre deux ensembles.
+function intersect<T>(a: T[], b: T[]): T[] {
+  const setB = new Set(b);
+  return [...new Set(a.filter((x) => setB.has(x)))];
+}
+
+// Motifs de rejet — utilisés par le diagnostic pour histogrammer POURQUOI
+// tant de paires ne matchent pas (« 0 propositions » alors qu'on a
+// 17 swappables × 44 cibles). Sans ça on tourne à l'aveugle.
+export type RejectReason =
+  | 'diff_product' // SKU/nom fingerprint différent
+  | 'geo_restricted' // wilaya du Sud → ne peut sortir de sa wilaya
+  | 'diff_quantity' // colis ne contient pas le même nombre d'articles
+  | 'no_color_info' // couleur non extraite d'un des deux côtés
+  | 'no_size_info' // taille non extraite d'un des deux côtés
+  | 'no_color_common' // aucune couleur en commun
+  | 'no_size_common'; // aucune taille en commun (après équivalences)
+
 // Détermine le niveau de confiance d'un match produit.
-// Mode STRICT : un swap n'est proposé que si :
-//   - même produit (SKU ou fingerprint du nom)
-//   - même quantité (contenu du colis identique)
-//   - même ENSEMBLE de couleurs (pas juste intersection : pour un colis
-//     multi-variants à 2 couleurs [noir, vert], la cible doit aussi avoir
-//     EXACTEMENT [noir, vert] — pas seulement [noir] ou [noir, blanc])
-//   - même ENSEMBLE de tailles
 //
-// La wilaya n'est PAS un critère de filtrage (juste un bonus de score).
+// EXACT   → même UUID de variante (rare, court-circuite tout le reste).
+// STRONG  → même produit + même quantité + couleurs et tailles IDENTIQUES
+//           (sets égaux après équivalences user).
+// WEAK    → même produit + même quantité + AU MOINS une couleur commune ET
+//           au moins une taille commune. Utile pour les colis multi-variants
+//           où le pack source contient [noir, bleu] mais la cible ne veut
+//           que [noir] — historiquement l'écrasante majorité des matchs
+//           utiles. Requis pour retrouver le volume de propositions habituel.
 //
-// EXACT  → même UUID variante (rare en pratique, bypass les checks de set)
-// STRONG → même produit + même quantité + sets de couleurs et tailles identiques
-function productConfidence(
+// Renvoie soit un match, soit le motif de rejet (pour le diagnostic).
+type MatchAnalysis =
+  | { kind: 'match'; confidence: Confidence; sharedColors: string[]; sharedSizes: string[] }
+  | { kind: 'reject'; reason: RejectReason };
+
+function analyzePair(
   a: NormalizedParcel,
   b: NormalizedParcel,
-  sizeEquivalences: Record<string, string[][]>,
-): {
-  confidence: Confidence;
-  sharedColors: string[];
-  sharedSizes: string[];
-} | null {
-  // EXACT par UUID — bypass le check ensembliste, mais la règle géographique
-  // ZRExpress reste obligatoire (contrainte du transporteur).
+  sizeEquivalences: Record<string, string[][]>
+): MatchAnalysis {
+  // EXACT par UUID — court-circuite tout, mais la règle géo reste.
   if (a.productVariantId && b.productVariantId && a.productVariantId === b.productVariantId) {
-    if (!isGeoSwapAllowed(a, b)) return null;
+    if (!isGeoSwapAllowed(a, b)) return { kind: 'reject', reason: 'geo_restricted' };
     return {
+      kind: 'match',
       confidence: 'EXACT',
       sharedColors: a.variantColors,
       sharedSizes: a.variantSizes,
@@ -351,41 +480,65 @@ function productConfidence(
 
   // Même produit : SKU identique OU (les deux sans SKU mais même fingerprint nom)
   const sameSku = !!a.productSkuCode && a.productSkuCode === b.productSkuCode;
-  const sameName = !a.productSkuCode && !b.productSkuCode &&
-                   !!a.productNameFingerprint &&
-                   a.productNameFingerprint === b.productNameFingerprint;
+  const sameName =
+    !a.productSkuCode &&
+    !b.productSkuCode &&
+    !!a.productNameFingerprint &&
+    a.productNameFingerprint === b.productNameFingerprint;
+  if (!sameSku && !sameName) return { kind: 'reject', reason: 'diff_product' };
 
-  if (!sameSku && !sameName) return null;
+  if (!isGeoSwapAllowed(a, b)) return { kind: 'reject', reason: 'geo_restricted' };
+  if (a.quantity !== b.quantity) return { kind: 'reject', reason: 'diff_quantity' };
 
-  // Règle ZRExpress : certaines wilayas du Sud ne peuvent swap qu'en interne.
-  // Si la source est dans une wilaya restreinte, la cible doit y être aussi.
-  if (!isGeoSwapAllowed(a, b)) return null;
+  if (a.variantColors.length === 0 || b.variantColors.length === 0) {
+    return { kind: 'reject', reason: 'no_color_info' };
+  }
+  if (a.variantSizes.length === 0 || b.variantSizes.length === 0) {
+    return { kind: 'reject', reason: 'no_size_info' };
+  }
 
-  // Quantité identique (contenu du colis = ce que veut la cible).
-  if (a.quantity !== b.quantity) return null;
+  // Intersection couleurs — au moins une en commun.
+  const colorInter = intersect(a.variantColors, b.variantColors);
+  if (colorInter.length === 0) return { kind: 'reject', reason: 'no_color_common' };
 
-  // Garde-fou : il faut avoir détecté au moins une couleur ET une taille
-  // des 2 côtés. Sans info, on ne peut pas garantir la correspondance.
-  if (a.variantColors.length === 0 || b.variantColors.length === 0) return null;
-  if (a.variantSizes.length === 0 || b.variantSizes.length === 0) return null;
-
-  // Sets identiques sur les couleurs.
-  if (!setsEqual(a.variantColors, b.variantColors)) return null;
-
-  // Tailles : on applique d'abord la table d'équivalence DU USER COURANT
-  // (ex : pour hijab miral, 40/42/44 sont interchangeables) avant de comparer.
-  // Si la table connaît le produit, les tailles sont rabattues sur le
-  // représentant de leur groupe — sinon comparaison stricte.
+  // Tailles : on applique la table d'équivalence DU USER COURANT avant intersection.
   const productKey = getProductKey(a, sizeEquivalences) || getProductKey(b, sizeEquivalences);
-  const aSizesNorm = a.variantSizes.map(s => normalizeSize(productKey, s, sizeEquivalences));
-  const bSizesNorm = b.variantSizes.map(s => normalizeSize(productKey, s, sizeEquivalences));
-  if (!setsEqual(aSizesNorm, bSizesNorm)) return null;
+  const aSizesNorm = a.variantSizes.map((s) => normalizeSize(productKey, s, sizeEquivalences));
+  const bSizesNorm = b.variantSizes.map((s) => normalizeSize(productKey, s, sizeEquivalences));
+  const sizeInter = intersect(aSizesNorm, bSizesNorm);
+  if (sizeInter.length === 0) return { kind: 'reject', reason: 'no_size_common' };
+
+  // STRONG = tous les sets identiques. WEAK = seulement intersection non vide.
+  const fullColorMatch = setsEqual(a.variantColors, b.variantColors);
+  const fullSizeMatch = setsEqual(aSizesNorm, bSizesNorm);
+  const confidence: Confidence = fullColorMatch && fullSizeMatch ? 'STRONG' : 'WEAK';
 
   return {
-    confidence: 'STRONG',
-    sharedColors: a.variantColors,
-    sharedSizes: a.variantSizes, // on garde l'affichage des tailles réelles (pas le canonique)
+    kind: 'match',
+    confidence,
+    sharedColors: colorInter,
+    sharedSizes: sizeInter,
   };
+}
+
+function productConfidence(
+  a: NormalizedParcel,
+  b: NormalizedParcel,
+  sizeEquivalences: Record<string, string[][]>
+): { confidence: Confidence; sharedColors: string[]; sharedSizes: string[] } | null {
+  const r = analyzePair(a, b, sizeEquivalences);
+  return r.kind === 'match'
+    ? { confidence: r.confidence, sharedColors: r.sharedColors, sharedSizes: r.sharedSizes }
+    : null;
+}
+
+// Exporté pour le diagnostic — permet d'histogrammer les motifs de rejet.
+export function analyzePairForDiagnostic(
+  a: NormalizedParcel,
+  b: NormalizedParcel,
+  sizeEquivalences: Record<string, string[][]>
+): MatchAnalysis {
+  return analyzePair(a, b, sizeEquivalences);
 }
 
 interface MatchResult {
@@ -398,7 +551,11 @@ interface MatchResult {
   warnings: string[];
 }
 
-function scorePair(s: NormalizedParcel, t: NormalizedParcel, match: ReturnType<typeof productConfidence>): MatchResult {
+function scorePair(
+  s: NormalizedParcel,
+  t: NormalizedParcel,
+  match: ReturnType<typeof productConfidence>
+): MatchResult {
   if (!match) throw new Error('scorePair called without match');
   const warnings: string[] = [];
   const base = match.confidence === 'EXACT' ? 100 : match.confidence === 'STRONG' ? 90 : 60;
@@ -414,7 +571,8 @@ function scorePair(s: NormalizedParcel, t: NormalizedParcel, match: ReturnType<t
   if (s.amount > 0 && t.amount > 0) {
     const diff = Math.abs(s.amount - t.amount) / s.amount;
     if (diff < 0.1) priceBonus = 10;
-    else if (diff > 0.3) warnings.push(`Écart de prix : ${s.amount.toFixed(0)} → ${t.amount.toFixed(0)} DA`);
+    else if (diff > 0.3)
+      warnings.push(`Écart de prix : ${s.amount.toFixed(0)} → ${t.amount.toFixed(0)} DA`);
   }
 
   // En mode strict, plus de warning variante (impossible que ça arrive).
@@ -499,7 +657,7 @@ export interface MatchOptions {
 
 export function matchSwappables(
   allParcels: ZRParcel[],
-  options: MatchOptions = {},
+  options: MatchOptions = {}
 ): MatchProposal[] {
   const equiv = options.sizeEquivalences ?? {};
   const normalized = allParcels.map(normalizeParcel);

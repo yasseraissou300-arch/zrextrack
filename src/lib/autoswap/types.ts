@@ -46,7 +46,7 @@ export interface ZRParcel {
 // POST /api/v1.0/parcel-modification-requests/swap
 // Découvert via /swagger/internal-v1/swagger.json (CreateSwapParcelModificationRequestRequest)
 export interface SwapRequestPayload {
-  parcelId: string;                 // UUID du colis SOURCE (celui qu'on redirige)
+  parcelId: string; // UUID du colis SOURCE (celui qu'on redirige)
   amount?: number | null;
   phone?: { number1?: string; number2?: string; number3?: string };
   deliveryType?: string | null;
@@ -70,13 +70,13 @@ export interface NormalizedParcel {
   trackingNumber: string;
   externalId: string;
   // Produit
-  productVariantId: string | null;   // UUID extrait de productsDescription
-  productSkuCode: string | null;     // ex "ayl" parsé depuis "( ayl )"
+  productVariantId: string | null; // UUID extrait de productsDescription
+  productSkuCode: string | null; // ex "ayl" parsé depuis "( ayl )"
   productName: string;
-  productNameFingerprint: string;    // nom normalisé (sans couleurs/tailles) — sert quand SKU manque
-  variantColors: string[];           // canoniques (ex ['noir', 'beige']) — multi-variants possibles
-  variantSizes: string[];            // canoniques (ex ['M', 'XL', '42'])
-  quantity: number;                  // nombre total d'articles dans le colis (ex "- 4" en fin de description)
+  productNameFingerprint: string; // nom normalisé (sans couleurs/tailles) — sert quand SKU manque
+  variantColors: string[]; // canoniques (ex ['noir', 'beige']) — multi-variants possibles
+  variantSizes: string[]; // canoniques (ex ['M', 'XL', '42'])
+  quantity: number; // nombre total d'articles dans le colis (ex "- 4" en fin de description)
   rawDescription: string;
   // Géographie
   cityTerritoryId: string;
@@ -106,6 +106,7 @@ export interface NormalizedParcel {
   deliveryType: string | null;
   // Statut
   stateName: string;
+  situation: string; // « Ne répond pas 3 », « Commande annulée »… — pilote l'éligibilité au swap
   // Eligibilité swap (uniquement pertinent côté source)
   swap: {
     isEligibleForSwap: boolean;
@@ -120,7 +121,7 @@ export type Confidence = 'EXACT' | 'STRONG' | 'WEAK';
 
 export interface MatchProposal {
   swappable: {
-    id: string;          // UUID — utilisé comme parcelId dans le payload de swap
+    id: string; // UUID — utilisé comme parcelId dans le payload de swap
     tracking: string;
     customer: string;
     wilaya: string;

@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
+import { webhookTokenQuery } from '@/lib/security/webhook-auth';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://zrextrack.vercel.app';
-const WEBHOOK_URL = `${APP_URL}/api/ai-chatbot/webhook/whatsapp`;
+// P0-1 : le secret partagé est ajouté à l'URL enregistrée chez Evolution.
+// Vide tant que WHATSAPP_WEBHOOK_SECRET n'est pas défini → URL inchangée.
+const WEBHOOK_URL = `${APP_URL}/api/ai-chatbot/webhook/whatsapp${webhookTokenQuery('WHATSAPP_WEBHOOK_SECRET')}`;
 
 const EVENTS = ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'];
 
@@ -23,7 +26,11 @@ type InstanceReset = {
   verified: boolean;
 };
 
-async function postJson(url: string, body: object, evKey: string): Promise<{ status: number; text: string }> {
+async function postJson(
+  url: string,
+  body: object,
+  evKey: string
+): Promise<{ status: number; text: string }> {
   try {
     const res = await fetch(url, {
       method: 'POST',
@@ -37,7 +44,11 @@ async function postJson(url: string, body: object, evKey: string): Promise<{ sta
   }
 }
 
-async function findWebhook(evUrl: string, evKey: string, instanceName: string): Promise<{ url: string | null; events: string[] | null }> {
+async function findWebhook(
+  evUrl: string,
+  evKey: string,
+  instanceName: string
+): Promise<{ url: string | null; events: string[] | null }> {
   try {
     const res = await fetch(`${evUrl}/webhook/find/${instanceName}`, {
       headers: { apikey: evKey },
@@ -55,7 +66,11 @@ async function findWebhook(evUrl: string, evKey: string, instanceName: string): 
   }
 }
 
-async function resetOne(evUrl: string, evKey: string, instanceName: string): Promise<Omit<InstanceReset, 'service_type'>> {
+async function resetOne(
+  evUrl: string,
+  evKey: string,
+  instanceName: string
+): Promise<Omit<InstanceReset, 'service_type'>> {
   const attempts: AttemptResult[] = [];
   const setUrl = `${evUrl}/webhook/set/${instanceName}`;
 
@@ -76,7 +91,10 @@ async function resetOne(evUrl: string, evKey: string, instanceName: string): Pro
 
   // Verify
   let check = await findWebhook(evUrl, evKey, instanceName);
-  let verified = check.url === WEBHOOK_URL && Array.isArray(check.events) && check.events.includes('MESSAGES_UPSERT');
+  let verified =
+    check.url === WEBHOOK_URL &&
+    Array.isArray(check.events) &&
+    check.events.includes('MESSAGES_UPSERT');
 
   // Format B — nested camelCase (Evolution v2.x) if A didn't take effect
   if (!verified) {
@@ -98,7 +116,10 @@ async function resetOne(evUrl: string, evKey: string, instanceName: string): Pro
     });
 
     check = await findWebhook(evUrl, evKey, instanceName);
-    verified = check.url === WEBHOOK_URL && Array.isArray(check.events) && check.events.includes('MESSAGES_UPSERT');
+    verified =
+      check.url === WEBHOOK_URL &&
+      Array.isArray(check.events) &&
+      check.events.includes('MESSAGES_UPSERT');
   }
 
   return {
@@ -112,7 +133,9 @@ async function resetOne(evUrl: string, evKey: string, instanceName: string): Pro
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   // BYOK : serveur Evolution de l'utilisateur (ou fallback plateforme)
@@ -150,7 +173,7 @@ export async function POST(req: NextRequest) {
     results.push({ ...r, service_type: inst.service_type });
   }
 
-  const verifiedCount = results.filter(r => r.verified).length;
+  const verifiedCount = results.filter((r) => r.verified).length;
 
   return NextResponse.json({
     webhook_url_sent: WEBHOOK_URL,

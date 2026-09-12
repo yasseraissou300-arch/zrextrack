@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { buildInitialTwiml, fillTemplate } from '@/lib/voice-calls/twilio';
+import { guardTwilioRequest } from '@/lib/security/twilio-guard';
 
 function appBaseUrl(req: NextRequest): string {
   const env = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL;
@@ -16,10 +17,15 @@ function appBaseUrl(req: NextRequest): string {
 
 // Twilio peut envoyer GET ou POST selon la config — on supporte les deux.
 async function handle(req: NextRequest) {
-  const cid = req.nextUrl.searchParams.get('cid');
-  if (!cid) {
-    return xml(`<?xml version="1.0"?><Response><Hangup/></Response>`);
+  // P0-3 : validation de signature Twilio + anti-rejeu.
+  const guard = await guardTwilioRequest(req, 'webhook.twilio.twiml');
+  if (!guard.ok) {
+    return new NextResponse(`<?xml version="1.0"?><Response><Hangup/></Response>`, {
+      status: guard.status,
+      headers: { 'Content-Type': 'text/xml' },
+    });
   }
+  const cid = guard.callId;
 
   const supabase = createServiceClient();
   const { data: call } = await supabase

@@ -14,7 +14,9 @@ export default function CommandesPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100">Commandes</h1>
-            <p className="text-sm text-stone-500 dark:text-stone-400">Toutes vos commandes ZREXpress</p>
+            <p className="text-sm text-stone-500 dark:text-stone-400">
+              Toutes vos commandes ZREXpress
+            </p>
           </div>
         </div>
         <OrdersTable />

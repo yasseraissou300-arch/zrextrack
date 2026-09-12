@@ -18,7 +18,9 @@ const DEFAULT_SERVICE = 'auto_confirmation';
 
 export async function GET() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
 
   // BYOK : serveur Evolution de l'utilisateur (ou fallback plateforme)
@@ -42,10 +44,9 @@ export async function GET() {
   // Source de vérité : on demande l'état live à Evolution, sinon on retombe
   // sur la valeur cachée en DB.
   try {
-    const res = await fetch(
-      `${EVOLUTION_URL}/instance/connectionState/${instance.instance_name}`,
-      { headers: { apikey: EVOLUTION_KEY } }
-    );
+    const res = await fetch(`${EVOLUTION_URL}/instance/connectionState/${instance.instance_name}`, {
+      headers: { apikey: EVOLUTION_KEY },
+    });
     if (res.ok) {
       const json = await res.json();
       const state = json.instance?.state || json.state || 'unknown';
@@ -57,7 +58,9 @@ export async function GET() {
         instance: instance.instance_name,
       });
     }
-  } catch { /* fall through */ }
+  } catch {
+    /* fall through */
+  }
 
   return NextResponse.json({
     connected: !!instance.connected,

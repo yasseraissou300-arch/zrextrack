@@ -21,12 +21,17 @@ function maskKey(key: string | null): string {
 // liste propre. Sert au pool de clés Gemini.
 function splitKeys(key: string | null): string[] {
   if (!key) return [];
-  return key.split(/[\n,;]+/).map(k => k.trim()).filter(Boolean);
+  return key
+    .split(/[\n,;]+/)
+    .map((k) => k.trim())
+    .filter(Boolean);
 }
 
 export async function GET() {
   const supabaseAuth = await createClient();
-  const { data: { user } } = await supabaseAuth.auth.getUser();
+  const {
+    data: { user },
+  } = await supabaseAuth.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
 
   const supabase = createServiceClient();
@@ -39,14 +44,14 @@ export async function GET() {
 
   // On ne renvoie JAMAIS la clé en clair au navigateur. Seulement masquée +
   // un flag `configured`. Le user peut donc voir qu'il a une clé sans la lire.
-  const services = (data || []).map(row => {
+  const services = (data || []).map((row) => {
     const keys = splitKeys(row.api_key);
     return {
       service: row.service,
       configured: !!(row.api_key || row.api_url),
       api_key_masked: maskKey(keys[0] ?? row.api_key),
-      key_count: keys.length,                       // nombre de clés dans le pool
-      keys_masked: keys.map(maskKey),               // chaque clé masquée
+      key_count: keys.length, // nombre de clés dans le pool
+      keys_masked: keys.map(maskKey), // chaque clé masquée
       api_url: row.api_url ?? null,
       is_active: row.is_active,
       updated_at: row.updated_at,
@@ -58,10 +63,18 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   const supabaseAuth = await createClient();
-  const { data: { user } } = await supabaseAuth.auth.getUser();
+  const {
+    data: { user },
+  } = await supabaseAuth.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
 
-  let body: { service?: string; api_key?: string; api_url?: string; api_secret?: string; is_active?: boolean };
+  let body: {
+    service?: string;
+    api_key?: string;
+    api_url?: string;
+    api_secret?: string;
+    is_active?: boolean;
+  };
   try {
     body = await request.json();
   } catch {
@@ -83,20 +96,18 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = createServiceClient();
-  const { error } = await supabase
-    .from('user_api_credentials')
-    .upsert(
-      {
-        user_id: user.id,
-        service,
-        api_key: apiKey,
-        api_url: apiUrl,
-        api_secret: apiSecret,
-        is_active: body.is_active !== false,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id,service' },
-    );
+  const { error } = await supabase.from('user_api_credentials').upsert(
+    {
+      user_id: user.id,
+      service,
+      api_key: apiKey,
+      api_url: apiUrl,
+      api_secret: apiSecret,
+      is_active: body.is_active !== false,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'user_id,service' }
+  );
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
@@ -104,7 +115,9 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   const supabaseAuth = await createClient();
-  const { data: { user } } = await supabaseAuth.auth.getUser();
+  const {
+    data: { user },
+  } = await supabaseAuth.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
 
   const { searchParams } = new URL(request.url);

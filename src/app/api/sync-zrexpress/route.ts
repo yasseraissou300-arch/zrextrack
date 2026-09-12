@@ -16,11 +16,11 @@ const NOTIFY_STATUSES = new Set(['en_transit', 'en_livraison', 'livre', 'echec',
 // éditée dans Messages → Templates. Même syntaxe à double accolade {{...}}
 // que l'envoi manuel.
 const DARIJA_DEFAULTS: Record<string, string> = {
-  en_transit:   `السلام عليكم {{client}} 👋\nطردك *{{produit}}* رقم *{{tracking}}* في الطريق لـ *{{wilaya}}*.\nتبّع هنا : {{lien}} 🚚`,
+  en_transit: `السلام عليكم {{client}} 👋\nطردك *{{produit}}* رقم *{{tracking}}* في الطريق لـ *{{wilaya}}*.\nتبّع هنا : {{lien}} 🚚`,
   en_livraison: `السلام عليكم {{client}} 👋\nطردك *{{produit}}* رقم *{{tracking}}* مع الليفرور دروك في *{{wilaya}}*.\nالمبلغ لي يتسلم : *{{cod}} دج*. كون فالدار 🛵`,
-  livre:        `السلام عليكم {{client}} 👋\nطردك *{{produit}}* رقم *{{tracking}}* وصل.\nشكرا على ثقتك فينا 🙏`,
-  echec:        `السلام عليكم {{client}} 👋\nحاولنا نوصلو طردك *{{tracking}}* ولقيناك ما جاوبتناش.\nتواصل معنا : {{lien}} 📞`,
-  retourne:     `السلام عليكم {{client}} 👋\nطردك رقم *{{tracking}}* رجع لينا.\nإذا تبغي تعاود تطلب تواصل معنا 🔄`,
+  livre: `السلام عليكم {{client}} 👋\nطردك *{{produit}}* رقم *{{tracking}}* وصل.\nشكرا على ثقتك فينا 🙏`,
+  echec: `السلام عليكم {{client}} 👋\nحاولنا نوصلو طردك *{{tracking}}* ولقيناك ما جاوبتناش.\nتواصل معنا : {{lien}} 📞`,
+  retourne: `السلام عليكم {{client}} 👋\nطردك رقم *{{tracking}}* رجع لينا.\nإذا تبغي تعاود تطلب تواصل معنا 🔄`,
 };
 
 // Construit le message d'un statut à partir du template UNIFIÉ de l'utilisateur
@@ -28,11 +28,18 @@ const DARIJA_DEFAULTS: Record<string, string> = {
 // variables {{client}} {{tracking}} {{wilaya}} {{produit}} {{cod}} {{lien}}.
 function buildMessage(
   status: string,
-  o: { customer_name: string; tracking_number: string; wilaya: string; product_name: string; cod: number },
-  userTemplates: Map<string, string>,
+  o: {
+    customer_name: string;
+    tracking_number: string;
+    wilaya: string;
+    product_name: string;
+    cod: number;
+  },
+  userTemplates: Map<string, string>
 ): string {
   const link = `${APP_URL}/track/${o.tracking_number}`;
-  const tpl = userTemplates.get(status) || DARIJA_DEFAULTS[status] || `Mise à jour {{tracking}} : {{lien}}`;
+  const tpl =
+    userTemplates.get(status) || DARIJA_DEFAULTS[status] || `Mise à jour {{tracking}} : {{lien}}`;
   return tpl
     .replace(/\{\{client\}\}/g, o.customer_name || 'cher client')
     .replace(/\{\{tracking\}\}/g, o.tracking_number || '')
@@ -44,7 +51,7 @@ function buildMessage(
 
 // Normaliser numéro algérien → 213XXXXXXXXX
 function normalizePhone(phone: string): string {
-  const clean = phone.replace(/[\s\-\(\)\+\.]/g, '');
+  const clean = phone.replace(/[\s\-()+.]/g, '');
   if (clean.startsWith('213')) return clean;
   if (clean.startsWith('0')) return '213' + clean.slice(1);
   if (clean.length === 9) return '213' + clean;
@@ -52,13 +59,18 @@ function normalizePhone(phone: string): string {
 }
 
 // Envoyer un message WhatsApp via Meta Business API
-async function sendWhatsApp(phoneNumberId: string, accessToken: string, phone: string, message: string): Promise<boolean> {
+async function sendWhatsApp(
+  phoneNumberId: string,
+  accessToken: string,
+  phone: string,
+  message: string
+): Promise<boolean> {
   try {
     const intlPhone = normalizePhone(phone);
     const res = await fetch(`https://graph.facebook.com/v18.0/${phoneNumberId}/messages`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
+        Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -86,33 +98,54 @@ function mapParcel(p: any, syncedAt: string) {
   const client =
     p.customer?.name || p.recipientName || p.recipient_name || p.clientName || p.client_name || '';
 
-  const phoneObj = (p.customer?.phone && typeof p.customer.phone === 'object') ? p.customer.phone : {};
+  const phoneObj =
+    p.customer?.phone && typeof p.customer.phone === 'object' ? p.customer.phone : {};
   const whatsapp =
-    phoneObj.number1 || phoneObj.number2 || phoneObj.number3 ||
+    phoneObj.number1 ||
+    phoneObj.number2 ||
+    phoneObj.number3 ||
     (typeof p.customer?.phone === 'string' ? p.customer.phone : '') ||
-    p.recipientPhone || p.recipient_phone || p.phone || '';
+    p.recipientPhone ||
+    p.recipient_phone ||
+    p.phone ||
+    '';
 
   const wilaya =
-    p.deliveryAddress?.city || p.wilaya?.name || p.wilayaName || p.wilaya_name || p.wilaya || p.city || '';
+    p.deliveryAddress?.city ||
+    p.wilaya?.name ||
+    p.wilayaName ||
+    p.wilaya_name ||
+    p.wilaya ||
+    p.city ||
+    '';
 
-  const district =
-    p.deliveryAddress?.district || p.deliveryAddress?.commune || p.district || '';
+  const district = p.deliveryAddress?.district || p.deliveryAddress?.commune || p.district || '';
 
   const product =
-    p.productsDescription || p.description ||
+    p.productsDescription ||
+    p.description ||
     (p.orderedProducts && p.orderedProducts.length > 0 ? p.orderedProducts[0].productName : '') ||
-    p.productName || p.product_name || p.product?.name || '';
+    p.productName ||
+    p.product_name ||
+    p.product?.name ||
+    '';
 
   const cod = p.amount ?? p.price ?? p.cod ?? p.codAmount ?? p.cod_amount ?? 0;
 
   const rawStatus =
     p.state?.name || p.stateName || p.status?.name || p.statusName || p.state || p.status || '';
   const situation =
-    p.situation?.name || p.situationName || p.lastSituation?.name || p.lastSituationName || p.situation || '';
+    p.situation?.name ||
+    p.situationName ||
+    p.lastSituation?.name ||
+    p.lastSituationName ||
+    p.situation ||
+    '';
   // Passer aussi la situation pour une classification plus précise
   const status = mapStatus(rawStatus, situation);
   const delivery_type = p.deliveryType || p.delivery_type || p.type || '';
-  const delivery_fees = p.deliveryPrice ?? p.delivery_price ?? p.deliveryFees ?? p.delivery_fees ?? p.fees ?? 0;
+  const delivery_fees =
+    p.deliveryPrice ?? p.delivery_price ?? p.deliveryFees ?? p.delivery_fees ?? p.fees ?? 0;
   const attempts = p.deliveryAttempts ?? p.delivery_attempts ?? p.attempts ?? 0;
 
   return {
@@ -128,8 +161,8 @@ function mapParcel(p: any, syncedAt: string) {
   };
 }
 
-const DRAIN_PER_SYNC = 2;        // max notifs envoyées par sync (anti-burst)
-const DRAIN_SPACING_MS = 8000;   // espacement entre 2 envois d'un même drain
+const DRAIN_PER_SYNC = 2; // max notifs envoyées par sync (anti-burst)
+const DRAIN_SPACING_MS = 8000; // espacement entre 2 envois d'un même drain
 
 // Draine la file pending_notifications : envoie au plus DRAIN_PER_SYNC notifs
 // (jamais au-delà du plafond journalier) via le numéro Evolution connecté.
@@ -137,7 +170,7 @@ const DRAIN_SPACING_MS = 8000;   // espacement entre 2 envois d'un même drain
 async function drainNotifications(
   supabase: ReturnType<typeof createServiceClient>,
   userId: string,
-  userTpl: Map<string, string>,
+  userTpl: Map<string, string>
 ): Promise<number> {
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const [{ count: sentToday }, { data: prof }] = await Promise.all([
@@ -147,11 +180,7 @@ async function drainNotifications(
       .eq('user_id', userId)
       .eq('status', 'envoye')
       .gte('sent_at', since),
-    supabase
-      .from('profiles')
-      .select('whatsapp_warmup_started_at')
-      .eq('id', userId)
-      .single(),
+    supabase.from('profiles').select('whatsapp_warmup_started_at').eq('id', userId).single(),
   ]);
   const warmupStartedAt = prof?.whatsapp_warmup_started_at ?? null;
   const budget = Math.min(remainingDailyQuota(sentToday ?? 0, warmupStartedAt), DRAIN_PER_SYNC);
@@ -178,9 +207,14 @@ async function drainNotifications(
   if (!pendings || pendings.length === 0) return 0;
 
   type Pending = {
-    id: string; tracking_number: string; delivery_status: string;
-    customer_name: string | null; customer_whatsapp: string | null;
-    wilaya: string | null; product_name: string | null; cod: number | null;
+    id: string;
+    tracking_number: string;
+    delivery_status: string;
+    customer_name: string | null;
+    customer_whatsapp: string | null;
+    wilaya: string | null;
+    product_name: string | null;
+    cod: number | null;
   };
 
   let sent = 0;
@@ -188,13 +222,17 @@ async function drainNotifications(
     const p = pendings[i] as Pending;
     if (i > 0) await sleep(DRAIN_SPACING_MS);
 
-    const message = buildMessage(p.delivery_status, {
-      customer_name: p.customer_name || '',
-      tracking_number: p.tracking_number,
-      wilaya: p.wilaya || '',
-      product_name: p.product_name || '',
-      cod: p.cod ?? 0,
-    }, userTpl);
+    const message = buildMessage(
+      p.delivery_status,
+      {
+        customer_name: p.customer_name || '',
+        tracking_number: p.tracking_number,
+        wilaya: p.wilaya || '',
+        product_name: p.product_name || '',
+        cod: p.cod ?? 0,
+      },
+      userTpl
+    );
 
     const phone = normalizePhone(p.customer_whatsapp || '');
     let ok = false;
@@ -215,7 +253,8 @@ async function drainNotifications(
       err = 'Numéro invalide';
     }
 
-    await supabase.from('pending_notifications')
+    await supabase
+      .from('pending_notifications')
       .update({ status: ok ? 'sent' : 'failed', sent_at: new Date().toISOString() })
       .eq('id', p.id);
 
@@ -238,18 +277,25 @@ async function drainNotifications(
 export async function POST(request: NextRequest) {
   try {
     const { token, tenantId, notifyEnabled } = await request.json();
-    if (!token) return NextResponse.json({ error: 'Clé API (secretKey) manquante' }, { status: 400 });
+    if (!token)
+      return NextResponse.json({ error: 'Clé API (secretKey) manquante' }, { status: 400 });
     if (!tenantId) return NextResponse.json({ error: 'Tenant ID manquant' }, { status: 400 });
 
     const supabaseAuth = await createClient();
-    const { data: { user } } = await supabaseAuth.auth.getUser();
+    const {
+      data: { user },
+    } = await supabaseAuth.auth.getUser();
     const userId = user?.id ?? null;
 
     const supabase = createServiceClient();
 
     // Récupérer les credentials WhatsApp depuis whatsapp_settings (comme les autres routes)
     const { data: waSettings } = userId
-      ? await supabase.from('whatsapp_settings').select('instance_id, api_token').eq('user_id', userId).single()
+      ? await supabase
+          .from('whatsapp_settings')
+          .select('instance_id, api_token')
+          .eq('user_id', userId)
+          .single()
       : { data: null };
     const waInstanceId: string = waSettings?.instance_id ?? '';
     const waToken: string = waSettings?.api_token ?? '';
@@ -279,12 +325,15 @@ export async function POST(request: NextRequest) {
       const used = await countOrdersThisMonth(supabase, userId);
       quotaState = quotaStateFor(prof?.plan_id ?? 'basic', prof?.role ?? null, used);
       if (quotaState.isOver) {
-        return NextResponse.json({
-          error: `Quota mensuel atteint (${quotaState.used} / ${quotaState.quota} commandes en plan ${quotaState.planLabel}).`,
-          code: 'PLAN_QUOTA_REACHED',
-          hint: 'Passez au plan supérieur pour continuer à synchroniser ce mois-ci.',
-          quota: quotaState,
-        }, { status: 402 });
+        return NextResponse.json(
+          {
+            error: `Quota mensuel atteint (${quotaState.used} / ${quotaState.quota} commandes en plan ${quotaState.planLabel}).`,
+            code: 'PLAN_QUOTA_REACHED',
+            hint: 'Passez au plan supérieur pour continuer à synchroniser ce mois-ci.',
+            quota: quotaState,
+          },
+          { status: 402 }
+        );
       }
     }
 
@@ -297,12 +346,12 @@ export async function POST(request: NextRequest) {
     const syncedAt = new Date().toISOString();
 
     const allRows = parcels
-      .map(p => mapParcel(p, syncedAt))
-      .filter(r => r.tracking_number)
-      .map(r => ({ ...r, user_id: userId }));
+      .map((p) => mapParcel(p, syncedAt))
+      .filter((r) => r.tracking_number)
+      .map((r) => ({ ...r, user_id: userId }));
 
     const seen = new Set<string>();
-    let rows = allRows.filter(r => {
+    let rows = allRows.filter((r) => {
       if (seen.has(r.tracking_number)) return false;
       seen.add(r.tracking_number);
       return true;
@@ -311,12 +360,17 @@ export async function POST(request: NextRequest) {
     // Si non-illimité : ne pas dépasser le quota mensuel restant. On tronque
     // pour ne pousser au maximum que ce qui rentre dans le plan.
     let quotaTruncated = 0;
-    if (quotaState && !quotaState.isUnlimited && quotaState.remaining != null && rows.length > quotaState.remaining) {
+    if (
+      quotaState &&
+      !quotaState.isUnlimited &&
+      quotaState.remaining != null &&
+      rows.length > quotaState.remaining
+    ) {
       quotaTruncated = rows.length - quotaState.remaining;
       rows = rows.slice(0, quotaState.remaining);
     }
 
-    const trackingNums = rows.map(r => r.tracking_number);
+    const trackingNums = rows.map((r) => r.tracking_number);
 
     // 2. Charger les statuts actuels pour détecter les changements
     // Scopé par user_id : on ne regarde que les commandes de l'utilisateur courant
@@ -327,14 +381,22 @@ export async function POST(request: NextRequest) {
       .eq('user_id', userId)
       .in('tracking_number', trackingNums);
 
-    const existingMap = new Map((existingOrders || []).map(o => [o.tracking_number, o]));
+    const existingMap = new Map((existingOrders || []).map((o) => [o.tracking_number, o]));
 
     // 3. Identifier les commandes dont le statut a changé
-    const toNotify: Array<{ tracking_number: string; delivery_status: string; customer_whatsapp: string; customer_name: string; wilaya: string; product_name: string; cod: number }> = [];
+    const toNotify: Array<{
+      tracking_number: string;
+      delivery_status: string;
+      customer_whatsapp: string;
+      customer_name: string;
+      wilaya: string;
+      product_name: string;
+      cod: number;
+    }> = [];
     for (const row of rows) {
       const existing = existingMap.get(row.tracking_number);
       // Vérifier si les notifications sont activées pour ce statut (true par défaut si non précisé)
-      const isEnabled = notifyEnabled ? (notifyEnabled[row.delivery_status] !== false) : true;
+      const isEnabled = notifyEnabled ? notifyEnabled[row.delivery_status] !== false : true;
       if (
         NOTIFY_STATUSES.has(row.delivery_status) &&
         isEnabled &&
@@ -375,7 +437,7 @@ export async function POST(request: NextRequest) {
     // a) Mise en file (dédupliquée par index unique user+tracking+statut)
     if (toNotify.length > 0 && userId) {
       await supabase.from('pending_notifications').upsert(
-        toNotify.map(n => ({
+        toNotify.map((n) => ({
           user_id: userId,
           tracking_number: n.tracking_number,
           delivery_status: n.delivery_status,
@@ -386,7 +448,7 @@ export async function POST(request: NextRequest) {
           cod: n.cod,
           status: 'pending',
         })),
-        { onConflict: 'user_id,tracking_number,delivery_status', ignoreDuplicates: true },
+        { onConflict: 'user_id,tracking_number,delivery_status', ignoreDuplicates: true }
       );
     }
 
@@ -399,10 +461,13 @@ export async function POST(request: NextRequest) {
       whatsapp_sent: whatsappSent,
       notifications: toNotify.length,
       message: `${rows.length} commandes synchronisées · ${whatsappSent} notifications WhatsApp envoyées${quotaTruncated > 0 ? ` · ${quotaTruncated} tronquées (quota mensuel)` : ''}`,
-      ...(quotaTruncated > 0 && { quotaTruncated, quotaHint: 'Quota mensuel atteint : passez au plan supérieur pour synchroniser toutes vos commandes.' }),
+      ...(quotaTruncated > 0 && {
+        quotaTruncated,
+        quotaHint:
+          'Quota mensuel atteint : passez au plan supérieur pour synchroniser toutes vos commandes.',
+      }),
       ...(quotaState && !quotaState.isUnlimited && { quota: quotaState }),
     });
-
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

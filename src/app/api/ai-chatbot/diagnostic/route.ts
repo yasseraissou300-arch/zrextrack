@@ -5,7 +5,10 @@ import { resolveEvolutionCreds, getUserCreds } from '@/lib/user-creds';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || '';
 const EXPECTED_WEBHOOK = `${APP_URL || 'https://zrextrack.vercel.app'}/api/ai-chatbot/webhook/whatsapp`;
 
-interface EvCreds { url: string; key: string }
+interface EvCreds {
+  url: string;
+  key: string;
+}
 
 type InstanceDiag = {
   service_type: string;
@@ -18,7 +21,10 @@ type InstanceDiag = {
   errors: string[];
 };
 
-async function evolutionGet(ev: EvCreds, path: string): Promise<{ ok: boolean; status: number; json: unknown }> {
+async function evolutionGet(
+  ev: EvCreds,
+  path: string
+): Promise<{ ok: boolean; status: number; json: unknown }> {
   if (!ev.url || !ev.key) {
     return { ok: false, status: 0, json: null };
   }
@@ -28,7 +34,11 @@ async function evolutionGet(ev: EvCreds, path: string): Promise<{ ok: boolean; s
     });
     const text = await res.text();
     let json: unknown = null;
-    try { json = JSON.parse(text); } catch { json = text; }
+    try {
+      json = JSON.parse(text);
+    } catch {
+      json = text;
+    }
     return { ok: res.ok, status: res.status, json };
   } catch (e) {
     return { ok: false, status: 0, json: e instanceof Error ? e.message : String(e) };
@@ -37,7 +47,9 @@ async function evolutionGet(ev: EvCreds, path: string): Promise<{ ok: boolean; s
 
 export async function GET() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   // Evolution = serveur partagé de la plateforme
@@ -115,7 +127,7 @@ export async function GET() {
     .select('template_type, is_active, shop_name, custom_prompt, admin_whatsapp, blocked_prefixes')
     .eq('user_id', user.id);
 
-  const configSummaries = (configs ?? []).map(c => ({
+  const configSummaries = (configs ?? []).map((c) => ({
     template_type: c.template_type,
     is_active: c.is_active,
     shop_name: c.shop_name || '(empty)',
@@ -130,17 +142,25 @@ export async function GET() {
     issues.push('Evolution API non configurée (EVOLUTION_API_URL / EVOLUTION_API_KEY manquantes).');
   }
   if (!env.aiKeys.gemini) {
-    issues.push('Clé Gemini non configurée — le bot ne pourra pas répondre. Ajoutez votre clé dans Paramètres → Clés API.');
+    issues.push(
+      'Clé Gemini non configurée — le bot ne pourra pas répondre. Ajoutez votre clé dans Paramètres → Clés API.'
+    );
   }
   if (instErr) {
-    issues.push(`Erreur lecture whatsapp_instances: ${instErr.message}. La colonne service_type est-elle créée ?`);
+    issues.push(
+      `Erreur lecture whatsapp_instances: ${instErr.message}. La colonne service_type est-elle créée ?`
+    );
   }
   for (const d of instanceDiagnostics) {
     if (d.evolution_state !== 'open') {
-      issues.push(`Instance ${d.instance_name} (${d.service_type}) — état Evolution: ${d.evolution_state ?? 'inconnu'}, devrait être "open".`);
+      issues.push(
+        `Instance ${d.instance_name} (${d.service_type}) — état Evolution: ${d.evolution_state ?? 'inconnu'}, devrait être "open".`
+      );
     }
     if (!d.webhook_matches_expected) {
-      issues.push(`Instance ${d.instance_name} (${d.service_type}) — webhook NON configuré correctement. Attendu: ${EXPECTED_WEBHOOK} avec MESSAGES_UPSERT. Reçu URL=${d.webhook_url ?? 'aucun'}, events=${JSON.stringify(d.webhook_events)}.`);
+      issues.push(
+        `Instance ${d.instance_name} (${d.service_type}) — webhook NON configuré correctement. Attendu: ${EXPECTED_WEBHOOK} avec MESSAGES_UPSERT. Reçu URL=${d.webhook_url ?? 'aucun'}, events=${JSON.stringify(d.webhook_events)}.`
+      );
     }
   }
   for (const c of configSummaries) {
@@ -150,11 +170,15 @@ export async function GET() {
   }
   // Cross-check: each instance must have a matching active config
   for (const d of instanceDiagnostics) {
-    const matching = configSummaries.find(c => c.template_type === d.service_type);
+    const matching = configSummaries.find((c) => c.template_type === d.service_type);
     if (!matching) {
-      issues.push(`Instance ${d.instance_name} (service_type=${d.service_type}) — AUCUNE config chatbot pour ce template_type. Crée-la dans l'UI.`);
+      issues.push(
+        `Instance ${d.instance_name} (service_type=${d.service_type}) — AUCUNE config chatbot pour ce template_type. Crée-la dans l'UI.`
+      );
     } else if (!matching.is_active) {
-      issues.push(`Instance ${d.instance_name} (service_type=${d.service_type}) — config existe mais is_active=false. Active le template "${d.service_type}".`);
+      issues.push(
+        `Instance ${d.instance_name} (service_type=${d.service_type}) — config existe mais is_active=false. Active le template "${d.service_type}".`
+      );
     }
   }
 
@@ -163,8 +187,9 @@ export async function GET() {
     instances: instanceDiagnostics,
     configs: configSummaries,
     issues,
-    summary: issues.length === 0
-      ? '✅ Tout semble en ordre. Vérifie aussi les logs Vercel pour la trace [WEBHOOK IN].'
-      : `⚠️ ${issues.length} problème(s) détecté(s).`,
+    summary:
+      issues.length === 0
+        ? '✅ Tout semble en ordre. Vérifie aussi les logs Vercel pour la trace [WEBHOOK IN].'
+        : `⚠️ ${issues.length} problème(s) détecté(s).`,
   });
 }

@@ -3,7 +3,9 @@ import { createClient } from '@/lib/supabase/server';
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
@@ -13,7 +15,9 @@ export async function GET(req: NextRequest) {
 
   let query = supabase
     .from('ai_chat_sessions')
-    .select('id, channel, contact_id, contact_name, template_type, extracted_data, is_complete, sheets_sent, resolution, resolved_at, created_at, updated_at')
+    .select(
+      'id, channel, contact_id, contact_name, template_type, extracted_data, is_complete, sheets_sent, resolution, resolved_at, created_at, updated_at'
+    )
     .eq('user_id', user.id)
     .order('updated_at', { ascending: false })
     .limit(limit);
@@ -29,13 +33,19 @@ export async function GET(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await req.json();
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
 
-  const { error } = await supabase.from('ai_chat_sessions').delete().eq('id', id).eq('user_id', user.id);
+  const { error } = await supabase
+    .from('ai_chat_sessions')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', user.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }

@@ -3,13 +3,21 @@ import { createClient } from '@/lib/supabase/server';
 
 export async function GET() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.redirect(new URL('/login', process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'));
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user)
+    return NextResponse.redirect(
+      new URL('/login', process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000')
+    );
 
   const appId = process.env.FACEBOOK_APP_ID;
   if (!appId) {
     return NextResponse.redirect(
-      new URL('/ai-chatbot?tab=facebook&error=no_app_id', process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000')
+      new URL(
+        '/ai-chatbot?tab=facebook&error=no_app_id',
+        process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+      )
     );
   }
 

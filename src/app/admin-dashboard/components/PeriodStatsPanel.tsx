@@ -24,10 +24,34 @@ function rate(a: Agg): number {
 }
 
 const TILES = [
-  { key: 'livrees' as const, label: 'Livrées', icon: CheckCircle2, fg: 'text-green-600', bg: 'bg-green-50 dark:bg-green-900/20' },
-  { key: 'echecs'  as const, label: 'Échecs',  icon: XCircle,      fg: 'text-red-500',   bg: 'bg-red-50 dark:bg-red-900/20' },
-  { key: 'retours' as const, label: 'Retours', icon: RotateCcw,    fg: 'text-stone-500 dark:text-stone-400', bg: 'bg-stone-50 dark:bg-stone-800/60' },
-  { key: 'en_cours' as const, label: 'En cours', icon: Truck,      fg: 'text-blue-500',  bg: 'bg-blue-50 dark:bg-blue-900/20' },
+  {
+    key: 'livrees' as const,
+    label: 'Livrées',
+    icon: CheckCircle2,
+    fg: 'text-green-600',
+    bg: 'bg-green-50 dark:bg-green-900/20',
+  },
+  {
+    key: 'echecs' as const,
+    label: 'Échecs',
+    icon: XCircle,
+    fg: 'text-red-500',
+    bg: 'bg-red-50 dark:bg-red-900/20',
+  },
+  {
+    key: 'retours' as const,
+    label: 'Retours',
+    icon: RotateCcw,
+    fg: 'text-stone-500 dark:text-stone-400',
+    bg: 'bg-stone-50 dark:bg-stone-800/60',
+  },
+  {
+    key: 'en_cours' as const,
+    label: 'En cours',
+    icon: Truck,
+    fg: 'text-blue-500',
+    bg: 'bg-blue-50 dark:bg-blue-900/20',
+  },
 ];
 
 type Period = 'today' | '7days';
@@ -44,7 +68,9 @@ export default function PeriodStatsPanel() {
       const json = await res.json();
       if (json.today) setToday(json.today);
       if (json.last7days) setWeek(json.last7days);
-    } catch { /* silencieux */ }
+    } catch {
+      /* silencieux */
+    }
     setLoading(false);
   }, []);
 
@@ -54,7 +80,9 @@ export default function PeriodStatsPanel() {
     const interval = setInterval(() => {
       if (!document.hidden) load();
     }, 60_000);
-    const onVisible = () => { if (!document.hidden) load(); };
+    const onVisible = () => {
+      if (!document.hidden) load();
+    };
     document.addEventListener('visibilitychange', onVisible);
     return () => {
       clearInterval(interval);
@@ -69,11 +97,13 @@ export default function PeriodStatsPanel() {
   }, [load]);
 
   if (loading) {
-    return <div className="h-52 bg-stone-50 dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 animate-pulse" />;
+    return (
+      <div className="h-52 bg-stone-50 dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 animate-pulse" />
+    );
   }
 
   const agg = period === 'today' ? today : week;
-  const subtitle = period === 'today' ? "Activité du jour" : "Cumul de l'activité sur la semaine";
+  const subtitle = period === 'today' ? 'Activité du jour' : "Cumul de l'activité sur la semaine";
 
   return (
     <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-6">
@@ -109,15 +139,19 @@ export default function PeriodStatsPanel() {
 
       {/* 4 grandes tuiles */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {TILES.map(t => {
+        {TILES.map((t) => {
           const Icon = t.icon;
           return (
             <div key={t.key} className={`rounded-xl p-4 ${t.bg}`}>
               <div className="flex items-center gap-1.5 mb-2">
                 <Icon size={16} className={t.fg} />
-                <span className="text-xs font-medium text-stone-500 dark:text-stone-400">{t.label}</span>
+                <span className="text-xs font-medium text-stone-500 dark:text-stone-400">
+                  {t.label}
+                </span>
               </div>
-              <div className="text-3xl font-bold tabular-nums text-stone-900 dark:text-stone-100">{agg[t.key]}</div>
+              <div className="text-3xl font-bold tabular-nums text-stone-900 dark:text-stone-100">
+                {agg[t.key]}
+              </div>
             </div>
           );
         })}
@@ -127,16 +161,24 @@ export default function PeriodStatsPanel() {
       <div className="mt-5">
         <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 rounded-xl px-5 py-4">
           <span className="flex items-center gap-2 text-sm font-semibold text-emerald-800 dark:text-emerald-300">
-            <TrendingUp size={16} /> Taux de livraison ({period === 'today' ? "aujourd'hui" : '7 jours'})
+            <TrendingUp size={16} /> Taux de livraison (
+            {period === 'today' ? "aujourd'hui" : '7 jours'})
           </span>
-          <span className="text-3xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{rate(agg)}%</span>
+          <span className="text-3xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+            {rate(agg)}%
+          </span>
         </div>
       </div>
 
       {agg.total === 0 && (
         <p className="text-sm text-stone-500 dark:text-stone-400 mt-3">
           Aucune activité {period === 'today' ? "aujourd'hui" : 'sur les 7 derniers jours'}.
-          {period === 'today' && <span className="text-stone-400 dark:text-stone-500"> Essayez « 7 derniers jours ».</span>}
+          {period === 'today' && (
+            <span className="text-stone-400 dark:text-stone-500">
+              {' '}
+              Essayez « 7 derniers jours ».
+            </span>
+          )}
         </p>
       )}
     </div>

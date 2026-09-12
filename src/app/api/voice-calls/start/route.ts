@@ -15,24 +15,33 @@ function appBaseUrl(req: NextRequest): string {
 
 export async function POST(req: NextRequest) {
   const supabaseAuth = await createClient();
-  const { data: { user } } = await supabaseAuth.auth.getUser();
+  const {
+    data: { user },
+  } = await supabaseAuth.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));
   const { tracking, customer_name, customer_phone, amount } = body as {
-    tracking?: string; customer_name?: string; customer_phone?: string; amount?: number;
+    tracking?: string;
+    customer_name?: string;
+    customer_phone?: string;
+    amount?: number;
   };
 
-  if (!customer_phone) return NextResponse.json({ error: 'customer_phone manquant' }, { status: 400 });
+  if (!customer_phone)
+    return NextResponse.json({ error: 'customer_phone manquant' }, { status: 400 });
 
   const settings = await getSettings(user.id);
   const ready = isReadyToCall(settings);
   if (!ready.ok) {
-    return NextResponse.json({
-      error: ready.reason,
-      code: 'NOT_CONFIGURED',
-      hint: 'Configure Twilio dans /voice-calls onglet Connexion d\'abord.',
-    }, { status: 400 });
+    return NextResponse.json(
+      {
+        error: ready.reason,
+        code: 'NOT_CONFIGURED',
+        hint: "Configure Twilio dans /voice-calls onglet Connexion d'abord.",
+      },
+      { status: 400 }
+    );
   }
 
   const to = toE164(customer_phone);
@@ -77,7 +86,7 @@ export async function POST(req: NextRequest) {
       .from('voice_calls')
       .update({ status: 'failed', completed_at: new Date().toISOString() })
       .eq('id', row.id);
-    return NextResponse.json({ error: result.error || 'Twilio refuse l\'appel' }, { status: 502 });
+    return NextResponse.json({ error: result.error || "Twilio refuse l'appel" }, { status: 502 });
   }
 
   // 4. Sauvegarde le SID Twilio pour pouvoir corréler les webhooks

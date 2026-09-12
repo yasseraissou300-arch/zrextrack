@@ -37,7 +37,8 @@ const SERVICES: ServiceConfig[] = [
   {
     id: 'gemini',
     name: 'Google Gemini',
-    description: 'IA qui génère les réponses du chatbot WhatsApp. Meilleur modèle pour la darija algérienne. Obligatoire pour que le bot réponde. Clé gratuite sur Google AI Studio.',
+    description:
+      'IA qui génère les réponses du chatbot WhatsApp. Meilleur modèle pour la darija algérienne. Obligatoire pour que le bot réponde. Clé gratuite sur Google AI Studio.',
     needsUrl: false,
     getKeyUrl: 'https://aistudio.google.com/app/apikey',
     placeholder: 'AIzaSy...',
@@ -45,7 +46,10 @@ const SERVICES: ServiceConfig[] = [
 ];
 
 function ServiceCard({
-  cfg, status, onSave, onDelete,
+  cfg,
+  status,
+  onSave,
+  onDelete,
 }: {
   cfg: ServiceConfig;
   status?: CredentialStatus;
@@ -70,7 +74,7 @@ function ServiceCard({
       return;
     }
     if (cfg.needsUrl && !apiUrl.trim()) {
-      toast.error('Entrez l\'URL du serveur Evolution');
+      toast.error("Entrez l'URL du serveur Evolution");
       return;
     }
     setSaving(true);
@@ -133,16 +137,23 @@ function ServiceCard({
         <div className="text-xs text-stone-500 dark:text-stone-400 bg-stone-50 dark:bg-stone-800/50 px-3 py-2 rounded-lg">
           <div className="flex items-center gap-2 mb-1">
             <span className="font-semibold text-stone-700 dark:text-stone-200">
-              {status?.key_count ?? 1} clé{(status?.key_count ?? 1) > 1 ? 's' : ''} configurée{(status?.key_count ?? 1) > 1 ? 's' : ''}
+              {status?.key_count ?? 1} clé{(status?.key_count ?? 1) > 1 ? 's' : ''} configurée
+              {(status?.key_count ?? 1) > 1 ? 's' : ''}
             </span>
             {(status?.key_count ?? 1) > 1 && (
-              <span className="text-[10px] text-emerald-600 dark:text-emerald-400">rotation auto sur quota</span>
+              <span className="text-[10px] text-emerald-600 dark:text-emerald-400">
+                rotation auto sur quota
+              </span>
             )}
           </div>
           <div className="font-mono space-y-0.5">
-            {(status?.keys_masked?.length ? status.keys_masked : [status?.api_key_masked]).map((m, i) => (
-              <div key={i}>{i + 1}. {m}</div>
-            ))}
+            {(status?.keys_masked?.length ? status.keys_masked : [status?.api_key_masked]).map(
+              (m, i) => (
+                <div key={i}>
+                  {i + 1}. {m}
+                </div>
+              )
+            )}
           </div>
         </div>
       )}
@@ -150,11 +161,14 @@ function ServiceCard({
       <div className="space-y-1">
         <label className="text-xs font-medium text-stone-700 dark:text-stone-300">
           {configured ? 'Remplacer les clés' : 'Clés API'}
-          <span className="text-stone-400 dark:text-stone-500 font-normal"> — une clé par ligne (pool de rotation)</span>
+          <span className="text-stone-400 dark:text-stone-500 font-normal">
+            {' '}
+            — une clé par ligne (pool de rotation)
+          </span>
         </label>
         <textarea
           value={apiKey}
-          onChange={e => setApiKey(e.target.value)}
+          onChange={(e) => setApiKey(e.target.value)}
           placeholder={`${cfg.placeholder}\nAIzaSy...   (2e clé, autre compte Google)\nAIzaSy...   (3e clé...)`}
           rows={4}
           autoComplete="off"
@@ -162,7 +176,8 @@ function ServiceCard({
           className="w-full px-3 py-2 text-sm bg-white dark:bg-stone-950 border border-stone-200 dark:border-stone-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 font-mono resize-y"
         />
         <p className="text-[11px] text-stone-400 dark:text-stone-500">
-          💡 Collez plusieurs clés (1 par ligne) de comptes Google différents pour multiplier le quota gratuit. Le bot bascule à la suivante quand une est épuisée.
+          💡 Collez plusieurs clés (1 par ligne) de comptes Google différents pour multiplier le
+          quota gratuit. Le bot bascule à la suivante quand une est épuisée.
         </p>
       </div>
 
@@ -210,7 +225,9 @@ export default function ApiKeysPage() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const onSave = async (service: Service, apiKey: string, apiUrl?: string) => {
     const res = await fetch('/api/user-credentials', {
@@ -235,19 +252,20 @@ export default function ApiKeysPage() {
       <div className="min-h-screen bg-stone-50 dark:bg-stone-950">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
           <div>
-            <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100">Clé API Gemini</h1>
+            <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100">
+              Clé API Gemini
+            </h1>
             <p className="text-sm text-stone-500 dark:text-stone-400 mt-1">
-              Le chatbot WhatsApp utilise votre propre clé Gemini pour répondre à vos
-              clients. Sans clé configurée, le bot ne peut pas répondre automatiquement.
-              La connexion du numéro WhatsApp, elle, est gérée par la plateforme — rien
-              à configurer de ce côté.
+              Le chatbot WhatsApp utilise votre propre clé Gemini pour répondre à vos clients. Sans
+              clé configurée, le bot ne peut pas répondre automatiquement. La connexion du numéro
+              WhatsApp, elle, est gérée par la plateforme — rien à configurer de ce côté.
             </p>
           </div>
 
           <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-xl p-4 text-sm text-amber-800 dark:text-amber-300">
-            <strong>Important :</strong> Vos clés sont stockées en clair dans la base
-            de données, isolées par RLS Supabase. Elles ne quittent jamais votre
-            compte et ne sont jamais renvoyées en clair au navigateur après enregistrement.
+            <strong>Important :</strong> Vos clés sont stockées en clair dans la base de données,
+            isolées par RLS Supabase. Elles ne quittent jamais votre compte et ne sont jamais
+            renvoyées en clair au navigateur après enregistrement.
           </div>
 
           {loading ? (
@@ -256,7 +274,7 @@ export default function ApiKeysPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {SERVICES.map(cfg => (
+              {SERVICES.map((cfg) => (
                 <ServiceCard
                   key={cfg.id}
                   cfg={cfg}

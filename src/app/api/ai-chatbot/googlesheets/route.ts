@@ -8,7 +8,9 @@ function extractSheetId(url: string): string | null {
 
 export async function GET() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { data } = await supabase
@@ -26,7 +28,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { template_type, sheet_url } = await req.json();
@@ -35,14 +39,17 @@ export async function POST(req: NextRequest) {
   const sheetId = sheet_url ? extractSheetId(sheet_url) : null;
   const googleSheetsUrl = sheetId
     ? `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Sheet1:append`
-    : (sheet_url || '');
+    : sheet_url || '';
 
-  const { error } = await supabase
-    .from('chatbot_configs')
-    .upsert(
-      { user_id: user.id, template_type, google_sheets_url: googleSheetsUrl, updated_at: new Date().toISOString() },
-      { onConflict: 'user_id,template_type' }
-    );
+  const { error } = await supabase.from('chatbot_configs').upsert(
+    {
+      user_id: user.id,
+      template_type,
+      google_sheets_url: googleSheetsUrl,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'user_id,template_type' }
+  );
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true, sheet_id: sheetId });

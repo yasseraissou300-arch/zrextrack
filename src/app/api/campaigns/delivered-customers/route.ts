@@ -17,16 +17,16 @@ import { fetchAllParcels } from '@/lib/zrexpress/parcels';
 import { parseProductsDescription } from '@/lib/autoswap/matcher';
 
 interface DeliveredCustomer {
-  phone: string;             // ex « 213556172674 »
+  phone: string; // ex « 213556172674 »
   name: string;
-  wilaya: string;            // nom de la wilaya (ex « Oran »)
+  wilaya: string; // nom de la wilaya (ex « Oran »)
   wilaya_code: number;
-  order_count: number;       // nombre de commandes livrées
-  total_spent: number;       // somme des montants COD livrés
-  last_delivery: string;     // ISO date string
-  trackings: string[];       // jusqu'à 5 derniers tracking numbers
-  products: string[];        // noms uniques de produits commandés
-  gender: 'F' | 'M' | 'unknown';  // inféré depuis les produits
+  order_count: number; // nombre de commandes livrées
+  total_spent: number; // somme des montants COD livrés
+  last_delivery: string; // ISO date string
+  trackings: string[]; // jusqu'à 5 derniers tracking numbers
+  products: string[]; // noms uniques de produits commandés
+  gender: 'F' | 'M' | 'unknown'; // inféré depuis les produits
 }
 
 // Dictionnaire conservateur d'inférence du genre depuis le nom du produit.
@@ -37,19 +37,40 @@ interface DeliveredCustomer {
 // Les mots-clés sont normalisés (lowercase, sans accents). Si AUCUN produit
 // du client n'est tagué, gender reste « unknown ».
 const FEMALE_KEYWORDS = [
-  'hijab', 'hi9ab', 'abaya', 'jellaba', 'jilbab', 'kaftan', 'caftan',
-  'robe', 'jupe', 'foulard', 'voile', 'femme', 'women', 'lady', 'ladies',
+  'hijab',
+  'hi9ab',
+  'abaya',
+  'jellaba',
+  'jilbab',
+  'kaftan',
+  'caftan',
+  'robe',
+  'jupe',
+  'foulard',
+  'voile',
+  'femme',
+  'women',
+  'lady',
+  'ladies',
 ];
 const MALE_KEYWORDS = [
-  'costume', 'cravate', 'homme', 'men', 'mens', 'beard', 'barbe',
-  'gandoura', 'thobe', 'qamis', 'kamis',
+  'costume',
+  'cravate',
+  'homme',
+  'men',
+  'mens',
+  'beard',
+  'barbe',
+  'gandoura',
+  'thobe',
+  'qamis',
+  'kamis',
 ];
 
 function inferGenderFromProducts(productNames: string[]): 'F' | 'M' | 'unknown' {
-  const haystack = productNames.join(' ').toLowerCase()
-    .normalize('NFD').replace(/[̀-ͯ]/g, '');
-  const female = FEMALE_KEYWORDS.some(k => haystack.includes(k));
-  const male = MALE_KEYWORDS.some(k => haystack.includes(k));
+  const haystack = productNames.join(' ').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const female = FEMALE_KEYWORDS.some((k) => haystack.includes(k));
+  const male = MALE_KEYWORDS.some((k) => haystack.includes(k));
   // Si les deux signaux contradictoires (cas rare ex « kaftan homme »),
   // on retourne unknown plutôt que deviner.
   if (female && !male) return 'F';
@@ -63,20 +84,79 @@ function inferGenderFromProducts(productNames: string[]): 'F' | 'M' | 'unknown' 
 // 26 entrées variantées qui sont en fait le même produit. Cette fonction
 // retire les tokens de variantes pour ne garder que le produit en lui-même.
 const VARIANT_COLOR_TOKENS = new Set([
-  'noir', 'noire', 'blanc', 'blanche', 'beige', 'bleu', 'bleue', 'blue',
-  'vert', 'verte', 'gris', 'grise', 'marron', 'rouge', 'jaune', 'rose',
-  'violet', 'mauve', 'orange', 'kaki', 'khaki', 'olive', 'turquoise',
-  'black', 'white', 'green', 'grey', 'gray', 'red', 'pink', 'purple',
-  'yellow', 'brown', 'azur', 'chocolat', 'clair', 'claire', 'fonce', 'foncee', 'fonké',
-  'moutarde', 'creme', 'cream', 'nuit',
+  'noir',
+  'noire',
+  'blanc',
+  'blanche',
+  'beige',
+  'bleu',
+  'bleue',
+  'blue',
+  'vert',
+  'verte',
+  'gris',
+  'grise',
+  'marron',
+  'rouge',
+  'jaune',
+  'rose',
+  'violet',
+  'mauve',
+  'orange',
+  'kaki',
+  'khaki',
+  'olive',
+  'turquoise',
+  'black',
+  'white',
+  'green',
+  'grey',
+  'gray',
+  'red',
+  'pink',
+  'purple',
+  'yellow',
+  'brown',
+  'azur',
+  'chocolat',
+  'clair',
+  'claire',
+  'fonce',
+  'foncee',
+  'fonké',
+  'moutarde',
+  'creme',
+  'cream',
+  'nuit',
 ]);
 const VARIANT_SIZE_TOKENS = new Set([
-  'xs', 's', 'm', 'l', 'xl', 'xxl', 'xxxl', 'xxxxl', '2xl', '3xl', '4xl', '5xl',
+  'xs',
+  's',
+  'm',
+  'l',
+  'xl',
+  'xxl',
+  'xxxl',
+  'xxxxl',
+  '2xl',
+  '3xl',
+  '4xl',
+  '5xl',
 ]);
 const VARIANT_JUNK_TOKENS = new Set([
-  'taille', 'size', 'couleur', 'color', 'de', 'du', 'des', 'le', 'la', 'les',
-  'cap', 'caps',  // « Abaya Cap » contient "Cap" qu'on ne veut pas en variante ?
-                  // → en fait Cap fait partie du nom, on le retire pas
+  'taille',
+  'size',
+  'couleur',
+  'color',
+  'de',
+  'du',
+  'des',
+  'le',
+  'la',
+  'les',
+  'cap',
+  'caps', // « Abaya Cap » contient "Cap" qu'on ne veut pas en variante ?
+  // → en fait Cap fait partie du nom, on le retire pas
 ]);
 
 function normalizeForTokenCheck(t: string): string {
@@ -87,8 +167,8 @@ function isVariantToken(tok: string): boolean {
   const n = normalizeForTokenCheck(tok);
   if (VARIANT_COLOR_TOKENS.has(n)) return true;
   if (VARIANT_SIZE_TOKENS.has(n)) return true;
-  if (/^\d{1,3}$/.test(n)) return true;       // tailles numériques 40/42/.../50
-  if (/^t?\.?\d+$/.test(n)) return true;       // « T.42 », « 42 », « t42 »
+  if (/^\d{1,3}$/.test(n)) return true; // tailles numériques 40/42/.../50
+  if (/^t?\.?\d+$/.test(n)) return true; // « T.42 », « 42 », « t42 »
   // « taille » / « size » uniquement quand ils sont des mots seuls
   if (n === 'taille' || n === 'size') return true;
   return false;
@@ -107,11 +187,11 @@ function cleanProductLabel(rawName: string): string {
   const source = beforeParen || rawName;
 
   const tokens = source.split(/[\s,/]+/).filter(Boolean);
-  const filtered = tokens.filter(t => !isVariantToken(t));
+  const filtered = tokens.filter((t) => !isVariantToken(t));
   if (filtered.length === 0) return source.trim();
   // Title-case par mot — meilleur rendu dans le dropdown
   return filtered
-    .map(t => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase())
+    .map((t) => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase())
     .join(' ')
     .trim();
 }
@@ -125,11 +205,24 @@ function cleanProductLabel(rawName: string): string {
 // Tous les 3 = client a reçu sa commande = candidat valide pour campagne marketing.
 // On EXCLUT en_livraison / non_livre / echec qui contiennent aussi « livr ».
 const DELIVERED_STATES = new Set<string>([
-  'livre', 'livré', 'livree', 'livrée',
-  'encaisse', 'encaissé', 'encaissee', 'encaissée',
-  'recouvert', 'recouvre', 'recouvré', 'recouverte',
-  'livraison_effectuee', 'livraison_effectue',
-  'delivered', 'paid', 'paye', 'payé',
+  'livre',
+  'livré',
+  'livree',
+  'livrée',
+  'encaisse',
+  'encaissé',
+  'encaissee',
+  'encaissée',
+  'recouvert',
+  'recouvre',
+  'recouvré',
+  'recouverte',
+  'livraison_effectuee',
+  'livraison_effectue',
+  'delivered',
+  'paid',
+  'paye',
+  'payé',
 ]);
 
 function isDelivered(stateName: string | undefined): boolean {
@@ -146,7 +239,9 @@ function normalizePhoneKey(raw: string | undefined): string {
 
 export async function POST(request: NextRequest) {
   const supabaseAuth = await createClient();
-  const { data: { user } } = await supabaseAuth.auth.getUser();
+  const {
+    data: { user },
+  } = await supabaseAuth.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
 
   const { token, tenantId } = await request.json().catch(() => ({}));
@@ -209,7 +304,7 @@ export async function POST(request: NextRequest) {
         last_delivery: lastUpdate,
         trackings: tracking ? [tracking] : [],
         products: productName ? [productName] : [],
-        gender: 'unknown',  // calculé en fin de boucle
+        gender: 'unknown', // calculé en fin de boucle
       });
     } else {
       existing.order_count += 1;
@@ -248,18 +343,18 @@ export async function POST(request: NextRequest) {
     total_customers: customers.length,
     total_orders: customers.reduce((s, c) => s + c.order_count, 0),
     total_revenue: customers.reduce((s, c) => s + c.total_spent, 0),
-    repeat_customers: customers.filter(c => c.order_count >= 2).length,
+    repeat_customers: customers.filter((c) => c.order_count >= 2).length,
     by_gender: {
-      female: customers.filter(c => c.gender === 'F').length,
-      male: customers.filter(c => c.gender === 'M').length,
-      unknown: customers.filter(c => c.gender === 'unknown').length,
+      female: customers.filter((c) => c.gender === 'F').length,
+      male: customers.filter((c) => c.gender === 'M').length,
+      unknown: customers.filter((c) => c.gender === 'unknown').length,
     },
   };
 
   // Liste les wilayas et produits distincts présents — sert au frontend pour
   // remplir les dropdowns de filtres sans avoir à les calculer 2 fois.
-  const wilayas = Array.from(new Set(customers.map(c => c.wilaya).filter(Boolean))).sort();
-  const allProducts = Array.from(new Set(customers.flatMap(c => c.products))).sort();
+  const wilayas = Array.from(new Set(customers.map((c) => c.wilaya).filter(Boolean))).sort();
+  const allProducts = Array.from(new Set(customers.flatMap((c) => c.products))).sort();
 
   // On trie le breakdown par count décroissant pour que l'utilisateur voie
   // immédiatement les états les plus communs (potentiellement à ajouter à

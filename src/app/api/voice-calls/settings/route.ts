@@ -4,15 +4,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 const ALLOWED_FIELDS = [
-  'account_sid', 'auth_token', 'from_number',
-  'shop_name', 'message_template', 'voice',
-  'confirm_text', 'cancel_text', 'no_answer_text',
+  'account_sid',
+  'auth_token',
+  'from_number',
+  'shop_name',
+  'message_template',
+  'voice',
+  'confirm_text',
+  'cancel_text',
+  'no_answer_text',
   'enabled',
 ];
 
 export async function GET() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const service = createServiceClient();
@@ -34,7 +42,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json();
@@ -49,7 +59,9 @@ export async function POST(req: NextRequest) {
   }
 
   const service = createServiceClient();
-  const { error } = await service.from('voice_call_settings').upsert(upd, { onConflict: 'user_id' });
+  const { error } = await service
+    .from('voice_call_settings')
+    .upsert(upd, { onConflict: 'user_id' });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
@@ -57,7 +69,8 @@ export async function POST(req: NextRequest) {
 function defaultSettings() {
   return {
     shop_name: 'notre boutique',
-    message_template: 'Marhba {name}, hada call men {shop_name}. Bach tconfirmi commande dyalek b {amount} dinar, taba3 wahed. Bach tlghi, taba3 jouj.',
+    message_template:
+      'Marhba {name}, hada call men {shop_name}. Bach tconfirmi commande dyalek b {amount} dinar, taba3 wahed. Bach tlghi, taba3 jouj.',
     voice: 'Polly.Hala-Neural',
     confirm_text: 'Chokran! Commande dyalek tta3la9at, ghadi twasel.',
     cancel_text: 'Chokran 3la l-rad. Commande dyalek tatlghat.',

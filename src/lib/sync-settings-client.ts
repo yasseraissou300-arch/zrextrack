@@ -36,8 +36,16 @@ function readLegacyLocalStorage(): SyncSettings {
   if (typeof window === 'undefined') return EMPTY;
   let templates: Record<string, string> = {};
   let notify_enabled: Record<string, boolean> = {};
-  try { templates = JSON.parse(localStorage.getItem(LEGACY_LS_TEMPLATES) || '{}'); } catch {}
-  try { notify_enabled = JSON.parse(localStorage.getItem(LEGACY_LS_NOTIFY) || '{}'); } catch {}
+  try {
+    templates = JSON.parse(localStorage.getItem(LEGACY_LS_TEMPLATES) || '{}');
+  } catch {
+    /* localStorage indisponible (navigation privée) */
+  }
+  try {
+    notify_enabled = JSON.parse(localStorage.getItem(LEGACY_LS_NOTIFY) || '{}');
+  } catch {
+    /* localStorage indisponible (navigation privée) */
+  }
   return {
     zrexpress_token: localStorage.getItem(LEGACY_LS_TOKEN) || '',
     zrexpress_tenant_id: localStorage.getItem(LEGACY_LS_TENANT) || '',
@@ -55,9 +63,12 @@ function clearLegacyLocalStorage(): void {
 }
 
 function hasContent(s: SyncSettings): boolean {
-  return !!(s.zrexpress_token || s.zrexpress_tenant_id
-    || Object.keys(s.templates ?? {}).length
-    || Object.keys(s.notify_enabled ?? {}).length);
+  return !!(
+    s.zrexpress_token ||
+    s.zrexpress_tenant_id ||
+    Object.keys(s.templates ?? {}).length ||
+    Object.keys(s.notify_enabled ?? {}).length
+  );
 }
 
 /**
@@ -81,7 +92,9 @@ export async function loadSyncSettings(): Promise<SyncSettings> {
         notify_enabled: s.notify_enabled ?? {},
       };
     }
-  } catch { /* offline ou non auth — on retourne EMPTY */ }
+  } catch {
+    /* offline ou non auth — on retourne EMPTY */
+  }
 
   if (hasContent(serverData)) {
     // Au cas où d'anciennes données traînent encore en local après une
@@ -98,9 +111,13 @@ export async function loadSyncSettings(): Promise<SyncSettings> {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(legacy),
-    }).then(res => {
-      if (res.ok) clearLegacyLocalStorage();
-    }).catch(() => { /* ignore — on retentera au prochain chargement */ });
+    })
+      .then((res) => {
+        if (res.ok) clearLegacyLocalStorage();
+      })
+      .catch(() => {
+        /* ignore — on retentera au prochain chargement */
+      });
     return legacy;
   }
 

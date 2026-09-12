@@ -9,15 +9,22 @@ Waqt ma jme3ti kull l-ma3loumat:
 <data>{"nom":"...","telephone":"...","wilaya":"...","produit":"..."}</data>
 DIMA bDarija.`;
 
-interface AIMessage { role: 'user' | 'assistant'; content: string; }
+interface AIMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
 
 // Claude/Anthropic retiré de la plateforme. La cascade Messenger utilise
 // uniquement Gemini (clé per-user BYOK). Si le user n'a pas configuré sa
 // clé Gemini, le bot ne répond pas (silencieux côté webhook).
 // Pool de clés Gemini : on essaie chaque clé, si une épuise son quota (429) on
 // passe à la suivante. Retourne le 1er texte obtenu, ou null si toutes échouent.
-async function callGeminiPool(geminiKeys: string[], systemPrompt: string, messages: AIMessage[]): Promise<string | null> {
-  const contents = messages.slice(-10).map(m => ({
+async function callGeminiPool(
+  geminiKeys: string[],
+  systemPrompt: string,
+  messages: AIMessage[]
+): Promise<string | null> {
+  const contents = messages.slice(-10).map((m) => ({
     role: m.role === 'assistant' ? 'model' : 'user',
     parts: [{ text: m.content }],
   }));
@@ -40,7 +47,9 @@ async function callGeminiPool(geminiKeys: string[], systemPrompt: string, messag
       const json = await res.json();
       const text = json.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
       if (text) return text;
-    } catch { /* clé suivante */ }
+    } catch {
+      /* clé suivante */
+    }
   }
   return null;
 }
@@ -48,21 +57,34 @@ async function callGeminiPool(geminiKeys: string[], systemPrompt: string, messag
 function extractData(text: string): Record<string, string> | null {
   const match = text.match(/<data>([\s\S]*?)<\/data>/);
   if (!match) return null;
-  try { return JSON.parse(match[1].trim()); } catch { return null; }
+  try {
+    return JSON.parse(match[1].trim());
+  } catch {
+    return null;
+  }
 }
 
 function stripDataTag(text: string): string {
   return text.replace(/<data>[\s\S]*?<\/data>/g, '').trim();
 }
 
-async function sendFBMessage(pageAccessToken: string, recipientId: string, text: string): Promise<void> {
+async function sendFBMessage(
+  pageAccessToken: string,
+  recipientId: string,
+  text: string
+): Promise<void> {
   try {
     await fetch(`https://graph.facebook.com/v18.0/me/messages?access_token=${pageAccessToken}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ recipient: { id: recipientId }, message: { text: text.slice(0, 2000) } }),
+      body: JSON.stringify({
+        recipient: { id: recipientId },
+        message: { text: text.slice(0, 2000) },
+      }),
     });
-  } catch { /* non-blocking */ }
+  } catch {
+    /* non-blocking */
+  }
 }
 
 // GET — Facebook webhook verification (per user via query param or global)
@@ -95,7 +117,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    if (body.object !== 'page') return NextResponse.json({ error: 'Not a page event' }, { status: 400 });
+    if (body.object !== 'page')
+      return NextResponse.json({ error: 'Not a page event' }, { status: 400 });
 
     const supabase = createServiceClient();
 
@@ -117,7 +140,10 @@ export async function POST(req: NextRequest) {
       // BYOK : on charge le POOL de clés Gemini du user une fois par entry
       const geminiKeys = await resolveGeminiKeys(userId);
       if (geminiKeys.length === 0) {
-        console.log('[facebook/webhook] user has no Gemini key configured, skipping. user_id=', userId);
+        console.log(
+          '[facebook/webhook] user has no Gemini key configured, skipping. user_id=',
+          userId
+        );
         continue;
       }
 
@@ -137,7 +163,10 @@ export async function POST(req: NextRequest) {
 
         const config = configs?.[0];
         const rawPrompt = config?.custom_prompt?.trim() || DEFAULT_PROMPT;
-        const systemPrompt = rawPrompt.replace(/\[NOM_BOUTIQUE\]/g, config?.shop_name || 'notre boutique');
+        const systemPrompt = rawPrompt.replace(
+          /\[NOM_BOUTIQUE\]/g,
+          config?.shop_name || 'notre boutique'
+        );
 
         // Load or create session
         const { data: session } = await supabase
@@ -158,17 +187,43 @@ export async function POST(req: NextRequest) {
         const cleanReply = stripDataTag(aiReply);
         conversation.push({ role: 'assistant', content: aiReply });
 
-        const newData = extracted ? { ...(session?.extracted_data ?? {}), ...extracted } : (session?.extracted_data ?? {});
+        const newData = extracted
+          ? { ...(session?.extracted_data ?? {}), ...extracted }
+          : (session?.extracted_data ?? {});
         const isComplete = !!extracted && Object.keys(extracted).length >= 3;
 
         await supabase.from('ai_chat_sessions').upsert(
-          { user_id: userId, channel: 'facebook', contact_id: senderId, template_type: config?.template_type ?? 'auto_confirmation', conversation, extracted_data: newData, is_complete: isComplete, sheets_sent: session?.sheets_sent ?? false, updated_at: new Date().toISOString() },
+          {
+            user_id: userId,
+            channel: 'facebook',
+            contact_id: senderId,
+            template_type: config?.template_type ?? 'auto_confirmation',
+            conversation,
+            extracted_data: newData,
+            is_complete: isComplete,
+            sheets_sent: session?.sheets_sent ?? false,
+            updated_at: new Date().toISOString(),
+          },
           { onConflict: 'user_id,channel,contact_id' }
         );
 
         if (isComplete && !session?.sheets_sent && config?.google_sheets_url) {
-          await fetch(config.google_sheets_url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: config.template_type, timestamp: new Date().toISOString(), source: 'facebook_ai', ...newData }) }).catch(() => {});
-          await supabase.from('ai_chat_sessions').update({ sheets_sent: true }).eq('user_id', userId).eq('channel', 'facebook').eq('contact_id', senderId);
+          await fetch(config.google_sheets_url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: config.template_type,
+              timestamp: new Date().toISOString(),
+              source: 'facebook_ai',
+              ...newData,
+            }),
+          }).catch(() => {});
+          await supabase
+            .from('ai_chat_sessions')
+            .update({ sheets_sent: true })
+            .eq('user_id', userId)
+            .eq('channel', 'facebook')
+            .eq('contact_id', senderId);
         }
 
         if (cleanReply) await sendFBMessage(pageToken, senderId, cleanReply);

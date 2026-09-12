@@ -6,7 +6,7 @@ function norm(raw: string): string {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
-    .replace(/[_\-]+/g, ' ')
+    .replace(/[_-]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -15,43 +15,131 @@ function norm(raw: string): string {
 function mapStatus(rawState: string, rawSituation = ''): string {
   const s = norm(rawState);
   const sit = norm(rawSituation);
-  const has = (src: string, ...terms: string[]) => terms.some(t => src.includes(t));
+  const has = (src: string, ...terms: string[]) => terms.some((t) => src.includes(t));
 
-  if (sit && has(sit,
-    'appele sans reponse', 'sans reponse', 'appele sr', 'ne repond pas',
-    'repond pas', 'pas repondu', 'pas de reponse',
-    'client absent', 'absent', 'non joignable', 'injoignable',
-    'refus de livraison', 'refuse',
-    'annule', 'annulee', 'annulation',
-    'echec', 'echoue', 'echec de livraison', 'non livre', 'non remis', 'colis non remis',
-    'commune erronee', 'adresse erronee', 'adresse incorrecte', 'errone', 'erronee',
-    'commune incorrecte', 'wilaya erronee',
-    'telephone incorrect', 'numero incorrect', 'numero invalide',
-    'introuvable', 'adresse introuvable', 'client introuvable',
-    'en attente adresse', 'attente adresse', 'attente confirmation'
-  )) return 'echec';
+  if (
+    sit &&
+    has(
+      sit,
+      'appele sans reponse',
+      'sans reponse',
+      'appele sr',
+      'ne repond pas',
+      'repond pas',
+      'pas repondu',
+      'pas de reponse',
+      'client absent',
+      'absent',
+      'non joignable',
+      'injoignable',
+      'refus de livraison',
+      'refuse',
+      'annule',
+      'annulee',
+      'annulation',
+      'echec',
+      'echoue',
+      'echec de livraison',
+      'non livre',
+      'non remis',
+      'colis non remis',
+      'commune erronee',
+      'adresse erronee',
+      'adresse incorrecte',
+      'errone',
+      'erronee',
+      'commune incorrecte',
+      'wilaya erronee',
+      'telephone incorrect',
+      'numero incorrect',
+      'numero invalide',
+      'introuvable',
+      'adresse introuvable',
+      'client introuvable',
+      'en attente adresse',
+      'attente adresse',
+      'attente confirmation'
+    )
+  )
+    return 'echec';
 
-  if (sit && has(sit, 'retourne', 'retour expediteur', 'retour confirme', 'refus client', 'renvoye', 'retour marchand')) return 'retourne';
-  if (sit && has(sit,
-    'sorti en livraison', 'sorti', 'en cours de livraison', 'en distribution',
-    'distribution', 'reporte', 'reportee', 'en route vers client',
-    'appel telephonique', 'appel tel', 'appele',
-    'en attente de retrait', 'attente de retrait', 'attente retrait',
-    'en attente au bureau', 'disponible au bureau', 'au bureau',
-    'passage prevu', 'passage programme', 'livraison prevue',
-    'avise', 'avisee', 'client avise',
-    'en livraison', 'livraison en cours', 'en cours'
-  )) return 'en_livraison';
+  if (
+    sit &&
+    has(
+      sit,
+      'retourne',
+      'retour expediteur',
+      'retour confirme',
+      'refus client',
+      'renvoye',
+      'retour marchand'
+    )
+  )
+    return 'retourne';
+  if (
+    sit &&
+    has(
+      sit,
+      'sorti en livraison',
+      'sorti',
+      'en cours de livraison',
+      'en distribution',
+      'distribution',
+      'reporte',
+      'reportee',
+      'en route vers client',
+      'appel telephonique',
+      'appel tel',
+      'appele',
+      'en attente de retrait',
+      'attente de retrait',
+      'attente retrait',
+      'en attente au bureau',
+      'disponible au bureau',
+      'au bureau',
+      'passage prevu',
+      'passage programme',
+      'livraison prevue',
+      'avise',
+      'avisee',
+      'client avise',
+      'en livraison',
+      'livraison en cours',
+      'en cours'
+    )
+  )
+    return 'en_livraison';
   if (sit && has(sit, 'en transit', 'transit', 'hub', 'centre tri', 'expedie')) return 'en_transit';
-  if (sit && has(sit, 'livre', 'remis') && !has(sit, 'non remis', 'en cours', 'sorti')) return 'livre';
+  if (sit && has(sit, 'livre', 'remis') && !has(sit, 'non remis', 'en cours', 'sorti'))
+    return 'livre';
 
   if (s === 'livre' || s === 'livree' || s === 'delivered') return 'livre';
   if (has(s, 'livre') && !has(s, 'en livr', 'en cours', 'retour')) return 'livre';
-  if (has(s, 'echec', 'echoue', 'annule', 'annulee', 'annulation', 'cancel', 'errone', 'non delivre')) return 'echec';
+  if (
+    has(s, 'echec', 'echoue', 'annule', 'annulee', 'annulation', 'cancel', 'errone', 'non delivre')
+  )
+    return 'echec';
   if (has(s, 'retourne', 'en retour', 'retour expediteur', 'return')) return 'retourne';
-  if (has(s, 'expedie', 'shipped', 'en transit', 'transit', 'hub', 'centre tri', 'acheminement')) return 'en_transit';
-  if (has(s, 'en livr', 'en cours de livr', 'sorti', 'distribution', 'out for delivery')) return 'en_livraison';
-  if (has(s, 'en preparation', 'preparation', 'prise en charge', 'pec', 'en attente', 'nouveau', 'pending', 'recu', 'enleve', 'collecte')) return 'en_preparation';
+  if (has(s, 'expedie', 'shipped', 'en transit', 'transit', 'hub', 'centre tri', 'acheminement'))
+    return 'en_transit';
+  if (has(s, 'en livr', 'en cours de livr', 'sorti', 'distribution', 'out for delivery'))
+    return 'en_livraison';
+  if (
+    has(
+      s,
+      'en preparation',
+      'preparation',
+      'prise en charge',
+      'pec',
+      'en attente',
+      'nouveau',
+      'pending',
+      'recu',
+      'enleve',
+      'collecte'
+    )
+  )
+    return 'en_preparation';
 
   return 'en_preparation';
 }
@@ -60,7 +148,9 @@ function mapStatus(rawState: string, rawSituation = ''): string {
 // Re-calcule le status de toutes les commandes existantes à partir de (situation + status actuel)
 export async function POST() {
   const supabaseAuth = await createClient();
-  const { data: { user } } = await supabaseAuth.auth.getUser();
+  const {
+    data: { user },
+  } = await supabaseAuth.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
 
   const supabase = createServiceClient();

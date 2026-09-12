@@ -3,7 +3,9 @@ import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 export async function GET() {
   const supabaseAuth = await createClient();
-  const { data: { user } } = await supabaseAuth.auth.getUser();
+  const {
+    data: { user },
+  } = await supabaseAuth.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
 
   const supabase = createServiceClient();
@@ -18,18 +20,28 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   const supabaseAuth = await createClient();
-  const { data: { user } } = await supabaseAuth.auth.getUser();
+  const {
+    data: { user },
+  } = await supabaseAuth.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
 
   const body = await request.json();
   const { platform, identifier, secret_key } = body;
-  if (!platform || !identifier) return NextResponse.json({ error: 'platform et identifier requis' }, { status: 400 });
+  if (!platform || !identifier)
+    return NextResponse.json({ error: 'platform et identifier requis' }, { status: 400 });
 
   const supabase = createServiceClient();
   const { data, error } = await supabase
     .from('integrations')
     .upsert(
-      { user_id: user.id, platform, identifier, secret_key: secret_key || '', active: true, updated_at: new Date().toISOString() },
+      {
+        user_id: user.id,
+        platform,
+        identifier,
+        secret_key: secret_key || '',
+        active: true,
+        updated_at: new Date().toISOString(),
+      },
       { onConflict: 'user_id,platform' }
     )
     .select()
@@ -41,11 +53,17 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   const supabaseAuth = await createClient();
-  const { data: { user } } = await supabaseAuth.auth.getUser();
+  const {
+    data: { user },
+  } = await supabaseAuth.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
 
   const { platform } = await request.json();
   const supabase = createServiceClient();
-  await supabase.from('integrations').update({ active: false }).eq('user_id', user.id).eq('platform', platform);
+  await supabase
+    .from('integrations')
+    .update({ active: false })
+    .eq('user_id', user.id)
+    .eq('platform', platform);
   return NextResponse.json({ success: true });
 }
