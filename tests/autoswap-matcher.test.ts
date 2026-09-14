@@ -25,7 +25,8 @@ function colis(over: Partial<ZRParcel> & { desc?: string } = {}): ZRParcel {
     productsDescription: desc ?? 'pantalon lain( pl )( noir M ) :  - 1',
     deliveryAddress: { city: 'Alger', cityTerritoryId: 'alg-1', cityTerritoryCode: 16 },
     customer: { name: 'Client', phone: { number1: '213555000000' } },
-    swap: { count: 0, isEligibleForSwap: false, sameCityPrice: 50, differentCityPrice: 100 },
+    // Pas de flag par défaut : les tests de matching exercent le repli situation.
+    swap: { count: 0, sameCityPrice: 50, differentCityPrice: 100 },
     ...rest,
   } as ZRParcel;
 }
@@ -54,7 +55,7 @@ describe('Règle ZRExpress — situations swappables', () => {
   });
 });
 
-describe('isSwappable — flag API + repli situation + limite de 2 swaps', () => {
+describe('isSwappable — flag API prioritaire, repli situation + état, limite de 2 swaps', () => {
   it("accepte quand l'API positionne isEligibleForSwap", () => {
     const p = normalizeParcel(
       colis({ swap: { count: 0, isEligibleForSwap: true } } as Partial<ZRParcel>)
@@ -62,11 +63,47 @@ describe('isSwappable — flag API + repli situation + limite de 2 swaps', () =>
     expect(isSwappable(p)).toBe(true);
   });
 
-  it('repli sur la situation quand le flag API est absent', () => {
-    // Cas réel observé : ZRExpress listait 21 colis swappables, le flag n'était
-    // vrai que sur 1 seul.
-    const p = normalizeParcel(colis({ situation: 'Ne répond pas 3' } as Partial<ZRParcel>));
+  it('REFUSE quand le flag API est explicitement false, même en situation swappable', () => {
+    // Relevé 2026-09-14 : 31 colis « vers_wilaya » annulés/NRP3 avec flag=false —
+    // aucun n'apparaît sur la page Swaps de ZRExpress. Le flag fait foi.
+    const p = normalizeParcel(
+      colis({
+        situation: 'Commande annulée',
+        state: { name: 'sortie_en_livraison' },
+        swap: { count: 0, isEligibleForSwap: false },
+      } as Partial<ZRParcel>)
+    );
+    expect(isSwappable(p)).toBe(false);
+  });
+
+  it('repli sur la situation quand le flag API est absent (colis chez le livreur)', () => {
+    const p = normalizeParcel(
+      colis({
+        situation: 'Ne répond pas 3',
+        state: { name: 'sortie_en_livraison' },
+      } as Partial<ZRParcel>)
+    );
     expect(isSwappable(p)).toBe(true);
+  });
+
+  it('repli : REFUSE un colis déjà retourné chez le vendeur malgré sa situation', () => {
+    // Le bug « 2 366 swappables » : 3 834 colis recupere_par_fournisseur gardaient
+    // la situation « Commande annulée ».
+    for (const state of ['recupere_par_fournisseur', 'recouvert', 'encaisse', 'livre']) {
+      const p = normalizeParcel(
+        colis({ situation: 'Commande annulée', state: { name: state } } as Partial<ZRParcel>)
+      );
+      expect(isSwappable(p), state).toBe(false);
+    }
+  });
+
+  it('repli : REFUSE un colis en transit (vers_wilaya) et une commande pas encore expédiée', () => {
+    for (const state of ['vers_wilaya', 'commande_recue']) {
+      const p = normalizeParcel(
+        colis({ situation: 'Ne répond pas 3', state: { name: state } } as Partial<ZRParcel>)
+      );
+      expect(isSwappable(p), state).toBe(false);
+    }
   });
 
   it('REFUSE un colis déjà swappé 2 fois (limite ZRExpress)', () => {
@@ -83,7 +120,7 @@ describe('isSwappable — flag API + repli situation + limite de 2 swaps', () =>
     const p = normalizeParcel(
       colis({
         situation: 'Ne répond pas 3',
-        swap: { count: 1, isEligibleForSwap: false },
+        swap: { count: 1, isEligibleForSwap: true },
       } as Partial<ZRParcel>)
     );
     expect(isSwappable(p)).toBe(true);

@@ -279,7 +279,8 @@ export function normalizeParcel(p: ZRParcel): NormalizedParcel {
     stateName: readState(p),
     situation: readSituation(p),
     swap: {
-      isEligibleForSwap: !!p.swap?.isEligibleForSwap,
+      isEligibleForSwap:
+        typeof p.swap?.isEligibleForSwap === 'boolean' ? p.swap.isEligibleForSwap : null,
       swappedAt: p.swap?.swappedAt ?? null,
       sameCityPrice: Number(p.swap?.sameCityPrice ?? 0),
       differentCityPrice: Number(p.swap?.differentCityPrice ?? 0),
@@ -323,20 +324,46 @@ export function isSituationSwappable(situation: string): boolean {
   return false;
 }
 
+// États dans lesquels un colis n'est plus (ou pas encore) swappable, quelle que
+// soit sa situation. Vocabulaire réel relevé le 2026-09-14 sur 6 354 colis :
+// 3 834 « recupere_par_fournisseur » (déjà retournés chez le vendeur) portaient
+// encore la situation « Commande annulée » / « Ne répond pas 3 » et gonflaient
+// le compteur à 2 366 swappables alors que ZRExpress en listait 22. Les 22
+// étaient tous en « sortie_en_livraison » ou « confirme_au_bureau » ; aucun
+// colis « vers_wilaya » (en transit) n'était éligible.
+// Sert UNIQUEMENT au repli quand l'API ne fournit pas `swap.isEligibleForSwap`.
+const NON_SWAPPABLE_STATE_PATTERNS = [
+  'recupere par fournisseur',
+  'recouvert',
+  'encaisse',
+  'livre', // « livre » — ne matche pas « livraison »
+  'rembours',
+  'retour',
+  'renvoy',
+  'vers wilaya',
+  'dispatch',
+];
+
 // Vérifie qu'un colis est éligible côté source (swap possible).
 //
 // `swap.count` = nombre de swaps déjà effectués. ZRExpress limite à 2 par colis,
 // donc count=0 et count=1 restent éligibles.
 //
-// Sur le flag `isEligibleForSwap` : l'endpoint /parcels/search ne le renseigne
-// pas de façon fiable (il ressortait à true sur 1 seul colis alors que la page
-// Swaps de ZRExpress en listait 13). On garde donc le flag comme raccourci
-// quand il est présent, et on retombe sinon sur la règle officielle basée sur
-// la SITUATION — qui est la source de vérité côté ZRExpress.
+// Le flag `swap.isEligibleForSwap` est calculé par ZRExpress et fait foi quand
+// il est fourni : relevé du 2026-09-14, 22 colis à true sur les 64 pages de
+// /parcels/search = exactement les 22 de la page « Swaps ». L'ancien constat
+// « flag vrai sur 1 colis contre 13 listés » venait du plafond de 50 pages de
+// fetchAllParcels (ordre de l'API non chronologique), pas du flag.
+//
+// Sans flag, repli sur la règle officielle par SITUATION, restreinte aux états
+// où le colis est encore chez le livreur (voir NON_SWAPPABLE_STATE_PATTERNS).
 export function isSwappable(p: NormalizedParcel): boolean {
   if (p.swap.count >= MAX_SWAP_COUNT) return false;
-  if (p.swap.isEligibleForSwap === true) return true;
-  return isSituationSwappable(p.situation);
+  if (p.swap.isEligibleForSwap !== null) return p.swap.isEligibleForSwap;
+  if (!isSituationSwappable(p.situation)) return false;
+  const s = norm(p.stateName);
+  if (NON_SWAPPABLE_STATE_PATTERNS.some((pat) => s.includes(pat))) return false;
+  return !isTarget(p); // pas encore expédié = cible, jamais source
 }
 
 // États « pas encore expédiée » / « prêt à expédier » = commandes qui peuvent
