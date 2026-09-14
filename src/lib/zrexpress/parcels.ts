@@ -51,5 +51,25 @@ export async function fetchAllParcels(token: string, tenantId: string): Promise<
     pageNumber++;
   }
 
-  return all;
+  return dedupeById(all);
+}
+
+// L'ordre de /parcels/search n'est pas stable : quand un colis change d'état
+// pendant le parcours des pages, il se déplace et ressort sur deux pages
+// (observé le 2026-09-14 au matin : 11 colis swappables en double, 33 comptés
+// pour 22 réels). On garde la première occurrence de chaque id.
+function dedupeById(parcels: any[]): any[] {
+  const seen = new Set<string>();
+  const out: any[] = [];
+  for (const p of parcels) {
+    const key = p?.id ?? p?.trackingNumber;
+    if (key == null) {
+      out.push(p);
+      continue;
+    }
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(p);
+  }
+  return out;
 }

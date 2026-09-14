@@ -53,16 +53,35 @@ describe('fetchAllParcels', () => {
   });
 
   it('respecte le garde-fou MAX_PARCEL_PAGES si l’API prétend ne jamais finir', async () => {
-    const fetchMock = vi.fn(
-      async () =>
-        new Response(JSON.stringify({ items: [{ id: 'x' }], totalPages: 10_000, hasNext: true }), {
-          status: 200,
-        })
-    );
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      const { pageNumber } = JSON.parse(String(init?.body));
+      return new Response(
+        JSON.stringify({ items: [{ id: `p${pageNumber}` }], totalPages: 10_000, hasNext: true }),
+        { status: 200 }
+      );
+    });
     vi.stubGlobal('fetch', fetchMock);
     const all = await fetchAllParcels('t', 'tenant');
     expect(all).toHaveLength(MAX_PARCEL_PAGES);
     expect(fetchMock).toHaveBeenCalledTimes(MAX_PARCEL_PAGES);
+  });
+
+  it('dédoublonne un colis qui ressort sur deux pages (ordre API instable)', async () => {
+    // Un changement d'état pendant le parcours déplace le colis : il apparaît
+    // en fin de page 1 ET en début de page 2.
+    const pages = [
+      { items: [{ id: 'a' }, { id: 'b' }, { id: 'c' }], totalPages: 2, hasNext: true },
+      { items: [{ id: 'c' }, { id: 'd' }], totalPages: 2, hasNext: false },
+    ];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string, init?: RequestInit) => {
+        const { pageNumber } = JSON.parse(String(init?.body));
+        return new Response(JSON.stringify(pages[pageNumber - 1]), { status: 200 });
+      })
+    );
+    const all = await fetchAllParcels('t', 'tenant');
+    expect(all.map((p) => p.id)).toEqual(['a', 'b', 'c', 'd']);
   });
 
   it('remonte une erreur lisible sur réponse non-2xx', async () => {
