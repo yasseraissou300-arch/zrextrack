@@ -63,10 +63,10 @@ export async function POST(request: NextRequest) {
     const eligibleTrue = normalized.filter((p) => p.swap.isEligibleForSwap === true).length;
     const bySituationRule = normalized.filter((p) => isSituationSwappable(p.situation)).length;
 
-    // Les colis que la règle situation attrape mais que le flag API rate —
-    // c'est exactement l'écart qui causait « 1 swappable au lieu de 13 ».
+    // Colis acceptés par le REPLI (flag absent → situation + état). Quand l'API
+    // fournit le flag, ce compteur doit rester à 0 : le flag fait foi.
     const flagMissed = normalized.filter(
-      (p) => isSituationSwappable(p.situation) && p.swap.isEligibleForSwap !== true
+      (p) => p.swap.isEligibleForSwap === null && isSwappable(p)
     );
 
     // ─── Analyse par paire (swappable × target) : histogramme des motifs de

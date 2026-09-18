@@ -109,7 +109,8 @@ export interface NormalizedParcel {
   situation: string; // « Ne répond pas 3 », « Commande annulée »… — pilote l'éligibilité au swap
   // Eligibilité swap (uniquement pertinent côté source)
   swap: {
-    isEligibleForSwap: boolean;
+    // null = l'API n'a pas fourni le flag (repli sur la règle situation + état)
+    isEligibleForSwap: boolean | null;
     swappedAt: string | null;
     sameCityPrice: number;
     differentCityPrice: number;

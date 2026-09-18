@@ -492,7 +492,7 @@ export default function AutoSwapPage() {
             {diag.swap_fields?.flag_missed_but_situation_ok > 0 && (
               <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-xl p-3 text-xs text-amber-800 dark:text-amber-200">
                 <strong>{diag.swap_fields.flag_missed_but_situation_ok} colis</strong> récupérés par
-                la règle « situation » alors que le flag API les ratait.
+                le repli « situation + état » (flag API absent).
               </div>
             )}
 
