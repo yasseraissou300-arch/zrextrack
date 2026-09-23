@@ -1,7 +1,6 @@
 'use client';
 
 import AppLayout from '@/components/ui/AppLayout';
-import { createClient } from '@/lib/supabase/client';
 import { useEffect, useState } from 'react';
 import { Truck, CheckCircle2, XCircle, Clock } from 'lucide-react';
 
@@ -9,16 +8,14 @@ export default function LivraisonsPage() {
   const [stats, setStats] = useState({ en_livraison: 0, livre: 0, echec: 0, retourne: 0 });
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const { data } = await supabase
-        .from('orders')
-        .select('*')
-        .in('delivery_status', ['en_livraison', 'livre', 'echec', 'retourne'])
-        .order('last_update', { ascending: false });
+      // Via l'API (service_role + scoping session) : la lecture directe de
+      // `orders` depuis le navigateur échoue (RLS 42P17).
+      const res = await fetch('/api/orders/view?view=livraisons');
+      const { data } = (res.ok ? await res.json() : { data: null }) as { data: any[] | null };
 
       if (data) {
         setOrders(data);

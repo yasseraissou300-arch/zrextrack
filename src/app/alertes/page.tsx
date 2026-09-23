@@ -1,24 +1,20 @@
 'use client';
 
 import AppLayout from '@/components/ui/AppLayout';
-import { createClient } from '@/lib/supabase/client';
 import { useEffect, useState } from 'react';
 import { Bell, AlertTriangle, XCircle } from 'lucide-react';
 
 export default function AlertesPage() {
   const [alerts, setAlerts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
 
   useEffect(() => {
     const fetchAlerts = async () => {
       setLoading(true);
-      const { data } = await supabase
-        .from('orders')
-        .select('*')
-        .in('delivery_status', ['echec', 'retourne'])
-        .order('last_update', { ascending: false })
-        .limit(50);
+      // Via l'API (service_role + scoping session) : la lecture directe de
+      // `orders` depuis le navigateur échoue (RLS 42P17).
+      const res = await fetch('/api/orders/view?view=alertes');
+      const { data } = (res.ok ? await res.json() : { data: null }) as { data: any[] | null };
       setAlerts(data || []);
       setLoading(false);
     };
