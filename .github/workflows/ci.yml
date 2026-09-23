@@ -1,0 +1,57 @@
+# ============================================================================
+# Contrôles automatiques sur chaque Pull Request et chaque push sur main.
+# ----------------------------------------------------------------------------
+# Mêmes vérifications que celles faites à la main avant chaque merge :
+# types, lint, tests unitaires, build de production.
+#
+# Aucun secret requis : les tests unitaires simulent Supabase, ZRExpress et
+# Evolution (aucun appel réseau). Le build reçoit des valeurs FACTICES pour les
+# variables publiques — il ne contacte aucun service.
+# Les tests d'intégration (tests/integration, vraie base) ne tournent PAS ici.
+# ============================================================================
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+      NEXT_PUBLIC_APP_URL: https://ci.invalid
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24 # même version majeure que Vercel
+          cache: npm
+
+      - name: Installation (lockfile strict)
+        run: npm ci
+
+      - name: Types
+        run: npm run type-check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests unitaires
+        run: npm test
+
+      - name: Build de production
+        run: npm run build
