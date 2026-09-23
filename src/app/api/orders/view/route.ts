@@ -25,7 +25,7 @@ type View = {
   limit?: number;
 };
 
-export const ORDER_VIEWS: Record<string, View> = {
+const ORDER_VIEWS: Record<string, View> = {
   alertes: { columns: '*', statuses: ['echec', 'retourne'], orderBy: 'last_update', limit: 50 },
   livraisons: {
     columns: '*',
