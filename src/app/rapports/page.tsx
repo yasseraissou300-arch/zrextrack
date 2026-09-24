@@ -1,7 +1,6 @@
 'use client';
 
 import AppLayout from '@/components/ui/AppLayout';
-import { createClient } from '@/lib/supabase/client';
 import { useEffect, useState } from 'react';
 import { BarChart3, TrendingUp, Package, CheckCircle2, XCircle, RotateCcw } from 'lucide-react';
 
@@ -9,12 +8,14 @@ export default function RapportsPage() {
   const [stats, setStats] = useState<any>({});
   const [byWilaya, setByWilaya] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
 
   useEffect(() => {
-    const fetch = async () => {
+    const load = async () => {
       setLoading(true);
-      const { data } = await supabase.from('orders').select('delivery_status, wilaya, cod');
+      // Via l'API (service_role + scoping session) : la lecture directe de
+      // `orders` depuis le navigateur échoue (RLS 42P17).
+      const res = await fetch('/api/orders/view?view=rapports');
+      const { data } = (res.ok ? await res.json() : { data: null }) as { data: any[] | null };
       if (data) {
         const total = data.length;
         const livre = data.filter((o) => o.delivery_status === 'livre').length;
@@ -46,7 +47,7 @@ export default function RapportsPage() {
       }
       setLoading(false);
     };
-    fetch();
+    load();
   }, []);
 
   return (

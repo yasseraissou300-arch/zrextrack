@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { MessageSquare, CheckCircle, XCircle, Clock, RefreshCw } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 
 interface Message {
   id: string;
@@ -23,7 +22,6 @@ const statusConfig = {
 export default function WhatsAppMessageLog() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
 
   useEffect(() => {
     fetchMessages();
@@ -31,11 +29,10 @@ export default function WhatsAppMessageLog() {
 
   const fetchMessages = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('messages')
-      .select('*')
-      .order('sent_at', { ascending: false })
-      .limit(20);
+    // Via l'API (service_role + scoping session) : la lecture directe de
+    // `messages` depuis le navigateur échoue (RLS 42P17).
+    const res = await fetch('/api/messages?page=1&pageSize=20');
+    const { data } = (res.ok ? await res.json() : { data: null }) as { data: any[] | null };
     setMessages(data || []);
     setLoading(false);
   };
