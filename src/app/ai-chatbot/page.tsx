@@ -2618,11 +2618,9 @@ function ReclamationsTab() {
 
   // Enrichissement ZRExpress en batch (1 appel pour tout le tableau)
   const fetchEnrichments = useCallback(async (sess: Session[]) => {
-    const { loadSyncSettings } = await import('@/lib/sync-settings-client');
+    const { loadSyncSettings, zrReady } = await import('@/lib/sync-settings-client');
     const s = await loadSyncSettings();
-    const token = s.zrexpress_token;
-    const tenantId = s.zrexpress_tenant_id;
-    if (!token || !tenantId) {
+    if (!zrReady(s)) {
       setEnrichError('Clé API ZRExpress non configurée — va sur /sync pour la saisir');
       return;
     }
@@ -2637,7 +2635,7 @@ function ReclamationsTab() {
       const res = await fetch('/api/ai-chatbot/reclamations/lookup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, tenantId, items }),
+        body: JSON.stringify({ items }), // clé ZR lue côté serveur (P2-9)
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);

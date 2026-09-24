@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { mapStatus } from '@/lib/zrexpress/status';
 import { fetchAllParcels } from '@/lib/zrexpress/parcels';
+import { getZrCredentials, ZR_NOT_CONFIGURED } from '@/lib/zrexpress/credentials';
 import { remainingDailyQuota, sleep, varyMessage } from '@/lib/whatsapp/anti-spam';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
 import { countOrdersThisMonth, quotaStateFor } from '@/lib/plan-quotas';
@@ -276,10 +277,9 @@ async function drainNotifications(
 
 export async function POST(request: NextRequest) {
   try {
-    const { token, tenantId, notifyEnabled } = await request.json();
-    if (!token)
-      return NextResponse.json({ error: 'Clé API (secretKey) manquante' }, { status: 400 });
-    if (!tenantId) return NextResponse.json({ error: 'Tenant ID manquant' }, { status: 400 });
+    // La clé ZR n'est PLUS lue dans le corps (P2-9) : celle du tenant de la
+    // session, lue en base, fait foi. Une clé injectée par le client est ignorée.
+    const { notifyEnabled } = await request.json().catch(() => ({}));
 
     const supabaseAuth = await createClient();
     const {
@@ -294,6 +294,10 @@ export async function POST(request: NextRequest) {
     const userId = user.id;
 
     const supabase = createServiceClient();
+
+    const zr = await getZrCredentials(supabase, userId);
+    if (!zr) return NextResponse.json(ZR_NOT_CONFIGURED, { status: 400 });
+    const { token, tenantId } = zr;
 
     // Récupérer les credentials WhatsApp depuis whatsapp_settings (comme les autres routes)
     const { data: waSettings } = userId

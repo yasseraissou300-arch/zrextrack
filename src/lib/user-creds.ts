@@ -10,6 +10,47 @@
 //   - GROQ / Claude = retirés de la plateforme.
 
 import { createServiceClient } from '@/lib/supabase/server';
+import { open, sealForStorage, secretContext, SecretError } from '@/lib/security/secret-box';
+import { logEvent } from '@/lib/security/safe-log';
+
+/** Colonnes secrètes de user_api_credentials (api_url est de la configuration). */
+export type SecretColumn = 'api_key' | 'api_secret';
+
+function credContext(userId: string, service: string, column: SecretColumn): string {
+  // Ligne identifiée par (user_id, service) — AAD liée à la ligne ET à la colonne.
+  return secretContext('user_api_credentials', column, `${userId}:${service}`);
+}
+
+/** Valeur à stocker (chiffrée si SECRETS_KEYRING est configuré — P2-9). */
+export function sealCredential(
+  userId: string,
+  service: string,
+  column: SecretColumn,
+  plain: string
+): string {
+  return sealForStorage(plain, credContext(userId, service, column));
+}
+
+/** Clair d'une valeur stockée ; null si absente ou illisible (sans exception ni fuite). */
+export function openCredential(
+  userId: string,
+  service: string,
+  column: SecretColumn,
+  stored: string | null | undefined
+): string | null {
+  if (!stored) return null;
+  try {
+    return open(stored, credContext(userId, service, column)).value || null;
+  } catch (e) {
+    logEvent('warn', 'secrets.credentials', {
+      tenant_id: userId,
+      status: 'unreadable',
+      reason: `${service}.${column}`,
+      error_code: e instanceof SecretError ? e.code : 'unknown',
+    });
+    return null;
+  }
+}
 
 // Seul Gemini est stocké par utilisateur (BYOK). Evolution = partagé,
 // GROQ/Claude/GreenAPI = retirés de la plateforme.
@@ -41,13 +82,11 @@ export async function getUserCreds(
     .maybeSingle();
 
   if (error || !data || !data.is_active) return null;
-  if (!data.api_key && !data.api_url) return null;
+  const api_key = openCredential(userId, service, 'api_key', data.api_key);
+  const api_secret = openCredential(userId, service, 'api_secret', data.api_secret);
+  if (!api_key && !data.api_url) return null;
 
-  return {
-    api_key: data.api_key ?? null,
-    api_url: data.api_url ?? null,
-    api_secret: data.api_secret ?? null,
-  };
+  return { api_key, api_url: data.api_url ?? null, api_secret };
 }
 
 /**

@@ -52,6 +52,10 @@ describe('sync ZRExpress — authentification', () => {
   it('avec session : les commandes sont rattachées à l’utilisateur', async () => {
     currentUser = { id: '11111111-1111-4111-8111-111111111111' };
     db.seed('public', 'profiles', [{ id: currentUser.id, plan_id: 'pro', role: null }]);
+    // Depuis P2-9 phase 1, la clé ZR est lue en base (celle du corps est ignorée).
+    db.seed('public', 'user_sync_settings', [
+      { user_id: currentUser.id, zrexpress_token: 'zr-key-test', zrexpress_tenant_id: 'zr-tenant' },
+    ]);
     const res = await sync();
     expect(res.status).toBe(200);
     const orders = db.all('public', 'orders');

@@ -10,7 +10,8 @@
 // (livré / annulé / en cours) avec la MÊME logique que la sync (mapStatus).
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { getZrCredentials, ZR_NOT_CONFIGURED } from '@/lib/zrexpress/credentials';
 import { fetchAllParcels } from '@/lib/zrexpress/parcels';
 import { classifySwappedDelivery, type DeliveryBucket } from '@/lib/zrexpress/status';
 
@@ -30,16 +31,16 @@ interface SwappedItem {
 
 export async function POST(request: NextRequest) {
   try {
-    const { token, tenantId } = await request.json();
-    if (!token)
-      return NextResponse.json({ error: 'Clé API (secretKey) manquante' }, { status: 400 });
-    if (!tenantId) return NextResponse.json({ error: 'Tenant ID manquant' }, { status: 400 });
-
     const supabaseAuth = await createClient();
     const {
       data: { user },
     } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+
+    // Clé ZR lue en base pour le tenant de la session (P2-9).
+    const zr = await getZrCredentials(createServiceClient(), user.id);
+    if (!zr) return NextResponse.json(ZR_NOT_CONFIGURED, { status: 400 });
+    const { token, tenantId } = zr;
 
     // Récupère tous les colis ZRExpress du compte (token = compte du user)
     const parcels = (await fetchAllParcels(token, tenantId)) as any[];
