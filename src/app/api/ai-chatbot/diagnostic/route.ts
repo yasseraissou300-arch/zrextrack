@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds, getUserCreds } from '@/lib/user-creds';
+import { redactWebhookToken, webhookTokenQuery } from '@/lib/security/webhook-auth';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || '';
 const EXPECTED_WEBHOOK = `${APP_URL || 'https://zrextrack.vercel.app'}/api/ai-chatbot/webhook/whatsapp`;
+// URL réellement enregistrée par webhook-reset : AVEC le secret s'il est défini.
+// Sans ce suffixe, toutes les instances apparaîtraient « mal configurées » dès
+// que WHATSAPP_WEBHOOK_SECRET est défini. Comparaison interne uniquement.
+const EXPECTED_WEBHOOK_REGISTERED = `${EXPECTED_WEBHOOK}${webhookTokenQuery('WHATSAPP_WEBHOOK_SECRET')}`;
 
 interface EvCreds {
   url: string;
@@ -106,11 +111,13 @@ export async function GET() {
       const whRes = await evolutionGet(ev, `/webhook/find/${inst.instance_name}`);
       if (whRes.ok) {
         const j = whRes.json as Record<string, unknown>;
-        diag.webhook_url = (j?.url as string) ?? (j?.webhook as string) ?? null;
+        const rawUrl = (j?.url as string) ?? (j?.webhook as string) ?? null;
+        // Réponse destinée au navigateur : secret global masqué.
+        diag.webhook_url = redactWebhookToken(rawUrl);
         const events = (j?.events as string[]) ?? null;
         diag.webhook_events = events;
         diag.webhook_matches_expected =
-          diag.webhook_url === EXPECTED_WEBHOOK &&
+          rawUrl === EXPECTED_WEBHOOK_REGISTERED &&
           Array.isArray(events) &&
           events.includes('MESSAGES_UPSERT');
       } else {
