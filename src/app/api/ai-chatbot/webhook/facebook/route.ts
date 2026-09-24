@@ -2,7 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { tokensEqual } from '@/lib/security/facebook-verify';
 import { resolveGeminiKeys } from '@/lib/user-creds';
-import { verifyMetaSignature } from '@/lib/security/webhook-auth';
+import { verifyMetaSignature, isReplay } from '@/lib/security/webhook-auth';
+import {
+  correctionReply,
+  isExtractionComplete,
+  sanitizeExtracted,
+  toSheetRow,
+} from '@/lib/ai-chatbot/extraction';
 import { logEvent } from '@/lib/security/safe-log';
 
 const DEFAULT_PROMPT = `Nta agent IA l [NOM_BOUTIQUE].
@@ -175,6 +181,11 @@ export async function POST(req: NextRequest) {
       for (const event of entry.messaging ?? []) {
         if (!event.message?.text || event.message.is_echo) continue;
 
+        // Meta relivre un événement si la réponse tarde (appel Gemini) ou
+        // n'est pas 200 : sans ce filtre, l'IA répondait deux fois.
+        const mid: string = event.message.mid || '';
+        if (mid && isReplay(`fb:${pageId}:${mid}`)) continue;
+
         const senderId: string = event.sender.id;
         const text: string = event.message.text;
 
@@ -208,47 +219,60 @@ export async function POST(req: NextRequest) {
         const aiReply = await callGeminiPool(geminiKeys, systemPrompt, conversation);
         if (!aiReply) continue;
 
+        // Sortie du modèle = donnée NON fiable — même validation que WhatsApp
+        // (src/lib/ai-chatbot/extraction.ts).
         const extracted = extractData(aiReply);
-        const cleanReply = stripDataTag(aiReply);
-        conversation.push({ role: 'assistant', content: aiReply });
-
+        const templateType: string = config?.template_type ?? 'auto_confirmation';
+        const customPrompt = !!config?.custom_prompt?.trim();
+        const current = sanitizeExtracted(extracted);
+        const existingData: Record<string, string> = session?.extracted_data ?? {};
         const newData = extracted
-          ? { ...(session?.extracted_data ?? {}), ...extracted }
-          : (session?.extracted_data ?? {});
-        const isComplete = !!extracted && Object.keys(extracted).length >= 3;
+          ? sanitizeExtracted({ ...existingData, ...current.data }).data
+          : existingData;
+        const check = { templateType, customPrompt, current, merged: newData };
+        const isComplete = !!extracted && isExtractionComplete(check);
+        const correction = extracted && !isComplete ? correctionReply(check) : null;
+        const cleanReply = correction ?? stripDataTag(aiReply);
+        conversation.push({ role: 'assistant', content: correction ?? aiReply });
 
+        // `sheets_sent` jamais réécrit depuis une lecture périmée (défaut : false).
         await supabase.from('ai_chat_sessions').upsert(
           {
             user_id: userId,
             channel: 'facebook',
             contact_id: senderId,
-            template_type: config?.template_type ?? 'auto_confirmation',
+            template_type: templateType,
             conversation,
             extracted_data: newData,
             is_complete: isComplete,
-            sheets_sent: session?.sheets_sent ?? false,
             updated_at: new Date().toISOString(),
           },
           { onConflict: 'user_id,channel,contact_id' }
         );
 
-        if (isComplete && !session?.sheets_sent && config?.google_sheets_url) {
-          await fetch(config.google_sheets_url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: config.template_type,
-              timestamp: new Date().toISOString(),
-              source: 'facebook_ai',
-              ...newData,
-            }),
-          }).catch(() => {});
-          await supabase
+        // Prise atomique : une seule ligne dans le Sheet par commande, même si
+        // deux messages du client sont traités en parallèle.
+        if (isComplete && config?.google_sheets_url) {
+          const { data: claimed } = await supabase
             .from('ai_chat_sessions')
             .update({ sheets_sent: true })
             .eq('user_id', userId)
             .eq('channel', 'facebook')
-            .eq('contact_id', senderId);
+            .eq('contact_id', senderId)
+            .eq('sheets_sent', false)
+            .select('id');
+          if (Array.isArray(claimed) && claimed.length === 1) {
+            await fetch(config.google_sheets_url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type: templateType,
+                timestamp: new Date().toISOString(),
+                source: 'facebook_ai',
+                ...toSheetRow(newData),
+              }),
+            }).catch(() => {});
+          }
         }
 
         if (cleanReply) await sendFBMessage(pageToken, senderId, cleanReply);
