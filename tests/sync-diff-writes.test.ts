@@ -34,6 +34,16 @@ beforeEach(() => {
   db = new FakeSupabase();
   db.maxRows = 1000; // plafond PostgREST de Supabase
   db.seed('public', 'profiles', [{ id: USER, plan_id: 'business', role: 'admin' }]);
+  // Clé ZR stockée : lue en base par la route depuis P2-9 phase 1 (celle du
+  // corps est alors ignorée) ; sans effet sur la version antérieure.
+  db.seed('public', 'user_sync_settings', [
+    {
+      user_id: USER,
+      zrexpress_token: 'zr-synthetic',
+      zrexpress_tenant_id: 'zr-tenant',
+      notify_enabled: {},
+    },
+  ]);
   makeParcels();
   vi.stubGlobal(
     'fetch',
