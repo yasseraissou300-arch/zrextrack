@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { mapStatus } from '@/lib/zrexpress/status';
+import {
+  diffOrders,
+  loadExistingOrders,
+  statusChanged,
+  upsertOrdersInChunks,
+} from '@/lib/zrexpress/sync-diff';
 import { fetchAllParcels } from '@/lib/zrexpress/parcels';
 import { remainingDailyQuota, sleep, varyMessage } from '@/lib/whatsapp/anti-spam';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
@@ -370,18 +376,12 @@ export async function POST(request: NextRequest) {
       rows = rows.slice(0, quotaState.remaining);
     }
 
-    const trackingNums = rows.map((r) => r.tracking_number);
-
-    // 2. Charger les statuts actuels pour détecter les changements
-    // Scopé par user_id : on ne regarde que les commandes de l'utilisateur courant
-    // pour éviter de cross-contaminer les notifications entre comptes.
-    const { data: existingOrders } = await supabase
-      .from('orders')
-      .select('tracking_number, delivery_status, customer_whatsapp, customer_name, wilaya')
-      .eq('user_id', userId)
-      .in('tracking_number', trackingNums);
-
-    const existingMap = new Map((existingOrders || []).map((o) => [o.tracking_number, o]));
+    // 2. Charger TOUT l'existant du tenant (paginé) pour détecter les
+    // changements — voir src/lib/zrexpress/sync-diff.ts. L'ancien
+    // `.in(<tous les suivis>)` plafonnait à 1 000 lignes : le reste passait
+    // pour « nouveau » et déclenchait des notifications de colis anciens.
+    // null = lecture échouée → aucune notification (dans le doute).
+    const existingMap = userId ? await loadExistingOrders(supabase, userId) : null;
 
     // 3. Identifier les commandes dont le statut a changé
     const toNotify: Array<{
@@ -394,7 +394,6 @@ export async function POST(request: NextRequest) {
       cod: number;
     }> = [];
     for (const row of rows) {
-      const existing = existingMap.get(row.tracking_number);
       // Vérifier si les notifications sont activées pour ce statut (true par défaut si non précisé)
       const isEnabled = notifyEnabled ? notifyEnabled[row.delivery_status] !== false : true;
       if (
@@ -402,7 +401,7 @@ export async function POST(request: NextRequest) {
         isEnabled &&
         row.customer_whatsapp &&
         row.customer_whatsapp.length > 4 &&
-        existing?.delivery_status !== row.delivery_status
+        statusChanged(existingMap, row)
       ) {
         toNotify.push({
           tracking_number: row.tracking_number,
@@ -419,9 +418,11 @@ export async function POST(request: NextRequest) {
     // 4. Upsert les commandes — onConflict composite (user_id, tracking_number)
     // pour garantir qu'un sync ne touche jamais les lignes d'un autre user
     // même s'ils partagent un même tracking ZRExpress.
-    const { error, count } = await supabase
-      .from('orders')
-      .upsert(rows, { onConflict: 'user_id,tracking_number', count: 'exact' });
+    // Seules les lignes nouvelles ou modifiées sont écrites (avant : toutes,
+    // ≈ 5 000 par passage). Lecture de l'existant échouée → tout est écrit,
+    // comme avant.
+    const diff = existingMap ? diffOrders(rows, existingMap) : null;
+    const { written, error } = await upsertOrdersInChunks(supabase, diff ? diff.toWrite : rows);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -456,7 +457,9 @@ export async function POST(request: NextRequest) {
     const whatsappSent = userId ? await drainNotifications(supabase, userId, userTpl) : 0;
 
     return NextResponse.json({
-      synced: count ?? rows.length,
+      synced: rows.length,
+      written,
+      ...(diff && { created: diff.created, updated: diff.updated, unchanged: diff.unchanged }),
       total: parcels.length,
       whatsapp_sent: whatsappSent,
       notifications: toNotify.length,
