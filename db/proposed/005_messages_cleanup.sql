@@ -9,6 +9,11 @@
 --
 --   Les ~532 000 lignes historiques ne doivent pas etre modifiees sans une
 --   validation separee et explicite.
+--
+--   ⚠️ REVUE 2026-09-24 (db/reviews/2026-09-24_revue_003_005.md) : avec E3
+--   (DELETE + VACUUM ordinaire) le gain de ~200 Mo NE se materialise PAS —
+--   les fichiers ne retrecissent pas. Strategie de remplacement proposee :
+--   reconstruction atomique (keep + TRUNCATE + reinsert). Non executee.
 -- ============================================================================
 
 
