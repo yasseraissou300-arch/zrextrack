@@ -206,3 +206,35 @@ describe('résolution SAV', () => {
     expect(sends).toHaveLength(1);
   });
 });
+
+describe('mode simulation (?dry_run=1) — vérification post-gel sans envoi', () => {
+  async function callDry(opts: { bearer?: string } = {}) {
+    const { POST } = await import('@/app/api/ai-chatbot/relance/route');
+    const res = await POST(
+      new NextRequest('https://app.test/api/ai-chatbot/relance?dry_run=1', {
+        method: 'POST',
+        headers: opts.bearer ? { authorization: `Bearer ${opts.bearer}` } : {},
+        body: '{}',
+      })
+    );
+    return { status: res.status, json: await res.json() };
+  }
+
+  it('avec le bon secret : compte les éligibles, AUCUN envoi, AUCUNE écriture', async () => {
+    vi.stubEnv('CRON_SECRET', 'cron-test-secret');
+    seedTenant(A, [{ id: 'a1' }, { id: 'a2' }]);
+    seedTenant(B, [{ id: 'b1' }]);
+    const { status, json } = await callDry({ bearer: 'cron-test-secret' });
+    expect(status).toBe(200);
+    expect(json).toMatchObject({ scope: 'all', dry_run: true, eligible: 2, relanced: 0 });
+    expect(sends).toHaveLength(0);
+    expect(db.all('public', 'ai_chat_sessions').every((s) => s.relance_sent === false)).toBe(true);
+    expect(db.all('public', 'messages')).toHaveLength(0);
+  });
+
+  it('sans authentification : 401 même en simulation', async () => {
+    vi.stubEnv('CRON_SECRET', 'cron-test-secret');
+    seedTenant(A, [{ id: 'a1' }]);
+    expect((await callDry()).status).toBe(401);
+  });
+});

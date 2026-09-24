@@ -52,13 +52,20 @@ interface StaleSession {
 export interface RelanceResult {
   relanced: number;
   skipped: Record<string, number>;
+  /** Mode simulation : sessions qui SERAIENT relancées (aucun envoi, aucune écriture). */
+  eligible?: number;
+  dry_run?: boolean;
 }
 
 /**
  * @param tenantId  limite aux sessions de ce tenant (appel utilisateur) ;
  *                  undefined = tous les tenants (appel planifié authentifié).
  */
-export async function runRelance(supabase: Client, tenantId?: string): Promise<RelanceResult> {
+export async function runRelance(
+  supabase: Client,
+  tenantId?: string,
+  opts: { dryRun?: boolean } = {}
+): Promise<RelanceResult> {
   const cutoff = new Date(Date.now() - RELANCE_AFTER_MS).toISOString();
   const skipped: Record<string, number> = {};
   const skip = (why: string) => (skipped[why] = (skipped[why] ?? 0) + 1);
@@ -75,10 +82,15 @@ export async function runRelance(supabase: Client, tenantId?: string): Promise<R
   if (tenantId) q = q.eq('user_id', tenantId);
 
   const { data: sessions } = await q;
-  if (!sessions?.length) return { relanced: 0, skipped };
+  if (!sessions?.length) {
+    return opts.dryRun
+      ? { relanced: 0, skipped, eligible: 0, dry_run: true }
+      : { relanced: 0, skipped };
+  }
 
   const served = new Set<string>(); // un envoi max par tenant et par exécution
   let relanced = 0;
+  let eligible = 0;
 
   for (const s of sessions as StaleSession[]) {
     if (s.channel !== 'whatsapp') continue;
@@ -130,6 +142,14 @@ export async function runRelance(supabase: Client, tenantId?: string): Promise<R
     }
     if ((sentRecently ?? 0) > 0) {
       skip('spacing');
+      continue;
+    }
+
+    // Simulation (vérification d'exploitation, runbook HUMAN-005) : on s'arrête
+    // AVANT toute écriture ou envoi.
+    if (opts.dryRun) {
+      served.add(s.user_id);
+      eligible++;
       continue;
     }
 
@@ -186,5 +206,5 @@ export async function runRelance(supabase: Client, tenantId?: string): Promise<R
     });
   }
 
-  return { relanced, skipped };
+  return opts.dryRun ? { relanced: 0, skipped, eligible, dry_run: true } : { relanced, skipped };
 }

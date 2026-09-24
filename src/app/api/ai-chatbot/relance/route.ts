@@ -29,9 +29,11 @@ function cronAuthorized(req: NextRequest, body: { secret?: unknown }): boolean {
 
 async function handle(req: NextRequest, body: { secret?: unknown }) {
   const service = createServiceClient();
+  // ?dry_run=1 : compte ce qui serait relancé, sans rien envoyer ni écrire.
+  const dryRun = req.nextUrl.searchParams.get('dry_run') === '1';
 
   if (cronAuthorized(req, body)) {
-    const result = await runRelance(service);
+    const result = await runRelance(service, undefined, { dryRun });
     return NextResponse.json({ ok: true, scope: 'all', ...result });
   }
 
@@ -41,7 +43,7 @@ async function handle(req: NextRequest, body: { secret?: unknown }) {
   } = await auth.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const result = await runRelance(service, user.id);
+  const result = await runRelance(service, user.id, { dryRun });
   return NextResponse.json({ ok: true, scope: 'tenant', ...result });
 }
 
