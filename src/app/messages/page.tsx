@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { loadSyncSettings, saveSyncSettings } from '@/lib/sync-settings-client';
+import { selectResendable } from '@/lib/whatsapp/resend-selection';
 
 interface WASettings {
   instance_id: string;
@@ -45,6 +46,42 @@ interface Order {
   cod: number;
   product_name: string;
 }
+// Réponse de /api/whatsapp/send (champs optionnels selon le cas).
+interface SendResponse {
+  error?: string;
+  code?: string;
+  hint?: string;
+  sent?: number;
+  failed?: number;
+  sentToday?: number;
+  dailyLimit?: number;
+  skippedForQuota?: number;
+  sessionDead?: boolean;
+  circuitBroken?: boolean;
+  deferred?: Array<{ tracking: string; client: string }>;
+  results?: Array<{ error?: string }>;
+}
+
+// Une réponse non JSON (504 de la plateforme, coupure réseau) ne doit ni
+// bloquer le bouton ni inviter à renvoyer à l'aveugle : certains messages
+// sont peut-être partis.
+async function postSend(
+  recipients: Array<{ tracking: string; client: string; whatsapp: string; message: string }>
+): Promise<SendResponse> {
+  try {
+    const res = await fetch('/api/whatsapp/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ recipients }),
+    });
+    return (await res.json().catch(() => ({
+      error: `Réponse inattendue (HTTP ${res.status}) — vérifie l'historique avant de renvoyer.`,
+    }))) as SendResponse;
+  } catch {
+    return { error: "Connexion interrompue — vérifie l'historique avant de renvoyer." };
+  }
+}
+
 interface MsgLog {
   id: string;
   tracking_number: string;
@@ -732,18 +769,24 @@ function EnvoyerTab() {
           templateId === 'custom' ? customText : renderTemplate(template?.content_darija ?? '', o),
       }));
     setSending(true);
-    const res = await fetch('/api/whatsapp/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ recipients }),
-    });
-    const json = await res.json();
-    if (json.error) toast.error(json.error);
-    else {
-      toast.success(`${json.sent} message(s) envoye(s)`);
-      setSelected(new Set());
+    try {
+      const json = await postSend(recipients);
+      if (json.error) toast.error(json.error);
+      else if (json.deferred?.length) {
+        // Envoi partiel : seuls les destinataires NON traités restent
+        // sélectionnés — un nouveau clic ne renvoie rien aux premiers.
+        const left = new Set(json.deferred.map((d) => d.tracking));
+        setSelected(
+          new Set(displayedOrders.filter((o) => left.has(o.tracking_number)).map((o) => o.id))
+        );
+        toast.warning(`${json.sent} envoyé(s). ${json.hint}`, { duration: 12000 });
+      } else {
+        toast.success(`${json.sent} message(s) envoye(s)`);
+        setSelected(new Set());
+      }
+    } finally {
+      setSending(false);
     }
-    setSending(false);
   };
 
   const sendTest = async () => {
@@ -757,17 +800,15 @@ function EnvoyerTab() {
         ? customText || 'هذا رسالة تجريبية'
         : renderTemplate(template?.content_darija ?? '', mockO);
     setSendingTest(true);
-    const res = await fetch('/api/whatsapp/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        recipients: [{ tracking: 'TEST', client: 'Test', whatsapp: testPhone, message }],
-      }),
-    });
-    const json = await res.json();
-    if (json.error) toast.error(json.error);
-    else toast.success('Message de test envoye !');
-    setSendingTest(false);
+    try {
+      const json = await postSend([
+        { tracking: 'TEST', client: 'Test', whatsapp: testPhone, message },
+      ]);
+      if (json.error) toast.error(json.error);
+      else toast.success('Message de test envoye !');
+    } finally {
+      setSendingTest(false);
+    }
   };
 
   return (
@@ -1126,38 +1167,36 @@ function HistoriqueTab() {
 
   const resend = async (msg: MsgLog) => {
     setResending((s) => new Set(s).add(msg.id));
-    const res = await fetch('/api/whatsapp/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        recipients: [
-          {
-            tracking: msg.tracking_number,
-            client: msg.customer_name,
-            whatsapp: msg.customer_whatsapp,
-            message: msg.message,
-          },
-        ],
-      }),
-    });
-    const json = await res.json();
-    if (json.error) toast.error(json.error);
-    else if (json.sent > 0) {
-      toast.success('Message renvoyé !');
-      fetchMessages();
-    } else
-      toast.error(
-        `Echec du renvoi${json.results?.[0]?.error ? ' : ' + json.results[0].error : ''}`
-      );
-    setResending((s) => {
-      const n = new Set(s);
-      n.delete(msg.id);
-      return n;
-    });
+    try {
+      const json = await postSend([
+        {
+          tracking: msg.tracking_number,
+          client: msg.customer_name,
+          whatsapp: msg.customer_whatsapp,
+          message: msg.message,
+        },
+      ]);
+      if (json.error) toast.error(json.error);
+      else if ((json.sent ?? 0) > 0) {
+        toast.success('Message renvoyé !');
+        fetchMessages();
+      } else
+        toast.error(
+          `Echec du renvoi${json.results?.[0]?.error ? ' : ' + json.results[0].error : ''}`
+        );
+    } finally {
+      setResending((s) => {
+        const n = new Set(s);
+        n.delete(msg.id);
+        return n;
+      });
+    }
   };
 
   const resendAll = async () => {
-    const failed = displayed.filter((m) => m.status === 'echec');
+    // Uniquement les échecs RÉCENTS jamais renvoyés avec succès (voir
+    // lib/whatsapp/resend-selection) — jamais l'historique d'avril-juillet.
+    const failed = selectResendable(messages);
     if (failed.length === 0) return;
     setResendingAll(true);
     const recipients = failed.map((m) => ({
@@ -1166,12 +1205,14 @@ function HistoriqueTab() {
       whatsapp: m.customer_whatsapp,
       message: m.message,
     }));
-    const res = await fetch('/api/whatsapp/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ recipients }),
-    });
-    const json = await res.json();
+    try {
+      await handleResendAll(await postSend(recipients), failed.length);
+    } finally {
+      setResendingAll(false);
+    }
+  };
+
+  const handleResendAll = async (json: SendResponse, total: number) => {
     if (json.code === 'NOT_CONNECTED') {
       // Erreur claire avec hint : on garde l'info visible, pas juste un toast éphémère
       toast.error(`${json.error}${json.hint ? '\n' + json.hint : ''}`, { duration: 8000 });
@@ -1198,12 +1239,14 @@ function HistoriqueTab() {
     } else {
       const quotaMsg = json.dailyLimit ? ` · Quota : ${json.sentToday}/${json.dailyLimit}` : '';
       const skipped = json.skippedForQuota ? ` · ${json.skippedForQuota} sautés (quota)` : '';
+      const deferred = json.deferred?.length
+        ? ` · ${json.deferred.length} en attente (relance)`
+        : '';
       toast.success(
-        `${json.sent}/${failed.length} message(s) renvoyé(s)${json.failed > 0 ? ` — ${json.failed} échec(s)` : ''}${skipped}${quotaMsg}`
+        `${json.sent}/${total} message(s) renvoyé(s)${(json.failed ?? 0) > 0 ? ` — ${json.failed} échec(s)` : ''}${skipped}${deferred}${quotaMsg}`
       );
       fetchMessages();
     }
-    setResendingAll(false);
   };
 
   const statusConfig: Record<string, { label: string; bg: string }> = {
@@ -1213,6 +1256,7 @@ function HistoriqueTab() {
   };
 
   const echecCount = messages.filter((m) => m.status === 'echec').length;
+  const resendableCount = selectResendable(messages).length;
   const displayed = filterEchec ? messages.filter((m) => m.status === 'echec') : messages;
 
   return (
@@ -1320,18 +1364,21 @@ function HistoriqueTab() {
               {echecCount > 1 ? 's' : ''}
             </p>
           </div>
-          <button
-            onClick={resendAll}
-            disabled={resendingAll}
-            className="flex items-center gap-1.5 text-sm px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-50 font-medium shrink-0"
-          >
-            {resendingAll ? (
-              <Loader2 size={14} className="animate-spin" />
-            ) : (
-              <RefreshCw size={14} />
-            )}
-            Tout renvoyer
-          </button>
+          {resendableCount > 0 && (
+            <button
+              onClick={resendAll}
+              disabled={resendingAll}
+              title="Échecs de moins de 24 h, jamais renvoyés avec succès"
+              className="flex items-center gap-1.5 text-sm px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-50 font-medium shrink-0"
+            >
+              {resendingAll ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <RefreshCw size={14} />
+              )}
+              Renvoyer les échecs récents ({resendableCount})
+            </button>
+          )}
         </div>
       )}
 
@@ -1349,7 +1396,7 @@ function HistoriqueTab() {
             )}
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            {echecCount > 0 && (
+            {resendableCount > 0 && (
               <button
                 onClick={resendAll}
                 disabled={resendingAll}
@@ -1360,7 +1407,7 @@ function HistoriqueTab() {
                 ) : (
                   <RefreshCw size={12} />
                 )}
-                Tout renvoyer ({echecCount})
+                Renvoyer les récents ({resendableCount})
               </button>
             )}
             <button
