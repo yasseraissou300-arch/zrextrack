@@ -4,7 +4,7 @@
 //     2026-09-26T22:15Z). De plus, service_role n'a PAS le privilège DELETE sur
 //     autotim (002b, moindre privilège) : l'application réelle exige d'abord une
 //     décision post-gel (GRANT DELETE, ou exécution par `postgres` du SQL de
-//     db/proposed/006_jobs_retention.sql, qui reprend exactement ces règles).
+//     db/proposed/007_jobs_retention.sql, qui reprend exactement ces règles).
 //
 // POURQUOI SI PEU DE LIGNES SONT SUPPRIMABLES
 // La clé d'idempotence n'existe QUE dans la ligne du job (index unique

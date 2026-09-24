@@ -1,5 +1,5 @@
 -- ============================================================================
--- PROPOSITION 006 — Rétention de autotim.jobs (P2-8)
+-- PROPOSITION 007 — Rétention de autotim.jobs (P2-8)
 -- ----------------------------------------------------------------------------
 -- ⛔ NON EXÉCUTÉE. Aucune exécution avant la fin du gel (2026-09-26T22:15Z) ni
 --    sans GO explicite. Fichier dans db/proposed/, PAS dans db/migrations/.

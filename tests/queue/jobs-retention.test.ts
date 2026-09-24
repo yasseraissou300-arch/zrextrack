@@ -321,9 +321,9 @@ describe('idempotence préservée après nettoyage', () => {
   });
 });
 
-describe('db/proposed/006_jobs_retention.sql — aligné sur la politique', () => {
+describe('db/proposed/007_jobs_retention.sql — aligné sur la politique', () => {
   const sql = readFileSync(
-    path.resolve(__dirname, '../../db/proposed/006_jobs_retention.sql'),
+    path.resolve(__dirname, '../../db/proposed/007_jobs_retention.sql'),
     'utf8'
   );
   const active = sql
