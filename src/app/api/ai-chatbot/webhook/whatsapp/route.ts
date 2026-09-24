@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { resolveGeminiKeys, resolveEvolutionCreds } from '@/lib/user-creds';
-import { verifyWebhookSecret, isReplay } from '@/lib/security/webhook-auth';
+import { verifyWebhookSecret } from '@/lib/security/webhook-auth';
+import { isReplayDurable } from '@/lib/security/replay-store';
 import { logEvent, maskPhone } from '@/lib/security/safe-log';
 
 // Credentials résolus au début de chaque requête.
@@ -498,8 +499,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    const supabase = createServiceClient();
+
     // ── Idempotence : un même message rejoué ne relance ni l'IA ni un envoi ──
-    if (messageId && isReplay(`wa:${instanceName}:${messageId}`)) {
+    // Store partagé (Postgres) : efficace entre instances Vercel et après un
+    // démarrage à froid, contrairement au seul cache mémoire.
+    if (messageId && (await isReplayDurable(supabase, `wa:${instanceName}:${messageId}`))) {
       logEvent('info', 'webhook.whatsapp', {
         event,
         instance: instanceName,
@@ -508,8 +513,6 @@ export async function POST(req: NextRequest) {
       });
       return NextResponse.json({ ok: true, deduped: true });
     }
-
-    const supabase = createServiceClient();
 
     // Route to user + service via instance_name
     const { data: waInstance, error: waErr } = await supabase
