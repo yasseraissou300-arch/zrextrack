@@ -110,9 +110,6 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
   if (cErr || !campaign) {
     return NextResponse.json({ error: 'Campagne introuvable' }, { status: 404 });
   }
-  if (campaign.status === 'en_cours') {
-    return NextResponse.json({ error: 'Campagne déjà en cours' }, { status: 400 });
-  }
 
   // ── WhatsApp doit être connecté AVANT d'enfiler ───────────────────────────
   const ev = await resolveEvolutionCreds(user.id);
@@ -147,17 +144,30 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
   const remainingToday = remainingDailyQuota(sentToday ?? 0, warmupStartedAt);
 
   // ── Enfilement ────────────────────────────────────────────────────────────
-  await supabase
+  // Passage à « en_cours » ATOMIQUE : deux clics simultanés ne lancent pas
+  // deux chaînes de dispatch.
+  const { data: started } = await supabase
     .from('campaigns')
     .update({ status: 'en_cours', updated_at: new Date().toISOString() })
     .eq('id', id)
-    .eq('user_id', user.id);
+    .eq('user_id', user.id)
+    .neq('status', 'en_cours')
+    .select('id');
+  if (!Array.isArray(started) || started.length !== 1) {
+    return NextResponse.json({ error: 'Campagne déjà en cours' }, { status: 400 });
+  }
+
+  // Un identifiant par lancement : un renvoi n'est plus dédupliqué contre le
+  // premier envoi (voir campaignDispatchKey). Les destinataires déjà servis
+  // restent exclus par leur propre clé.
+  const isRelaunch = campaign.status === 'termine' || campaign.status === 'annule';
+  const run = isRelaunch ? `r${Date.now()}` : undefined;
 
   await enqueue(supabase, {
     tenantId: user.id,
     type: 'campaign.dispatch',
-    payload: { campaign_id: id, offset: 0 },
-    idempotencyKey: campaignDispatchKey(id, 0),
+    payload: { campaign_id: id, offset: 0, ...(run ? { run } : {}) },
+    idempotencyKey: campaignDispatchKey(id, 0, run),
   });
 
   logEvent('info', 'campaign.send', {
@@ -169,8 +179,9 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
   return NextResponse.json({
     ok: true,
     queued: true,
-    message:
-      'Campagne mise en file. Les envois partent en arrière-plan, espacés pour protéger le numéro — tu peux fermer la page.',
+    message: isRelaunch
+      ? 'Renvoi mis en file : seuls les destinataires qui n’ont pas encore reçu cette campagne seront contactés.'
+      : 'Campagne mise en file. Les envois partent en arrière-plan, espacés pour protéger le numéro — tu peux fermer la page.',
     sentToday: sentToday ?? 0,
     dailyLimit,
     remainingToday,
