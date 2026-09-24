@@ -3,6 +3,13 @@ import { createServiceClient } from '@/lib/supabase/server';
 import { resolveGeminiKeys, resolveEvolutionCreds } from '@/lib/user-creds';
 import { verifyWebhookSecret, isReplay } from '@/lib/security/webhook-auth';
 import { logEvent, maskPhone } from '@/lib/security/safe-log';
+import { isAngerDetected, isBlabla } from '@/lib/ai-chatbot/classifiers';
+import {
+  correctionReply,
+  isExtractionComplete,
+  sanitizeExtracted,
+  toSheetRow,
+} from '@/lib/ai-chatbot/extraction';
 
 // Credentials résolus au début de chaque requête.
 //   - Evolution = serveur PARTAGÉ de la plateforme (connexion du numéro).
@@ -13,159 +20,6 @@ interface ResolvedCreds {
   evolutionUrl: string;
   evolutionKey: string;
   geminiKeys: string[]; // pool — vide → le bot ne répond pas
-}
-
-// ─── 58 Wilayas Algeria normalization ─────────────────────────────────────────
-const WILAYA_MAP: Record<string, string> = {
-  adrar: 'Adrar',
-  chlef: 'Chlef',
-  chleff: 'Chlef',
-  'el chlef': 'Chlef',
-  laghouat: 'Laghouat',
-  'oum el bouaghi': 'Oum El Bouaghi',
-  'oum bouaghi': 'Oum El Bouaghi',
-  batna: 'Batna',
-  bejaia: 'Béjaïa',
-  béjaïa: 'Béjaïa',
-  bgayet: 'Béjaïa',
-  biskra: 'Biskra',
-  bechar: 'Béchar',
-  béchar: 'Béchar',
-  blida: 'Blida',
-  bouira: 'Bouira',
-  tamanrasset: 'Tamanrasset',
-  tamanghasset: 'Tamanrasset',
-  tebessa: 'Tébessa',
-  tébessa: 'Tébessa',
-  tlemcen: 'Tlemcen',
-  tiaret: 'Tiaret',
-  'tizi ouzou': 'Tizi Ouzou',
-  'tizi-ouzou': 'Tizi Ouzou',
-  'tizi ouzu': 'Tizi Ouzou',
-  tizi: 'Tizi Ouzou',
-  alger: 'Alger',
-  algiers: 'Alger',
-  dzair: 'Alger',
-  djelfa: 'Djelfa',
-  jijel: 'Jijel',
-  setif: 'Sétif',
-  sétif: 'Sétif',
-  setiff: 'Sétif',
-  saida: 'Saïda',
-  saïda: 'Saïda',
-  skikda: 'Skikda',
-  'sidi bel abbes': 'Sidi Bel Abbès',
-  'sidi bel abbès': 'Sidi Bel Abbès',
-  sba: 'Sidi Bel Abbès',
-  annaba: 'Annaba',
-  guelma: 'Guelma',
-  constantine: 'Constantine',
-  qsentina: 'Constantine',
-  medea: 'Médéa',
-  médéa: 'Médéa',
-  mostaganem: 'Mostaganem',
-  msila: "M'Sila",
-  "m'sila": "M'Sila",
-  mascara: 'Mascara',
-  ouargla: 'Ouargla',
-  oran: 'Oran',
-  wahran: 'Oran',
-  'el bayadh': 'El Bayadh',
-  illizi: 'Illizi',
-  'bordj bou arreridj': 'Bordj Bou Arréridj',
-  bba: 'Bordj Bou Arréridj',
-  boumerdes: 'Boumerdès',
-  boumerdès: 'Boumerdès',
-  'el tarf': 'El Tarf',
-  tindouf: 'Tindouf',
-  tissemsilt: 'Tissemsilt',
-  'el oued': 'El Oued',
-  eloued: 'El Oued',
-  khenchela: 'Khenchela',
-  soukahras: 'Souk Ahras',
-  'souk ahras': 'Souk Ahras',
-  tipaza: 'Tipaza',
-  tipasa: 'Tipaza',
-  mila: 'Mila',
-  'ain defla': 'Aïn Defla',
-  'aïn defla': 'Aïn Defla',
-  naama: 'Naâma',
-  naâma: 'Naâma',
-  'ain temouchent': 'Aïn Témouchent',
-  'aïn témouchent': 'Aïn Témouchent',
-  ghardaia: 'Ghardaïa',
-  ghardaïa: 'Ghardaïa',
-  relizane: 'Relizane',
-  timimoun: 'Timimoun',
-  'bordj badji mokhtar': 'Bordj Badji Mokhtar',
-  'ouled djellal': 'Ouled Djellal',
-  'beni abbes': 'Béni Abbès',
-  'in salah': 'In Salah',
-  'in guezzam': 'In Guezzam',
-  touggourt: 'Touggourt',
-  djanet: 'Djanet',
-  'el meghaier': "El M'Ghair",
-};
-
-function normalizeWilaya(raw: string): string {
-  const clean = raw
-    .toLowerCase()
-    .trim()
-    .replace(/[éèê]/g, 'e')
-    .replace(/[àâ]/g, 'a')
-    .replace(/[îï]/g, 'i')
-    .replace(/[ôö]/g, 'o')
-    .replace(/[ùûü]/g, 'u');
-  return WILAYA_MAP[clean] ?? WILAYA_MAP[raw.toLowerCase().trim()] ?? raw;
-}
-
-// ─── Anger / frustration detection ────────────────────────────────────────────
-const ANGER_KEYWORDS = [
-  'hram',
-  '7ram',
-  'malhoul',
-  'mahoul',
-  'ndir plainte',
-  'nchakou',
-  'ghachi',
-  'sba7a',
-  'dawir',
-  'faci',
-  'khayb',
-  'wahd',
-  'wa7d dial',
-  'arnab',
-  'nas khayba',
-  'f*** ',
-  'merde',
-  'nta khayb',
-  'nti khayba',
-  'ndir fi',
-  'ndiru fikom',
-  'hadchi mazal',
-  'mazal mazal',
-  'disappointed',
-  'furious',
-  'angry',
-  'scam',
-  'arnaque',
-];
-
-function isAngerDetected(text: string): boolean {
-  const lower = text.toLowerCase();
-  return ANGER_KEYWORDS.some((kw) => lower.includes(kw));
-}
-
-// ─── Blabla / non-serious detection ───────────────────────────────────────────
-const BLABLA_PATTERNS = [
-  /^(hi|hello|salam|mrhba|ahlan|slt|cava|كيف|مرحبا|صباح|مساء)[\s!?.]*$/i,
-  /^(ok|okay|oui|non|yes|no|wah|la|ewa|ewa ewa)[\s!?.]*$/i,
-  /^\p{Emoji}+$/u,
-  /^.{1,3}$/,
-];
-
-function isBlabla(text: string): boolean {
-  return BLABLA_PATTERNS.some((p) => p.test(text.trim()));
 }
 
 // ─── Default system prompts ────────────────────────────────────────────────────
@@ -639,7 +493,10 @@ export async function POST(req: NextRequest) {
     }
 
     // ─── Blabla → friendly nudge without Claude ───────────────────────────────
-    if (isBlabla(text)) {
+    // Premier contact uniquement : en cours de conversation, « wah », « 2 » ou
+    // « 16 » répondent à une question du bot (confirmation, quantité, wilaya)
+    // et doivent aller au modèle, pas déclencher « Tebghi dir commande ? ».
+    if (!existingSession && isBlabla(text)) {
       const nudges: Record<string, string> = {
         auto_confirmation: 'Slam! Kifach n9der n3awnek? Tebghi dir commande? 😊',
         sav: 'Slam! 3andek mushkil f commande? Goulili wach rak w rah n3awnek 🙏',
@@ -717,17 +574,35 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    // ── Sortie du modèle = donnée NON fiable : validée côté serveur ──────────
     const extracted = extractData(aiReply);
-    const cleanReply = stripDataTag(aiReply);
-
-    conversation.push({ role: 'assistant', content: aiReply });
+    const customPrompt = !!config.custom_prompt?.trim();
+    const current = sanitizeExtracted(extracted);
 
     const existingData: Record<string, string> = existingSession?.extracted_data ?? {};
-    const newData = extracted ? { ...existingData, ...extracted } : existingData;
-    if (newData.wilaya) newData.wilaya = normalizeWilaya(newData.wilaya);
+    const newData = extracted
+      ? sanitizeExtracted({ ...existingData, ...current.data }).data
+      : existingData;
 
-    const isComplete = !!extracted && Object.keys(extracted).length >= 3;
+    const check = { templateType: config.template_type, customPrompt, current, merged: newData };
+    const isComplete = !!extracted && isExtractionComplete(check);
 
+    // Bloc <data> refusé : le client ne doit pas lire « commande enregistrée ✅ ».
+    const correction = extracted && !isComplete ? correctionReply(check) : null;
+    const cleanReply = correction ?? stripDataTag(aiReply);
+    if (correction) {
+      logEvent('warn', 'webhook.whatsapp', {
+        tenant_id: userId,
+        status: 'extraction_rejected',
+        reason: current.invalid.join(',') || 'missing_fields',
+      });
+    }
+
+    conversation.push({ role: 'assistant', content: correction ?? aiReply });
+
+    // `sheets_sent` n'est JAMAIS réécrit ici : l'ancienne valeur lue en début
+    // de requête pouvait être périmée et remettre à false un envoi déjà fait
+    // par une requête concurrente (défaut en base : false).
     await supabase.from('ai_chat_sessions').upsert(
       {
         user_id: userId,
@@ -738,7 +613,6 @@ export async function POST(req: NextRequest) {
         conversation,
         extracted_data: newData,
         is_complete: isComplete,
-        sheets_sent: existingSession?.sheets_sent ?? false,
         human_handover: false,
         failure_count: newFailureCount,
         tokens_used: updatedTokens,
@@ -747,28 +621,39 @@ export async function POST(req: NextRequest) {
       { onConflict: 'user_id,channel,contact_id' }
     );
 
-    // Google Sheets + admin notification on completion
-    if (isComplete && !existingSession?.sheets_sent) {
-      if (config.google_sheets_url) {
-        await notifyGoogleSheets(config.google_sheets_url, config.template_type, newData);
-      }
-      if (config.admin_whatsapp) {
-        await notifyAdmin(
-          evUrl,
-          evKey,
-          instanceName,
-          config.admin_whatsapp,
-          newData,
-          config.shop_name || 'Boutique',
-          config.template_type
-        );
-      }
-      await supabase
+    // Google Sheets + admin : prise ATOMIQUE de `sheets_sent` (false → true).
+    // Deux messages du client traités en parallèle ne créent plus deux lignes
+    // de commande ni deux notifications admin.
+    if (isComplete) {
+      const { data: claimed } = await supabase
         .from('ai_chat_sessions')
         .update({ sheets_sent: true, updated_at: new Date().toISOString() })
         .eq('user_id', userId)
         .eq('channel', 'whatsapp')
-        .eq('contact_id', remoteJid);
+        .eq('contact_id', remoteJid)
+        .eq('sheets_sent', false)
+        .select('id');
+
+      if (Array.isArray(claimed) && claimed.length === 1) {
+        if (config.google_sheets_url) {
+          await notifyGoogleSheets(
+            config.google_sheets_url,
+            config.template_type,
+            toSheetRow(newData)
+          );
+        }
+        if (config.admin_whatsapp) {
+          await notifyAdmin(
+            evUrl,
+            evKey,
+            instanceName,
+            config.admin_whatsapp,
+            newData,
+            config.shop_name || 'Boutique',
+            config.template_type
+          );
+        }
+      }
     }
 
     await sendWhatsApp(evUrl, evKey, instanceName, remoteJid, cleanReply);
