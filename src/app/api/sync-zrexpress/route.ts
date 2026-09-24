@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { mapStatus } from '@/lib/zrexpress/status';
 import { fetchAllParcels } from '@/lib/zrexpress/parcels';
+import { stateUpdatedAt } from '@/lib/zrexpress/map-parcel';
 import { remainingDailyQuota, sleep, varyMessage } from '@/lib/whatsapp/anti-spam';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
 import { countOrdersThisMonth, quotaStateFor } from '@/lib/plan-quotas';
@@ -157,7 +158,7 @@ function mapParcel(p: any, syncedAt: string) {
     cod: Number(cod),
     delivery_status: status,
     attempts: Number(attempts),
-    last_update: syncedAt,
+    last_update: stateUpdatedAt(p, syncedAt),
   };
 }
 
