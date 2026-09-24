@@ -39,12 +39,7 @@ describe('script-guard — arrêt AVANT connexion', () => {
     ['--target en double', [`--target=${REF}`, `--target=${REF}`], GOOD_ENV, 'target_ambiguous'],
     ['--target mal formé', ['--target=prod'], GOOD_ENV, 'target_invalid'],
     ['--target d’un autre projet', [`--target=${OTHER}`], GOOD_ENV, 'target_mismatch'],
-    [
-      'URL absente',
-      [`--target=${REF}`],
-      { SUPABASE_SERVICE_ROLE_KEY: KEY },
-      'url_missing',
-    ],
+    ['URL absente', [`--target=${REF}`], { SUPABASE_SERVICE_ROLE_KEY: KEY }, 'url_missing'],
     [
       'URL invalide',
       [`--target=${REF}`],
@@ -87,12 +82,7 @@ describe('script-guard — arrêt AVANT connexion', () => {
       { ...GOOD_ENV, SUPABASE_SERVICE_ROLE_KEY: jwt({ ref: REF, role: 'anon' }) },
       'service_key_wrong_role',
     ],
-    [
-      'cible locale mais URL distante',
-      [`--target=${LOCAL_TARGET}`],
-      GOOD_ENV,
-      'target_mismatch',
-    ],
+    ['cible locale mais URL distante', [`--target=${LOCAL_TARGET}`], GOOD_ENV, 'target_mismatch'],
   ];
 
   for (const [label, argv, env, code] of refused) {
