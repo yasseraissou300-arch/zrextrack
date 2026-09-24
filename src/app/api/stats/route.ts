@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 
+const STATS_PAGE = 1000;
+const STATS_MAX_ROWS = 50_000;
+
 export async function GET() {
   try {
     const supabaseAuth = await createClient();
@@ -12,10 +15,21 @@ export async function GET() {
     const supabase = createServiceClient();
 
     // --- Répartition par statut ---
-    const { data: allOrders } = await supabase
-      .from('orders')
-      .select('delivery_status, last_update')
-      .eq('user_id', user.id);
+    // Paginé : PostgREST plafonne une réponse à 1 000 lignes. Sans pagination,
+    // la répartition et les agrégats ne portaient que sur 1 000 commandes
+    // (5 022 actives pour le tenant pilote).
+    const allOrders: Array<{ delivery_status: string; last_update: string | null }> = [];
+    for (let from = 0; from < STATS_MAX_ROWS; from += STATS_PAGE) {
+      const { data: page, error } = await supabase
+        .from('orders')
+        .select('delivery_status, last_update')
+        .eq('user_id', user.id)
+        .order('id', { ascending: true })
+        .range(from, from + STATS_PAGE - 1);
+      if (error) throw error;
+      allOrders.push(...(page ?? []));
+      if (!page || page.length < STATS_PAGE) break;
+    }
 
     const distribution: Record<string, number> = {
       livre: 0,

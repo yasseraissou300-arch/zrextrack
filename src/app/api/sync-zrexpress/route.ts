@@ -4,6 +4,7 @@ import { mapStatus } from '@/lib/zrexpress/status';
 import { fetchAllParcels } from '@/lib/zrexpress/parcels';
 import { drainNotifications } from '@/lib/whatsapp/drain-notifications';
 import { countOrdersThisMonth, quotaStateFor } from '@/lib/plan-quotas';
+import { stateUpdatedAt } from '@/lib/zrexpress/map-parcel';
 
 // Statuts qui déclenchent une notification WhatsApp
 const NOTIFY_STATUSES = new Set(['en_transit', 'en_livraison', 'livre', 'echec', 'retourne']);
@@ -116,7 +117,7 @@ function mapParcel(p: any, syncedAt: string) {
     cod: Number(cod),
     delivery_status: status,
     attempts: Number(attempts),
-    last_update: syncedAt,
+    last_update: stateUpdatedAt(p, syncedAt),
   };
 }
 
