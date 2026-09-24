@@ -6,7 +6,8 @@
 // Variables d'environnement : NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
 // SECRETS_KEYRING. ⚠️ vite-node charge AUTOMATIQUEMENT .env / .env.local : c'est
 // pourquoi --target=<ref du projet> est exigé avant TOUT accès base (même en
-// simulation) et doit correspondre à l'hôte de NEXT_PUBLIC_SUPABASE_URL.
+// simulation) : src/lib/security/script-guard.ts vérifie l'URL, l'alias
+// SUPABASE_URL et la clé réellement chargés, et refuse AVANT toute connexion.
 //
 // Simulation (défaut, aucune écriture) :
 //   npx vite-node --config vitest.config.ts scripts/secrets-backfill.ts -- --target=<ref> --mode=encrypt
@@ -19,31 +20,26 @@
 // Codes : 0 ok · 1 arguments · 2 refus de sécurité · 3 incohérence après écriture.
 
 import { createClient } from '@supabase/supabase-js';
-import { checkTarget, executeBackfill } from '@/lib/security/secret-backfill';
+import { executeBackfill } from '@/lib/security/secret-backfill';
+import { withGuardedClient } from '@/lib/security/script-guard';
 
 async function main() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) {
-    console.error(
-      JSON.stringify({
-        error: 'NEXT_PUBLIC_SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY requis',
-        present: { url: !!url, service_role: !!serviceKey, keyring: !!process.env.SECRETS_KEYRING },
-      })
-    );
-    process.exit(1);
-  }
   const argv = process.argv.slice(2).filter((a) => a !== '--');
-  // Aucun accès base sans cible explicite (voir en-tête).
-  const targetError = checkTarget(url, argv);
-  if (targetError) {
-    console.error(JSON.stringify({ error: targetError }));
-    process.exit(1);
+  const outcome = await withGuardedClient(
+    argv,
+    process.env,
+    (url, serviceKey) => createClient(url, serviceKey, { auth: { persistSession: false } }),
+    (supabase) => executeBackfill(argv, process.env, supabase as never)
+  );
+  if (!outcome.ok) {
+    // Refus AVANT connexion. Le rapport ne contient que l'hôte et des booléens.
+    console.error(
+      JSON.stringify({ error: outcome.error, code: outcome.code, env: outcome.report })
+    );
+    process.exit(2);
   }
-  const supabase = createClient(url, serviceKey, { auth: { persistSession: false } });
-  const result = await executeBackfill(argv, process.env, supabase as never);
-  console.log(JSON.stringify(result.output, null, 2));
-  process.exit(result.exitCode);
+  console.log(JSON.stringify(outcome.value.output, null, 2));
+  process.exit(outcome.value.exitCode);
 }
 
 main().catch(() => {

@@ -10,7 +10,6 @@ import {
   executeBackfill,
   parseArgs,
   SECRET_FIELDS,
-  checkTarget,
 } from '@/lib/security/secret-backfill';
 import { openZrToken, zrTokenContext } from '@/lib/zrexpress/credentials';
 import { openCredential } from '@/lib/user-creds';
@@ -338,20 +337,4 @@ describe('robustesse', () => {
 
 it('secretContext est bien celui du module (garde-fou d’import)', () => {
   expect(secretContext('a', 'b', 'c')).toBe('a.b:c');
-});
-
-describe('cible explicite (--target) avant tout accès base', () => {
-  const URL_OK = 'https://abcdefghijklmnop.supabase.co';
-  it('absente → refus', () => {
-    expect(checkTarget(URL_OK, ['--mode=encrypt'])).toMatch(/obligatoire/);
-  });
-  it('différente de l’hôte → refus', () => {
-    expect(checkTarget(URL_OK, ['--target=autreprojet'])).toMatch(/ne correspond pas/);
-  });
-  it('URL absente ou invalide → refus', () => {
-    expect(checkTarget(undefined, ['--target=abcdefghijklmnop'])).toMatch(/invalide/);
-  });
-  it('correspondance exacte → autorisé', () => {
-    expect(checkTarget(URL_OK, ['--target=abcdefghijklmnop'])).toBeNull();
-  });
 });

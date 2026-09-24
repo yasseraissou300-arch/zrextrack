@@ -347,29 +347,3 @@ export async function executeBackfill(
     output: { applied, verification, consistent },
   };
 }
-
-/**
- * Cible EXPLICITE obligatoire avant tout accès base, simulation comprise.
- *
- * Constat (2026-09-24) : `vite-node` charge automatiquement `.env.local` ;
- * lancé « sans variables », le script a quand même atteint la base de
- * production (simulation en lecture seule, aucune écriture). Désormais
- * l'opérateur doit nommer la base visée : `--target=<ref du projet>`, qui
- * doit correspondre à l'hôte de NEXT_PUBLIC_SUPABASE_URL (<ref>.supabase.co).
- */
-export function checkTarget(url: string | undefined, argv: string[]): string | null {
-  const arg = argv.find((a) => a.startsWith('--target='));
-  if (!arg)
-    return '--target=<ref du projet Supabase> obligatoire (aucun accès base sans cible explicite)';
-  const target = arg.slice('--target='.length).trim();
-  let host = '';
-  try {
-    host = new URL(url ?? '').hostname;
-  } catch {
-    return 'NEXT_PUBLIC_SUPABASE_URL invalide ou absente';
-  }
-  if (!target || host.split('.')[0] !== target) {
-    return '--target ne correspond pas à NEXT_PUBLIC_SUPABASE_URL : arrêt';
-  }
-  return null;
-}
