@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
-import { tokensEqual } from '@/lib/security/facebook-verify';
+import { tokensEqual, openPageToken } from '@/lib/security/facebook-verify';
 import { resolveGeminiKeys } from '@/lib/user-creds';
 
 const DEFAULT_PROMPT = `Nta agent IA l [NOM_BOUTIQUE].
@@ -143,7 +143,9 @@ export async function POST(req: NextRequest) {
       if (!fbConn) continue;
 
       const userId = fbConn.user_id;
-      const pageToken = fbConn.page_access_token;
+      // Déchiffré ici, côté serveur (P2-9) ; illisible → pas de réponse.
+      const pageToken = openPageToken(fbConn.user_id, fbConn.page_access_token);
+      if (!pageToken) continue;
 
       // BYOK : on charge le POOL de clés Gemini du user une fois par entry
       const geminiKeys = await resolveGeminiKeys(userId);
