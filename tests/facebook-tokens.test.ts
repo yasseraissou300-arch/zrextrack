@@ -3,6 +3,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
 import { FakeSupabase } from './helpers/fake-supabase';
+import { OAUTH_STATE_COOKIE } from '@/lib/security/oauth-state';
 
 let db: FakeSupabase;
 const USER = '11111111-1111-4111-8111-111111111111';
@@ -66,11 +67,12 @@ describe('callback OAuth — jeton de vérification', () => {
   }
   const callback = async () => {
     const { GET } = await import('@/app/api/ai-chatbot/facebook/callback/route');
-    const state = Buffer.from(JSON.stringify({ user_id: USER })).toString('base64');
+    // Nonce OAuth (P0-2) : state de l'URL = cookie httpOnly posé par /oauth.
+    const state = 'nonce-test-0123456789abcdef';
     return GET(
-      new NextRequest(
-        `https://app.test/api/ai-chatbot/facebook/callback?code=c&state=${encodeURIComponent(state)}`
-      )
+      new NextRequest(`https://app.test/api/ai-chatbot/facebook/callback?code=c&state=${state}`, {
+        headers: { cookie: `${OAUTH_STATE_COOKIE}=${state}` },
+      })
     );
   };
 

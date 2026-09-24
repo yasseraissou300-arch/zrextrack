@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServiceClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { OAUTH_STATE_COOKIE, oauthStateMatches } from '@/lib/security/oauth-state';
 import { newVerifyToken } from '@/lib/security/facebook-verify';
+import { logEvent } from '@/lib/security/safe-log';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 function redirect(path: string) {
-  return NextResponse.redirect(new URL(path, APP_URL));
+  const res = NextResponse.redirect(new URL(path, APP_URL));
+  // Nonce à usage unique : effacé quelle que soit l'issue.
+  res.cookies.set(OAUTH_STATE_COOKIE, '', { path: '/api/ai-chatbot/facebook', maxAge: 0 });
+  return res;
 }
 
 export async function GET(req: NextRequest) {
@@ -18,12 +23,19 @@ export async function GET(req: NextRequest) {
     return redirect('/ai-chatbot?tab=facebook&error=denied');
   }
 
-  let userId: string;
-  try {
-    userId = JSON.parse(Buffer.from(stateRaw, 'base64').toString()).user_id;
-  } catch {
+  // 1. Le state doit être celui posé dans CE navigateur au départ de l'OAuth.
+  if (!oauthStateMatches(stateRaw, req.cookies.get(OAUTH_STATE_COOKIE)?.value)) {
+    logEvent('warn', 'oauth.facebook', { status: 'rejected', reason: 'state_mismatch' });
     return redirect('/ai-chatbot?tab=facebook&error=invalid_state');
   }
+
+  // 2. L'identité vient de la session, jamais du paramètre state.
+  const auth = await createClient();
+  const {
+    data: { user },
+  } = await auth.auth.getUser();
+  if (!user) return redirect('/login');
+  const userId = user.id;
 
   const appId = process.env.FACEBOOK_APP_ID;
   const appSecret = process.env.FACEBOOK_APP_SECRET;
