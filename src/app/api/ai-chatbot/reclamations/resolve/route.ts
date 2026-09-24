@@ -130,8 +130,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 1) Marque la résolution en DB
-  const { error: updateErr } = await service
+  // 1) Marque la résolution en DB — prise ATOMIQUE (resolution IS NULL).
+  // Sans cette condition, deux clics (ou deux onglets) lisaient tous deux
+  // « non résolue » et le client recevait deux fois le message WhatsApp.
+  const { data: claimed, error: updateErr } = await service
     .from('ai_chat_sessions')
     .update({
       resolution,
@@ -139,9 +141,14 @@ export async function POST(req: NextRequest) {
       resolved_by: user.id,
     })
     .eq('id', sessionId)
-    .eq('user_id', user.id);
+    .eq('user_id', user.id)
+    .is('resolution', null)
+    .select('id');
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
+  if (!Array.isArray(claimed) || claimed.length !== 1) {
+    return NextResponse.json({ error: 'Réclamation déjà résolue' }, { status: 409 });
+  }
 
   // 2) Envoie la notification WhatsApp (best effort — n'annule pas la résolution si KO)
   const message = buildMessage(resolution, session.contact_name || '');
