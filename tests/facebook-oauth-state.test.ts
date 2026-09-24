@@ -37,6 +37,8 @@ vi.mock('@/lib/supabase/server', () => ({
         upserts.push(row);
         return { error: null };
       },
+      // Lecture du verify_token existant (P2-2) : aucune connexion préalable.
+      select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) }),
     }),
   }),
 }));

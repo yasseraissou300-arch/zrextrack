@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
+import { tokensEqual } from '@/lib/security/facebook-verify';
 import { resolveGeminiKeys } from '@/lib/user-creds';
 import { verifyMetaSignature } from '@/lib/security/webhook-auth';
 import { logEvent } from '@/lib/security/safe-log';
@@ -96,20 +97,27 @@ export async function GET(req: NextRequest) {
   const token = searchParams.get('hub.verify_token');
   const challenge = searchParams.get('hub.challenge');
 
-  if (mode !== 'subscribe' || !challenge) {
+  if (mode !== 'subscribe' || !challenge || !token) {
     return NextResponse.json({ error: 'Bad request' }, { status: 400 });
+  }
+
+  // Jeton de l'application plateforme (réglage Meta de l'app), si configuré.
+  const platformToken = process.env.FACEBOOK_VERIFY_TOKEN || '';
+  if (platformToken && tokensEqual(token, platformToken)) {
+    return new NextResponse(challenge, { status: 200 });
   }
 
   const supabase = createServiceClient();
 
-  // Match verify token against any user's facebook_connections
+  // Sinon : jeton d'une connexion marchand. limit(1) : .single() échouait si
+  // deux lignes portaient le même jeton.
   const { data } = await supabase
     .from('facebook_connections')
     .select('verify_token')
     .eq('verify_token', token)
-    .single();
+    .limit(1);
 
-  if (data) {
+  if (Array.isArray(data) && data.length === 1) {
     return new NextResponse(challenge, { status: 200 });
   }
   return NextResponse.json({ error: 'Verification failed' }, { status: 403 });

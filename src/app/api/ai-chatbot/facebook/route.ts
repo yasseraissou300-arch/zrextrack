@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { publicPendingPages } from '@/lib/security/facebook-verify';
 
 export async function GET() {
   const supabase = await createClient();
@@ -16,7 +17,9 @@ export async function GET() {
 
   if (!data) return NextResponse.json({ connection: null });
 
-  const pendingPages = data.pending_pages ? JSON.parse(data.pending_pages) : null;
+  // pending_pages contient le jeton d'accès (longue durée) de chaque page :
+  // il ne quitte jamais le serveur — seuls id, nom et image sont renvoyés.
+  const pendingPages = publicPendingPages(data.pending_pages);
   return NextResponse.json({
     connection: { ...data, pending_pages: undefined },
     pending_pages: pendingPages,
