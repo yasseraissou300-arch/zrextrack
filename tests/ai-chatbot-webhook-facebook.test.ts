@@ -95,6 +95,22 @@ afterEach(() => {
 });
 
 describe('Messenger — commande complète', () => {
+  it('P3 concurrence : deux messages en parallèle → les deux tours sont conservés', async () => {
+    geminiReply = 'ok';
+    await Promise.all([post(event('Montre noire')), post(event('Ana f Oran'))]);
+    const conv = db.all('public', 'ai_chat_sessions')[0].conversation as Array<{
+      role: string;
+      content: string;
+    }>;
+    expect(
+      conv
+        .filter((m) => m.role === 'user')
+        .map((m) => m.content)
+        .sort()
+    ).toEqual(['Ana f Oran', 'Montre noire']);
+    expect(conv).toHaveLength(4);
+  });
+
   it('deux messages en parallèle → une seule ligne dans le Sheet', async () => {
     geminiReply = COMPLETE;
     await Promise.all([post(event('Montre noire')), post(event('Ana f Oran'))]);

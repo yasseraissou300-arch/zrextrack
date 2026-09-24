@@ -5,6 +5,7 @@ import { resolveGeminiKeys, resolveEvolutionCreds } from '@/lib/user-creds';
 import { verifyWebhookSecret } from '@/lib/security/webhook-auth';
 import { isReplayDurable } from '@/lib/security/replay-store';
 import { logEvent, maskPhone } from '@/lib/security/safe-log';
+import { commitSession } from '@/lib/ai-chatbot/session-store';
 import { isAngerDetected, isBlabla } from '@/lib/ai-chatbot/classifiers';
 import {
   correctionReply,
@@ -515,9 +516,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    const conversation: ClaudeMessage[] = existingSession?.conversation ?? [];
+    // COPIE : le tableau lu ne doit pas être modifié (il sert de base à la fusion
+    // en cas d'écriture concurrente, voir commitSession).
+    const conversation: ClaudeMessage[] = [...(existingSession?.conversation ?? [])];
     const failureCount: number = existingSession?.failure_count ?? 0;
-    const totalTokens: number = existingSession?.tokens_used ?? 0;
+    const sessionKey = { userId, channel: 'whatsapp' as const, contactId: remoteJid };
 
     // Human handover after 2 consecutive AI failures
     if (failureCount >= 2) {
@@ -554,9 +557,6 @@ export async function POST(req: NextRequest) {
       config.template_type
     );
 
-    const newFailureCount = aiReply ? 0 : failureCount + 1;
-    const updatedTokens = totalTokens + newTokens;
-
     if (!aiReply) {
       await sendWhatsApp(
         evUrl,
@@ -565,15 +565,17 @@ export async function POST(req: NextRequest) {
         remoteJid,
         'Smahli, kayen mushkil t9ani. 3awed 7awel ba3d chwiya.'
       );
+      // Compteurs incrémentés sur l'état FRAIS : deux échecs concurrents = 2.
       if (existingSession) {
-        await supabase
-          .from('ai_chat_sessions')
-          .update({
-            failure_count: newFailureCount,
-            tokens_used: updatedTokens,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', existingSession.id);
+        await commitSession(supabase, sessionKey, existingSession, (fresh) => ({
+          patch: fresh
+            ? {
+                failure_count: (fresh.failure_count ?? 0) + 1,
+                tokens_used: (fresh.tokens_used ?? 0) + newTokens,
+              }
+            : null,
+          result: null,
+        }));
       }
       return NextResponse.json({ ok: true });
     }
@@ -583,17 +585,44 @@ export async function POST(req: NextRequest) {
     const customPrompt = !!config.custom_prompt?.trim();
     const current = sanitizeExtracted(extracted);
 
-    const existingData: Record<string, string> = existingSession?.extracted_data ?? {};
-    const newData = extracted
-      ? sanitizeExtracted({ ...existingData, ...current.data }).data
-      : existingData;
-
-    const check = { templateType: config.template_type, customPrompt, current, merged: newData };
-    const isComplete = !!extracted && isExtractionComplete(check);
-
-    // Bloc <data> refusé : le client ne doit pas lire « commande enregistrée ✅ ».
-    const correction = extracted && !isComplete ? correctionReply(check) : null;
-    const cleanReply = correction ?? stripDataTag(aiReply);
+    // Écriture concurrente-sûre (src/lib/ai-chatbot/session-store.ts) : si un
+    // autre message du client a été enregistré pendant la génération, le tour
+    // est recalculé sur l'état FRAIS. Aucun tour, aucune donnée extraite, aucun
+    // jeton n'est écrasé, et un passage à l'humain survenu entre-temps reste.
+    // `sheets_sent` n'est JAMAIS réécrit ici (prise atomique plus bas).
+    const commit = await commitSession(supabase, sessionKey, existingSession ?? null, (fresh) => {
+      const existingData: Record<string, string> = fresh?.extracted_data ?? {};
+      const newData = extracted
+        ? sanitizeExtracted({ ...existingData, ...current.data }).data
+        : existingData;
+      const check = { templateType: config.template_type, customPrompt, current, merged: newData };
+      const isComplete = !!extracted && isExtractionComplete(check);
+      // Bloc <data> refusé : le client ne doit pas lire « commande enregistrée ✅ ».
+      const correction = extracted && !isComplete ? correctionReply(check) : null;
+      return {
+        patch: {
+          contact_name: contactName,
+          template_type: config.template_type,
+          conversation: [
+            ...(fresh?.conversation ?? []),
+            { role: 'user', content: text },
+            { role: 'assistant', content: correction ?? aiReply },
+          ],
+          extracted_data: newData,
+          is_complete: isComplete,
+          human_handover: fresh?.human_handover ?? false,
+          failure_count: 0,
+          tokens_used: (fresh?.tokens_used ?? 0) + newTokens,
+        },
+        result: {
+          newData,
+          isComplete,
+          correction,
+          cleanReply: correction ?? stripDataTag(aiReply),
+        },
+      };
+    });
+    const { newData, isComplete, correction, cleanReply } = commit.result;
     if (correction) {
       logEvent('warn', 'webhook.whatsapp', {
         tenant_id: userId,
@@ -602,33 +631,10 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    conversation.push({ role: 'assistant', content: correction ?? aiReply });
-
-    // `sheets_sent` n'est JAMAIS réécrit ici : l'ancienne valeur lue en début
-    // de requête pouvait être périmée et remettre à false un envoi déjà fait
-    // par une requête concurrente (défaut en base : false).
-    await supabase.from('ai_chat_sessions').upsert(
-      {
-        user_id: userId,
-        channel: 'whatsapp',
-        contact_id: remoteJid,
-        contact_name: contactName,
-        template_type: config.template_type,
-        conversation,
-        extracted_data: newData,
-        is_complete: isComplete,
-        human_handover: false,
-        failure_count: newFailureCount,
-        tokens_used: updatedTokens,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id,channel,contact_id' }
-    );
-
     // Google Sheets + admin : prise ATOMIQUE de `sheets_sent` (false → true).
     // Deux messages du client traités en parallèle ne créent plus deux lignes
-    // de commande ni deux notifications admin.
-    if (isComplete) {
+    // de commande ni deux notifications admin. Jamais si l'écriture a échoué.
+    if (isComplete && commit.ok) {
       const { data: claimed } = await supabase
         .from('ai_chat_sessions')
         .update({ sheets_sent: true, updated_at: new Date().toISOString() })
