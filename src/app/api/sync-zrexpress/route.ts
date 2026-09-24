@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { internalError } from '@/lib/security/safe-error';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { getZrCredentials, ZR_NOT_CONFIGURED } from '@/lib/zrexpress/credentials';
 import { mapStatus } from '@/lib/zrexpress/status';
@@ -283,7 +284,7 @@ export async function POST(request: NextRequest) {
     const { written, error } = await upsertOrdersInChunks(supabase, diff ? diff.toWrite : rows);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return internalError('api.sync-zrexpress', error);
     }
 
     // 5. Notifications WhatsApp — FILE D'ATTENTE (anti-ban).
@@ -330,6 +331,6 @@ export async function POST(request: NextRequest) {
       ...(quotaState && !quotaState.isUnlimited && { quota: quotaState }),
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return internalError('api.sync-zrexpress', err);
   }
 }

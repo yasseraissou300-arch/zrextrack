@@ -15,6 +15,7 @@
 // de sleep). Aucune restriction WhatsApp n'est contournée.
 
 import { NextRequest, NextResponse } from 'next/server';
+import { errorCode } from '@/lib/security/safe-error';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
 import { effectiveDailyLimit, remainingDailyQuota } from '@/lib/whatsapp/anti-spam';
@@ -81,7 +82,7 @@ async function getReadyInstance(
   } catch (e) {
     return {
       instance: null,
-      reason: `Evolution injoignable : ${e instanceof Error ? e.message : 'erreur réseau'}`,
+      reason: `Evolution injoignable (${errorCode(e)})`,
     };
   }
 

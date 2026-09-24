@@ -11,6 +11,7 @@
 // simultanément sans produire de travail en double (idempotency_key).
 
 import { NextRequest, NextResponse } from 'next/server';
+import { errorCode, redactForLog } from '@/lib/security/safe-error';
 import { createServiceClient } from '@/lib/supabase/server';
 import { verifyWebhookSecret } from '@/lib/security/webhook-auth';
 import { logEvent } from '@/lib/security/safe-log';
@@ -88,11 +89,11 @@ export async function POST(req: NextRequest) {
       budget_ms: TICK.BUDGET_MS,
     });
   } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
     logEvent('error', 'cron.tick', {
       status: 'exception',
       worker: workerId,
-      reason: message.slice(0, 300),
+      error_code: errorCode(e),
+      reason: redactForLog(e),
       elapsed_ms: Date.now() - startedAt,
     });
     // 500 pour que le scheduler le signale, sans détail interne exposé.

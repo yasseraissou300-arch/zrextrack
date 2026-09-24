@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { internalError } from '@/lib/security/safe-error';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -43,6 +44,6 @@ export async function DELETE(
   const supabase = createServiceClient();
   const { error } = await supabase.from('campaigns').delete().eq('id', id).eq('user_id', user.id);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError('api.campaigns.id', error);
   return NextResponse.json({ success: true });
 }

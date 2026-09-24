@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { internalError } from '@/lib/security/safe-error';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 export async function GET() {
@@ -82,6 +83,6 @@ export async function GET() {
       messagesSent: messagesRes.count ?? 0,
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return internalError('api.kpis', err);
   }
 }

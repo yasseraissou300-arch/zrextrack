@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorCode, redactForLog } from '@/lib/security/safe-error';
 import { createServiceClient } from '@/lib/supabase/server';
 import { resolveGeminiKeys, resolveEvolutionCreds } from '@/lib/user-creds';
 import { verifyWebhookSecret } from '@/lib/security/webhook-auth';
@@ -662,8 +663,11 @@ export async function POST(req: NextRequest) {
     await sendWhatsApp(evUrl, evKey, instanceName, remoteJid, cleanReply);
     return NextResponse.json({ ok: true });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    logEvent('error', 'webhook.whatsapp', { status: 'exception', reason: message });
+    logEvent('error', 'webhook.whatsapp', {
+      status: 'exception',
+      error_code: errorCode(err),
+      reason: redactForLog(err),
+    });
     return NextResponse.json({ ok: true });
   }
 }

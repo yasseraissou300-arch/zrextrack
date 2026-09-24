@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorCode } from '@/lib/security/safe-error';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
 import {
@@ -92,7 +93,7 @@ async function getReadyInstance(
         };
     }
   } catch (e: any) {
-    return { instance: null, reason: `Evolution injoignable : ${e?.message || 'erreur réseau'}` };
+    return { instance: null, reason: `Evolution injoignable (${errorCode(e)})` };
   }
   return { instance: row };
 }
@@ -134,7 +135,7 @@ async function sendOne(
     }
     return { ok: true };
   } catch (e: any) {
-    return { ok: false, error: e?.message || 'Erreur réseau Evolution' };
+    return { ok: false, error: `Erreur réseau Evolution (${errorCode(e)})` };
   }
 }
 

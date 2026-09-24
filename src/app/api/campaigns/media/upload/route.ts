@@ -5,6 +5,7 @@
 // campaigns.media_url et l'envoyer via Evolution / Green API.
 
 import { NextRequest, NextResponse } from 'next/server';
+import { internalError } from '@/lib/security/safe-error';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 const BUCKET = 'campaign-media';
@@ -82,7 +83,12 @@ export async function POST(req: NextRequest) {
   });
 
   if (upErr) {
-    return NextResponse.json({ error: `Upload échoué : ${upErr.message}` }, { status: 500 });
+    return internalError(
+      'api.campaigns.media.upload',
+      upErr,
+      500,
+      'Upload échoué. Vérifie la taille et le format du fichier, puis réessaie.'
+    );
   }
 
   // URL publique — le bucket est en read public donc cette URL est accessible
@@ -119,6 +125,6 @@ export async function DELETE(req: NextRequest) {
 
   const service = createServiceClient();
   const { error } = await service.storage.from(BUCKET).remove([path]);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError('api.campaigns.media.upload', error);
   return NextResponse.json({ ok: true });
 }

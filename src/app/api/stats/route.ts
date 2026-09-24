@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { internalError } from '@/lib/security/safe-error';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 const STATS_PAGE = 1000;
@@ -111,6 +112,6 @@ export async function GET() {
       last7days,
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return internalError('api.stats', err);
   }
 }

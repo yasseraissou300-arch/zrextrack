@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { internalError } from '@/lib/security/safe-error';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
 import { webhookTokenQuery } from '@/lib/security/webhook-auth';
@@ -93,7 +94,6 @@ export async function GET(req: NextRequest) {
   const APP_URL_BASE = process.env.NEXT_PUBLIC_APP_URL || 'https://zrextrack.vercel.app';
   const debugLog: Record<string, unknown> = {
     instanceName: instance.instance_name,
-    urlPrefix: EVOLUTION_URL.substring(0, 30),
   };
 
   // Always ensure webhook is configured on this instance (fixes instances created without webhook)
@@ -312,7 +312,6 @@ export async function GET(req: NextRequest) {
     }
     return NextResponse.json({ qr: qrData, connected: false });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Erreur inconnue';
-    return NextResponse.json({ error: message, debug: debugLog }, { status: 502 });
+    return internalError('api.ai-chatbot.whatsapp.qr', err, 502);
   }
 }

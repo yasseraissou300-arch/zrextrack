@@ -12,6 +12,7 @@
 // envoyé au frontend. Évite d'avoir une copie obsolète en DB.
 
 import { NextRequest, NextResponse } from 'next/server';
+import { internalError } from '@/lib/security/safe-error';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { getZrCredentials, ZR_NOT_CONFIGURED } from '@/lib/zrexpress/credentials';
 import { fetchAllParcels } from '@/lib/zrexpress/parcels';
@@ -254,7 +255,7 @@ export async function POST(request: NextRequest) {
   try {
     parcels = await fetchAllParcels(token, tenantId);
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'Erreur ZRExpress' }, { status: 502 });
+    return internalError('api.campaigns.delivered-customers', e, 502);
   }
 
   // Index par téléphone normalisé

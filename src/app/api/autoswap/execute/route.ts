@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { internalError, errorCode } from '@/lib/security/safe-error';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { getZrCredentials, ZR_NOT_CONFIGURED } from '@/lib/zrexpress/credentials';
 import type {
@@ -121,7 +122,7 @@ export async function POST(request: NextRequest) {
           source_tracking: swap.swappable.tracking,
           target_tracking: swap.target.tracking,
           status: 'failed',
-          error: err?.message || 'Erreur réseau inconnue',
+          error: `Erreur réseau (${errorCode(err)})`,
         };
       }
 
@@ -145,6 +146,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ executed, failed, results } as ExecuteResponse);
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || 'Erreur AutoSwap execute' }, { status: 500 });
+    return internalError('api.autoswap.execute', err);
   }
 }

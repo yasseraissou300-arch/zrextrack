@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { errorCode, newErrorRef, redactForLog } from '@/lib/security/safe-error';
+import { logEvent } from '@/lib/security/safe-log';
 import { createServiceClient } from '@/lib/supabase/server';
 
 // Endpoint public de supervision (pour UptimeRobot ou tout autre moniteur).
@@ -23,17 +25,22 @@ export async function GET() {
     // Requête la moins chère possible : un count sur `plans` (3 lignes),
     // head:true → aucune donnée transférée.
     const { error } = await supabase.from('plans').select('id', { count: 'exact', head: true });
-    if (error) throw new Error(error.message);
+    if (error) throw error;
 
     return NextResponse.json({
       status: 'ok',
       db: 'up',
       time: new Date().toISOString(),
     });
-  } catch (e: any) {
-    return NextResponse.json(
-      { status: 'error', db: 'down', detail: e?.message || 'inconnu' },
-      { status: 503 }
-    );
+  } catch (e) {
+    // Endpoint PUBLIC : le détail (message PostgREST) reste dans les journaux.
+    const ref = newErrorRef();
+    logEvent('error', 'api.health', {
+      status: 'db_down',
+      error_code: errorCode(e),
+      reason: redactForLog((e as { message?: unknown })?.message),
+      ref,
+    });
+    return NextResponse.json({ status: 'error', db: 'down', ref }, { status: 503 });
   }
 }

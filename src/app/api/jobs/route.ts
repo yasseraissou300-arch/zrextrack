@@ -7,6 +7,7 @@
 // jobs d'un autre, même en forgeant la requête.
 
 import { NextRequest, NextResponse } from 'next/server';
+import { internalError } from '@/lib/security/safe-error';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { QUEUE_SCHEMA, type JobStatus } from '@/lib/queue/types';
 
@@ -38,7 +39,7 @@ export async function GET(req: NextRequest) {
   }
 
   const { data, error } = await q;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError('api.jobs', error);
 
   // Compteurs par statut, pour l'UI.
   const counts: Record<string, number> = {};

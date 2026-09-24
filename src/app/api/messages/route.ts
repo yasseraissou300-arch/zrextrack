@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { internalError } from '@/lib/security/safe-error';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 export async function GET(request: NextRequest) {
@@ -22,6 +23,6 @@ export async function GET(request: NextRequest) {
     .order('sent_at', { ascending: false })
     .range(from, to);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError('api.messages', error);
   return NextResponse.json({ data: data || [], count: count || 0 });
 }

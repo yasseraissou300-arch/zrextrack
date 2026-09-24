@@ -14,6 +14,7 @@
 // pour qu'il puisse afficher un warning.
 
 import { NextRequest, NextResponse } from 'next/server';
+import { internalError, errorCode } from '@/lib/security/safe-error';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
 
@@ -82,7 +83,7 @@ async function sendWhatsAppViaSAV(
     }
     return { ok: true };
   } catch (e: any) {
-    return { ok: false, reason: e?.message || 'Erreur réseau Evolution' };
+    return { ok: false, reason: `Erreur réseau Evolution (${errorCode(e)})` };
   }
 }
 
@@ -145,7 +146,7 @@ export async function POST(req: NextRequest) {
     .is('resolution', null)
     .select('id');
 
-  if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
+  if (updateErr) return internalError('api.ai-chatbot.reclamations.resolve', updateErr);
   if (!Array.isArray(claimed) || claimed.length !== 1) {
     return NextResponse.json({ error: 'Réclamation déjà résolue' }, { status: 409 });
   }

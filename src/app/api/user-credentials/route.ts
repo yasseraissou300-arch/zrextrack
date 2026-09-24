@@ -4,6 +4,7 @@
 // DELETE → supprime une credential (?service=gemini)
 
 import { NextRequest, NextResponse } from 'next/server';
+import { internalError } from '@/lib/security/safe-error';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { openCredential, sealCredential, type ServiceName } from '@/lib/user-creds';
 import { maskSecret } from '@/lib/security/secret-box';
@@ -144,6 +145,6 @@ export async function DELETE(request: NextRequest) {
     .eq('user_id', user.id)
     .eq('service', service);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError('api.user-credentials', error);
   return NextResponse.json({ ok: true });
 }

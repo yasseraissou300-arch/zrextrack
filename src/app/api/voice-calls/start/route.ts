@@ -2,6 +2,7 @@
 // Crée la ligne voice_calls en DB AVANT l'appel pour pouvoir suivre l'évolution.
 
 import { NextRequest, NextResponse } from 'next/server';
+import { internalError } from '@/lib/security/safe-error';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { getSettings, isReadyToCall, toE164, placeCall } from '@/lib/voice-calls/twilio';
 
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (insErr || !row) {
-    return NextResponse.json({ error: insErr?.message || 'DB insert échoué' }, { status: 500 });
+    return internalError('api.voice-calls.start', insErr);
   }
 
   // 2. Construis les URLs webhook que Twilio va appeler — elles incluent l'id

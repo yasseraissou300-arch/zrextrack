@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { internalError } from '@/lib/security/safe-error';
 import { createServiceClient } from '@/lib/supabase/server';
 
 // Endpoint public de suivi client. Renvoie l'état d'un colis à partir de son
@@ -90,9 +91,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ trac
       product: data.product_name,
     });
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Erreur' },
-      { status: 500 }
-    );
+    return internalError('api.track', err);
   }
 }

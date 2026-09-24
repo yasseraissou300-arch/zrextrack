@@ -10,6 +10,7 @@
 // (livré / annulé / en cours) avec la MÊME logique que la sync (mapStatus).
 
 import { NextRequest, NextResponse } from 'next/server';
+import { internalError } from '@/lib/security/safe-error';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { getZrCredentials, ZR_NOT_CONFIGURED } from '@/lib/zrexpress/credentials';
 import { fetchAllParcels } from '@/lib/zrexpress/parcels';
@@ -100,9 +101,6 @@ export async function POST(request: NextRequest) {
       items,
     });
   } catch (err: any) {
-    return NextResponse.json(
-      { error: err?.message || 'Erreur statistiques swaps' },
-      { status: 500 }
-    );
+    return internalError('api.autoswap.swapped-stats', err);
   }
 }

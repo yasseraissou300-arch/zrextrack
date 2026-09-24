@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { internalError } from '@/lib/security/safe-error';
 import { createClient } from '@/lib/supabase/server';
 
 const DEFAULT_PROMPTS: Record<string, string> = {
@@ -146,6 +147,6 @@ export async function POST(req: NextRequest) {
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError('api.ai-chatbot.config', error);
   return NextResponse.json({ ok: true, data });
 }

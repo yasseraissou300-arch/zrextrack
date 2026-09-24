@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { errorCode } from '@/lib/security/safe-error';
 import { createClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds, getUserCreds } from '@/lib/user-creds';
 import { redactWebhookToken, webhookTokenQuery } from '@/lib/security/webhook-auth';
@@ -46,7 +47,7 @@ async function evolutionGet(
     }
     return { ok: res.ok, status: res.status, json };
   } catch (e) {
-    return { ok: false, status: 0, json: e instanceof Error ? e.message : String(e) };
+    return { ok: false, status: 0, json: `erreur réseau (${errorCode(e)})` };
   }
 }
 
@@ -155,7 +156,7 @@ export async function GET() {
   }
   if (instErr) {
     issues.push(
-      `Erreur lecture whatsapp_instances: ${instErr.message}. La colonne service_type est-elle créée ?`
+      `Erreur lecture whatsapp_instances (code ${errorCode(instErr)}). La colonne service_type est-elle créée ?`
     );
   }
   for (const d of instanceDiagnostics) {

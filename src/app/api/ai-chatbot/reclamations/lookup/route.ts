@@ -10,6 +10,7 @@
 // tracking/external/phone, donc on récupère et on filtre côté AutoTim.
 
 import { NextRequest, NextResponse } from 'next/server';
+import { internalError } from '@/lib/security/safe-error';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { getZrCredentials, ZR_NOT_CONFIGURED } from '@/lib/zrexpress/credentials';
 
@@ -101,7 +102,7 @@ export async function POST(req: NextRequest) {
   try {
     allParcels = await fetchAllParcels(token, tenantId);
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'Erreur ZRExpress' }, { status: 502 });
+    return internalError('api.ai-chatbot.reclamations.lookup', e, 502);
   }
 
   // Index pour O(1) lookup

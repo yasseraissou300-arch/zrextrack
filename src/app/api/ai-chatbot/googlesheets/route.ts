@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { internalError } from '@/lib/security/safe-error';
 import { createClient } from '@/lib/supabase/server';
 
 function extractSheetId(url: string): string | null {
@@ -51,6 +52,6 @@ export async function POST(req: NextRequest) {
     { onConflict: 'user_id,template_type' }
   );
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError('api.ai-chatbot.googlesheets', error);
   return NextResponse.json({ ok: true, sheet_id: sheetId });
 }

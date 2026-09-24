@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { internalError } from '@/lib/security/safe-error';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 export async function GET() {
@@ -24,12 +25,12 @@ export async function GET() {
         .order('deleted_at', { ascending: false })
         .order('id', { ascending: true })
         .range(from, from + 999);
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error) return internalError('api.orders.deleted', error);
       data.push(...(page ?? []));
       if (!page || page.length < 1000) break;
     }
     return NextResponse.json({ data });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return internalError('api.orders.deleted', err);
   }
 }

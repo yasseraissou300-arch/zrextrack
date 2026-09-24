@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorCode } from '@/lib/security/safe-error';
 import { createClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
 import { webhookTokenQuery, redactWebhookToken } from '@/lib/security/webhook-auth';
@@ -40,7 +41,7 @@ async function postJson(
     const text = await res.text().catch(() => '');
     return { status: res.status, text };
   } catch (e) {
-    return { status: 0, text: e instanceof Error ? e.message : String(e) };
+    return { status: 0, text: `erreur réseau (${errorCode(e)})` };
   }
 }
 

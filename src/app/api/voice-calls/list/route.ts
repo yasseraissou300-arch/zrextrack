@@ -1,6 +1,7 @@
 // Liste les appels passés pour l'utilisateur courant + stats agrégées.
 
 import { NextRequest, NextResponse } from 'next/server';
+import { internalError } from '@/lib/security/safe-error';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 export async function GET(req: NextRequest) {
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest) {
     .order('created_at', { ascending: false })
     .limit(limit);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError('api.voice-calls.list', error);
 
   const list = calls ?? [];
   const stats = {

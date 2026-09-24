@@ -1,6 +1,7 @@
 // GET / POST des paramètres Twilio par utilisateur.
 
 import { NextRequest, NextResponse } from 'next/server';
+import { internalError } from '@/lib/security/safe-error';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 const ALLOWED_FIELDS = [
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
   const { error } = await service
     .from('voice_call_settings')
     .upsert(upd, { onConflict: 'user_id' });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError('api.voice-calls.settings', error);
   return NextResponse.json({ ok: true });
 }
 

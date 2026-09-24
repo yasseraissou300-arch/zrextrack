@@ -9,6 +9,7 @@
 // inadvertance les produits d'un autre vendeur.
 
 import { NextRequest, NextResponse } from 'next/server';
+import { internalError } from '@/lib/security/safe-error';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 
 interface EquivalenceRow {
@@ -35,7 +36,7 @@ export async function GET() {
     .eq('user_id', user.id)
     .order('product_label', { ascending: true });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError('api.autoswap.equivalences', error);
 
   return NextResponse.json({ data: (data ?? []) as EquivalenceRow[] });
 }
@@ -96,7 +97,7 @@ export async function POST(req: NextRequest) {
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError('api.autoswap.equivalences', error);
   return NextResponse.json({ ok: true, data });
 }
 
@@ -118,6 +119,6 @@ export async function DELETE(req: NextRequest) {
     .eq('user_id', user.id)
     .eq('product_key', key.toLowerCase());
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalError('api.autoswap.equivalences', error);
   return NextResponse.json({ ok: true });
 }
