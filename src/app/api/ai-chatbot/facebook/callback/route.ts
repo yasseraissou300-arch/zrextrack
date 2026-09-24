@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
+import { newVerifyToken } from '@/lib/security/facebook-verify';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
@@ -59,7 +60,14 @@ export async function GET(req: NextRequest) {
   if (pages.length === 0) return redirect('/ai-chatbot?tab=facebook&error=no_pages');
 
   const supabase = createServiceClient();
-  const verify_token = `zrex_fb_${userId.slice(0, 8)}`;
+  // Jeton existant conservé (webhook déjà vérifié chez Meta) ; sinon aléatoire —
+  // l'ancien `zrex_fb_<8 car. de l'UUID>` était déductible de l'identifiant.
+  const { data: existingConn } = await supabase
+    .from('facebook_connections')
+    .select('verify_token')
+    .eq('user_id', userId)
+    .maybeSingle();
+  const verify_token: string = existingConn?.verify_token || newVerifyToken();
 
   if (pages.length === 1) {
     // Auto-connect single page
