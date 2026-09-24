@@ -6,6 +6,8 @@
 //
 // Sans cela, basculer un tenant en `both` produirait deux syncs simultanés.
 
+import { normalizePhone } from '@/lib/whatsapp/message-builder';
+
 /** Fenêtre de déduplication du sync : un seul par tenant et par créneau. */
 export const SYNC_SLOT_SECONDS = 300; // 5 min — aligné sur la cadence du cron
 
@@ -37,8 +39,24 @@ export function notificationKey(
   return `notif:${tenantId}:${trackingNumber}:${deliveryStatus}`;
 }
 
-/** `camp:<campagne>:<téléphone>` — un destinataire servi une seule fois. */
+/**
+ * `camp:<campagne>:<téléphone normalisé 213…>` — un destinataire servi une
+ * seule fois.
+ *
+ * Le numéro est NORMALISÉ : « 0550… », « +213 550… » et « 00213550… » sont la
+ * même personne. Avec le numéro brut, un client enregistré sous deux formats
+ * dans `orders` recevait la campagne deux fois.
+ */
 export function campaignRecipientKey(campaignId: string, phone: string): string {
+  return `camp:${campaignId}:${normalizePhone(phone)}`;
+}
+
+/**
+ * Ancienne clé (numéro brut). Les jobs créés avant la normalisation la
+ * portent : le dispatch la consulte pour ne pas recontacter, lors d'un renvoi,
+ * un destinataire déjà servi sous l'ancien format.
+ */
+export function legacyCampaignRecipientKey(campaignId: string, phone: string): string {
   return `camp:${campaignId}:${phone}`;
 }
 

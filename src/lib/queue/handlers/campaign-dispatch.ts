@@ -12,7 +12,11 @@ import { createServiceClient } from '@/lib/supabase/server';
 import { randomThrottle } from '@/lib/whatsapp/anti-spam';
 import { logEvent } from '@/lib/security/safe-log';
 import { enqueue } from '../repository';
-import { campaignRecipientKey, campaignDispatchKey } from '../idempotency';
+import {
+  campaignRecipientKey,
+  campaignDispatchKey,
+  legacyCampaignRecipientKey,
+} from '../idempotency';
 import type { Job, HandlerResult, CampaignDispatchPayload, WhatsAppSendPayload } from '../types';
 
 /** Destinataires enfilés par lot. Borné pour rester loin du budget du tick. */
@@ -73,7 +77,24 @@ export async function handleCampaignDispatch(job: Job): Promise<HandlerResult> {
   let delay = 10_000;
   let enqueued = 0;
 
+  // Destinataires déjà servis sous l'ANCIENNE clé (numéro brut, avant
+  // normalisation) : une seule requête par lot.
+  const legacyKeys = audience.map((r) =>
+    legacyCampaignRecipientKey(payload.campaign_id, r.customer_whatsapp)
+  );
+  const { data: legacyJobs } = await supabase
+    .schema('autotim')
+    .from('jobs')
+    .select('idempotency_key')
+    .in('idempotency_key', legacyKeys);
+  const servedLegacy = new Set(
+    ((legacyJobs as Array<{ idempotency_key: string }> | null) ?? []).map((j) => j.idempotency_key)
+  );
+
   for (const r of audience) {
+    if (servedLegacy.has(legacyCampaignRecipientKey(payload.campaign_id, r.customer_whatsapp))) {
+      continue;
+    }
     const message = interpolate(campaign.message_template ?? '', {
       client: r.customer_name || '',
       tracking: r.tracking_number || '',
