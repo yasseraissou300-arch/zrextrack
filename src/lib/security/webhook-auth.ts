@@ -61,6 +61,19 @@ export function webhookTokenQuery(envVarName: string): string {
   return secret ? `?token=${encodeURIComponent(secret)}` : '';
 }
 
+/**
+ * Masque le secret d'une URL de webhook (`?token=…` / `&token=…`).
+ *
+ * WHATSAPP_WEBHOOK_SECRET est GLOBAL (un seul pour toutes les instances).
+ * Toute réponse destinée au navigateur d'un marchand doit passer par ici :
+ * sinon n'importe quel marchand obtiendrait le secret et pourrait forger des
+ * webhooks pour les instances des autres (noms déductibles de leur UUID).
+ */
+export function redactWebhookToken(text: string | null): string | null {
+  if (text == null) return text;
+  return text.replace(/([?&]token=)[^&"'\s]+/g, '$1••••');
+}
+
 // ─── Protection contre le rejeu (idempotence) ────────────────────────────────
 //
 // Un même événement renvoyé deux fois (retry du fournisseur, ou rejeu
