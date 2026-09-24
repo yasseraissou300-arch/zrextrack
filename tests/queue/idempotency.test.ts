@@ -15,7 +15,7 @@ import {
   SYNC_SLOT_SECONDS,
 } from '@/lib/queue/idempotency';
 
-const TENANT = '73b8e14c-97d2-4691-895d-1c7d234a51b0'; // tenant pilote
+const TENANT = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'; // tenant fictif (jamais un UUID réel : dépôt public)
 
 describe('syncSlot — fenêtre de 5 minutes', () => {
   it('regroupe deux instants du même créneau', () => {
@@ -47,7 +47,7 @@ describe('syncKey — anti-doublon navigateur / cron', () => {
   });
 
   it('deux tenants ne se bloquent jamais mutuellement', () => {
-    const autre = '7a74e3ca-27ac-4462-ae4b-64f667835b20';
+    const autre = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
     const t = new Date('2026-09-10T12:00:00Z');
     expect(syncKey(TENANT, t)).not.toBe(syncKey(autre, t));
   });
