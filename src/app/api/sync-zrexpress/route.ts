@@ -138,7 +138,13 @@ export async function POST(request: NextRequest) {
     const {
       data: { user },
     } = await supabaseAuth.auth.getUser();
-    const userId = user?.id ?? null;
+    // Session OBLIGATOIRE. Sans elle, l'ancien code appelait ZRExpress, sautait
+    // le quota et upsertait tous les colis avec user_id = NULL : NULL ne viole
+    // jamais l'index unique (user_id, tracking_number), donc chaque appel
+    // anonyme insérait des lignes orphelines dans `orders` (colonne nullable
+    // d'après supabase_orders.sql). Le middleware laisse /api/* passer.
+    if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    const userId = user.id;
 
     const supabase = createServiceClient();
 
