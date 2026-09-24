@@ -17,6 +17,7 @@ import {
 } from '@/lib/zrexpress/sync-diff';
 import { fetchAllParcels } from '@/lib/zrexpress/parcels';
 import { mapParcel, dedupeByTracking } from '@/lib/zrexpress/map-parcel';
+import { openZrToken } from '@/lib/zrexpress/credentials';
 import { buildMessage, loadUserTemplates, NOTIFY_STATUSES } from '@/lib/whatsapp/message-builder';
 import { randomThrottle } from '@/lib/whatsapp/anti-spam';
 import { countOrdersThisMonth, quotaStateFor } from '@/lib/plan-quotas';
@@ -48,7 +49,8 @@ export async function handleZrexpressSync(job: Job): Promise<HandlerResult> {
     .eq('user_id', tenantId)
     .maybeSingle();
 
-  const token = settings?.zrexpress_token;
+  // Déchiffrée si nécessaire (P2-9) ; le clair historique reste lisible.
+  const token = openZrToken(tenantId, settings?.zrexpress_token);
   const zrTenant = settings?.zrexpress_tenant_id;
   if (!token || !zrTenant) {
     return { outcome: 'failed', error: 'token ou tenant ZRExpress non configuré' };

@@ -14,7 +14,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { loadSyncSettings } from '@/lib/sync-settings-client';
+import { loadSyncSettings, zrReady } from '@/lib/sync-settings-client';
 
 const AUTO_SYNC_INTERVAL = 300_000; // 5 minutes (léger + draine la file de notifs en douceur)
 
@@ -40,11 +40,11 @@ export default function DashboardHeader() {
     // Charge depuis Supabase (cross-device). Le helper hydrate aussi le miroir
     // localStorage pour les pages qui ne sont pas encore migrées.
     loadSyncSettings().then((s) => {
-      setHasToken(!!s.zrexpress_token && !!s.zrexpress_tenant_id);
+      setHasToken(zrReady(s));
 
       // Active l'auto-sync si token présent (sauf désactivation manuelle locale)
       const autoDisabled = localStorage.getItem('zrextrack_autosync_disabled') === 'true';
-      const enabled = !!(s.zrexpress_token && s.zrexpress_tenant_id && !autoDisabled);
+      const enabled = zrReady(s) && !autoDisabled;
       if (enabled) setAutoSyncEnabled(true);
 
       // Phase 1 — remonte l'intention vers le serveur.
@@ -104,9 +104,8 @@ export default function DashboardHeader() {
 
   const runSync = useCallback(async (silent = false) => {
     const s = await loadSyncSettings();
-    const token = s.zrexpress_token;
-    const tenantId = s.zrexpress_tenant_id;
-    if (!token || !tenantId) {
+    // La clé ZR reste côté serveur (P2-9) : la route la lit pour la session.
+    if (!zrReady(s)) {
       if (!silent)
         toast.error('Token ZREXpress non configuré', {
           description: 'Allez dans Sync ZREXpress pour configurer votre clé API.',
@@ -120,8 +119,6 @@ export default function DashboardHeader() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          token,
-          tenantId,
           templates: s.templates ?? {},
           notifyEnabled: s.notify_enabled ?? {},
         }),

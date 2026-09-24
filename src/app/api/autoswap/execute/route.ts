@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { getZrCredentials, ZR_NOT_CONFIGURED } from '@/lib/zrexpress/credentials';
 import type {
   MatchProposal,
   ExecuteResponse,
@@ -53,14 +54,12 @@ async function callZRExpressSwap(
 
 export async function POST(request: NextRequest) {
   try {
-    const { token, tenantId, approved_swaps } = (await request.json()) as {
-      token?: string;
-      tenantId?: string;
+    // Clé ZR lue en base pour le tenant de la session (P2-9) ; un `token`
+    // envoyé dans le corps est ignoré.
+    const { approved_swaps } = (await request.json()) as {
       approved_swaps?: MatchProposal[];
     };
 
-    if (!token) return NextResponse.json({ error: 'Clé API manquante' }, { status: 400 });
-    if (!tenantId) return NextResponse.json({ error: 'Tenant ID manquant' }, { status: 400 });
     if (!Array.isArray(approved_swaps) || approved_swaps.length === 0) {
       return NextResponse.json({ error: 'Aucun swap validé fourni' }, { status: 400 });
     }
@@ -72,6 +71,9 @@ export async function POST(request: NextRequest) {
     if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     const userId = user.id;
     const supabase = createServiceClient();
+    const zr = await getZrCredentials(supabase, userId);
+    if (!zr) return NextResponse.json(ZR_NOT_CONFIGURED, { status: 400 });
+    const { token, tenantId } = zr;
 
     const results: ExecutionResult[] = [];
     let executed = 0;

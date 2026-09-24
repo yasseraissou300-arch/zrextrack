@@ -12,7 +12,8 @@
 // envoyé au frontend. Évite d'avoir une copie obsolète en DB.
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { getZrCredentials, ZR_NOT_CONFIGURED } from '@/lib/zrexpress/credentials';
 import { fetchAllParcels } from '@/lib/zrexpress/parcels';
 import { parseProductsDescription } from '@/lib/autoswap/matcher';
 
@@ -244,9 +245,10 @@ export async function POST(request: NextRequest) {
   } = await supabaseAuth.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
 
-  const { token, tenantId } = await request.json().catch(() => ({}));
-  if (!token) return NextResponse.json({ error: 'Clé API ZRExpress manquante' }, { status: 400 });
-  if (!tenantId) return NextResponse.json({ error: 'Tenant ID manquant' }, { status: 400 });
+  // Clé ZR lue en base pour le tenant de la session (P2-9).
+  const zr = await getZrCredentials(createServiceClient(), user.id);
+  if (!zr) return NextResponse.json(ZR_NOT_CONFIGURED, { status: 400 });
+  const { token, tenantId } = zr;
 
   let parcels: any[];
   try {

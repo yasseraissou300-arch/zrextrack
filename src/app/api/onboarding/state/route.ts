@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { openZrToken } from '@/lib/zrexpress/credentials';
 
 // État d'onboarding du user courant, dérivé des données existantes (aucune
 // nouvelle colonne). L'UI cache le checklist quand tout est true.
@@ -36,7 +37,10 @@ export async function GET() {
   ]);
 
   const settings = settingsRes.data;
-  const hasZrexpressToken = !!(settings?.zrexpress_token && settings?.zrexpress_tenant_id);
+  // Clé LISIBLE (déchiffrable) et tenant présents — jamais renvoyée (P2-9).
+  const hasZrexpressToken = !!(
+    openZrToken(user.id, settings?.zrexpress_token) && settings?.zrexpress_tenant_id
+  );
   const hasWhatsappConnected = !!waRes.data?.connected;
   const hasFirstSync = (ordersRes.count ?? 0) > 0;
   const completed = hasZrexpressToken && hasWhatsappConnected && hasFirstSync;

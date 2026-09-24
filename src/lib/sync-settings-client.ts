@@ -10,19 +10,36 @@
 
 'use client';
 
+// La clé API ZRExpress ne revient JAMAIS au navigateur (P2-9) : le serveur
+// indique seulement si elle est configurée, et ses 4 derniers caractères.
+// Elle reste en ÉCRITURE seule via saveSyncSettings({ zrexpress_token }).
 export interface SyncSettings {
-  zrexpress_token: string;
+  zrexpress_configured: boolean;
+  zrexpress_token_masked: string;
   zrexpress_tenant_id: string;
   templates: Record<string, string>;
   notify_enabled: Record<string, boolean>;
 }
 
+export interface SyncSettingsPatch {
+  zrexpress_token?: string;
+  zrexpress_tenant_id?: string;
+  templates?: Record<string, string>;
+  notify_enabled?: Record<string, boolean>;
+}
+
 const EMPTY: SyncSettings = {
-  zrexpress_token: '',
+  zrexpress_configured: false,
+  zrexpress_token_masked: '',
   zrexpress_tenant_id: '',
   templates: {},
   notify_enabled: {},
 };
+
+/** Identifiants ZR utilisables côté serveur (clé ET tenant configurés). */
+export function zrReady(s: SyncSettings): boolean {
+  return s.zrexpress_configured && !!s.zrexpress_tenant_id;
+}
 
 // Anciennes clés localStorage — lues UNE seule fois pour la migration auto,
 // puis nettoyées. Plus aucune écriture en miroir : toutes les pages doivent
@@ -32,8 +49,8 @@ const LEGACY_LS_TENANT = 'zrexpress_tenant';
 const LEGACY_LS_TEMPLATES = 'zrextrack_templates';
 const LEGACY_LS_NOTIFY = 'zrextrack_notify_enabled';
 
-function readLegacyLocalStorage(): SyncSettings {
-  if (typeof window === 'undefined') return EMPTY;
+function readLegacyLocalStorage(): SyncSettingsPatch {
+  if (typeof window === 'undefined') return {};
   let templates: Record<string, string> = {};
   let notify_enabled: Record<string, boolean> = {};
   try {
@@ -62,9 +79,9 @@ function clearLegacyLocalStorage(): void {
   localStorage.removeItem(LEGACY_LS_NOTIFY);
 }
 
-function hasContent(s: SyncSettings): boolean {
+function hasContent(s: SyncSettings | SyncSettingsPatch): boolean {
   return !!(
-    s.zrexpress_token ||
+    ('zrexpress_configured' in s ? s.zrexpress_configured : s.zrexpress_token) ||
     s.zrexpress_tenant_id ||
     Object.keys(s.templates ?? {}).length ||
     Object.keys(s.notify_enabled ?? {}).length
@@ -86,7 +103,8 @@ export async function loadSyncSettings(): Promise<SyncSettings> {
       const json = await res.json();
       const s = json.settings ?? {};
       serverData = {
-        zrexpress_token: s.zrexpress_token ?? '',
+        zrexpress_configured: !!s.zrexpress_configured,
+        zrexpress_token_masked: s.zrexpress_token_masked ?? '',
         zrexpress_tenant_id: s.zrexpress_tenant_id ?? '',
         templates: s.templates ?? {},
         notify_enabled: s.notify_enabled ?? {},
@@ -118,7 +136,13 @@ export async function loadSyncSettings(): Promise<SyncSettings> {
       .catch(() => {
         /* ignore — on retentera au prochain chargement */
       });
-    return legacy;
+    return {
+      zrexpress_configured: !!legacy.zrexpress_token,
+      zrexpress_token_masked: '',
+      zrexpress_tenant_id: legacy.zrexpress_tenant_id ?? '',
+      templates: legacy.templates ?? {},
+      notify_enabled: legacy.notify_enabled ?? {},
+    };
   }
 
   return EMPTY;
@@ -128,7 +152,7 @@ export async function loadSyncSettings(): Promise<SyncSettings> {
  * Sauve un sous-ensemble de settings. Le serveur préserve les champs non
  * fournis. Aucune écriture en localStorage — tout passe par l'API.
  */
-export async function saveSyncSettings(patch: Partial<SyncSettings>): Promise<void> {
+export async function saveSyncSettings(patch: SyncSettingsPatch): Promise<void> {
   const res = await fetch('/api/sync-settings', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },

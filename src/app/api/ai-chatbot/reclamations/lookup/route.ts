@@ -10,7 +10,8 @@
 // tracking/external/phone, donc on récupère et on filtre côté AutoTim.
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { getZrCredentials, ZR_NOT_CONFIGURED } from '@/lib/zrexpress/credentials';
 
 const ZREXPRESS_API = 'https://api.zrexpress.app/api/v1.0';
 
@@ -88,14 +89,12 @@ export async function POST(req: NextRequest) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { token, tenantId, items } = (await req.json()) as {
-    token?: string;
-    tenantId?: string;
-    items?: LookupItem[];
-  };
+  const { items } = (await req.json()) as { items?: LookupItem[] };
 
-  if (!token || !tenantId)
-    return NextResponse.json({ error: 'Clé API ZRExpress manquante' }, { status: 400 });
+  // Clé ZR lue en base pour le tenant de la session (P2-9).
+  const zr = await getZrCredentials(createServiceClient(), user.id);
+  if (!zr) return NextResponse.json(ZR_NOT_CONFIGURED, { status: 400 });
+  const { token, tenantId } = zr;
   if (!Array.isArray(items) || items.length === 0) return NextResponse.json({ results: [] });
 
   let allParcels: ZRParcelMinimal[];
