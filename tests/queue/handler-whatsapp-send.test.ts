@@ -515,3 +515,43 @@ describe('Cycle complet via runTick', () => {
     await markDone(db, j.id); // idempotent
   });
 });
+
+describe('P3 — corps Evolution jamais recopiés dans last_error (renvoyé par /api/jobs)', () => {
+  it.each([
+    [
+      502,
+      '<html><body>Application failed to respond — evo-secret-host-7f3a.up.railway.app</body></html>',
+    ],
+    [
+      500,
+      '{"response":{"message":["Invalid `this.prismaRepository.message.create()` invocation in /evolution/dist/main.js:283"]}}',
+    ],
+    [400, '{"response":{"message":[{"jid":"213555000111@s.whatsapp.net","exists":false}]}}'],
+  ])('HTTP %i : erreur classée, sans hôte, chemin ni numéro', async (status, body) => {
+    seedInstance();
+    evolutionResponds(status, body);
+    const r = await handleWhatsAppSend(makeJob());
+    expect(r.outcome).toBe('failed');
+    const error = (r as { error: string }).error;
+    expect(error).toMatch(/^Evolution HTTP \d{3} — .+ \(réf E-[0-9a-f]{8}\)$/);
+    expect(error).toContain(`HTTP ${status} `);
+    for (const leak of [
+      'railway',
+      'evo-secret-host',
+      'prisma',
+      '/evolution/dist',
+      '213555000111',
+    ]) {
+      expect(error.toLowerCase()).not.toContain(leak);
+    }
+  });
+
+  it('exception réseau : code seulement (un message peut contenir l’URL Evolution)', async () => {
+    seedInstance();
+    fetchMock.mockImplementation(async () => {
+      throw new TypeError(`Failed to parse URL from ${EVOLUTION_URL}/message/sendText/x`);
+    });
+    const r = await handleWhatsAppSend(makeJob());
+    expect((r as { error: string }).error).toBe('erreur réseau Evolution (TypeError)');
+  });
+});

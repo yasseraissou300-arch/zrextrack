@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { evolutionErrorMessage } from '@/lib/whatsapp/evolution-error';
 import { errorCode } from '@/lib/security/safe-error';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
@@ -129,7 +130,8 @@ async function sendOne(
         ok: false,
         error: dead
           ? 'Session WhatsApp expirée (Connection Closed) — reconnecte le QR'
-          : `Evolution HTTP ${res.status}: ${errText.slice(0, 200)}`,
+          : // Corps brut : journalisé sous la référence, jamais relayé.
+            evolutionErrorMessage('api.whatsapp.send', res.status, errText).message,
         sessionDead: dead,
       };
     }

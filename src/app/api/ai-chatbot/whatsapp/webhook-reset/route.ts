@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { describeEvolutionBody, evolutionErrorMessage } from '@/lib/whatsapp/evolution-error';
 import { errorCode } from '@/lib/security/safe-error';
 import { createClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
@@ -45,6 +46,26 @@ async function postJson(
   }
 }
 
+/**
+ * Ce que l'interface voit d'une réponse de /webhook/set. Le corps peut répéter
+ * l'URL enregistrée, donc WHATSAPP_WEBHOOK_SECRET — secret GLOBAL, commun à tous
+ * les marchands — sous une forme que le masquage `?token=` ne reconnaît pas
+ * (`\u0026token=`, `%3Ftoken%3D`, texte tronqué avant masquage…). En succès :
+ * les clés seulement ; en échec : libellé classé + référence.
+ */
+function summarizeWebhookResponse(status: number, text: string): string {
+  if (status >= 200 && status < 300) {
+    let parsed: unknown = null;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      /* corps non JSON : rien n'en sort */
+    }
+    return `HTTP ${status} ${JSON.stringify(describeEvolutionBody(parsed))}`;
+  }
+  return evolutionErrorMessage('api.ai-chatbot.whatsapp.webhook-reset', status, text).message;
+}
+
 async function findWebhook(
   evUrl: string,
   evKey: string,
@@ -87,7 +108,7 @@ async function resetOne(
     format: 'flat_snake',
     endpoint: setUrl.replace(evUrl, '<base>'),
     status: a.status,
-    response_snippet: redactWebhookToken(a.text.slice(0, 300)) ?? '',
+    response_snippet: summarizeWebhookResponse(a.status, a.text),
   });
 
   // Verify
@@ -113,7 +134,7 @@ async function resetOne(
       format: 'nested_camel',
       endpoint: setUrl.replace(evUrl, '<base>'),
       status: b.status,
-      response_snippet: redactWebhookToken(b.text.slice(0, 300)) ?? '',
+      response_snippet: summarizeWebhookResponse(b.status, b.text),
     });
 
     check = await findWebhook(evUrl, evKey, instanceName);

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { qrToDataUrl } from '@/lib/whatsapp/qr-data-url';
+import { describeEvolutionBody, evolutionErrorMessage } from '@/lib/whatsapp/evolution-error';
 import { internalError } from '@/lib/security/safe-error';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
@@ -120,7 +122,7 @@ export async function GET(req: NextRequest) {
 
     if (stateRes?.ok) {
       const stateJson = await stateRes.json();
-      debugLog.stateJson = stateJson;
+      debugLog.stateJson = describeEvolutionBody(stateJson);
       const isOpen = stateJson.instance?.state === 'open' || stateJson.state === 'open';
       if (isOpen) {
         createServiceClient()
@@ -153,7 +155,7 @@ export async function GET(req: NextRequest) {
       let unsupported = false;
       if (resA?.ok) {
         connectJson = await resA.json().catch(() => null);
-        debugLog.attemptA_body = connectJson;
+        debugLog.attemptA_body = describeEvolutionBody(connectJson);
         // Cas observé sur Evolution v1.x : la réponse contient `pairingCode: null`
         // EN MÊME TEMPS QU'un QR valide. Signe explicite que la feature n'existe
         // pas dans cette version (au lieu d'absence du champ). Court-circuit.
@@ -178,7 +180,7 @@ export async function GET(req: NextRequest) {
         };
         if (resB?.ok) {
           const bJson = await resB.json().catch(() => null);
-          debugLog.attemptB_body = bJson;
+          debugLog.attemptB_body = describeEvolutionBody(bJson);
           if (extractPairingCode(bJson)) connectJson = bJson;
         }
 
@@ -196,7 +198,7 @@ export async function GET(req: NextRequest) {
           };
           if (resC?.ok) {
             const cJson = await resC.json().catch(() => null);
-            debugLog.attemptC_body = cJson;
+            debugLog.attemptC_body = describeEvolutionBody(cJson);
             if (extractPairingCode(cJson)) connectJson = cJson;
           }
         }
@@ -216,12 +218,7 @@ export async function GET(req: NextRequest) {
       // n'est pas supportée — sans erreur dure.
       const fallbackQr = extractQr(connectJson);
       if (unsupported || fallbackQr) {
-        let qrData: string | null = null;
-        if (fallbackQr) {
-          if (fallbackQr.startsWith('data:')) qrData = fallbackQr;
-          else if (fallbackQr.startsWith('http')) qrData = fallbackQr;
-          else qrData = `data:image/png;base64,${fallbackQr}`;
-        }
+        const qrData = fallbackQr ? await qrToDataUrl(fallbackQr, EVOLUTION_URL, headers) : null;
         return NextResponse.json({
           qr: qrData,
           connected: false,
@@ -246,7 +243,7 @@ export async function GET(req: NextRequest) {
     }).catch(() => null);
     debugLog.connectStatus = connectRes?.status ?? 'fetch_failed';
     connectJson = connectRes?.ok ? await connectRes.json() : null;
-    debugLog.connectJson = connectJson;
+    debugLog.connectJson = describeEvolutionBody(connectJson);
 
     let qr = connectJson ? extractQr(connectJson) : null;
 
@@ -267,10 +264,15 @@ export async function GET(req: NextRequest) {
       debugLog.createStatus = createRes?.status ?? 'fetch_failed';
       const createJson = createRes?.ok ? await createRes.json() : null;
       if (!createRes?.ok) {
-        const errText = await createRes?.text().catch(() => '');
-        debugLog.createError = errText;
+        const errText = (await createRes?.text().catch(() => '')) ?? '';
+        debugLog.createError = evolutionErrorMessage(
+          'api.ai-chatbot.whatsapp.qr',
+          createRes?.status ?? 0,
+          errText
+        ).message;
       }
-      debugLog.createJson = createJson;
+      // `hash` = jeton de la nouvelle instance : seules les clés sortent.
+      debugLog.createJson = describeEvolutionBody(createJson);
 
       // Webhook already set above (non-blocking call at start of function)
 
@@ -283,7 +285,7 @@ export async function GET(req: NextRequest) {
         ).catch(() => null);
         debugLog.retryStatus = retryRes?.status ?? 'fetch_failed';
         const retryJson = retryRes?.ok ? await retryRes.json() : null;
-        debugLog.retryJson = retryJson;
+        debugLog.retryJson = describeEvolutionBody(retryJson);
         qr = retryJson ? extractQr(retryJson) : null;
       }
     }
@@ -301,14 +303,12 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Normalise QR: can be a data URL, a http URL, or raw base64
-    let qrData: string;
-    if (qr.startsWith('data:')) {
-      qrData = qr; // already a data URL
-    } else if (qr.startsWith('http://') || qr.startsWith('https://')) {
-      qrData = qr; // use URL directly — Evolution API sometimes returns an image URL
-    } else {
-      qrData = `data:image/png;base64,${qr}`; // raw base64 — add prefix
+    const qrData = await qrToDataUrl(qr, EVOLUTION_URL, headers);
+    if (!qrData) {
+      return NextResponse.json(
+        { error: 'QR non disponible. Essaie de réinitialiser cette connexion.', debug: debugLog },
+        { status: 502 }
+      );
     }
     return NextResponse.json({ qr: qrData, connected: false });
   } catch (err: unknown) {

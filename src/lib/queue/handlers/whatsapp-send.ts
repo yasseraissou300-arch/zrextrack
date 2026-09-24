@@ -20,6 +20,8 @@
 // variation de message restent ceux de lib/whatsapp/anti-spam, inchangés.
 
 import { createServiceClient } from '@/lib/supabase/server';
+import { errorCode } from '@/lib/security/safe-error';
+import { evolutionErrorMessage } from '@/lib/whatsapp/evolution-error';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
 import { remainingDailyQuota, varyMessage } from '@/lib/whatsapp/anti-spam';
 import { normalizePhone } from '@/lib/whatsapp/message-builder';
@@ -125,10 +127,13 @@ export async function handleWhatsAppSend(job: Job): Promise<HandlerResult> {
     ok = res.ok;
     if (!ok) {
       const text = await res.text().catch(() => '');
-      error = `Evolution HTTP ${res.status}: ${text.slice(0, 160)}`;
+      error = evolutionErrorMessage('queue.whatsapp', res.status, text, {
+        tenant_id: tenantId,
+      }).message;
     }
   } catch (e) {
-    error = e instanceof Error ? e.message : 'erreur réseau Evolution';
+    // « Failed to parse URL from <url> » contiendrait l'URL Evolution.
+    error = `erreur réseau Evolution (${errorCode(e)})`;
   }
 
   // ── 6. Comptabilisation ───────────────────────────────────────────────────
