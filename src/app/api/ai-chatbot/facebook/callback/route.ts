@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { OAUTH_STATE_COOKIE, oauthStateMatches } from '@/lib/security/oauth-state';
-import { newVerifyToken } from '@/lib/security/facebook-verify';
+import { newVerifyToken, sealPageToken, sealPendingPages } from '@/lib/security/facebook-verify';
 import { logEvent } from '@/lib/security/safe-log';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -89,7 +89,7 @@ export async function GET(req: NextRequest) {
         user_id: userId,
         page_id: p.id,
         page_name: p.name,
-        page_access_token: p.access_token,
+        page_access_token: sealPageToken(userId, p.access_token), // P2-9 : chiffré si trousseau
         page_picture: p.picture?.data?.url ?? '',
         verify_token,
         connected: true,
@@ -111,13 +111,17 @@ export async function GET(req: NextRequest) {
       page_picture: '',
       verify_token,
       connected: false,
-      pending_pages: JSON.stringify(
-        pages.map((p) => ({
-          id: p.id,
-          name: p.name,
-          access_token: p.access_token,
-          picture: p.picture?.data?.url ?? '',
-        }))
+      // Contient le jeton de CHAQUE page : chiffré en bloc (P2-9).
+      pending_pages: sealPendingPages(
+        userId,
+        JSON.stringify(
+          pages.map((p) => ({
+            id: p.id,
+            name: p.name,
+            access_token: p.access_token,
+            picture: p.picture?.data?.url ?? '',
+          }))
+        )
       ),
       updated_at: new Date().toISOString(),
     },
