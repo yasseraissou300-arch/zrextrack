@@ -158,14 +158,6 @@ describe('lecture de l’existant en échec', () => {
 
 describe('handler de file zrexpress.sync (même module)', () => {
   it('2e passage identique : 0 ligne écrite ; aucune notification fantôme', async () => {
-    db.seed('public', 'user_sync_settings', [
-      {
-        user_id: USER,
-        zrexpress_token: 'zr-synthetic',
-        zrexpress_tenant_id: 'zr-tenant',
-        notify_enabled: {},
-      },
-    ]);
     const { handleZrexpressSync } = await import('@/lib/queue/handlers/zrexpress-sync');
     const job = { tenant_id: USER, type: 'zrexpress.sync', payload: {} } as never;
     await handleZrexpressSync(job);
