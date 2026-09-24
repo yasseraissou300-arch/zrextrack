@@ -103,6 +103,7 @@ function applyDefaults(fullTable: string, row: Row): Row {
     base.human_handover ??= false;
     base.failure_count ??= 0;
     base.tokens_used ??= 0;
+    base.relance_sent ??= false;
   }
   if (fullTable === 'autotim.tenant_settings') {
     delete base.id; // PK = tenant_id
