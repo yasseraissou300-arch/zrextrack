@@ -98,9 +98,11 @@ const MESSAGES: Record<GuardCode, string> = {
   url_invalid: 'NEXT_PUBLIC_SUPABASE_URL invalide',
   url_insecure: 'NEXT_PUBLIC_SUPABASE_URL doit être en https (hors base locale)',
   target_mismatch: "--target ne correspond pas à l'hôte de NEXT_PUBLIC_SUPABASE_URL : arrêt",
-  url_ambiguous: 'SUPABASE_URL et NEXT_PUBLIC_SUPABASE_URL pointent vers deux hôtes différents : arrêt',
+  url_ambiguous:
+    'SUPABASE_URL et NEXT_PUBLIC_SUPABASE_URL pointent vers deux hôtes différents : arrêt',
   service_key_missing: 'SUPABASE_SERVICE_ROLE_KEY absente',
-  service_key_mismatch: 'SUPABASE_SERVICE_ROLE_KEY appartient à un autre projet que --target : arrêt',
+  service_key_mismatch:
+    'SUPABASE_SERVICE_ROLE_KEY appartient à un autre projet que --target : arrêt',
   service_key_wrong_role: "SUPABASE_SERVICE_ROLE_KEY n'est pas une clé service_role : arrêt",
 };
 
@@ -173,7 +175,9 @@ export async function withGuardedClient<C, T>(
   env: Env,
   factory: (url: string, serviceKey: string) => C,
   run: (client: C, guard: Extract<GuardResult, { ok: true }>) => Promise<T>
-): Promise<{ ok: true; value: T } | { ok: false; code: GuardCode; error: string; report: EnvReport }> {
+): Promise<
+  { ok: true; value: T } | { ok: false; code: GuardCode; error: string; report: EnvReport }
+> {
   const parsed = parseTargetArg(argv);
   if ('code' in parsed) {
     const r = checkScriptDbAccess(null, env);
