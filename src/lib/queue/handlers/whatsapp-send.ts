@@ -21,7 +21,12 @@
 
 import { createServiceClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
-import { remainingDailyQuota, varyMessage } from '@/lib/whatsapp/anti-spam';
+import {
+  ANTI_SPAM,
+  randomThrottle,
+  remainingDailyQuota,
+  varyMessage,
+} from '@/lib/whatsapp/anti-spam';
 import { normalizePhone } from '@/lib/whatsapp/message-builder';
 import { logEvent, maskPhone } from '@/lib/security/safe-log';
 import { circuitState, afterFailure, afterSuccess } from '../circuit-breaker';
@@ -51,9 +56,10 @@ export async function handleWhatsAppSend(job: Job): Promise<HandlerResult> {
     };
   }
 
-  // ── 2. Plafond journalier — AU MOMENT DE L'ENVOI ──────────────────────────
+  // ── 2. Plafond journalier + espacement — AU MOMENT DE L'ENVOI ─────────────
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const [{ count: sentToday }, { data: prof }] = await Promise.all([
+  const recent = new Date(Date.now() - ANTI_SPAM.THROTTLE_MIN_MS).toISOString();
+  const [{ count: sentToday }, { data: prof }, { data: lastSent }] = await Promise.all([
     supabase
       .from('messages')
       .select('id', { count: 'exact', head: true })
@@ -61,7 +67,31 @@ export async function handleWhatsAppSend(job: Job): Promise<HandlerResult> {
       .eq('status', 'envoye')
       .gte('sent_at', since),
     supabase.from('profiles').select('whatsapp_warmup_started_at').eq('id', tenantId).maybeSingle(),
+    supabase
+      .from('messages')
+      .select('sent_at')
+      .eq('user_id', tenantId)
+      .eq('status', 'envoye')
+      .gte('sent_at', recent)
+      .order('sent_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
+
+  // Espacement anti-burst. Les envois d'une campagne sont étalés par
+  // run_after (20-60 s), mais le tick ne passe que toutes les 5 min : tous les
+  // jobs devenus dus entre deux ticks étaient exécutés à la suite, en quelques
+  // secondes — le rythme robotique que le throttle devait empêcher. Un envoi
+  // réussi il y a moins de THROTTLE_MIN_MS → report, sans consommer de
+  // tentative (comme le plafond).
+  const lastSentAt = lastSent?.sent_at ? Date.parse(lastSent.sent_at) : NaN;
+  if (Number.isFinite(lastSentAt) && Date.now() - lastSentAt < ANTI_SPAM.THROTTLE_MIN_MS) {
+    return {
+      outcome: 'reschedule',
+      runAfter: new Date(lastSentAt + randomThrottle()),
+      reason: 'espacement anti-burst (20-60 s entre deux envois)',
+    };
+  }
 
   const warmupStartedAt = prof?.whatsapp_warmup_started_at ?? null;
   const remaining = remainingDailyQuota(sentToday ?? 0, warmupStartedAt);

@@ -144,7 +144,7 @@ export async function claimJobs(supabase: Client, limit: number, workerId: strin
   const { data: candidates, error: selErr } = await withGatewayRetry('claim.select', () =>
     q(supabase)
       .from('jobs')
-      .select('id')
+      .select('id, attempts')
       .eq('status', 'pending')
       .lte('run_after', nowIso)
       .order('run_after', { ascending: true })
@@ -158,21 +158,31 @@ export async function claimJobs(supabase: Client, limit: number, workerId: strin
   }
   if (!candidates?.length) return [];
 
-  // 2) Prise atomique, un par un.
+  // 2) Prise atomique, un par un — statut ET compteur dans le MÊME UPDATE.
+  //
+  // Avant : prise (status → running) puis second UPDATE pour `attempts`,
+  // dont l'erreur était ignorée. Si ce second UPDATE échouait (504 passerelle,
+  // mesuré sur ~7 % des ticks) et que la fonction mourait après l'envoi, la
+  // reprise du verrou mort relançait le job avec attempts = 0 → 1 ≤ max 1 :
+  // un whatsapp.send était REJOUÉ, en violation de max_attempts = 1.
+  // Condition `attempts = <lu>` : la valeur écrite dérive de celle lue, sans
+  // fenêtre entre les deux.
   const claimed: Job[] = [];
-  for (const c of candidates as Array<{ id: string }>) {
+  for (const c of candidates as Array<{ id: string; attempts: number }>) {
     if (claimed.length >= limit) break;
 
     const { data, error } = await q(supabase)
       .from('jobs')
       .update({
         status: 'running',
+        attempts: c.attempts + 1,
         locked_at: new Date().toISOString(),
         locked_by: workerId,
         updated_at: new Date().toISOString(),
       })
       .eq('id', c.id)
       .eq('status', 'pending') // ← la condition qui rend la prise exclusive
+      .eq('attempts', c.attempts)
       .select()
       .maybeSingle();
 
@@ -180,18 +190,7 @@ export async function claimJobs(supabase: Client, limit: number, workerId: strin
       logEvent('warn', 'queue.claim', { status: 'claim_failed', error_code: error.code });
       continue;
     }
-    if (data) {
-      // `attempts` est incrémenté ici et non dans l'UPDATE ci-dessus : le
-      // compteur doit refléter les exécutions réellement démarrées.
-      const job = data as Job;
-      const { data: bumped } = await q(supabase)
-        .from('jobs')
-        .update({ attempts: job.attempts + 1 })
-        .eq('id', job.id)
-        .select()
-        .maybeSingle();
-      claimed.push((bumped as Job) ?? { ...job, attempts: job.attempts + 1 });
-    }
+    if (data) claimed.push(data as Job);
     // data === null → un autre worker l'a pris entre-temps : on continue.
   }
 
