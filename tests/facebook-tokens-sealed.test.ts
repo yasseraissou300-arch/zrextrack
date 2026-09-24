@@ -138,6 +138,8 @@ describe('non-exposition', () => {
   });
 });
 
+let midSeq = 0;
+
 describe('webhook Messenger', () => {
   function seedConnection(token: string) {
     db.seed('public', 'facebook_connections', [
@@ -157,7 +159,10 @@ describe('webhook Messenger', () => {
           entry: [
             {
               id: 'page-1',
-              messaging: [{ sender: { id: 'psid' }, message: { mid: 'm1', text: 'Salam' } }],
+              // mid unique : le webhook dédoublonne les relivraisons Meta par mid.
+              messaging: [
+                { sender: { id: 'psid' }, message: { mid: `m-${++midSeq}`, text: 'Salam' } },
+              ],
             },
           ],
         }),
