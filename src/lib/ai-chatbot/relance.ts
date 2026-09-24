@@ -20,6 +20,12 @@
 //    session.
 // 4. DOUBLE ENVOI : lecture puis mise à jour de relance_sent ; deux exécutions
 //    simultanées relançaient deux fois. Désormais : prise atomique.
+// 5. CLIENT DÉJÀ SERVI : `is_complete` décrit le DERNIER tour de la session,
+//    pas la commande — un « Merci » après une commande finalisée le repasse à
+//    false (tests/chatbot-relance-after-order.test.ts). Le client recevait
+//    alors « tu n'as pas terminé ta commande ». Source de vérité de la
+//    commande finalisée : `sheets_sent`, pris atomiquement quand une commande
+//    VALIDÉE est transmise (Sheets et/ou admin). Exclu au balayage ET à la prise.
 
 import type { createServiceClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
@@ -74,6 +80,7 @@ export async function runRelance(
     .from('ai_chat_sessions')
     .select('id, user_id, channel, contact_id, template_type')
     .eq('is_complete', false)
+    .not('sheets_sent', 'is', true) // commande déjà finalisée : jamais relancée
     .eq('human_handover', false)
     .eq('relance_sent', false)
     .lt('updated_at', cutoff)
@@ -153,13 +160,16 @@ export async function runRelance(
       continue;
     }
 
-    // Prise atomique : une seule exécution relance cette session.
+    // Prise atomique : une seule exécution relance cette session, et seulement
+    // si elle est TOUJOURS éligible (commande finalisée entre-temps : non).
     const { data: claimed } = await supabase
       .from('ai_chat_sessions')
       .update({ relance_sent: true, updated_at: new Date().toISOString() })
       .eq('id', s.id)
       .eq('user_id', s.user_id)
       .eq('relance_sent', false)
+      .eq('is_complete', false)
+      .not('sheets_sent', 'is', true)
       .select('id');
     if (!Array.isArray(claimed) || claimed.length !== 1) {
       skip('already_claimed');
