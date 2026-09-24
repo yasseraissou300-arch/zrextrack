@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import {
+  openPendingPages,
+  publicPendingPages,
+  sealPageToken,
+} from '@/lib/security/facebook-verify';
 
 export async function GET() {
   const supabase = await createClient();
@@ -16,7 +21,9 @@ export async function GET() {
 
   if (!data) return NextResponse.json({ connection: null });
 
-  const pendingPages = data.pending_pages ? JSON.parse(data.pending_pages) : null;
+  // pending_pages contient le jeton d'accès (longue durée) de chaque page :
+  // il ne quitte jamais le serveur — seuls id, nom et image sont renvoyés.
+  const pendingPages = publicPendingPages(openPendingPages(user.id, data.pending_pages));
   return NextResponse.json({
     connection: { ...data, pending_pages: undefined },
     pending_pages: pendingPages,
@@ -45,7 +52,9 @@ export async function POST(req: NextRequest) {
   if (!existing?.pending_pages)
     return NextResponse.json({ error: 'Aucune page en attente' }, { status: 400 });
 
-  const pages = JSON.parse(existing.pending_pages);
+  const plain = openPendingPages(user.id, existing.pending_pages);
+  if (!plain) return NextResponse.json({ error: 'Aucune page en attente' }, { status: 400 });
+  const pages = JSON.parse(plain);
   const selected = pages.find((p: { id: string }) => p.id === page_id);
   if (!selected) return NextResponse.json({ error: 'Page introuvable' }, { status: 404 });
 
@@ -54,7 +63,7 @@ export async function POST(req: NextRequest) {
     .update({
       page_id: selected.id,
       page_name: selected.name,
-      page_access_token: selected.access_token,
+      page_access_token: sealPageToken(user.id, selected.access_token),
       page_picture: selected.picture ?? '',
       connected: true,
       pending_pages: null,

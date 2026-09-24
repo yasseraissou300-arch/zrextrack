@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServiceClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { OAUTH_STATE_COOKIE, oauthStateMatches } from '@/lib/security/oauth-state';
+import { newVerifyToken, sealPageToken, sealPendingPages } from '@/lib/security/facebook-verify';
+import { logEvent } from '@/lib/security/safe-log';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 function redirect(path: string) {
-  return NextResponse.redirect(new URL(path, APP_URL));
+  const res = NextResponse.redirect(new URL(path, APP_URL));
+  // Nonce à usage unique : effacé quelle que soit l'issue.
+  res.cookies.set(OAUTH_STATE_COOKIE, '', { path: '/api/ai-chatbot/facebook', maxAge: 0 });
+  return res;
 }
 
 export async function GET(req: NextRequest) {
@@ -17,12 +23,19 @@ export async function GET(req: NextRequest) {
     return redirect('/ai-chatbot?tab=facebook&error=denied');
   }
 
-  let userId: string;
-  try {
-    userId = JSON.parse(Buffer.from(stateRaw, 'base64').toString()).user_id;
-  } catch {
+  // 1. Le state doit être celui posé dans CE navigateur au départ de l'OAuth.
+  if (!oauthStateMatches(stateRaw, req.cookies.get(OAUTH_STATE_COOKIE)?.value)) {
+    logEvent('warn', 'oauth.facebook', { status: 'rejected', reason: 'state_mismatch' });
     return redirect('/ai-chatbot?tab=facebook&error=invalid_state');
   }
+
+  // 2. L'identité vient de la session, jamais du paramètre state.
+  const auth = await createClient();
+  const {
+    data: { user },
+  } = await auth.auth.getUser();
+  if (!user) return redirect('/login');
+  const userId = user.id;
 
   const appId = process.env.FACEBOOK_APP_ID;
   const appSecret = process.env.FACEBOOK_APP_SECRET;
@@ -59,7 +72,14 @@ export async function GET(req: NextRequest) {
   if (pages.length === 0) return redirect('/ai-chatbot?tab=facebook&error=no_pages');
 
   const supabase = createServiceClient();
-  const verify_token = `zrex_fb_${userId.slice(0, 8)}`;
+  // Jeton existant conservé (webhook déjà vérifié chez Meta) ; sinon aléatoire —
+  // l'ancien `zrex_fb_<8 car. de l'UUID>` était déductible de l'identifiant.
+  const { data: existingConn } = await supabase
+    .from('facebook_connections')
+    .select('verify_token')
+    .eq('user_id', userId)
+    .maybeSingle();
+  const verify_token: string = existingConn?.verify_token || newVerifyToken();
 
   if (pages.length === 1) {
     // Auto-connect single page
@@ -69,7 +89,7 @@ export async function GET(req: NextRequest) {
         user_id: userId,
         page_id: p.id,
         page_name: p.name,
-        page_access_token: p.access_token,
+        page_access_token: sealPageToken(userId, p.access_token), // P2-9 : chiffré si trousseau
         page_picture: p.picture?.data?.url ?? '',
         verify_token,
         connected: true,
@@ -91,13 +111,17 @@ export async function GET(req: NextRequest) {
       page_picture: '',
       verify_token,
       connected: false,
-      pending_pages: JSON.stringify(
-        pages.map((p) => ({
-          id: p.id,
-          name: p.name,
-          access_token: p.access_token,
-          picture: p.picture?.data?.url ?? '',
-        }))
+      // Contient le jeton de CHAQUE page : chiffré en bloc (P2-9).
+      pending_pages: sealPendingPages(
+        userId,
+        JSON.stringify(
+          pages.map((p) => ({
+            id: p.id,
+            name: p.name,
+            access_token: p.access_token,
+            picture: p.picture?.data?.url ?? '',
+          }))
+        )
       ),
       updated_at: new Date().toISOString(),
     },
