@@ -20,6 +20,7 @@ vi.mock('@/lib/supabase/server', () => ({
 }));
 vi.mock('@/lib/user-creds', () => ({
   resolveEvolutionCreds: async () => ({ url: 'https://evolution.test', key: 'global-key' }),
+  getUserCreds: async () => null,
 }));
 
 beforeEach(() => {
@@ -83,4 +84,32 @@ describe('redactWebhookToken', () => {
     ['https://a.test/hook', 'https://a.test/hook'],
   ])('%s', (input, out) => expect(redactWebhookToken(input)).toBe(out));
   it('null reste null', () => expect(redactWebhookToken(null)).toBeNull());
+});
+
+describe('/api/ai-chatbot/diagnostic', () => {
+  beforeEach(() => {
+    // Evolution a enregistré l'URL AVEC le secret (après webhook-reset).
+    stored = `https://zrextrack.vercel.app/api/ai-chatbot/webhook/whatsapp?token=${SECRET}`;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url.includes('/webhook/find/')) {
+          return Response.json({ url: stored, events: ['MESSAGES_UPSERT'] });
+        }
+        if (url.includes('/connectionState/'))
+          return Response.json({ instance: { state: 'open' } });
+        return Response.json({});
+      })
+    );
+  });
+
+  it('webhook enregistré avec le secret = correctement configuré, secret jamais renvoyé', async () => {
+    const { GET } = await import('@/app/api/ai-chatbot/diagnostic/route');
+    const text = await (await GET()).text();
+    expect(text).not.toContain(SECRET);
+    const json = JSON.parse(text);
+    const inst = json.instances?.[0] ?? json.instanceDiagnostics?.[0];
+    expect(inst.webhook_matches_expected).toBe(true);
+    expect(inst.webhook_url).toContain('token=••••');
+  });
 });
