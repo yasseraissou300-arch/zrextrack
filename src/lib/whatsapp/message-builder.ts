@@ -4,7 +4,8 @@
 // Comportement STRICTEMENT identique à l'original : mêmes templates par défaut,
 // mêmes variables, même normalisation de numéro. Aucune règle métier modifiée.
 
-const APP_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://zrextrack6753.builtwithrocket.new';
+// Domaine du lien {{lien}} : source unique, voir src/lib/public-url.ts.
+import { trackingUrl } from '@/lib/public-url';
 
 /**
  * Templates par défaut en darija algérienne, utilisés quand l'utilisateur n'a
@@ -46,7 +47,7 @@ export function buildMessage(
   o: OrderVars,
   userTemplates: Map<string, string>
 ): string {
-  const link = `${APP_URL}/track/${o.tracking_number}`;
+  const link = trackingUrl(o.tracking_number);
   const tpl =
     userTemplates.get(status) || DARIJA_DEFAULTS[status] || `Mise à jour {{tracking}} : {{lien}}`;
   return tpl
