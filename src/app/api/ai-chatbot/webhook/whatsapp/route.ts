@@ -245,14 +245,20 @@ async function sendWhatsAppMedia(
 }
 
 // ─── Google Sheets notifier ───────────────────────────────────────────────────
+// Non bloquant pour le client, mais plus SILENCIEUX : une panne réseau ou un
+// statut HTTP ≠ 2xx laissait une commande « transmise » (sheets_sent) sans
+// ligne dans le Sheet et sans aucune trace. Journal sûr : tenant + statut HTTP
+// ou code d'erreur — jamais l'URL du Sheet (elle donne accès en écriture), ni
+// les données de la commande. La reprise automatique reste une décision (D).
 async function notifyGoogleSheets(
   webhookUrl: string,
   type: string,
-  data: Record<string, unknown>
+  data: Record<string, unknown>,
+  tenantId: string
 ): Promise<void> {
   if (!webhookUrl) return;
   try {
-    await fetch(webhookUrl, {
+    const res = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -262,8 +268,19 @@ async function notifyGoogleSheets(
         ...data,
       }),
     });
-  } catch {
-    /* non-blocking */
+    if (!res.ok) {
+      logEvent('warn', 'chatbot.sheets', {
+        tenant_id: tenantId,
+        status: 'failed',
+        http_status: res.status,
+      });
+    }
+  } catch (err: unknown) {
+    logEvent('warn', 'chatbot.sheets', {
+      tenant_id: tenantId,
+      status: 'failed',
+      error_code: errorCode(err),
+    });
   }
 }
 
@@ -649,7 +666,8 @@ export async function POST(req: NextRequest) {
           await notifyGoogleSheets(
             config.google_sheets_url,
             config.template_type,
-            toSheetRow(newData)
+            toSheetRow(newData),
+            userId
           );
         }
         if (config.admin_whatsapp) {
