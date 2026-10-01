@@ -63,7 +63,10 @@ describe('GET /api/ai-chatbot/sessions?complete=true', () => {
 });
 
 describe('hasCompleteData — vues Données et Réclamations', () => {
-  const sav = (o: Record<string, unknown>) => ({ template_type: 'sav', ...o });
+  const sav = (o: { id: string; is_complete: boolean; sheets_sent: boolean | null }) => ({
+    template_type: 'sav',
+    ...o,
+  });
   const sessions = [
     sav({ id: 'r1', is_complete: true, sheets_sent: true }), // réclamation transmise
     sav({ id: 'r2', is_complete: false, sheets_sent: true }), // … puis « merci »
