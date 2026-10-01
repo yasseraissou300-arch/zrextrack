@@ -24,6 +24,17 @@ export function sessionDisplayStatus(s: SessionStatusInput): SessionDisplayStatu
   return s.is_complete === true ? 'complete' : 'in_progress';
 }
 
+/**
+ * « Données complètes » au sens des FILTRES et COMPTEURS : le dernier tour était
+ * complet, OU une commande / réclamation a déjà été transmise. Sans cela, un
+ * simple « merci » après transmission sortait la ligne de « complètes
+ * uniquement » — et une réclamation SAV disparaissait de la vue par défaut de
+ * l'opérateur. Seul true strict compte.
+ */
+export function hasCompleteData(s: SessionStatusInput): boolean {
+  return s.is_complete === true || s.sheets_sent === true;
+}
+
 /** Libellé court ; « transmise » s'accorde avec l'objet (réclamation pour le SAV). */
 export function sessionStatusLabel(s: SessionStatusInput): string {
   switch (sessionDisplayStatus(s)) {
