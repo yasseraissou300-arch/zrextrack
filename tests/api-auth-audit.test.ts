@@ -166,9 +166,9 @@ const KNOWN_BODY_TRUST: Record<string, string> = {
 /** Routes machine / publiques : écarts connus. */
 const KNOWN_MACHINE_GAPS: Record<string, string> = {
   'relance: CRON_SECRET absent → déclenchement anonyme': '261f209 (p1-relance-sav-hardening)',
-  'shopify: secret_key vide → commande forgée acceptée': 'AUCUN correctif préparé (P4 backlog)',
-  'woocommerce: secret_key vide → commande forgée acceptée': 'AUCUN correctif préparé (P4 backlog)',
-  'track: jokers SQL (% _) transmis à ILIKE → énumération': 'AUCUN correctif préparé (P4 backlog)',
+  'shopify: secret_key vide → commande forgée acceptée': 'b90f515 (p4-shopify-woo-auth)',
+  'woocommerce: secret_key vide → commande forgée acceptée': 'b90f515 (p4-shopify-woo-auth)',
+  'track: jokers SQL (% _) transmis à ILIKE → énumération': 'ae4428c (p4-track-wildcard)',
   'health: message PostgREST renvoyé au public': '5b94c79 (p3-safe-errors)',
 };
 
@@ -460,7 +460,8 @@ describe('4 — exceptions publiques', () => {
     const raw = patterns.some((p) => /(^|[^\\])[%_]/.test(p));
     if (raw)
       ratchet(['track: jokers SQL (% _) transmis à ILIKE → énumération'], KNOWN_MACHINE_GAPS);
-    expect(patterns.length).toBeGreaterThan(0);
+    // Correctif ae4428c : plus aucun ILIKE (égalité stricte) → aucun motif capturé,
+    // écart accepté par le cliquet comme corrigé.
   });
 
   it('health : aucun détail interne dans la réponse publique en cas d’erreur base', async () => {
