@@ -26,6 +26,11 @@
 //    alors « tu n'as pas terminé ta commande ». Source de vérité de la
 //    commande finalisée : `sheets_sent`, pris atomiquement quand une commande
 //    VALIDÉE est transmise (Sheets et/ou admin). Exclu au balayage ET à la prise.
+// 6. RÉCLAMATION RÉSOLUE : l'opérateur a déjà tranché (resolution = échange,
+//    remboursement ou résolu) et le client a reçu le message de résolution ;
+//    un « merci » repassait is_complete à false et le client recevait ensuite
+//    « wach mazal 3andek mushkil? » (tests/relance-sav-resolved.test.ts).
+//    Exclu au balayage ET à la prise, comme sheets_sent.
 
 import type { createServiceClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
@@ -81,6 +86,7 @@ export async function runRelance(
     .select('id, user_id, channel, contact_id, template_type')
     .eq('is_complete', false)
     .not('sheets_sent', 'is', true) // commande déjà finalisée : jamais relancée
+    .is('resolution', null) // réclamation déjà résolue par l'opérateur : jamais relancée
     .eq('human_handover', false)
     .eq('relance_sent', false)
     .lt('updated_at', cutoff)
@@ -170,6 +176,7 @@ export async function runRelance(
       .eq('relance_sent', false)
       .eq('is_complete', false)
       .not('sheets_sent', 'is', true)
+      .is('resolution', null)
       .select('id');
     if (!Array.isArray(claimed) || claimed.length !== 1) {
       skip('already_claimed');
