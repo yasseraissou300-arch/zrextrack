@@ -84,8 +84,10 @@ describe('page tableau de bord — consommateurs du statut', () => {
     expect(src).toMatch(/\? 'Complète'\s*: 'En cours'/);
   });
 
-  it('filtres et compteurs NON modifiés dans ce lot (documentés séparément)', () => {
-    expect(src).toMatch(/statusFilter === 'complete' && !s\.is_complete/);
-    expect(src).toMatch(/sessions\.filter\(\(s\) => s\.is_complete\)\.length/);
+  it('filtres et compteurs : même critère hasCompleteData (is_complete OU sheets_sent)', () => {
+    expect(src).not.toMatch(/statusFilter === 'complete' && !s\.is_complete/);
+    expect(src).not.toMatch(/sessions\.filter\(\(s\) => s\.is_complete\)\.length/);
+    expect(src).not.toMatch(/sessions\.filter\(\(s\) => !s\.is_complete\)\.length/);
+    expect(src.match(/hasCompleteData/g)?.length ?? 0).toBeGreaterThanOrEqual(6);
   });
 });

@@ -23,7 +23,9 @@ export async function GET(req: NextRequest) {
     .limit(limit);
 
   if (template) query = query.eq('template_type', template);
-  if (complete === 'true') query = query.eq('is_complete', true);
+  // « Complètes » = dernier tour complet OU déjà transmise (sheets_sent) : un
+  // « merci » après transmission ne doit pas sortir la ligne du filtre.
+  if (complete === 'true') query = query.or('is_complete.eq.true,sheets_sent.eq.true');
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

@@ -40,6 +40,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
+  hasCompleteData,
   sessionDisplayStatus,
   sessionStatusLabel,
   type SessionDisplayStatus,
@@ -2128,7 +2129,7 @@ function DonneesTab() {
           },
           {
             label: 'Données complètes',
-            value: sessions.filter((s) => s.is_complete).length,
+            value: sessions.filter(hasCompleteData).length,
             color: 'bg-green-50 text-green-700',
           },
           {
@@ -2732,8 +2733,9 @@ function ReclamationsTab() {
   };
 
   const filtered = sessions.filter((s) => {
-    if (statusFilter === 'complete' && !s.is_complete) return false;
-    if (statusFilter === 'pending' && s.is_complete) return false;
+    // Réclamation transmise (sheets_sent) = complète, même après un « merci ».
+    if (statusFilter === 'complete' && !hasCompleteData(s)) return false;
+    if (statusFilter === 'pending' && hasCompleteData(s)) return false;
     if (resolvedFilter === 'pending' && s.resolution) return false;
     if (resolvedFilter === 'resolved' && !s.resolution) return false;
     if (!search.trim()) return true;
@@ -2858,12 +2860,12 @@ function ReclamationsTab() {
           },
           {
             label: 'Complètes',
-            value: sessions.filter((s) => s.is_complete).length,
+            value: sessions.filter(hasCompleteData).length,
             color: 'bg-green-50 text-green-700',
           },
           {
             label: 'En cours',
-            value: sessions.filter((s) => !s.is_complete).length,
+            value: sessions.filter((s) => !hasCompleteData(s)).length,
             color: 'bg-stone-50 text-stone-700 dark:text-stone-200',
           },
         ].map((s) => (
