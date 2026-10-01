@@ -11,6 +11,7 @@ import {
   toSheetRow,
 } from '@/lib/ai-chatbot/extraction';
 import { logEvent } from '@/lib/security/safe-log';
+import { errorCode } from '@/lib/security/safe-error';
 
 const DEFAULT_PROMPT = `Nta agent IA l [NOM_BOUTIQUE].
 Jme3 les informations li la7jinhom bach ntabet la commande:
@@ -275,16 +276,33 @@ export async function POST(req: NextRequest) {
             .eq('sheets_sent', false)
             .select('id');
           if (Array.isArray(claimed) && claimed.length === 1) {
-            await fetch(config.google_sheets_url, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                type: templateType,
-                timestamp: new Date().toISOString(),
-                source: 'facebook_ai',
-                ...toSheetRow(newData),
-              }),
-            }).catch(() => {});
+            // Non bloquant, mais plus silencieux (voir le webhook WhatsApp) :
+            // journal sûr, jamais l'URL du Sheet ni les données de la commande.
+            try {
+              const res = await fetch(config.google_sheets_url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: templateType,
+                  timestamp: new Date().toISOString(),
+                  source: 'facebook_ai',
+                  ...toSheetRow(newData),
+                }),
+              });
+              if (!res.ok) {
+                logEvent('warn', 'chatbot.sheets', {
+                  tenant_id: userId,
+                  status: 'failed',
+                  http_status: res.status,
+                });
+              }
+            } catch (err: unknown) {
+              logEvent('warn', 'chatbot.sheets', {
+                tenant_id: userId,
+                status: 'failed',
+                error_code: errorCode(err),
+              });
+            }
           }
         }
 
