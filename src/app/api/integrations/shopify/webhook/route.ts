@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
-import crypto from 'crypto';
-
-function verifyShopifyHmac(body: string, hmacHeader: string, secret: string): boolean {
-  const digest = crypto.createHmac('sha256', secret).update(body, 'utf8').digest('base64');
-  return digest === hmacHeader;
-}
+import { verifyHmacSha256Base64 } from '@/lib/security/webhook-hmac';
+import { logEvent } from '@/lib/security/safe-log';
 
 function mapShopifyStatus(fulfillmentStatus: string | null, financialStatus: string): string {
   if (financialStatus === 'refunded') return 'retourne';
@@ -40,8 +36,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Integration not found' }, { status: 404 });
     }
 
-    // Verify webhook signature
-    if (integration.secret_key && !verifyShopifyHmac(rawBody, hmac, integration.secret_key)) {
+    // Signature OBLIGATOIRE (fail-closed) : un secret vide ne désactive plus la
+    // vérification. Aucune écriture avant ce point.
+    const check = verifyHmacSha256Base64(rawBody, hmac, integration.secret_key);
+    if (!check.ok) {
+      logEvent('warn', 'webhook.shopify', { status: 'rejected', reason: check.reason });
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
     }
 
