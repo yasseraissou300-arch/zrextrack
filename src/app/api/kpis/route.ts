@@ -61,7 +61,15 @@ export async function GET() {
         .select('id', { count: 'exact', head: true })
         .eq('user_id', uid)
         .eq('delivery_status', 'en_preparation'),
-      supabase.from('messages').select('id', { count: 'exact', head: true }).eq('user_id', uid),
+      // « Messages WhatsApp » = envois RÉUSSIS. Le journal `messages` contient
+      // aussi une ligne 'echec' par tentative ratée (envoi manuel, drain), et un
+      // « Renvoyer » réussi ajoute une 2e ligne : sans ce filtre, chaque échec
+      // gonflait le compteur (tests/kpi-messages-sent.test.ts).
+      supabase
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', uid)
+        .eq('status', 'envoye'),
     ]);
 
     const total = totalRes.count ?? 0;
