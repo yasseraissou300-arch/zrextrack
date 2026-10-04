@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { commitSession } from '@/lib/ai-chatbot/session-store';
+import {
+  classifyGeminiHttpError,
+  logGeminiKeyFailure,
+  logGeminiPoolExhausted,
+  safeFinishReason,
+  type GeminiCallCtx,
+} from '@/lib/ai-chatbot/gemini-error';
 import { createServiceClient } from '@/lib/supabase/server';
 import { tokensEqual, openPageToken } from '@/lib/security/facebook-verify';
 import { resolveGeminiKeys } from '@/lib/user-creds';
@@ -33,14 +40,19 @@ interface AIMessage {
 async function callGeminiPool(
   geminiKeys: string[],
   systemPrompt: string,
-  messages: AIMessage[]
+  messages: AIMessage[],
+  ctx: GeminiCallCtx
 ): Promise<string | null> {
   const contents = messages.slice(-10).map((m) => ({
     role: m.role === 'assistant' ? 'model' : 'user',
     parts: [{ text: m.content }],
   }));
-  for (const key of geminiKeys) {
+  // Parcours INCHANGÉ ; chaque échec laisse une trace sûre (gemini-error.ts) —
+  // rang de la clé, jamais la clé, l'URL, le corps ni le message d'exception.
+  for (const [i, key] of geminiKeys.entries()) {
     if (!key) continue;
+    const fail = (fields: Parameters<typeof logGeminiKeyFailure>[3]) =>
+      logGeminiKeyFailure(ctx, i + 1, geminiKeys.length, fields);
     try {
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
@@ -54,14 +66,26 @@ async function callGeminiPool(
           }),
         }
       );
-      if (!res.ok) continue; // quota (429) ou autre erreur → clé suivante
+      if (!res.ok) {
+        // quota (429) ou autre erreur → clé suivante
+        const body = await res.text().catch(() => '');
+        fail({ http_status: res.status, error_code: classifyGeminiHttpError(res.status, body) });
+        continue;
+      }
       const json = await res.json();
       const text = json.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
       if (text) return text;
-    } catch {
+      fail({
+        http_status: res.status,
+        error_code: 'empty_response',
+        finish_reason: safeFinishReason(json.candidates?.[0]?.finishReason),
+      });
+    } catch (err: unknown) {
       /* clé suivante */
+      fail({ error_code: err instanceof SyntaxError ? 'provider_error' : 'network_error' });
     }
   }
+  logGeminiPoolExhausted(ctx, geminiKeys.length);
   return null;
 }
 
@@ -223,7 +247,10 @@ export async function POST(req: NextRequest) {
           { role: 'user', content: text },
         ];
 
-        const aiReply = await callGeminiPool(geminiKeys, systemPrompt, conversation);
+        const aiReply = await callGeminiPool(geminiKeys, systemPrompt, conversation, {
+          channel: 'messenger',
+          tenantId: userId,
+        });
         if (!aiReply) continue;
 
         // Sortie du modèle = donnée NON fiable — même validation que WhatsApp

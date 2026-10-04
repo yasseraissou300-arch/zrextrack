@@ -8,6 +8,13 @@ import { logEvent, maskPhone } from '@/lib/security/safe-log';
 import { commitSession } from '@/lib/ai-chatbot/session-store';
 import { isAngerDetected, isBlabla } from '@/lib/ai-chatbot/classifiers';
 import {
+  classifyGeminiHttpError,
+  logGeminiKeyFailure,
+  logGeminiPoolExhausted,
+  safeFinishReason,
+  type GeminiCallCtx,
+} from '@/lib/ai-chatbot/gemini-error';
+import {
   correctionReply,
   isExtractionComplete,
   sanitizeExtracted,
@@ -115,11 +122,16 @@ interface GeminiCall extends ClaudeResult {
 
 // ─── Gemini call ──────────────────────────────────────────────────────────────
 // `quota: true` quand la clé a épuisé son quota (HTTP 429) → l'appelant peut
-// passer à la clé suivante du pool.
+// passer à la clé suivante du pool. Chaque échec laisse une trace SÛRE
+// (gemini-error.ts) : rang de la clé, statut, catégorie — jamais la clé, l'URL,
+// le corps de réponse ni le message d'exception (qui citent l'URL).
 async function callGemini(
   geminiKey: string,
   systemPrompt: string,
-  messages: ClaudeMessage[]
+  messages: ClaudeMessage[],
+  ctx: GeminiCallCtx,
+  keyIndex: number,
+  poolSize: number
 ): Promise<GeminiCall> {
   if (!geminiKey) return { text: null, tokens: 0 };
   try {
@@ -141,17 +153,31 @@ async function callGemini(
       }
     );
     if (!res.ok) {
-      const err = await res.text();
-      logEvent('error', 'ai.gemini', { status: 'http_error', error_code: String(res.status) });
+      const body = await res.text().catch(() => '');
+      logGeminiKeyFailure(ctx, keyIndex, poolSize, {
+        http_status: res.status,
+        error_code: classifyGeminiHttpError(res.status, body),
+      });
       return { text: null, tokens: 0, quota: res.status === 429 };
     }
     const json = await res.json();
     const text = json.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
     const tokens =
       (json.usageMetadata?.promptTokenCount ?? 0) + (json.usageMetadata?.candidatesTokenCount ?? 0);
+    if (!text) {
+      // 200 sans texte (réponse bloquée, vide) : déjà traité comme un échec
+      // (clé suivante) — seule la trace est nouvelle.
+      logGeminiKeyFailure(ctx, keyIndex, poolSize, {
+        http_status: res.status,
+        error_code: 'empty_response',
+        finish_reason: safeFinishReason(json.candidates?.[0]?.finishReason),
+      });
+    }
     return { text, tokens };
-  } catch (e) {
-    logEvent('error', 'ai.gemini', { status: 'exception' });
+  } catch (err: unknown) {
+    logGeminiKeyFailure(ctx, keyIndex, poolSize, {
+      error_code: err instanceof SyntaxError ? 'provider_error' : 'network_error',
+    });
     return { text: null, tokens: 0 };
   }
 }
@@ -164,7 +190,8 @@ async function callAI(
   creds: ResolvedCreds,
   systemPrompt: string,
   messages: ClaudeMessage[],
-  _templateType?: string
+  _templateType: string | undefined,
+  ctx: GeminiCallCtx
 ): Promise<ClaudeResult> {
   const keys = creds.geminiKeys;
   if (keys.length === 0) {
@@ -172,7 +199,7 @@ async function callAI(
     return { text: null, tokens: 0 };
   }
   for (let i = 0; i < keys.length; i++) {
-    const result = await callGemini(keys[i], systemPrompt, messages);
+    const result = await callGemini(keys[i], systemPrompt, messages, ctx, i + 1, keys.length);
     if (result.text) {
       console.log(`[AI] Gemini answered (clé ${i + 1}/${keys.length})`);
       return result;
@@ -185,6 +212,7 @@ async function callAI(
     console.log(`[AI] clé ${i + 1}/${keys.length} a échoué → clé suivante`);
   }
   console.log('[AI] toutes les clés Gemini ont échoué');
+  logGeminiPoolExhausted(ctx, keys.length);
   return { text: null, tokens: 0 };
 }
 
@@ -571,7 +599,8 @@ export async function POST(req: NextRequest) {
       creds,
       systemPrompt,
       conversation,
-      config.template_type
+      config.template_type,
+      { channel: 'whatsapp', tenantId: userId }
     );
 
     if (!aiReply) {
