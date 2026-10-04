@@ -20,8 +20,20 @@ export type GeminiErrorKind =
   | 'empty_response';
 
 export interface GeminiCallCtx {
-  channel: 'whatsapp' | 'messenger';
+  channel: 'whatsapp' | 'messenger' | 'dashboard';
   tenantId: string;
+  /** Usage de l'appel quand un même canal en a plusieurs (ex. /api/chatbot :
+   *  'intent' = classification, 'reply' = réponse). Absent → champ omis. */
+  flow?: 'intent' | 'reply';
+}
+
+/** Champs communs ; `flow` seulement s'il est fourni (WhatsApp/Messenger : omis). */
+function base(ctx: GeminiCallCtx) {
+  return {
+    tenant_id: ctx.tenantId,
+    channel: ctx.channel,
+    ...(ctx.flow ? { flow: ctx.flow } : {}),
+  };
 }
 
 /** Catégorie d'une réponse HTTP ≠ 2xx. Pure : le corps est lu, jamais renvoyé. */
@@ -59,8 +71,7 @@ export function logGeminiKeyFailure(
   fields: { http_status?: number; error_code: GeminiErrorKind; finish_reason?: string }
 ): void {
   logEvent('warn', 'ai.gemini', {
-    tenant_id: ctx.tenantId,
-    channel: ctx.channel,
+    ...base(ctx),
     status: 'failed',
     key_index: keyIndex,
     pool_size: poolSize,
@@ -72,8 +83,7 @@ export function logGeminiKeyFailure(
 /** Aucune clé du pool n'a produit de réponse. */
 export function logGeminiPoolExhausted(ctx: GeminiCallCtx, poolSize: number): void {
   logEvent('warn', 'ai.gemini', {
-    tenant_id: ctx.tenantId,
-    channel: ctx.channel,
+    ...base(ctx),
     status: 'all_keys_failed',
     pool_size: poolSize,
     ref: newErrorRef(),

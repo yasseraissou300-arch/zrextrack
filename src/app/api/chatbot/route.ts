@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import kb from '@/data/knowledge-base.json';
 import { createClient } from '@/lib/supabase/server';
 import { resolveGeminiKeys } from '@/lib/user-creds';
+import {
+  classifyGeminiHttpError,
+  logGeminiKeyFailure,
+  logGeminiPoolExhausted,
+  safeFinishReason,
+  type GeminiCallCtx,
+} from '@/lib/ai-chatbot/gemini-error';
 
 export interface SessionState {
   intent: 'order' | 'sav' | 'complaint' | null;
@@ -50,11 +57,15 @@ INSTRUCTIONS : Réponds de manière claire, chaleureuse et concise (2-4 phrases 
 // BYOK : utilise le pool de clés Gemini de l'utilisateur connecté (mêmes clés
 // que le bot WhatsApp, configurées dans Paramètres → Clés API). Rotation
 // automatique : si une clé épuise son quota (429), on essaie la suivante.
+// Chaque échec laisse une trace SÛRE (gemini-error.ts) : rang de la clé,
+// statut, catégorie — jamais la clé, l'URL, le corps ni le message
+// d'exception. Parcours et réponses inchangés.
 async function callGemini(
   keys: string[],
   systemPrompt: string,
   userMessage: string,
-  history: ChatMessage[] = []
+  history: ChatMessage[],
+  ctx: GeminiCallCtx
 ): Promise<string | null> {
   if (keys.length === 0) return null;
 
@@ -72,7 +83,9 @@ async function callGemini(
     parts: [{ text: `${systemPrompt}\n\nClient: ${userMessage}` }],
   });
 
-  for (const key of keys) {
+  for (const [i, key] of keys.entries()) {
+    const fail = (fields: Parameters<typeof logGeminiKeyFailure>[3]) =>
+      logGeminiKeyFailure(ctx, i + 1, keys.length, fields);
     try {
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
@@ -85,20 +98,33 @@ async function callGemini(
           }),
         }
       );
-      if (!res.ok) continue; // 429 quota / clé invalide → clé suivante du pool
+      if (!res.ok) {
+        // 429 quota / clé invalide → clé suivante du pool
+        const body = await res.text().catch(() => '');
+        fail({ http_status: res.status, error_code: classifyGeminiHttpError(res.status, body) });
+        continue;
+      }
       const json = await res.json();
       const text = json.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
       if (text) return text;
-    } catch {
+      fail({
+        http_status: res.status,
+        error_code: 'empty_response',
+        finish_reason: safeFinishReason(json.candidates?.[0]?.finishReason),
+      });
+    } catch (err: unknown) {
       // erreur réseau → clé suivante
+      fail({ error_code: err instanceof SyntaxError ? 'provider_error' : 'network_error' });
     }
   }
+  logGeminiPoolExhausted(ctx, keys.length);
   return null;
 }
 
 async function detectIntent(
   keys: string[],
-  message: string
+  message: string,
+  tenantId: string
 ): Promise<'order' | 'complaint' | 'sav'> {
   const lower = message.toLowerCase();
 
@@ -144,7 +170,11 @@ async function detectIntent(
 
 Réponds UNIQUEMENT avec: order, complaint, ou sav`;
 
-  const result = await callGemini(keys, classifyPrompt, message);
+  const result = await callGemini(keys, classifyPrompt, message, [], {
+    channel: 'dashboard',
+    tenantId,
+    flow: 'intent',
+  });
   const clean = result?.trim().toLowerCase().split(/\s/)[0];
   if (clean === 'order') return 'order';
   if (clean === 'complaint') return 'complaint';
@@ -193,6 +223,7 @@ export async function POST(req: NextRequest) {
 
   // BYOK : clés Gemini de l'utilisateur (zéro consommation de la plateforme).
   const geminiKeys = await resolveGeminiKeys(user.id);
+  const replyCtx: GeminiCallCtx = { channel: 'dashboard', tenantId: user.id, flow: 'reply' };
 
   const { message, sessionState, history, channel } = (await req.json()) as ChatRequest;
 
@@ -208,7 +239,7 @@ export async function POST(req: NextRequest) {
 
   switch (state.step) {
     case 'detect': {
-      const intent = await detectIntent(geminiKeys, message);
+      const intent = await detectIntent(geminiKeys, message, user.id);
 
       if (intent === 'order') {
         state.intent = 'order';
@@ -219,7 +250,7 @@ export async function POST(req: NextRequest) {
         state.step = 'collect_complaint';
         reply = `😔 Je suis désolé pour ce désagrément. Décrivez votre problème en détail et je l'enregistre immédiatement pour notre équipe :`;
       } else {
-        const aiReply = await callGemini(geminiKeys, SYSTEM_CONTEXT, message, history);
+        const aiReply = await callGemini(geminiKeys, SYSTEM_CONTEXT, message, history, replyCtx);
         reply =
           aiReply ||
           `Je suis là pour vous aider ! Vous pouvez :\n• 📦 Suivre votre commande (envoyez le numéro de tracking)\n• 🛒 Passer une nouvelle commande\n• ❓ Poser une question sur nos services\n• 🔧 Signaler un problème`;
@@ -303,7 +334,7 @@ export async function POST(req: NextRequest) {
       state.step = 'detect';
       state.data = {};
       state.intent = null;
-      const aiReply = await callGemini(geminiKeys, SYSTEM_CONTEXT, message, history);
+      const aiReply = await callGemini(geminiKeys, SYSTEM_CONTEXT, message, history, replyCtx);
       reply = aiReply || `Comment puis-je vous aider ?`;
       break;
     }
