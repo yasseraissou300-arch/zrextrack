@@ -11,7 +11,8 @@ import {
   toSheetRow,
 } from '@/lib/ai-chatbot/extraction';
 import { logEvent } from '@/lib/security/safe-log';
-import { errorCode } from '@/lib/security/safe-error';
+import { errorCode, newErrorRef } from '@/lib/security/safe-error';
+import { classifyGraphError } from '@/lib/ai-chatbot/graph-error';
 
 const DEFAULT_PROMPT = `Nta agent IA l [NOM_BOUTIQUE].
 Jme3 les informations li la7jinhom bach ntabet la commande:
@@ -79,22 +80,51 @@ function stripDataTag(text: string): string {
   return text.replace(/<data>[\s\S]*?<\/data>/g, '').trim();
 }
 
+// Non bloquant (aucun retry, aucune écriture), mais plus SILENCIEUX : un statut
+// HTTP ≠ 2xx ou une exception laissait une réponse au client perdue sans aucune
+// trace (jeton de page expiré, permission retirée, limite de débit…). Journal
+// sûr : tenant, statut HTTP, catégorie et code Graph NUMÉRIQUE, ou code
+// d'erreur (errorCode : jamais le message, qui peut contenir l'URL), et une
+// référence. Le jeton de page est dans l'URL : ni l'URL, ni le corps Graph, ni
+// le destinataire, ni le texte ne sont journalisés. Un 200 reste un succès ; un
+// timeout (fonction tuée par la plateforme) reste invisible — aucun délai posé.
 async function sendFBMessage(
   pageAccessToken: string,
   recipientId: string,
-  text: string
+  text: string,
+  tenantId: string
 ): Promise<void> {
-  try {
-    await fetch(`https://graph.facebook.com/v18.0/me/messages?access_token=${pageAccessToken}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        recipient: { id: recipientId },
-        message: { text: text.slice(0, 2000) },
-      }),
+  const failed = (fields: Record<string, unknown>) =>
+    logEvent('warn', 'chatbot.messenger', {
+      tenant_id: tenantId,
+      channel: 'messenger',
+      flow: 'reply',
+      status: 'failed',
+      ...fields,
+      ref: newErrorRef(),
     });
-  } catch {
-    /* non-blocking */
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/v18.0/me/messages?access_token=${pageAccessToken}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipient: { id: recipientId },
+          message: { text: text.slice(0, 2000) },
+        }),
+      }
+    );
+    if (!res.ok) {
+      const { kind, graphCode } = classifyGraphError(res.status, await res.text().catch(() => ''));
+      failed({
+        http_status: res.status,
+        error_code: kind,
+        ...(graphCode === undefined ? {} : { graph_code: graphCode }),
+      });
+    }
+  } catch (err: unknown) {
+    failed({ error_code: errorCode(err) });
   }
 }
 
@@ -306,7 +336,7 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        if (cleanReply) await sendFBMessage(pageToken, senderId, cleanReply);
+        if (cleanReply) await sendFBMessage(pageToken, senderId, cleanReply, userId);
       }
     }
 
