@@ -4,6 +4,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { resolveGeminiKey, missingCredentialsResponse } from '@/lib/user-creds';
+import { classifyGeminiHttpError } from '@/lib/ai-chatbot/gemini-error';
+import { newErrorRef } from '@/lib/security/safe-error';
+import { logEvent } from '@/lib/security/safe-log';
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -45,15 +48,33 @@ Réponds UNIQUEMENT avec le prompt amélioré, sans explications.`;
     );
 
     if (!res.ok) {
-      const errText = await res.text();
-      console.error('[refine-prompt][Gemini]', res.status, errText);
+      // Le corps d'erreur Google peut citer l'URL (donc la clé), le projet et le
+      // prompt : lu pour CLASSER, jamais journalisé (voir gemini-error.ts).
+      const errText = await res.text().catch(() => '');
+      logEvent('warn', 'ai.gemini', {
+        tenant_id: user.id,
+        channel: 'dashboard',
+        flow: 'refine_prompt',
+        status: 'failed',
+        http_status: res.status,
+        error_code: classifyGeminiHttpError(res.status, errText),
+        ref: newErrorRef(),
+      });
       return NextResponse.json({ error: 'Erreur Gemini' }, { status: 502 });
     }
 
     const json = await res.json();
     const refined = json.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
     return NextResponse.json({ refined });
-  } catch {
+  } catch (err: unknown) {
+    logEvent('warn', 'ai.gemini', {
+      tenant_id: user.id,
+      channel: 'dashboard',
+      flow: 'refine_prompt',
+      status: 'failed',
+      error_code: err instanceof SyntaxError ? 'provider_error' : 'network_error',
+      ref: newErrorRef(),
+    });
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }
