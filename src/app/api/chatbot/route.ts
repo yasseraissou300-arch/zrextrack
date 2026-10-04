@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import kb from '@/data/knowledge-base.json';
 import { createClient } from '@/lib/supabase/server';
 import { resolveGeminiKeys } from '@/lib/user-creds';
+import { errorCode, newErrorRef } from '@/lib/security/safe-error';
+import { logEvent } from '@/lib/security/safe-log';
 import {
   classifyGeminiHttpError,
   logGeminiKeyFailure,
@@ -191,14 +193,40 @@ function extractTracking(text: string): string | null {
   return match ? match[1].toUpperCase() : null;
 }
 
+/** Catégorie d'un statut HTTP ≠ 2xx du webhook (le corps n'est jamais lu). */
+function webhookErrorCode(status: number): string {
+  if (status === 401 || status === 403) return 'unauthorized';
+  if (status === 404) return 'not_found';
+  if (status === 429) return 'rate_limited';
+  if (status >= 400 && status < 500) return 'rejected';
+  return 'server_error';
+}
+
+// Non bloquant (aucun retry, réponse au client inchangée), mais plus
+// SILENCIEUX : un statut ≠ 2xx ou une exception laissait une commande /
+// réclamation « enregistrée » sans ligne dans le Sheet ni aucune trace.
+// L'URL du webhook (Apps Script) vaut autorisation d'écriture : ni l'URL, ni le
+// corps envoyé ou reçu, ni le message / la pile de l'exception (qui citent
+// l'URL) ne sont journalisés. Variable absente → aucun envoi, aucune trace.
+// Aucun délai maximal : un timeout reste invisible.
 async function notifyWebhook(
   type: 'order' | 'complaint',
-  data: Record<string, string>
+  data: Record<string, string>,
+  tenantId: string
 ): Promise<void> {
   const webhookUrl = process.env.GOOGLE_SHEETS_WEBHOOK_URL;
   if (!webhookUrl) return;
+  const failed = (fields: Record<string, unknown>) =>
+    logEvent('warn', 'chatbot.sheets', {
+      tenant_id: tenantId,
+      channel: 'dashboard',
+      flow: type,
+      status: 'failed',
+      ...fields,
+      ref: newErrorRef(),
+    });
   try {
-    await fetch(webhookUrl, {
+    const res = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -208,8 +236,9 @@ async function notifyWebhook(
         ...data,
       }),
     });
-  } catch {
-    /* non-blocking */
+    if (!res.ok) failed({ http_status: res.status, error_code: webhookErrorCode(res.status) });
+  } catch (err: unknown) {
+    failed({ error_code: 'network_error', cause: errorCode(err) });
   }
 }
 
@@ -315,7 +344,7 @@ export async function POST(req: NextRequest) {
       const isNo = /^(non|no|لا|nope|annuler|cancel|0|×)/.test(lower);
 
       if (isYes) {
-        await notifyWebhook('order', state.data);
+        await notifyWebhook('order', state.data, user.id);
         state.step = 'done';
         state.intent = null;
         reply = `🎉 **Commande confirmée !**\n\nVotre commande a bien été enregistrée. Notre équipe vous contactera au **${state.data.phone}** sous peu pour finaliser les détails.\n\nMerci de votre confiance ! 🙏\n\nComment puis-je encore vous aider ?`;
@@ -345,7 +374,7 @@ export async function POST(req: NextRequest) {
       } else {
         state.data.complaint = message.trim();
         state.data.ticket = `#${Date.now().toString().slice(-6)}`;
-        await notifyWebhook('complaint', state.data);
+        await notifyWebhook('complaint', state.data, user.id);
         state.step = 'detect';
         state.intent = null;
         reply = `📝 **Réclamation enregistrée !**\n\nN° de ticket : **${state.data.ticket}**\n\nVotre réclamation a été transmise à notre équipe. Un conseiller vous recontactera rapidement.\n\nY a-t-il autre chose que je puisse faire pour vous ?`;
