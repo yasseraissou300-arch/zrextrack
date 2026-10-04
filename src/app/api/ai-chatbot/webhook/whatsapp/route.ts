@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { errorCode, redactForLog } from '@/lib/security/safe-error';
+import { errorCode, newErrorRef, redactForLog } from '@/lib/security/safe-error';
+import { classifyEvolutionError } from '@/lib/whatsapp/evolution-error';
 import { createServiceClient } from '@/lib/supabase/server';
 import { resolveGeminiKeys, resolveEvolutionCreds } from '@/lib/user-creds';
 import { verifyWebhookSecret } from '@/lib/security/webhook-auth';
@@ -203,24 +204,70 @@ function stripDataTag(text: string): string {
 }
 
 // ─── WhatsApp senders ─────────────────────────────────────────────────────────
+// Non bloquants (aucun retry, aucune écriture), mais plus SILENCIEUX : un statut
+// HTTP ≠ 2xx ou une exception laissait une réponse au client ou une alerte
+// admin perdue sans aucune trace. Journal sûr : flux, tenant, statut HTTP et
+// catégorie (classifyEvolutionError, le corps n'est JAMAIS journalisé), ou code
+// d'erreur, et une référence. Jamais le numéro, le contenu, la clé, l'URL
+// Evolution ni l'URL du média. Un timeout (fonction tuée par la plateforme)
+// reste invisible : aucun délai maximal n'est posé sur ces appels.
+type SendFlow = 'reply' | 'nudge' | 'handover' | 'ai_error' | 'welcome_media' | 'admin_alert';
+interface SendCtx {
+  tenantId: string;
+  flow: SendFlow;
+}
+
+function logSendFailure(ctx: SendCtx, fields: { http_status?: number; error_code: string }) {
+  logEvent('warn', 'chatbot.whatsapp', {
+    tenant_id: ctx.tenantId,
+    channel: 'whatsapp',
+    flow: ctx.flow,
+    status: 'failed',
+    ...fields,
+    ref: newErrorRef(),
+  });
+}
+
+async function postEvolution(
+  url: string,
+  evKey: string,
+  payload: Record<string, unknown>,
+  ctx: SendCtx
+): Promise<void> {
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: evKey },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      logSendFailure(ctx, {
+        http_status: res.status,
+        error_code: classifyEvolutionError(res.status, body),
+      });
+    }
+  } catch (err: unknown) {
+    logSendFailure(ctx, { error_code: errorCode(err) });
+  }
+}
+
 async function sendWhatsApp(
   evUrl: string,
   evKey: string,
   instanceName: string,
   number: string,
-  text: string
+  text: string,
+  ctx: SendCtx
 ): Promise<void> {
   if (!evUrl || !evKey) return;
   const cleanNumber = number.replace('@s.whatsapp.net', '').replace('@g.us', '');
-  try {
-    await fetch(`${evUrl}/message/sendText/${instanceName}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', apikey: evKey },
-      body: JSON.stringify({ number: cleanNumber, text }),
-    });
-  } catch {
-    /* non-blocking */
-  }
+  await postEvolution(
+    `${evUrl}/message/sendText/${instanceName}`,
+    evKey,
+    { number: cleanNumber, text },
+    ctx
+  );
 }
 
 async function sendWhatsAppMedia(
@@ -229,19 +276,17 @@ async function sendWhatsAppMedia(
   instanceName: string,
   number: string,
   mediaUrl: string,
-  caption: string
+  caption: string,
+  ctx: SendCtx
 ): Promise<void> {
   if (!evUrl || !evKey || !mediaUrl) return;
   const cleanNumber = number.replace('@s.whatsapp.net', '').replace('@g.us', '');
-  try {
-    await fetch(`${evUrl}/message/sendMedia/${instanceName}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', apikey: evKey },
-      body: JSON.stringify({ number: cleanNumber, mediatype: 'image', media: mediaUrl, caption }),
-    });
-  } catch {
-    /* non-blocking */
-  }
+  await postEvolution(
+    `${evUrl}/message/sendMedia/${instanceName}`,
+    evKey,
+    { number: cleanNumber, mediatype: 'image', media: mediaUrl, caption },
+    ctx
+  );
 }
 
 // ─── Google Sheets notifier ───────────────────────────────────────────────────
@@ -292,7 +337,8 @@ async function notifyAdmin(
   adminWA: string,
   data: Record<string, string>,
   shopName: string,
-  templateType: string
+  templateType: string,
+  tenantId: string
 ): Promise<void> {
   if (!adminWA) return;
   const lines: string[] = [
@@ -304,7 +350,10 @@ async function notifyAdmin(
   if (data.produit) lines.push(`🛍️ Produit: ${data.produit}`);
   if (data.reclamation) lines.push(`⚠️ Réclamation: ${data.reclamation}`);
   if (data.tracking_number) lines.push(`📦 Tracking: ${data.tracking_number}`);
-  await sendWhatsApp(evUrl, evKey, instanceName, adminWA, lines.join('\n'));
+  await sendWhatsApp(evUrl, evKey, instanceName, adminWA, lines.join('\n'), {
+    tenantId,
+    flow: 'admin_alert',
+  });
 }
 
 // ─── GET — webhook verification ───────────────────────────────────────────────
@@ -488,7 +537,10 @@ export async function POST(req: NextRequest) {
     const angerDetected = isAngerDetected(text);
     if (angerDetected) {
       const handoverMsg = `Smahli 3la l-izaaj! Rah nwejjdek wahed men l'équipe ta3na b sur3a bach y3awnek 🙏`;
-      await sendWhatsApp(evUrl, evKey, instanceName, remoteJid, handoverMsg);
+      await sendWhatsApp(evUrl, evKey, instanceName, remoteJid, handoverMsg, {
+        tenantId: userId,
+        flow: 'handover',
+      });
       if (existingSession) {
         await supabase
           .from('ai_chat_sessions')
@@ -527,9 +579,15 @@ export async function POST(req: NextRequest) {
       const nudge = nudges[config.template_type] ?? nudges.auto_confirmation;
       // Send product image on first contact if configured
       if (!existingSession && config.media_url) {
-        await sendWhatsAppMedia(evUrl, evKey, instanceName, remoteJid, config.media_url, '');
+        await sendWhatsAppMedia(evUrl, evKey, instanceName, remoteJid, config.media_url, '', {
+          tenantId: userId,
+          flow: 'welcome_media',
+        });
       }
-      await sendWhatsApp(evUrl, evKey, instanceName, remoteJid, nudge);
+      await sendWhatsApp(evUrl, evKey, instanceName, remoteJid, nudge, {
+        tenantId: userId,
+        flow: 'nudge',
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -542,7 +600,10 @@ export async function POST(req: NextRequest) {
     // Human handover after 2 consecutive AI failures
     if (failureCount >= 2) {
       const handoverMsg = `Smahli, ma fhemtch mlih wach tebghi. Rah nwejjdek m3a wahed men l'équipe ta3na 👨‍💼`;
-      await sendWhatsApp(evUrl, evKey, instanceName, remoteJid, handoverMsg);
+      await sendWhatsApp(evUrl, evKey, instanceName, remoteJid, handoverMsg, {
+        tenantId: userId,
+        flow: 'handover',
+      });
       // (already wired to BYOK via evUrl/evKey)
       if (existingSession) {
         await supabase
@@ -563,7 +624,10 @@ export async function POST(req: NextRequest) {
 
     // Send product image on first message if configured
     if (!existingSession && config.media_url) {
-      await sendWhatsAppMedia(evUrl, evKey, instanceName, remoteJid, config.media_url, '');
+      await sendWhatsAppMedia(evUrl, evKey, instanceName, remoteJid, config.media_url, '', {
+        tenantId: userId,
+        flow: 'welcome_media',
+      });
     }
 
     conversation.push({ role: 'user', content: text });
@@ -580,7 +644,8 @@ export async function POST(req: NextRequest) {
         evKey,
         instanceName,
         remoteJid,
-        'Smahli, kayen mushkil t9ani. 3awed 7awel ba3d chwiya.'
+        'Smahli, kayen mushkil t9ani. 3awed 7awel ba3d chwiya.',
+        { tenantId: userId, flow: 'ai_error' }
       );
       // Compteurs incrémentés sur l'état FRAIS : deux échecs concurrents = 2.
       if (existingSession) {
@@ -678,13 +743,17 @@ export async function POST(req: NextRequest) {
             config.admin_whatsapp,
             newData,
             config.shop_name || 'Boutique',
-            config.template_type
+            config.template_type,
+            userId
           );
         }
       }
     }
 
-    await sendWhatsApp(evUrl, evKey, instanceName, remoteJid, cleanReply);
+    await sendWhatsApp(evUrl, evKey, instanceName, remoteJid, cleanReply, {
+      tenantId: userId,
+      flow: 'reply',
+    });
     return NextResponse.json({ ok: true });
   } catch (err: unknown) {
     logEvent('error', 'webhook.whatsapp', {
