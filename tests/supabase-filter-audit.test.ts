@@ -107,7 +107,9 @@ describe('GET /api/orders — search dans .or()', () => {
     expect(q.params.getAll('user_id')).toEqual([`eq.${ME}`]);
   });
 
-  it('sur main, une erreur PostgREST est renvoyée BRUTE au navigateur (error.message)', async () => {
+  // DEUX ÉTATS : main renvoie le message PostgREST brut (fuite constatée) ;
+  // après p3-safe-errors (12j) le message est générique + référence.
+  it('erreur PostgREST : brute sur main (constat) / générique après 12j (p3-safe-errors)', async () => {
     rowsFor = () => [];
     transport.mockImplementationOnce(
       async () =>
@@ -122,7 +124,15 @@ describe('GET /api/orders — search dans .or()', () => {
     const { GET } = await import('@/app/api/orders/route');
     const res = await GET(ordersReq({ search: 'x)' }));
     expect(res.status).toBe(500);
-    expect((await res.json()).error).toContain('failed to parse logic tree');
+    const body = await res.json();
+    if (body.ref === undefined) {
+      // main : fuite du texte du filtre et du nom de la table.
+      expect(body.error).toContain('failed to parse logic tree');
+    } else {
+      // correctif présent : aucun détail interne.
+      expect(JSON.stringify(body)).not.toContain('logic tree');
+      expect(JSON.stringify(body)).not.toContain('public.orders');
+    }
   });
 });
 
@@ -182,7 +192,9 @@ describe('POST /api/voice-calls/status — cid dans .or()', () => {
 // ─── 4. /api/track (main) — saisie publique dans .ilike(), sans scope ───────
 
 describe('GET /api/track/[tracking] (main, PUBLIC)', () => {
-  it('« % » devient un joker : filtre tracking_number=ilike.%, AUCUN scope marchand → n’importe quelle commande', async () => {
+  // DEUX ÉTATS : main → joker exploitable (constat) ; après p4-track-wildcard
+  // (12q, ae4428c) → égalité stricte, « % » n'est plus qu'un caractère.
+  it('« % » : joker sans scope marchand sur main (constat) / littéral après 12q', async () => {
     rowsFor = (table) =>
       table === 'orders'
         ? [
@@ -201,10 +213,17 @@ describe('GET /api/track/[tracking] (main, PUBLIC)', () => {
       }),
       { params: Promise.resolve({ tracking: '%' }) }
     );
-    const q = requests.find((r) => r.table === 'orders')!;
-    expect(q.params.get('tracking_number')).toBe('ilike.%');
-    expect(q.params.get('user_id')).toBeNull();
-    expect(res.status).toBe(200);
-    expect((await res.json()).tracking).toBe('ZR-VICTIME');
+    const filters = requests
+      .filter((r) => r.table === 'orders')
+      .map((r) => r.params.get('tracking_number'));
+    expect(requests.find((r) => r.table === 'orders')!.params.get('user_id')).toBeNull(); // route publique
+    if (filters[0] === 'ilike.%') {
+      // main : motif joker, aucun scope → la route sert une commande quelconque.
+      expect(res.status).toBe(200);
+      expect((await res.json()).tracking).toBe('ZR-VICTIME');
+    } else {
+      // correctif présent : uniquement des égalités littérales.
+      expect(filters.every((f) => f === 'eq.%')).toBe(true);
+    }
   });
 });
