@@ -156,7 +156,12 @@ describe('/api/ai-chatbot/facebook GET — pending_pages', () => {
     if (res.includes('TEST_PAGE_TOKEN_A')) {
       expect(JSON.parse(res).pending_pages[0].access_token).toBe('TEST_PAGE_TOKEN_A'); // S3 sur main
     } else {
-      expect(res).not.toContain('access_token');
+      // correctif présent : aucune page renvoyée ne porte de jeton. (La base
+      // simulée ignore la liste de colonnes du select : on ne juge donc que
+      // pending_pages et les valeurs, pas la présence d'une clé vide.)
+      const pages = JSON.parse(res).pending_pages as Array<Record<string, unknown>>;
+      expect(pages.every((p) => !('access_token' in p))).toBe(true);
+      expect(res).not.toContain('TEST_PAGE_TOKEN');
     }
     // verify_token de A : nécessaire à la configuration manuelle du webhook Meta (S1).
     expect(res).toContain('TEST_VERIFY_TOKEN_A');
