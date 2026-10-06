@@ -264,11 +264,18 @@ describe('Oracle — statuts, corps, nombre de lectures', () => {
     expect(queries).toBe(2); // saisie déjà en majuscules : 2 variantes distinctes
   });
 
-  it('CONSTAT annexe : une exception renvoie son message BRUT au navigateur (500)', async () => {
+  it('CONSTAT annexe : exception → message BRUT sur main / générique avec 12j (500)', async () => {
     const mod = await load();
     throwOnQuery = new Error('connect ECONNREFUSED db.internal.test:5432');
     const r = await call(mod, 'ZR-100200');
     expect(r.status).toBe(500);
-    expect(r.body.error).toContain('db.internal.test');
+    // DEUX ÉTATS : main → message brut (constat) ; avec p3-safe-errors (12j)
+    // → message générique, aucun détail interne.
+    if (String(r.body.error).includes('db.internal.test')) {
+      expect(r.body.error).toContain('ECONNREFUSED');
+    } else {
+      expect(JSON.stringify(r.body)).not.toContain('db.internal.test');
+      expect(JSON.stringify(r.body)).not.toContain('ECONNREFUSED');
+    }
   });
 });
