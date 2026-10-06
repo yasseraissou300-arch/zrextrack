@@ -102,30 +102,199 @@ afterEach(() => {
 
 const body = async (res: Response) => JSON.stringify(await res.json());
 
-// ─── 1. /api/integrations — NOUVEAU constat, aucun correctif sur branche ─────
+// ─── 1. /api/integrations — secret HMAC Shopify/WooCommerce ─────────────────
+//
+// 1a. Constat en DEUX ÉTATS : sur main (ae4428c) le secret part en clair ;
+//     avec claude/p4-integrations-no-secrets il ne part plus.
+// 1b. Spécification CIBLE (stricte) : échoue sur main, passe avec le correctif.
 
-describe('/api/integrations — secret HMAC Shopify/WooCommerce', () => {
-  it('GET (A) : secret_key de A renvoyé EN CLAIR au navigateur ; jamais celui de B', async () => {
+describe('/api/integrations — constat (deux états)', () => {
+  it('GET (A) : secret de A en clair sur main / absent après correctif ; jamais celui de B', async () => {
     const { GET } = await import('@/app/api/integrations/route');
     const res = await body(await GET());
-    expect(res).toContain('TEST_SHOPIFY_SECRET_A'); // S3 constat
     expect(res).not.toContain('TEST_SHOPIFY_SECRET_B');
     expect(res).not.toContain('b.myshopify.com');
+    if (res.includes('TEST_SHOPIFY_SECRET_A')) {
+      expect(JSON.parse(res).data[0].secret_key).toBe('TEST_SHOPIFY_SECRET_A'); // S3 sur main
+    } else {
+      expect(res).not.toContain('secret_key');
+    }
   });
 
-  it('POST (A) : la ligne upsertée, secret_key compris, est renvoyée en clair', async () => {
+  it('POST (A) : ligne renvoyée avec le secret sur main / sans le secret après correctif', async () => {
+    const { POST } = await import('@/app/api/integrations/route');
+    const res = await body(
+      await POST(
+        new NextRequest('https://app.test/api/integrations', {
+          method: 'POST',
+          body: JSON.stringify({
+            platform: 'woocommerce',
+            identifier: 'a.shop',
+            secret_key: 'TEST_WOO_SECRET_A',
+          }),
+        })
+      )
+    );
+    if (res.includes('TEST_WOO_SECRET_A')) {
+      expect(JSON.parse(res).data.secret_key).toBe('TEST_WOO_SECRET_A'); // S3 sur main
+    } else {
+      expect(res).not.toContain('secret_key');
+    }
+  });
+});
+
+describe('/api/integrations — spécification cible (aucun secret au navigateur)', () => {
+  const SECRETS = ['TEST_SHOPIFY_SECRET_A', 'TEST_WOOCOMMERCE_SECRET_A', 'TEST_SHOPIFY_SECRET_B'];
+  const PUBLIC_KEYS = [
+    'active',
+    'created_at',
+    'id',
+    'identifier',
+    'last_sync',
+    'orders_synced',
+    'platform',
+    'secret_configured',
+    'updated_at',
+  ];
+
+  beforeEach(() => {
+    db.seed('public', 'integrations', [
+      {
+        id: 'i-a2',
+        user_id: A,
+        platform: 'woocommerce',
+        identifier: 'https://a.shop',
+        secret_key: 'TEST_WOOCOMMERCE_SECRET_A',
+        active: true,
+        orders_synced: 3,
+        last_sync: null,
+        created_at: '2026-01-02',
+        updated_at: '2026-01-02',
+      },
+      {
+        id: 'i-a3',
+        user_id: A,
+        platform: 'google_sheets',
+        identifier: 'sheet-id',
+        secret_key: '',
+        active: true,
+        orders_synced: 0,
+        last_sync: null,
+        created_at: '2026-01-03',
+        updated_at: '2026-01-03',
+      },
+    ]);
+  });
+
+  it('GET : secret_configured correct, aucun secret (A ni B), uniquement des champs publics', async () => {
+    const { GET } = await import('@/app/api/integrations/route');
+    const res = await GET();
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    const text = JSON.stringify(json);
+    for (const sct of SECRETS) expect(text).not.toContain(sct);
+    expect(text).not.toContain('secret_key');
+    const byPlatform = Object.fromEntries(
+      (json.data as Array<Record<string, unknown>>).map((r) => [r.platform, r])
+    );
+    expect(Object.keys(byPlatform).sort()).toEqual(['google_sheets', 'shopify', 'woocommerce']); // A seulement
+    expect(byPlatform.shopify.secret_configured).toBe(true);
+    expect(byPlatform.woocommerce.secret_configured).toBe(true);
+    expect(byPlatform.google_sheets.secret_configured).toBe(false);
+    for (const row of json.data as Array<Record<string, unknown>>) {
+      expect(Object.keys(row).every((k) => PUBLIC_KEYS.includes(k))).toBe(true);
+    }
+    // Champs utilisés par l'interface (src/app/integrations/page.tsx) toujours présents.
+    expect(byPlatform.woocommerce).toMatchObject({
+      id: 'i-a2',
+      identifier: 'https://a.shop',
+      active: true,
+      orders_synced: 3,
+    });
+  });
+
+  it('POST : enregistrement fonctionnel (secret STOCKÉ en base), réponse sans secret, secret_configured=true', async () => {
     const { POST } = await import('@/app/api/integrations/route');
     const res = await POST(
       new NextRequest('https://app.test/api/integrations', {
         method: 'POST',
         body: JSON.stringify({
-          platform: 'woocommerce',
-          identifier: 'a.shop',
-          secret_key: 'TEST_WOO_SECRET_A',
+          platform: 'shopify',
+          identifier: 'a2.myshopify.com',
+          secret_key: 'TEST_SHOPIFY_SECRET_A2',
         }),
       })
     );
-    expect(await body(res)).toContain('TEST_WOO_SECRET_A'); // S3 constat
+    expect(res.status).toBe(200);
+    const text = await body(res);
+    expect(text).not.toContain('TEST_SHOPIFY_SECRET_A2');
+    expect(text).not.toContain('secret_key');
+    const json = JSON.parse(text);
+    expect(json.data).toMatchObject({
+      platform: 'shopify',
+      identifier: 'a2.myshopify.com',
+      active: true,
+      secret_configured: true,
+    });
+    const stored = db
+      .all('public', 'integrations')
+      .find((r) => r.user_id === A && r.platform === 'shopify');
+    expect(stored?.secret_key).toBe('TEST_SHOPIFY_SECRET_A2'); // le serveur garde le secret
+    expect(db.all('public', 'integrations').find((r) => r.user_id === B)?.secret_key).toBe(
+      'TEST_SHOPIFY_SECRET_B'
+    );
+  });
+
+  it('POST sans secret : secret_configured=false (comportement de stockage inchangé)', async () => {
+    const { POST } = await import('@/app/api/integrations/route');
+    const json = await (
+      await POST(
+        new NextRequest('https://app.test/api/integrations', {
+          method: 'POST',
+          body: JSON.stringify({ platform: 'woocommerce', identifier: 'https://a.shop' }),
+        })
+      )
+    ).json();
+    expect(json.data.secret_configured).toBe(false);
+  });
+
+  it('POST en erreur base : message GÉNÉRIQUE, ni secret, ni message PostgREST/SQL', async () => {
+    db.failNext('public', 'integrations', 'upsert', {
+      code: '23505',
+      message:
+        'duplicate key value violates unique constraint "integrations_user_id_platform_key" secret=TEST_SHOPIFY_SECRET_A3',
+    });
+    const { POST } = await import('@/app/api/integrations/route');
+    const res = await POST(
+      new NextRequest('https://app.test/api/integrations', {
+        method: 'POST',
+        body: JSON.stringify({
+          platform: 'shopify',
+          identifier: 'x',
+          secret_key: 'TEST_SHOPIFY_SECRET_A3',
+        }),
+      })
+    );
+    expect(res.status).toBe(500);
+    const text = await body(res);
+    for (const forbidden of [
+      'TEST_SHOPIFY_SECRET_A3',
+      'duplicate key',
+      'constraint',
+      'integrations_',
+      '23505',
+    ]) {
+      expect(text).not.toContain(forbidden);
+    }
+    // Les journaux serveur gardent le code d'erreur, jamais le secret.
+    const logs = (['log', 'info', 'warn', 'error'] as const)
+      .flatMap((m) =>
+        (console[m] as unknown as { mock: { calls: unknown[][] } }).mock.calls.map((c) =>
+          c.map(String).join(' ')
+        )
+      )
+      .join('\n');
+    expect(logs).not.toContain('TEST_SHOPIFY_SECRET_A3');
   });
 });
 
