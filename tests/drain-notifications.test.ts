@@ -219,4 +219,31 @@ describe('drain — circuit breaker (session morte)', () => {
     await drain(TENANT_A);
     expect(db.all('autotim', 'tenant_settings')[0].consecutive_send_failures).toBe(0);
   });
+
+  it('circuit expiré → les envois reprennent (aucun blocage permanent)', async () => {
+    seedTenant(TENANT_A, 2);
+    db.seed('autotim', 'tenant_settings', [
+      {
+        tenant_id: TENANT_A,
+        consecutive_send_failures: 5,
+        circuit_open_until: new Date(Date.now() - 60_000).toISOString(), // fenêtre passée
+      },
+    ]);
+    const sent = await drain(TENANT_A);
+    expect(sent).toBeGreaterThan(0);
+    expect(fetchMock).toHaveBeenCalled();
+    expect(db.all('autotim', 'tenant_settings')[0].consecutive_send_failures).toBe(0);
+  });
+
+  it('circuit d’un autre tenant ouvert → n’affecte pas ce tenant (isolation)', async () => {
+    seedTenant(TENANT_A, 1);
+    db.seed('autotim', 'tenant_settings', [
+      {
+        tenant_id: TENANT_B,
+        consecutive_send_failures: 5,
+        circuit_open_until: new Date(Date.now() + 30 * 60_000).toISOString(),
+      },
+    ]);
+    expect(await drain(TENANT_A)).toBe(1);
+  });
 });
