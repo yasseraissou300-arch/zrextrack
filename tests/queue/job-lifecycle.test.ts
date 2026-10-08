@@ -125,8 +125,8 @@ class FileEnMemoire {
   }
 }
 
-const TENANT_A = '73b8e14c-97d2-4691-895d-1c7d234a51b0';
-const TENANT_B = '7a74e3ca-27ac-4462-ae4b-64f667835b20';
+const TENANT_A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const TENANT_B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 
 let file: FileEnMemoire;
 beforeEach(() => {

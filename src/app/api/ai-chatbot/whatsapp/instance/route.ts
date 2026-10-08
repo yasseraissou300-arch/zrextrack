@@ -10,6 +10,10 @@ interface EvCreds {
   key: string;
 }
 
+// Colonnes renvoyées au navigateur : jamais `instance_token`.
+const INSTANCE_PUBLIC_COLUMNS =
+  'id, user_id, service_type, instance_name, connected, created_at, updated_at';
+
 type ServiceType = 'auto_confirmation' | 'sav' | 'tracking';
 
 const SERVICE_SUFFIX: Record<ServiceType, string> = {
@@ -50,7 +54,7 @@ export async function GET() {
 
   const { data: instances } = await supabase
     .from('whatsapp_instances')
-    .select('*')
+    .select(INSTANCE_PUBLIC_COLUMNS)
     .eq('user_id', user.id);
 
   return NextResponse.json({
@@ -82,9 +86,15 @@ export async function POST(req: NextRequest) {
   const instanceName = getInstanceName(user.id, serviceType);
 
   if (action === 'create') {
+    // PAS de `token` : Evolution en génère un aléatoire (v4). Ce jeton donne à
+    // lui seul un accès complet à l'instance — envoi, lecture des discussions,
+    // déconnexion (guard `apikey` d'Evolution v2 : global key OU token de
+    // l'instance). L'ancien code passait `user.id`, qui n'est pas un secret :
+    // il circule dans les URLs et les logs, et deux UUID réels étaient
+    // committés dans le dépôt public. La plateforme n'utilise que la clé
+    // globale : le jeton d'instance n'a besoin d'être ni connu ni stocké.
     await evolutionRequest(ev, '/instance/create', 'POST', {
       instanceName,
-      token: user.id,
       integration: 'WHATSAPP-BAILEYS',
       qrcode: true,
     });
@@ -106,13 +116,13 @@ export async function POST(req: NextRequest) {
           user_id: user.id,
           service_type: serviceType,
           instance_name: instanceName,
-          instance_token: user.id,
+          instance_token: '', // jamais l'identifiant utilisateur (voir plus haut)
           connected: false,
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'user_id,service_type' }
       )
-      .select()
+      .select(INSTANCE_PUBLIC_COLUMNS)
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
