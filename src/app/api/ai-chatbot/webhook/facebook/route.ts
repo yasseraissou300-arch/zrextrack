@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { resolveGeminiKeys } from '@/lib/user-creds';
+import { verifyMetaSignature } from '@/lib/security/webhook-auth';
+import { logEvent } from '@/lib/security/safe-log';
 
 const DEFAULT_PROMPT = `Nta agent IA l [NOM_BOUTIQUE].
 Jme3 les informations li la7jinhom bach ntabet la commande:
@@ -115,8 +117,23 @@ export async function GET(req: NextRequest) {
 
 // POST — Facebook Messenger incoming messages (multi-tenant by page_id)
 export async function POST(req: NextRequest) {
+  // Corps BRUT d'abord : la signature Meta porte sur les octets reçus, pas sur
+  // un JSON re-sérialisé.
+  const rawBody = await req.text();
+  const sig = verifyMetaSignature(rawBody, req.headers.get('x-hub-signature-256'));
+  if (!sig.ok) {
+    logEvent('warn', 'webhook.facebook', { status: 'rejected', reason: sig.reason });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: sig.status });
+  }
+  if (sig.mode === 'unenforced') {
+    logEvent('warn', 'webhook.facebook', {
+      status: 'unauthenticated_accepted',
+      reason: 'FACEBOOK_APP_SECRET non défini — signature non vérifiée',
+    });
+  }
+
   try {
-    const body = await req.json();
+    const body = JSON.parse(rawBody);
     if (body.object !== 'page')
       return NextResponse.json({ error: 'Not a page event' }, { status: 400 });
 
