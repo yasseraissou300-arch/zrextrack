@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import {
+  newOAuthState,
+  OAUTH_STATE_COOKIE,
+  oauthStateCookieOptions,
+} from '@/lib/security/oauth-state';
 
 export async function GET() {
   const supabase = await createClient();
@@ -23,7 +28,9 @@ export async function GET() {
 
   const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/ai-chatbot/facebook/callback`;
   const scope = 'pages_messaging,pages_manage_metadata,pages_read_user_content,pages_show_list';
-  const state = Buffer.from(JSON.stringify({ user_id: user.id })).toString('base64');
+  // Nonce aléatoire lié au navigateur par cookie — l'identité viendra de la
+  // session au retour, jamais de ce paramètre.
+  const state = newOAuthState();
 
   const fbUrl = new URL('https://www.facebook.com/v19.0/dialog/oauth');
   fbUrl.searchParams.set('client_id', appId);
@@ -32,5 +39,7 @@ export async function GET() {
   fbUrl.searchParams.set('state', state);
   fbUrl.searchParams.set('response_type', 'code');
 
-  return NextResponse.redirect(fbUrl.toString());
+  const res = NextResponse.redirect(fbUrl.toString());
+  res.cookies.set(OAUTH_STATE_COOKIE, state, oauthStateCookieOptions);
+  return res;
 }
