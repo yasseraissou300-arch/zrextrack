@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { isForeignSiteRequest } from '@/lib/security/same-site';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
 
 export async function GET(req: NextRequest) {
+  // CSRF-1 : GET à effet de bord, refusé s'il vient d'un autre site (lien
+  // piégé, redirection) — le cookie Lax y serait envoyé.
+  if (isForeignSiteRequest(req)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
   const supabase = await createClient();
   const {
     data: { user },
