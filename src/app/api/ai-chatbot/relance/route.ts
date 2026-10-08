@@ -1,139 +1,59 @@
+import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { createServiceClient } from '@/lib/supabase/server';
-import { resolveEvolutionCreds } from '@/lib/user-creds';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { runRelance } from '@/lib/ai-chatbot/relance';
 
-const CRON_SECRET = process.env.CRON_SECRET || '';
+// Relance des conversations inactives — voir src/lib/ai-chatbot/relance.ts.
+//
+// Deux appelants, deux portées :
+//   - planificateur : `Authorization: Bearer <CRON_SECRET>` → tous les tenants.
+//     Si CRON_SECRET n'est pas configuré, ce mode est REFUSÉ (l'ancien code
+//     ouvrait alors la relance multi-tenant à n'importe qui).
+//   - bouton du tableau de bord : session utilisateur → SES sessions seulement.
+// Le secret n'est plus accepté dans l'URL (?secret=) : il finirait dans les
+// journaux d'accès.
 
-interface EvCreds {
-  url: string;
-  key: string;
+function cronAuthorized(req: NextRequest, body: { secret?: unknown }): boolean {
+  const expected = process.env.CRON_SECRET || '';
+  if (!expected) return false;
+  const header = req.headers.get('authorization') || '';
+  const provided = header.startsWith('Bearer ')
+    ? header.slice(7)
+    : typeof body.secret === 'string'
+      ? body.secret
+      : '';
+  const a = Buffer.from(provided, 'utf8');
+  const b = Buffer.from(expected, 'utf8');
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-async function sendWhatsApp(
-  ev: EvCreds,
-  instanceName: string,
-  number: string,
-  text: string
-): Promise<void> {
-  if (!ev.url || !ev.key) return;
-  const cleanNumber = number.replace('@s.whatsapp.net', '').replace('@g.us', '');
-  try {
-    await fetch(`${ev.url}/message/sendText/${instanceName}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', apikey: ev.key },
-      body: JSON.stringify({ number: cleanNumber, text }),
-    });
-  } catch {
-    /* non-blocking */
+async function handle(req: NextRequest, body: { secret?: unknown }) {
+  const service = createServiceClient();
+  // ?dry_run=1 : compte ce qui serait relancé, sans rien envoyer ni écrire.
+  const dryRun = req.nextUrl.searchParams.get('dry_run') === '1';
+
+  if (cronAuthorized(req, body)) {
+    const result = await runRelance(service, undefined, { dryRun });
+    return NextResponse.json({ ok: true, scope: 'all', ...result });
   }
+
+  const auth = await createClient();
+  const {
+    data: { user },
+  } = await auth.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const result = await runRelance(service, user.id, { dryRun });
+  return NextResponse.json({ ok: true, scope: 'tenant', ...result });
 }
 
-const RELANCE_MESSAGES: Record<string, string> = {
-  auto_confirmation: `Salam 👋 Wach mazal bghiti tkmml commande dyalek? Kolchi 3endna rak, ghir 3tina isem w wilaya w produit 😊`,
-  sav: `Salam, wach mazal 3andek mushkil? Hna ready nsa3dek — qul liya shu sir 🙏`,
-  tracking: `Salam! Wach tqdar t3tini raqm l-colis dyalek bach nchefu statut? 📦`,
-};
-
-// POST — triggered by cron (Vercel Cron, external scheduler, or manual call)
+// POST — planificateur (Bearer) ou bouton du tableau de bord (session)
 export async function POST(req: NextRequest) {
-  // Simple secret check to prevent unauthorized triggers
-  const authHeader = req.headers.get('authorization') || '';
   const body = await req.json().catch(() => ({}));
-  const secret = body.secret || authHeader.replace('Bearer ', '');
-
-  if (CRON_SECRET && secret !== CRON_SECRET) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const supabase = createServiceClient();
-  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-
-  // Find incomplete sessions inactive for 2+ hours, not yet relanced, not handed over
-  const { data: staleSessions } = await supabase
-    .from('ai_chat_sessions')
-    .select('id, user_id, channel, contact_id, template_type, relance_sent')
-    .eq('is_complete', false)
-    .eq('human_handover', false)
-    .eq('relance_sent', false)
-    .lt('updated_at', twoHoursAgo)
-    .limit(50);
-
-  if (!staleSessions || staleSessions.length === 0) {
-    return NextResponse.json({ ok: true, relanced: 0 });
-  }
-
-  let relanced = 0;
-
-  for (const session of staleSessions) {
-    if (session.channel !== 'whatsapp') continue;
-
-    // Get user's WA instance
-    const { data: instance } = await supabase
-      .from('whatsapp_instances')
-      .select('instance_name, connected')
-      .eq('user_id', session.user_id)
-      .single();
-
-    if (!instance?.connected) continue;
-
-    // BYOK : serveur Evolution du propriétaire de cette session
-    const ev = await resolveEvolutionCreds(session.user_id);
-
-    const msg = RELANCE_MESSAGES[session.template_type] ?? RELANCE_MESSAGES.auto_confirmation;
-    await sendWhatsApp(ev, instance.instance_name, session.contact_id, msg);
-
-    await supabase
-      .from('ai_chat_sessions')
-      .update({ relance_sent: true, updated_at: new Date().toISOString() })
-      .eq('id', session.id);
-
-    relanced++;
-  }
-
-  return NextResponse.json({ ok: true, relanced });
+  return handle(req, body ?? {});
 }
 
-// GET — manual trigger from dashboard or health check
+// GET — même logique, sans corps
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get('authorization') || '';
-  const secret = req.nextUrl.searchParams.get('secret') || authHeader.replace('Bearer ', '');
-  if (CRON_SECRET && secret !== CRON_SECRET) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  // Re-run the relance logic directly (no body needed)
-  const supabase = createServiceClient();
-  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-  const { data: staleSessions } = await supabase
-    .from('ai_chat_sessions')
-    .select('id, user_id, channel, contact_id, template_type, relance_sent')
-    .eq('is_complete', false)
-    .eq('human_handover', false)
-    .eq('relance_sent', false)
-    .lt('updated_at', twoHoursAgo)
-    .limit(50);
-
-  if (!staleSessions || staleSessions.length === 0) {
-    return NextResponse.json({ ok: true, relanced: 0 });
-  }
-
-  let relanced = 0;
-  for (const session of staleSessions) {
-    if (session.channel !== 'whatsapp') continue;
-    const { data: instance } = await supabase
-      .from('whatsapp_instances')
-      .select('instance_name, connected')
-      .eq('user_id', session.user_id)
-      .single();
-    if (!instance?.connected) continue;
-    const ev = await resolveEvolutionCreds(session.user_id);
-    const msg = RELANCE_MESSAGES[session.template_type] ?? RELANCE_MESSAGES.auto_confirmation;
-    await sendWhatsApp(ev, instance.instance_name, session.contact_id, msg);
-    await supabase
-      .from('ai_chat_sessions')
-      .update({ relance_sent: true, updated_at: new Date().toISOString() })
-      .eq('id', session.id);
-    relanced++;
-  }
-  return NextResponse.json({ ok: true, relanced });
+  return handle(req, {});
 }
