@@ -475,7 +475,9 @@ describe('Isolation tenant', () => {
     );
 
     expect(fake.all('public', 'pending_notifications')[0].status).toBe('pending'); // intacte
-    expect(fake.all('public', 'messages')[0].user_id).toBe(TENANT_A);
+    // La prise atomique (scopée au tenant du job) échoue : rien n'est envoyé,
+    // aucune ligne `messages` n'est écrite pour le compte de A.
+    expect(fake.all('public', 'messages')).toHaveLength(0);
   });
 
   it('toutes les écritures portent le tenant du job', async () => {
