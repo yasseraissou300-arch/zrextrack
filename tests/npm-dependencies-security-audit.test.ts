@@ -128,11 +128,12 @@ describe('NPM-3 — préconditions qui rendent les advisories Next.js non atteig
     ).toEqual([]);
   });
 
+  // Les nonces OAuth (state, branche 78070c4) ne sont pas des nonces CSP :
+  // seuls `'nonce-…'`, `x-nonce` ou un en-tête CSP activent la surface de ffhc.
   it('aucun nonce CSP — ffhc (XSS)', () => {
-    expect(
-      SRC_FILES.filter((f) => /\bnonce\b|Content-Security-Policy/i.test(f.text)).map((f) => f.rel)
-    ).toEqual([]);
-    expect(NEXT_CONFIG).not.toMatch(/\bnonce\b|Content-Security-Policy/i);
+    const CSP_NONCE = /'nonce-|x-nonce|Content-Security-Policy/i;
+    expect(SRC_FILES.filter((f) => CSP_NONCE.test(f.text)).map((f) => f.rel)).toEqual([]);
+    expect(NEXT_CONFIG).not.toMatch(CSP_NONCE);
   });
 
   it('next.config : pas de rewrites, pas d’i18n, redirects vide, pas de formats AVIF, pas de serveur custom — ggv3, p9j2, 36qx, 2xp9', () => {
