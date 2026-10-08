@@ -23,6 +23,9 @@ import type { createServiceClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
 import { remainingDailyQuota, sleep, varyMessage } from '@/lib/whatsapp/anti-spam';
 import { buildMessage, normalizePhone } from '@/lib/whatsapp/message-builder';
+import { afterFailure, afterSuccess, circuitState } from '@/lib/queue/circuit-breaker';
+import { getTenantSettings, upsertTenantSettings } from '@/lib/queue/repository';
+import { logEvent } from '@/lib/security/safe-log';
 
 type Client = ReturnType<typeof createServiceClient>;
 
@@ -84,6 +87,15 @@ export async function drainNotifications(
     supabase.from('profiles').select('whatsapp_warmup_started_at').eq('id', userId).single(),
   ]);
   const warmupStartedAt = prof?.whatsapp_warmup_started_at ?? null;
+
+  // Circuit breaker partagé avec la file (autotim.tenant_settings). Sans lui,
+  // une session morte faisait écrire 2 lignes « echec » par sync et par onglet,
+  // indéfiniment — le motif de l'incident d'avril-juillet (532 471 lignes).
+  // Réglages illisibles (table/erreur) → on continue comme avant.
+  const settings = await getTenantSettings(supabase, userId).catch(() => null);
+  if (circuitState(settings).open) return 0;
+  let failures = settings?.consecutive_send_failures ?? 0;
+
   const budget = Math.min(remainingDailyQuota(sentToday ?? 0, warmupStartedAt), DRAIN_PER_SYNC);
   if (budget <= 0) return 0;
 
@@ -164,7 +176,30 @@ export async function drainNotifications(
       sent_at: new Date().toISOString(),
     });
 
-    if (ok) sent++;
+    if (ok) {
+      sent++;
+      if (failures > 0) {
+        failures = 0;
+        const r = afterSuccess();
+        await upsertTenantSettings(supabase, userId, {
+          consecutive_send_failures: r.failures,
+          circuit_open_until: r.openUntil,
+        }).catch(() => {});
+      }
+    } else if (phone.length >= 11) {
+      // Échec Evolution (pas un numéro invalide) : compte pour le circuit, et
+      // on n'enchaîne pas un 2e envoi voué au même sort.
+      const next = afterFailure(failures);
+      failures = next.failures;
+      await upsertTenantSettings(supabase, userId, {
+        consecutive_send_failures: next.failures,
+        circuit_open_until: next.openUntil ? next.openUntil.toISOString() : null,
+      }).catch(() => {});
+      if (next.openUntil) {
+        logEvent('warn', 'whatsapp.drain', { tenant_id: userId, status: 'circuit_opened' });
+      }
+      break;
+    }
   }
   return sent;
 }
