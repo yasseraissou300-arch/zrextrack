@@ -4,6 +4,7 @@ import { resolveGeminiKeys } from '@/lib/user-creds';
 import { verifyMetaSignature, isReplay } from '@/lib/security/webhook-auth';
 import {
   correctionReply,
+  groundExtracted,
   isExtractionComplete,
   sanitizeExtracted,
   toSheetRow,
@@ -216,7 +217,10 @@ export async function POST(req: NextRequest) {
         const extracted = extractData(aiReply);
         const templateType: string = config?.template_type ?? 'auto_confirmation';
         const customPrompt = !!config?.custom_prompt?.trim();
-        const current = sanitizeExtracted(extracted);
+        // Téléphone ancré : il doit figurer dans un message du client. L'identifiant
+        // Messenger (PSID) n'est pas un numéro : aucun repli sur l'expéditeur.
+        const customerTexts = conversation.filter((m) => m.role === 'user').map((m) => m.content);
+        const current = groundExtracted(sanitizeExtracted(extracted), customerTexts, '');
         const existingData: Record<string, string> = session?.extracted_data ?? {};
         const newData = extracted
           ? sanitizeExtracted({ ...existingData, ...current.data }).data

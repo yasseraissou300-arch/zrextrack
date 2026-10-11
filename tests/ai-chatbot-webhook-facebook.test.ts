@@ -84,7 +84,13 @@ beforeEach(() => {
     },
   ]);
   db.seed('public', 'ai_chat_sessions', [
-    { user_id: TENANT, channel: 'facebook', contact_id: SENDER, conversation: [] },
+    {
+      user_id: TENANT,
+      channel: 'facebook',
+      contact_id: SENDER,
+      // Le client a déjà donné son numéro (ancrage du téléphone).
+      conversation: [{ role: 'user', content: 'raqmi 0550 12 34 56' }],
+    },
   ]);
 });
 
@@ -110,6 +116,14 @@ describe('Messenger — commande complète', () => {
   it('téléphone invalide → pas de Sheet, demande de correction', async () => {
     geminiReply =
       'Mliha ✅ <data>{"nom":"A","telephone":"12","wilaya":"Oran","produit":"B"}</data>';
+    await post(event('Montre noire'));
+    expect(sheetsCalls).toHaveLength(0);
+    expect(fbReplies[0]).toMatch(/05, 06 wella 07/);
+  });
+
+  it('téléphone valide mais jamais écrit par le client → pas de Sheet, demande de correction', async () => {
+    geminiReply =
+      'Mliha ✅ <data>{"nom":"Amine B","telephone":"0661998877","wilaya":"Oran","produit":"Montre"}</data>';
     await post(event('Montre noire'));
     expect(sheetsCalls).toHaveLength(0);
     expect(fbReplies[0]).toMatch(/05, 06 wella 07/);
