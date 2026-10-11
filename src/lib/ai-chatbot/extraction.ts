@@ -181,6 +181,60 @@ export function correctionReply(opts: {
   return `Bach nkemlou, 9olli 3afak : ${missing.map((f) => FIELD_LABELS[f] ?? f).join(', ')} 🙏`;
 }
 
+// ─── Ancrage du téléphone : la valeur doit venir du CLIENT, pas du modèle ────
+//
+// Un numéro au bon format (05/06/07) peut être inventé par le modèle — ou
+// dicté par une injection de prompt. On n'accepte un téléphone que si ses 9
+// chiffres significatifs apparaissent dans un message ÉCRIT PAR LE CLIENT, ou
+// s'il s'agit du numéro WhatsApp de l'expéditeur (« c'est ce numéro-là »).
+// Chiffres arabes (٠-٩) et persans (۰-۹) acceptés : les clients les utilisent.
+
+function toAsciiDigits(s: string): string {
+  return s.replace(/[٠-٩۰-۹]/g, (ch) => {
+    const c = ch.charCodeAt(0);
+    return String(c >= 0x06f0 ? c - 0x06f0 : c - 0x0660);
+  });
+}
+
+/** Le téléphone (déjà normalisé 0XXXXXXXXX) a-t-il été fourni par le client ? */
+export function isPhoneGrounded(
+  phone: string,
+  customerTexts: string[],
+  senderJid: string
+): boolean {
+  const core = String(phone ?? '')
+    .replace(/\D/g, '')
+    .slice(-9);
+  if (core.length !== 9) return false;
+  if (
+    toAsciiDigits(String(senderJid ?? ''))
+      .replace(/\D/g, '')
+      .endsWith(core)
+  )
+    return true;
+  return customerTexts.some((t) =>
+    toAsciiDigits(String(t ?? ''))
+      .replace(/[\s\-().+_/]/g, '')
+      .includes(core)
+  );
+}
+
+/**
+ * Retire du résultat un téléphone que le client n'a jamais donné : il devient
+ * « invalide » (le client est invité à le réécrire, rien ne part au Sheet).
+ */
+export function groundExtracted(
+  result: ValidationResult,
+  customerTexts: string[],
+  senderJid: string
+): ValidationResult {
+  const phone = result.data.telephone;
+  if (!phone || isPhoneGrounded(phone, customerTexts, senderJid)) return result;
+  const data = { ...result.data };
+  delete data.telephone;
+  return { data, invalid: [...result.invalid, 'telephone'] };
+}
+
 /** Copie des données prête pour Google Sheets (anti-injection de formule). */
 export function toSheetRow(data: Record<string, string>): Record<string, string> {
   const out: Record<string, string> = {};
