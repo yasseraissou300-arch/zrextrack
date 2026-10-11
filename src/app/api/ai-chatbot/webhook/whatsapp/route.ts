@@ -6,6 +6,7 @@ import { logEvent, maskPhone } from '@/lib/security/safe-log';
 import { isAngerDetected, isBlabla } from '@/lib/ai-chatbot/classifiers';
 import {
   correctionReply,
+  groundExtracted,
   isExtractionComplete,
   sanitizeExtracted,
   toSheetRow,
@@ -577,7 +578,10 @@ export async function POST(req: NextRequest) {
     // ── Sortie du modèle = donnée NON fiable : validée côté serveur ──────────
     const extracted = extractData(aiReply);
     const customPrompt = !!config.custom_prompt?.trim();
-    const current = sanitizeExtracted(extracted);
+    // Téléphone ancré : il doit figurer dans un message du client (ou être son
+    // propre numéro WhatsApp) — sinon le modèle l'a inventé.
+    const customerTexts = conversation.filter((m) => m.role === 'user').map((m) => m.content);
+    const current = groundExtracted(sanitizeExtracted(extracted), customerTexts, remoteJid);
 
     const existingData: Record<string, string> = existingSession?.extracted_data ?? {};
     const newData = extracted

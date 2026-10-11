@@ -231,3 +231,44 @@ describe('Google Sheets — injection de formule', () => {
     });
   });
 });
+
+describe('ancrage du téléphone (valeur fournie par le client, pas par le modèle)', () => {
+  const SENDER = '213550000001@s.whatsapp.net';
+  it.each([
+    ['0550 12 34 56', '0550123456'],
+    ['+213 550-12-34-56', '0550123456'],
+    ['00213550123456', '0550123456'],
+    ['raqmi: (0550).12.34.56 merci', '0550123456'],
+    ['٠٥٥٠١٢٣٤٥٦', '0550123456'],
+    ['۰۵۵۰۱۲۳۴۵۶', '0550123456'],
+  ])('« %s » → %s ancré', async (text, phone) => {
+    const { isPhoneGrounded } = await import('@/lib/ai-chatbot/extraction');
+    expect(isPhoneGrounded(phone, [text], SENDER)).toBe(true);
+  });
+
+  it('numéro de l’expéditeur WhatsApp → ancré même sans message', async () => {
+    const { isPhoneGrounded } = await import('@/lib/ai-chatbot/extraction');
+    expect(isPhoneGrounded('0550000001', [], SENDER)).toBe(true);
+  });
+
+  it('numéro absent de la conversation → NON ancré', async () => {
+    const { isPhoneGrounded } = await import('@/lib/ai-chatbot/extraction');
+    expect(isPhoneGrounded('0661998877', ['Montre noire', 'Oran', '2'], SENDER)).toBe(false);
+  });
+
+  it('seulement une partie du numéro dans la conversation → NON ancré', async () => {
+    const { isPhoneGrounded } = await import('@/lib/ai-chatbot/extraction');
+    expect(isPhoneGrounded('0550123456', ['055012'], SENDER)).toBe(false);
+  });
+
+  it('groundExtracted : téléphone inventé retiré et marqué invalide, le reste conservé', async () => {
+    const { groundExtracted } = await import('@/lib/ai-chatbot/extraction');
+    const r = groundExtracted(
+      { data: { nom: 'A', telephone: '0661998877', wilaya: 'Oran' }, invalid: [] },
+      ['Oran'],
+      SENDER
+    );
+    expect(r.data).toEqual({ nom: 'A', wilaya: 'Oran' });
+    expect(r.invalid).toEqual(['telephone']);
+  });
+});

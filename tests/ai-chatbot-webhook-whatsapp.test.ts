@@ -90,7 +90,13 @@ beforeEach(() => {
       user_id: TENANT,
       channel: 'whatsapp',
       contact_id: CONTACT,
-      conversation: [{ role: 'assistant', content: 'Chhal men wa7da tebghi ?' }],
+      // Le client a déjà donné son numéro : un téléphone extrait doit venir
+      // d'un message du client (ancrage), jamais du seul modèle.
+      conversation: [
+        { role: 'assistant', content: 'Raqm téléphone ta3ek ?' },
+        { role: 'user', content: 'raqmi 0550 12 34 56' },
+        { role: 'assistant', content: 'Chhal men wa7da tebghi ?' },
+      ],
       extracted_data: {},
       sheets_sent: false,
     },
@@ -159,5 +165,71 @@ describe('réponses courtes en cours de conversation', () => {
     await post('2');
     expect(fetchMock.mock.calls.some(([u]) => String(u).includes('generativelanguage'))).toBe(true);
     expect(waSends[waSends.length - 1].text).toBe('Mliha, 2 montres. Wach isemek ?');
+  });
+});
+
+// ─── Valeurs inventées par le modèle / données incomplètes / corrections ────
+const block = (fields: Record<string, string>) =>
+  `Sajjelna commande ta3ek ✅ <data>${JSON.stringify(fields)}</data>`;
+const FULL = { nom: 'Amine B', telephone: '0550123456', wilaya: 'Oran', produit: 'Montre' };
+
+describe('valeurs inventées par le modèle', () => {
+  it('téléphone valide mais JAMAIS écrit par le client → rien dans le Sheet, demande de correction', async () => {
+    geminiReply = block({ ...FULL, telephone: '0661998877' }); // inventé
+    await post('Montre noire svp');
+    expect(sheetsCalls).toHaveLength(0);
+    const last = waSends[waSends.length - 1];
+    expect(last.text).toMatch(/05, 06 wella 07/);
+    expect(last.text).not.toMatch(/Sajjelna/);
+    expect(db.all('public', 'ai_chat_sessions')[0].extracted_data.telephone).toBeUndefined();
+  });
+
+  it('numéro donné en chiffres arabes par le client → accepté', async () => {
+    geminiReply = block({ ...FULL, telephone: '0770112233' });
+    await post('رقمي ٠٧٧٠ ١١ ٢٢ ٣٣');
+    expect(sheetsCalls).toHaveLength(1);
+    expect(sheetsCalls[0].telephone).toBe('0770112233');
+  });
+
+  it('numéro WhatsApp de l’expéditeur (« nafs had raqm ») → accepté', async () => {
+    geminiReply = block({ ...FULL, telephone: '0550000001' }); // = CONTACT 213550000001
+    await post('nafs had raqm');
+    expect(sheetsCalls).toHaveLength(1);
+  });
+
+  it('wilaya inconnue → rien dans le Sheet, demande de la wilaya', async () => {
+    geminiReply = block({ ...FULL, wilaya: 'Casablanca' });
+    await post('Montre noire svp');
+    expect(sheetsCalls).toHaveLength(0);
+    expect(waSends[waSends.length - 1].text).toMatch(/wilaya/i);
+  });
+
+  it('produit absent → commande incomplète, le client est invité à compléter', async () => {
+    const { produit: _p, ...sansProduit } = FULL;
+    geminiReply = block(sansProduit);
+    await post('Amine B, Oran');
+    expect(sheetsCalls).toHaveLength(0);
+    expect(waSends[waSends.length - 1].text).toMatch(/l-produit/);
+  });
+});
+
+describe('corrections du client avant validation', () => {
+  it('le client corrige sa wilaya : la dernière valeur valide part au Sheet', async () => {
+    geminiReply = `Mliha. <data>${JSON.stringify({ nom: 'Amine B', telephone: '0550123456', wilaya: 'Oran' })}</data>`;
+    await post('Amine B, Oran');
+    expect(sheetsCalls).toHaveLength(0); // produit manquant
+
+    geminiReply = block({ ...FULL, wilaya: 'Alger' });
+    await post('smahli, rani f Alger machi Oran — Montre noire');
+    expect(sheetsCalls).toHaveLength(1);
+    expect(sheetsCalls[0].wilaya).toBe('Alger');
+  });
+
+  it('une correction INVALIDE n’écrase pas une valeur déjà validée', async () => {
+    geminiReply = `Mliha. <data>${JSON.stringify({ nom: 'Amine B', telephone: '0550123456', wilaya: 'Oran' })}</data>`;
+    await post('Amine B, Oran');
+    geminiReply = `OK <data>${JSON.stringify({ wilaya: 'Paris' })}</data>`;
+    await post('Paris');
+    expect(db.all('public', 'ai_chat_sessions')[0].extracted_data.wilaya).toBe('Oran');
   });
 });
