@@ -130,3 +130,71 @@ describe('webhook WhatsApp', () => {
     expect(second.deduped).toBe(true);
   });
 });
+
+// ─── Scénarios exigés : tenants, démarrage à froid, fenêtre temporelle ───────
+function waBody(instance: string, id: string, tsSeconds?: number) {
+  return JSON.stringify({
+    event: 'messages.upsert',
+    instance,
+    data: {
+      key: { remoteJid: '213550000001@s.whatsapp.net', fromMe: false, id },
+      message: { conversation: 'Salam, bghit montre' },
+      ...(tsSeconds !== undefined ? { messageTimestamp: tsSeconds } : {}),
+    },
+  });
+}
+
+async function postFresh(body: string) {
+  vi.resetModules(); // nouvelle instance / démarrage à froid : mémoire vide
+  const { POST } = await import('@/app/api/ai-chatbot/webhook/whatsapp/route');
+  const res = await POST(
+    new NextRequest('https://app.test/api/ai-chatbot/webhook/whatsapp', { method: 'POST', body })
+  );
+  return res.json();
+}
+
+describe('scénarios A–F', () => {
+  it('C — deux tenants (instances distinctes), même identifiant externe → aucune collision', async () => {
+    const a = await postFresh(waBody('zrex_tenantA_auto', 'SAME-ID'));
+    const b = await postFresh(waBody('zrex_tenantB_auto', 'SAME-ID'));
+    expect(a.deduped).toBeUndefined();
+    expect(b.deduped).toBeUndefined();
+    const keys = db
+      .all('autotim', 'webhook_events')
+      .map((r) => r.event_key)
+      .sort();
+    expect(keys).toEqual(['wa:zrex_tenantA_auto:SAME-ID', 'wa:zrex_tenantB_auto:SAME-ID']);
+  });
+
+  it('B — même événement après démarrage à froid → toujours un seul traitement', async () => {
+    const body = waBody('zrex_test_auto', 'COLD-1');
+    expect((await postFresh(body)).deduped).toBeUndefined();
+    // la « nouvelle instance » n'a aucune mémoire : seul le store durable sait
+    expect((await postFresh(body)).deduped).toBe(true);
+    expect((await postFresh(body)).deduped).toBe(true);
+  });
+
+  it('E — événement plus ancien que la rétention (8 j) → ignoré, même jamais vu', async () => {
+    const old = Math.floor(Date.now() / 1000) - 8 * 86_400;
+    const r = await postFresh(waBody('zrex_test_auto', 'OLD-1', old));
+    expect(r.stale).toBe(true);
+    expect(db.all('autotim', 'webhook_events')).toHaveLength(0);
+  });
+
+  it('E — événement récent (1 min) → traité normalement', async () => {
+    const recent = Math.floor(Date.now() / 1000) - 60;
+    const r = await postFresh(waBody('zrex_test_auto', 'NEW-1', recent));
+    expect(r.stale).toBeUndefined();
+    expect(r.deduped).toBeUndefined();
+  });
+
+  it('E — horodatage absent ou illisible → comportement inchangé (traité)', async () => {
+    const { isStaleEvent } = await freshInstance();
+    const now = Date.now();
+    expect(isStaleEvent(undefined, now)).toBe(false);
+    expect(isStaleEvent('abc', now)).toBe(false);
+    expect(isStaleEvent(String(Math.floor(now / 1000) - 8 * 86_400), now)).toBe(true);
+    expect(isStaleEvent({ low: Math.floor(now / 1000) - 8 * 86_400 }, now)).toBe(true);
+    expect(isStaleEvent(Math.floor(now / 1000) - 6 * 86_400, now)).toBe(false);
+  });
+});

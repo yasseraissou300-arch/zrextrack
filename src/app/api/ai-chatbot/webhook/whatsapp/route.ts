@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { resolveGeminiKeys, resolveEvolutionCreds } from '@/lib/user-creds';
 import { verifyWebhookSecret } from '@/lib/security/webhook-auth';
-import { isReplayDurable } from '@/lib/security/replay-store';
+import { isReplayDurable, isStaleEvent } from '@/lib/security/replay-store';
 import { logEvent, maskPhone } from '@/lib/security/safe-log';
 
 // Credentials résolus au début de chaque requête.
@@ -497,6 +497,19 @@ export async function POST(req: NextRequest) {
         reason: !text.trim() ? 'empty_text' : remoteJid.includes('@g.us') ? 'group' : 'no_instance',
       });
       return NextResponse.json({ ok: true });
+    }
+
+    // ── Fenêtre de rejeu : message plus ancien que la rétention du store ──────
+    // (ré-émission à la reconnexion, synchro d'historique) → jamais retraité,
+    // même si sa clé a été purgée.
+    if (isStaleEvent(msgData.messageTimestamp)) {
+      logEvent('info', 'webhook.whatsapp', {
+        event,
+        instance: instanceName,
+        message_id: messageId,
+        status: 'skipped_stale',
+      });
+      return NextResponse.json({ ok: true, stale: true });
     }
 
     const supabase = createServiceClient();

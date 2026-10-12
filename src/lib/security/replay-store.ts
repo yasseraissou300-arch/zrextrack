@@ -67,6 +67,24 @@ export async function isReplayDurable(
   return !(Array.isArray(data) && data.length > 0);
 }
 
+/**
+ * Fenêtre de rejeu : un événement plus ancien que la rétention du store est
+ * refusé. Sans elle, un message re-émis après la purge (ré-émission Baileys à
+ * la reconnexion, synchro d'historique) serait vu comme NOUVEAU et retraité.
+ * `tsSeconds` = horodatage du fournisseur (WhatsApp : messageTimestamp, en
+ * secondes ; nombre, chaîne ou Long {low}). Absent ou illisible → pas stale
+ * (comportement inchangé).
+ */
+export function isStaleEvent(tsSeconds: unknown, now: number = Date.now()): boolean {
+  const raw =
+    tsSeconds && typeof tsSeconds === 'object' && 'low' in (tsSeconds as Record<string, unknown>)
+      ? (tsSeconds as { low: unknown }).low
+      : tsSeconds;
+  const sec = typeof raw === 'string' ? Number(raw) : raw;
+  if (typeof sec !== 'number' || !Number.isFinite(sec) || sec <= 0) return false;
+  return now - sec * 1000 > REPLAY_RETENTION_DAYS * 86_400_000;
+}
+
 async function prune(supabase: Client): Promise<void> {
   const cutoff = new Date(Date.now() - REPLAY_RETENTION_DAYS * 86_400_000).toISOString();
   const { error } = await supabase
