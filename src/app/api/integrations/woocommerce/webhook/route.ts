@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { verifyHmacSha256Base64 } from '@/lib/security/webhook-hmac';
+import { openIntegrationSecret } from '@/lib/security/stored-secrets';
 import { logEvent } from '@/lib/security/safe-log';
 
 function mapWooStatus(status: string): string {
@@ -41,7 +42,12 @@ export async function POST(request: NextRequest) {
 
     // Signature OBLIGATOIRE (fail-closed) : un secret vide ne désactive plus la
     // vérification. Aucune écriture avant ce point.
-    const check = verifyHmacSha256Base64(rawBody, signature, integration.secret_key);
+    const check = verifyHmacSha256Base64(
+      rawBody,
+      signature,
+      // Déchiffré côté serveur ; illisible → null → refus (fail-closed).
+      openIntegrationSecret(integration.user_id, 'woocommerce', integration.secret_key)
+    );
     if (!check.ok) {
       logEvent('warn', 'webhook.woocommerce', { status: 'rejected', reason: check.reason });
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });

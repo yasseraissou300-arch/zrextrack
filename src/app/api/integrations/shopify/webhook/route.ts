@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { verifyHmacSha256Base64 } from '@/lib/security/webhook-hmac';
+import { openIntegrationSecret } from '@/lib/security/stored-secrets';
 import { logEvent } from '@/lib/security/safe-log';
 
 function mapShopifyStatus(fulfillmentStatus: string | null, financialStatus: string): string {
@@ -38,7 +39,12 @@ export async function POST(request: NextRequest) {
 
     // Signature OBLIGATOIRE (fail-closed) : un secret vide ne désactive plus la
     // vérification. Aucune écriture avant ce point.
-    const check = verifyHmacSha256Base64(rawBody, hmac, integration.secret_key);
+    const check = verifyHmacSha256Base64(
+      rawBody,
+      hmac,
+      // Déchiffré côté serveur ; illisible → null → refus (fail-closed).
+      openIntegrationSecret(integration.user_id, 'shopify', integration.secret_key)
+    );
     if (!check.ok) {
       logEvent('warn', 'webhook.shopify', { status: 'rejected', reason: check.reason });
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });

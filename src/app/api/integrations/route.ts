@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { sealIntegrationSecret } from '@/lib/security/stored-secrets';
 import { logEvent } from '@/lib/security/safe-log';
 
 // Le secret HMAC Shopify / WooCommerce (`secret_key`) sert UNIQUEMENT à vérifier
@@ -73,7 +74,8 @@ export async function POST(request: NextRequest) {
         user_id: user.id,
         platform,
         identifier,
-        secret_key: secret_key || '',
+        // Chiffré au repos (secret-box) ; jamais renvoyé au navigateur.
+        secret_key: secret_key ? sealIntegrationSecret(user.id, platform, String(secret_key)) : '',
         active: true,
         updated_at: new Date().toISOString(),
       },
