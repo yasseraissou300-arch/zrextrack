@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { resolveGeminiKeys } from '@/lib/user-creds';
-import { verifyMetaSignature, isReplay } from '@/lib/security/webhook-auth';
+import { verifyMetaSignature } from '@/lib/security/webhook-auth';
 import {
   correctionReply,
   groundExtracted,
@@ -9,6 +9,7 @@ import {
   sanitizeExtracted,
   toSheetRow,
 } from '@/lib/ai-chatbot/extraction';
+import { isReplayDurable, isStaleEvent } from '@/lib/security/replay-store';
 import { logEvent } from '@/lib/security/safe-log';
 
 const DEFAULT_PROMPT = `Nta agent IA l [NOM_BOUTIQUE].
@@ -177,7 +178,11 @@ export async function POST(req: NextRequest) {
         // Meta relivre un événement si la réponse tarde (appel Gemini) ou
         // n'est pas 200 : sans ce filtre, l'IA répondait deux fois.
         const mid: string = event.message.mid || '';
-        if (mid && isReplay(`fb:${pageId}:${mid}`)) continue;
+        // Fenêtre de rejeu (horodatage Meta en ms) puis store DURABLE : efficace
+        // entre instances Vercel et après un démarrage à froid.
+        if (isStaleEvent(typeof event.timestamp === 'number' ? event.timestamp / 1000 : undefined))
+          continue;
+        if (mid && (await isReplayDurable(supabase, `fb:${pageId}:${mid}`))) continue;
 
         const senderId: string = event.sender.id;
         const text: string = event.message.text;
