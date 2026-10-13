@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { internalErrorResponse } from '@/lib/security/public-error';
 
 const BUCKET = 'campaign-media';
 const MAX_SIZE = 16 * 1024 * 1024; // 16 MB — limite WhatsApp Media
@@ -82,7 +83,12 @@ export async function POST(req: NextRequest) {
   });
 
   if (upErr) {
-    return NextResponse.json({ error: `Upload échoué : ${upErr.message}` }, { status: 500 });
+    return internalErrorResponse(
+      'api.campaigns.media.upload',
+      upErr,
+      500,
+      'Upload échoué — réessaie.'
+    );
   }
 
   // URL publique — le bucket est en read public donc cette URL est accessible
@@ -119,6 +125,6 @@ export async function DELETE(req: NextRequest) {
 
   const service = createServiceClient();
   const { error } = await service.storage.from(BUCKET).remove([path]);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalErrorResponse('api.campaigns.media.upload', error);
   return NextResponse.json({ ok: true });
 }

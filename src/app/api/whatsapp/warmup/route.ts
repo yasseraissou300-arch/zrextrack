@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { warmupState } from '@/lib/whatsapp/anti-spam';
+import { internalErrorResponse } from '@/lib/security/public-error';
 
 // Warm-up WhatsApp — gestion côté user.
 //   GET   → renvoie l'état courant (phase, plafond, jours écoulés)
@@ -48,6 +49,6 @@ export async function POST(req: NextRequest) {
     .update({ whatsapp_warmup_started_at: value })
     .eq('id', user.id);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalErrorResponse('api.whatsapp.warmup', error);
   return NextResponse.json(warmupState(value));
 }
