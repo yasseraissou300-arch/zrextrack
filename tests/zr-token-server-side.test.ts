@@ -221,3 +221,82 @@ describe('/api/sync-settings', () => {
     expect(db.all('public', 'user_sync_settings')[0].zrexpress_token).toBeNull();
   });
 });
+
+// ─── Isolation entre tenants, logs, file de jobs ─────────────────────────────
+const OTHER = '22222222-2222-4222-8222-222222222222';
+const OTHER_KEY = 'zr-other-tenant-key-BBBB-5555';
+
+function storeBoth(mine: string) {
+  db.seed('public', 'user_sync_settings', [
+    { user_id: USER, zrexpress_token: mine, zrexpress_tenant_id: ZR_TENANT, templates: {} },
+    {
+      user_id: OTHER,
+      zrexpress_token: seal(OTHER_KEY, zrTokenContext(OTHER)),
+      zrexpress_tenant_id: 'zr-other',
+      templates: {},
+    },
+  ]);
+}
+
+function consoleText(): string {
+  const spies = [console.log, console.info, console.warn, console.error] as unknown as Array<{
+    mock?: { calls: unknown[][] };
+  }>;
+  return spies
+    .flatMap((s) => s.mock?.calls ?? [])
+    .map((args) => args.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' '))
+    .join('\n');
+}
+
+describe.each(ROUTES)('$name — isolation et logs', ({ path, body }) => {
+  it('deux tenants configurés : seule la clé du tenant de la SESSION est utilisée', async () => {
+    storeBoth(seal(STORED, zrTokenContext(USER)));
+    await call(path, body);
+    expect(zrCalls.length).toBeGreaterThan(0);
+    expect(zrCalls.every((c) => c.key === STORED)).toBe(true);
+    expect(zrCalls.some((c) => c.key === OTHER_KEY)).toBe(false);
+  });
+
+  it('valeur chiffrée d’un autre tenant recopiée dans ma ligne → inutilisable (AAD), aucun appel', async () => {
+    storeToken(seal(OTHER_KEY, zrTokenContext(OTHER)));
+    const { status } = await call(path, body);
+    expect(status).toBe(400);
+    expect(zrCalls).toHaveLength(0);
+  });
+
+  it('aucune clé (stockée, injectée, autre tenant) dans les logs', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    storeBoth(seal(STORED, zrTokenContext(USER)));
+    await call(path, body);
+    const logs = consoleText();
+    expect(logs).not.toContain(STORED);
+    expect(logs).not.toContain(INJECTED);
+    expect(logs).not.toContain(OTHER_KEY);
+  });
+});
+
+describe('file de jobs — zrexpress.sync', () => {
+  it('le job d’un tenant n’utilise que la clé serveur de CE tenant', async () => {
+    storeBoth(seal(STORED, zrTokenContext(USER)));
+    const { handleZrexpressSync } = await import('@/lib/queue/handlers/zrexpress-sync');
+    await handleZrexpressSync({
+      id: 'job-1',
+      tenant_id: USER,
+      type: 'zrexpress.sync',
+      payload: {},
+      status: 'running',
+      run_after: new Date().toISOString(),
+      attempts: 1,
+      max_attempts: 3,
+      locked_at: new Date().toISOString(),
+      locked_by: 'w',
+      last_error: null,
+      idempotency_key: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+    expect(zrCalls.length).toBeGreaterThan(0);
+    expect(zrCalls.every((c) => c.key === STORED)).toBe(true);
+    expect(consoleText()).not.toContain(STORED);
+  });
+});
