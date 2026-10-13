@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
-import crypto from 'crypto';
-
-function verifyWooSignature(body: string, signatureHeader: string, secret: string): boolean {
-  const digest = crypto.createHmac('sha256', secret).update(body, 'utf8').digest('base64');
-  return digest === signatureHeader;
-}
+import { verifyHmacSha256Base64 } from '@/lib/security/webhook-hmac';
+import { openIntegrationSecret } from '@/lib/security/stored-secrets';
+import { logEvent } from '@/lib/security/safe-log';
 
 function mapWooStatus(status: string): string {
   const map: Record<string, string> = {
@@ -43,7 +40,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Integration not found' }, { status: 404 });
     }
 
-    if (integration.secret_key && !verifyWooSignature(rawBody, signature, integration.secret_key)) {
+    // Signature OBLIGATOIRE (fail-closed) : un secret vide ne désactive plus la
+    // vérification. Aucune écriture avant ce point.
+    const check = verifyHmacSha256Base64(
+      rawBody,
+      signature,
+      // Déchiffré côté serveur ; illisible → null → refus (fail-closed).
+      openIntegrationSecret(integration.user_id, 'woocommerce', integration.secret_key)
+    );
+    if (!check.ok) {
+      logEvent('warn', 'webhook.woocommerce', { status: 'rejected', reason: check.reason });
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
     }
 
