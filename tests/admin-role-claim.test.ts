@@ -91,12 +91,13 @@ describe('/api/admin/users PATCH — entrées validées (admin réel)', () => {
     sessionUser = realAdmin;
   });
 
-  it.each([
+  const invalid: Array<[Record<string, unknown>, string]> = [
     [{ userId: 'pas-un-uuid', status: 'blocked' }, 'userId'],
     [{ userId: OTHER, status: 'superuser' }, 'status'],
     [{ userId: OTHER, plan_id: 'platinum' }, 'plan_id'],
     [{ userId: OTHER, plan_id: 'constructor' }, 'plan_id'],
-  ])('%o → 400', async (body) => {
+  ];
+  it.each(invalid)('%o → 400 (%s)', async (body) => {
     expect((await patch(body)).status).toBe(400);
   });
 
