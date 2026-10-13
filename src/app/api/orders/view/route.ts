@@ -53,7 +53,9 @@ export async function GET(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
 
   const viewName = new URL(request.url).searchParams.get('view') || '';
-  const view = ORDER_VIEWS[viewName];
+  // Clé PROPRE uniquement : `constructor`, `__proto__`… (hérités d'Object)
+  // renvoyaient une valeur non-vue → 500 au lieu de 400.
+  const view = Object.hasOwn(ORDER_VIEWS, viewName) ? ORDER_VIEWS[viewName] : undefined;
   if (!view) return NextResponse.json({ error: 'Vue inconnue' }, { status: 400 });
 
   const supabase = createServiceClient();

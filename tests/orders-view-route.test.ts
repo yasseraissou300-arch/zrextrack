@@ -53,6 +53,12 @@ describe('GET /api/orders/view', () => {
     expect((await call()).status).toBe(400);
   });
 
+  it('400 sur une clé héritée d’Object (constructor, __proto__, toString)', async () => {
+    for (const v of ['constructor', '__proto__', 'toString', 'hasOwnProperty']) {
+      expect((await call(v)).status, v).toBe(400);
+    }
+  });
+
   it('ISOLATION : ne renvoie jamais les commandes d’un autre compte', async () => {
     fake.seed('public', 'orders', [order({ user_id: 'A' }), order({ user_id: 'B' })]);
     const { body } = await call('livraisons');
