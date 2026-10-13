@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { isPlatformAdmin } from '@/lib/auth/platform-admin';
 
 // Renvoie l'utilisateur connecté + son profil. Le profil (dont le RÔLE) est lu
 // via le service client (bypass RLS) : ainsi le rôle est TOUJOURS lisible, même
@@ -23,7 +24,14 @@ export async function GET() {
   return NextResponse.json({
     userId: user.id,
     email: user.email,
-    role: profile?.role ?? null,
+    // « admin » seulement si le jeton le porte (app_metadata) : même source
+    // que les gardes serveur. Un profiles.role = 'admin' posé par
+    // l'utilisateur lui-même n'affiche plus le badge ni le lien Admin.
+    role: isPlatformAdmin(user)
+      ? 'admin'
+      : profile?.role === 'admin'
+        ? 'user'
+        : (profile?.role ?? null),
     full_name: profile?.full_name ?? null,
     avatar_url: profile?.avatar_url ?? null,
     company_name: profile?.company_name ?? null,
