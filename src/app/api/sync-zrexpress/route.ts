@@ -5,7 +5,6 @@ import { fetchAllParcels } from '@/lib/zrexpress/parcels';
 import { remainingDailyQuota, sleep, varyMessage } from '@/lib/whatsapp/anti-spam';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
 import { countOrdersThisMonth, quotaStateFor } from '@/lib/plan-quotas';
-import { isPlatformAdmin } from '@/lib/auth/platform-admin';
 
 const APP_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://zrextrack6753.builtwithrocket.new';
 
@@ -324,10 +323,12 @@ export async function POST(request: NextRequest) {
         .eq('id', userId)
         .maybeSingle();
       const used = await countOrdersThisMonth(supabase, userId);
-      // Quota illimité = claim du jeton, jamais profiles.role (HUMAN-RLS-ROLE-001).
+      // Quota illimité = claim du jeton (même règle que isPlatformAdmin, sans
+      // import pour ne pas toucher au bloc d'imports partagé par d'autres PR),
+      // jamais profiles.role (HUMAN-RLS-ROLE-001).
       quotaState = quotaStateFor(
         prof?.plan_id ?? 'basic',
-        isPlatformAdmin(user) ? 'admin' : null,
+        user?.app_metadata?.role === 'admin' ? 'admin' : null,
         used
       );
       if (quotaState.isOver) {
