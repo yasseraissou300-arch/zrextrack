@@ -75,9 +75,11 @@ async function sendFBMessage(
   text: string
 ): Promise<void> {
   try {
-    await fetch(`https://graph.facebook.com/v18.0/me/messages?access_token=${pageAccessToken}`, {
+    // Jeton en en-tête, jamais dans l'URL (les URL finissent dans les logs,
+    // proxys et traces d'erreur).
+    await fetch('https://graph.facebook.com/v18.0/me/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${pageAccessToken}` },
       body: JSON.stringify({
         recipient: { id: recipientId },
         message: { text: text.slice(0, 2000) },

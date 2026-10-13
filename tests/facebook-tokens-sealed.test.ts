@@ -32,11 +32,15 @@ vi.mock('@/lib/user-creds', () => ({
 }));
 
 let graphPages: Array<{ id: string; name: string; access_token: string }> = [];
+let urlTokens: string[] = [];
+let accountsBearer: string[] = [];
 const graphSends: string[] = [];
 
 beforeEach(() => {
   db = new FakeSupabase();
   graphSends.length = 0;
+  urlTokens = [];
+  accountsBearer = [];
   vi.stubEnv('SECRETS_KEYRING', `k1:${crypto.randomBytes(32).toString('base64')}`);
   vi.stubEnv('FACEBOOK_APP_ID', 'app');
   vi.stubEnv('FACEBOOK_APP_SECRET', '');
@@ -44,14 +48,24 @@ beforeEach(() => {
   vi.spyOn(console, 'log').mockImplementation(() => {});
   vi.stubGlobal(
     'fetch',
-    vi.fn(async (url: string) => {
+    vi.fn(async (url: string, init?: RequestInit) => {
+      // Jeton jamais dans l'URL d'un appel Graph (hors échange OAuth documenté).
+      if (!url.includes('/oauth/access_token'))
+        urlTokens.push(new URL(url).searchParams.get('access_token') ?? '');
+      const bearer = (new Headers(init?.headers).get('authorization') ?? '').replace(
+        /^Bearer /,
+        ''
+      );
       if (url.includes('/oauth/access_token')) return Response.json({ access_token: 'user-tok' });
-      if (url.includes('/me/accounts')) return Response.json({ data: graphPages });
+      if (url.includes('/me/accounts')) {
+        accountsBearer.push(bearer);
+        return Response.json({ data: graphPages });
+      }
       if (url.startsWith('https://generativelanguage.googleapis.com')) {
         return Response.json({ candidates: [{ content: { parts: [{ text: 'Salam !' }] } }] });
       }
       if (url.includes('/me/messages')) {
-        graphSends.push(new URL(url).searchParams.get('access_token') ?? '');
+        graphSends.push(bearer);
         return Response.json({});
       }
       return Response.json({});
@@ -170,10 +184,30 @@ describe('webhook Messenger', () => {
     );
   }
 
-  it('jeton chiffré : la réponse part avec le jeton déchiffré', async () => {
+  it('jeton chiffré : la réponse part avec le jeton déchiffré, en EN-TÊTE (jamais dans l’URL)', async () => {
     seedConnection(sealPageToken(USER, TOKEN_1));
     await inbound();
     expect(graphSends).toEqual([TOKEN_1]);
+    expect(urlTokens.every((t) => t === '')).toBe(true);
+  });
+
+  it('jeton chiffré d’un AUTRE tenant recopié dans ma ligne : inutilisable (AAD), aucun envoi', async () => {
+    seedConnection(sealPageToken('22222222-2222-4222-8222-222222222222', TOKEN_2));
+    await inbound();
+    expect(graphSends).toHaveLength(0);
+  });
+
+  it('jeton corrompu : aucun envoi, aucune exception, aucun jeton dans les logs', async () => {
+    const sealed = sealPageToken(USER, TOKEN_1);
+    seedConnection(sealed.slice(0, -4) + 'AAAA');
+    await inbound();
+    expect(graphSends).toHaveLength(0);
+    const logs = [console.log, console.warn]
+      .flatMap((f) => (f as unknown as { mock: { calls: unknown[][] } }).mock.calls)
+      .map((c) => c.map((a) => (typeof a === 'string' ? a : JSON.stringify(a))).join(' '))
+      .join(' | ');
+    expect(logs).not.toContain(TOKEN_1);
+    expect(logs).not.toContain(sealed);
   });
 
   it('jeton historique en clair : toujours utilisable', async () => {
@@ -201,5 +235,14 @@ describe('aides', () => {
   it('contexte lié à l’utilisateur : illisible pour un autre', () => {
     const sealed = sealPageToken(USER, TOKEN_1);
     expect(openPageToken('22222222-2222-4222-8222-222222222222', sealed)).toBeNull();
+  });
+});
+
+describe('jetons Meta jamais dans une URL', () => {
+  it('callback : me/accounts reçoit le jeton utilisateur en en-tête, aucune URL Graph ne porte de jeton', async () => {
+    graphPages = [{ id: 'p1', name: 'Boutique', access_token: TOKEN_1 }];
+    await callback();
+    expect(accountsBearer).toEqual(['user-tok']);
+    expect(urlTokens.every((t) => t === '')).toBe(true);
   });
 });
