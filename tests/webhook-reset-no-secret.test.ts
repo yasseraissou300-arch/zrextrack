@@ -113,3 +113,61 @@ describe('/api/ai-chatbot/diagnostic', () => {
     expect(inst.webhook_url).toContain('token=••••');
   });
 });
+
+// ─── /api/ai-chatbot/whatsapp/qr : diagnostic renvoyé au navigateur ─────────
+describe('/api/ai-chatbot/whatsapp/qr — debug sans secret', () => {
+  const INSTANCE_HASH = 'evo-instance-hash-FULLACCESS-777';
+
+  async function qrWithEvolution(handler: (url: string) => Response | Promise<Response>) {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => handler(String(url)))
+    );
+    const { GET } = await import('@/app/api/ai-chatbot/whatsapp/qr/route');
+    const { NextRequest } = await import('next/server');
+    const res = await GET(new NextRequest('https://app.test/api/ai-chatbot/whatsapp/qr'));
+    return { status: res.status, text: await res.text() };
+  }
+
+  it('échec de création : ni le hash d’instance, ni le secret, ni l’hôte Evolution', async () => {
+    const r = await qrWithEvolution((url) => {
+      if (url.includes('/instance/connectionState/'))
+        return Response.json({ instance: { state: 'close' } });
+      if (url.includes('/instance/connect/')) return new Response('not found', { status: 404 });
+      if (url.includes('/instance/create')) {
+        // Réponse typique d'Evolution : jeton complet de l'instance + webhook.
+        return Response.json({
+          instance: { instanceName: 'zrex_test_auto', status: 'created' },
+          hash: INSTANCE_HASH,
+          webhook: { url: `https://app.test/api/ai-chatbot/webhook/whatsapp?token=${SECRET}` },
+        });
+      }
+      return Response.json({});
+    });
+    expect(r.status).toBe(502);
+    expect(r.text).not.toContain(INSTANCE_HASH);
+    expect(r.text).not.toContain(SECRET);
+    expect(r.text).not.toContain('evolution.test');
+    // le diagnostic reste utile : statuts HTTP
+    expect(JSON.parse(r.text).debug).toMatchObject({ connectStatus: 404 });
+  });
+
+  it('exception réseau : message générique, pas de message brut', async () => {
+    const r = await qrWithEvolution((url) => {
+      if (url.includes('/webhook/set/')) return Response.json({});
+      throw new Error(`connect ECONNREFUSED https://evolution.test/instance?token=${SECRET}`);
+    });
+    expect(r.status).toBe(502);
+    expect(r.text).not.toContain(SECRET);
+    expect(r.text).not.toContain('evolution.test');
+    expect(r.text).not.toContain('ECONNREFUSED');
+  });
+});
+
+describe('redactWebhookToken — occurrences littérales', () => {
+  it('masque le secret même hors du motif token=', () => {
+    const out = redactWebhookToken(`{"apikey":"${SECRET}","x":"${encodeURIComponent(SECRET)}"}`);
+    expect(out).not.toContain(SECRET);
+    expect(out).not.toContain(encodeURIComponent(SECRET));
+  });
+});

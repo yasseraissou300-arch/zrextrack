@@ -71,7 +71,14 @@ export function webhookTokenQuery(envVarName: string): string {
  */
 export function redactWebhookToken(text: string | null): string | null {
   if (text == null) return text;
-  return text.replace(/([?&]token=)[^&"'\s]+/g, '$1••••');
+  let out = text.replace(/([?&]token=)[^&"'\s]+/g, '$1••••');
+  // Défense en profondeur : toute occurrence LITTÉRALE du secret (brute ou
+  // encodée), où qu'elle soit (réponse Evolution, message d'erreur…).
+  const secret = process.env.WHATSAPP_WEBHOOK_SECRET || '';
+  if (secret.length >= 6) {
+    for (const v of new Set([secret, encodeURIComponent(secret)])) out = out.split(v).join('••••');
+  }
+  return out;
 }
 
 // ─── Protection contre le rejeu (idempotence) ────────────────────────────────
