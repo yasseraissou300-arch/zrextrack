@@ -19,3 +19,24 @@ export interface AuthUserLike {
 export function isPlatformAdmin(user: AuthUserLike | null | undefined): boolean {
   return user?.app_metadata?.role === 'admin';
 }
+
+/**
+ * Variante côté serveur SANS session (file de jobs, cron) : relit l'utilisateur
+ * via l'API Auth Admin (clé service-role). Toute erreur → false (jamais
+ * admin par défaut).
+ */
+export async function isPlatformAdminById(
+  service: { auth?: { admin?: { getUserById?: (id: string) => Promise<unknown> } } },
+  userId: string
+): Promise<boolean> {
+  try {
+    const getUserById = service.auth?.admin?.getUserById;
+    if (!getUserById) return false;
+    const res = (await getUserById.call(service.auth!.admin, userId)) as {
+      data?: { user?: AuthUserLike | null };
+    };
+    return isPlatformAdmin(res?.data?.user ?? null);
+  } catch {
+    return false;
+  }
+}

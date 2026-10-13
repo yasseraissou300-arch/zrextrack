@@ -18,6 +18,7 @@ import { logEvent } from '@/lib/security/safe-log';
 import { enqueue, upsertTenantSettings } from '../repository';
 import { notificationKey } from '../idempotency';
 import type { Job, HandlerResult, WhatsAppSendPayload } from '../types';
+import { isPlatformAdminById } from '@/lib/auth/platform-admin';
 
 /**
  * Espacement du PREMIER envoi après un sync. Les suivants s'échelonnent avec
@@ -56,7 +57,10 @@ export async function handleZrexpressSync(job: Job): Promise<HandlerResult> {
     .maybeSingle();
 
   const used = await countOrdersThisMonth(supabase, tenantId);
-  const quota = quotaStateFor(prof?.plan_id ?? 'basic', prof?.role ?? null, used);
+  // Quota illimité = claim app_metadata (Auth Admin, service-role), jamais
+  // profiles.role ; erreur → pas admin (le plan s'applique).
+  const admin = await isPlatformAdminById(supabase, tenantId);
+  const quota = quotaStateFor(prof?.plan_id ?? 'basic', admin ? 'admin' : null, used);
 
   if (quota.isOver) {
     // Pas un échec : le tenant a atteint son plan. On réessaiera le mois suivant.
