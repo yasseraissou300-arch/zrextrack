@@ -194,3 +194,60 @@ describe('non-exposition', () => {
     for (const s of spies) expect(s).not.toHaveBeenCalled();
   });
 });
+
+describe('cas limites supplémentaires', () => {
+  it('IV (nonce) modifié → auth_failed', () => {
+    const sealed = seal(SECRET, CTX, ENV_K1);
+    const parts = sealed.split(':'); // enc, v1, kid, iv, data
+    const iv = Buffer.from(parts[3], 'base64url');
+    iv[0] ^= 0x01;
+    parts[3] = iv.toString('base64url');
+    expectSecretError(() => open(parts.join(':'), CTX, ENV_K1), 'auth_failed');
+  });
+
+  it('IV de mauvaise taille → bad_format', () => {
+    const parts = seal(SECRET, CTX, ENV_K1).split(':');
+    parts[3] = Buffer.alloc(8).toString('base64url');
+    expectSecretError(() => open(parts.join(':'), CTX, ENV_K1), 'bad_format');
+  });
+
+  it('valeur vide : chiffrée puis restituée vide (pas de clair ni d’erreur)', () => {
+    const sealed = seal('', CTX, ENV_K1);
+    expect(isSealed(sealed)).toBe(true);
+    expect(open(sealed, CTX, ENV_K1)).toEqual({ value: '', legacy: false, stale: false });
+  });
+
+  it('version de format inconnue → bad_format (pas d’interprétation hasardeuse)', () => {
+    const parts = seal(SECRET, CTX, ENV_K1).split(':');
+    parts[1] = 'v9';
+    expectSecretError(() => open(parts.join(':'), CTX, ENV_K1), 'bad_format');
+  });
+});
+
+describe('serveur uniquement', () => {
+  it('aucun composant client (« use client ») n’importe secret-box', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const walk = (d: string): string[] =>
+      fs
+        .readdirSync(d, { withFileTypes: true })
+        .flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
+    const offenders = walk(path.resolve(__dirname, '..', 'src'))
+      .filter((f) => /\.(tsx?|jsx?)$/.test(f))
+      .filter((f) => {
+        const t = fs.readFileSync(f, 'utf8');
+        return /^\s*['"]use client['"]/.test(t) && t.includes('secret-box');
+      });
+    expect(offenders).toEqual([]);
+  });
+
+  it('aucune variable NEXT_PUBLIC_ ne porte le trousseau', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const src = fs.readFileSync(
+      path.resolve(__dirname, '..', 'src', 'lib', 'security', 'secret-box.ts'),
+      'utf8'
+    );
+    expect(src).not.toMatch(/NEXT_PUBLIC_/);
+  });
+});
