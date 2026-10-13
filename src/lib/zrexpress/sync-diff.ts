@@ -37,7 +37,10 @@ export const COMPARED_FIELDS = [
 
 export type SyncRow = { tracking_number: string };
 const field = (row: SyncRow, f: string) => (row as unknown as Record<string, unknown>)[f];
-export type ExistingOrder = Record<(typeof COMPARED_FIELDS)[number] | 'tracking_number', unknown>;
+export type ExistingOrder = Record<
+  (typeof COMPARED_FIELDS)[number] | 'tracking_number' | 'last_update',
+  unknown
+>;
 
 const PAGE = 1000;
 const MAX_ROWS = 100_000;
@@ -55,7 +58,7 @@ export async function loadExistingOrders(
   for (let from = 0; from < MAX_ROWS; from += PAGE) {
     const { data, error } = await supabase
       .from('orders')
-      .select(['tracking_number', ...COMPARED_FIELDS].join(', '))
+      .select(['tracking_number', 'last_update', ...COMPARED_FIELDS].join(', '))
       .eq('user_id', userId)
       .order('id', { ascending: true })
       .range(from, from + PAGE - 1);
@@ -77,9 +80,29 @@ export interface OrdersDiff<T extends SyncRow> {
   unchanged: number;
 }
 
+/**
+ * `last_update` a-t-il réellement changé ?
+ * - valeur = l'instant du sync (repli quand ZR ne fournit pas de date d'état) :
+ *   ce n'est PAS une donnée métier → ignorée (sinon toutes les lignes seraient
+ *   réécrites à chaque passage) ;
+ * - valeur = date ZR du dernier changement d'état (lastStateUpdateAt) : donnée
+ *   métier → comparée en instants (« …+00:00 » et « ….000Z » sont égaux). Sans
+ *   cela, un changement d'état ZR sans changement de statut interne (nouvelle
+ *   situation dans le même statut) laisserait une date périmée.
+ */
+function lastUpdateChanged(prev: ExistingOrder, row: SyncRow, syncedAt: string): boolean {
+  const next = field(row, 'last_update');
+  if (next === undefined || next === null || next === syncedAt) return false;
+  const a = Date.parse(String(next));
+  if (!Number.isFinite(a)) return false;
+  const b = Date.parse(String(prev.last_update ?? ''));
+  return !Number.isFinite(b) || a !== b;
+}
+
 export function diffOrders<T extends SyncRow>(
   rows: T[],
-  existing: Map<string, ExistingOrder>
+  existing: Map<string, ExistingOrder>,
+  syncedAt: string
 ): OrdersDiff<T> {
   const toWrite: T[] = [];
   let created = 0;
@@ -90,7 +113,10 @@ export function diffOrders<T extends SyncRow>(
     if (!prev) {
       created++;
       toWrite.push(row);
-    } else if (COMPARED_FIELDS.some((f) => !same(prev[f], field(row, f)))) {
+    } else if (
+      COMPARED_FIELDS.some((f) => !same(prev[f], field(row, f))) ||
+      lastUpdateChanged(prev, row, syncedAt)
+    ) {
       updated++;
       toWrite.push(row);
     } else {

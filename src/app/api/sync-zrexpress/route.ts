@@ -421,7 +421,7 @@ export async function POST(request: NextRequest) {
     // Seules les lignes nouvelles ou modifiées sont écrites (avant : toutes,
     // ≈ 5 000 par passage). Lecture de l'existant échouée → tout est écrit,
     // comme avant.
-    const diff = existingMap ? diffOrders(rows, existingMap) : null;
+    const diff = existingMap ? diffOrders(rows, existingMap, syncedAt) : null;
     const { written, error } = await upsertOrdersInChunks(supabase, diff ? diff.toWrite : rows);
 
     if (error) {

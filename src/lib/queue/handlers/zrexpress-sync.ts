@@ -111,7 +111,7 @@ export async function handleZrexpressSync(job: Job): Promise<HandlerResult> {
   const withTenant = rows.map((r) => ({ ...r, user_id: tenantId }));
   const { error: upsertErr } = await upsertOrdersInChunks(
     supabase,
-    existing ? diffOrders(withTenant, existing).toWrite : withTenant
+    existing ? diffOrders(withTenant, existing, syncedAt).toWrite : withTenant
   );
 
   if (upsertErr) return { outcome: 'failed', error: `upsert orders: ${upsertErr.message}` };
