@@ -48,6 +48,21 @@ function maskName(name: string | null): string {
   );
 }
 
+interface TrackRow {
+  tracking_number: string;
+  customer_name: string | null;
+  wilaya: string | null;
+  delivery_status: string | null;
+  attempts: number | null;
+  last_update: string | null;
+  product_name: string | null;
+}
+
+/** Saisie, MAJUSCULES, minuscules — sans doublon. Aucune transformation du contenu. */
+function trackingVariants(value: string): string[] {
+  return [...new Set([value, value.toUpperCase(), value.toLowerCase()])];
+}
+
 function getIp(req: NextRequest): string {
   return (
     req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
@@ -68,16 +83,32 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ trac
     }
 
     const { tracking } = await params;
-    if (!tracking) return NextResponse.json({ error: 'Tracking requis' }, { status: 400 });
+    const wanted = (tracking ?? '').trim();
+    if (!wanted) return NextResponse.json({ error: 'Tracking requis' }, { status: 400 });
     const supabase = createServiceClient();
-    const { data, error } = await supabase
-      .from('orders')
-      .select(
-        'tracking_number, customer_name, wilaya, delivery_status, attempts, last_update, product_name'
-      )
-      .ilike('tracking_number', tracking.trim())
-      .limit(1)
-      .single();
+    // Recherche LITTÉRALE. Avant : .ilike(saisie) — « % », « _ » (et « * »,
+    // que PostgREST convertit en %) étaient des jokers : « % » renvoyait une
+    // commande quelconque de la plateforme (énumération). L'insensibilité à la
+    // casse est conservée par ÉGALITÉ STRICTE sur la saisie, sa forme MAJUSCULE
+    // puis minuscule (les numéros ZR/SHO/WOO sont en majuscules et chiffres) :
+    // `eq` ne donne aucun sens aux caractères de la valeur, contrairement à une
+    // liste `in` (virgules, guillemets). Au plus 3 lectures sur l'index
+    // idx_orders_tracking_number, arrêt au premier résultat.
+    let data: TrackRow | null = null;
+    let error: unknown = null;
+    for (const candidate of trackingVariants(wanted)) {
+      const res = await supabase
+        .from('orders')
+        .select(
+          'tracking_number, customer_name, wilaya, delivery_status, attempts, last_update, product_name'
+        )
+        .eq('tracking_number', candidate)
+        .limit(1)
+        .maybeSingle();
+      error = res.error;
+      data = res.data as TrackRow | null;
+      if (error || data) break;
+    }
     if (error || !data)
       return NextResponse.json({ error: 'Commande introuvable' }, { status: 404 });
     return NextResponse.json({

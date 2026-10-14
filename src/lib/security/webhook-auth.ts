@@ -87,3 +87,39 @@ export function isReplay(eventId: string): boolean {
   seen.set(eventId, now);
   return false;
 }
+
+// ─── Signature Meta (Facebook Messenger) ─────────────────────────────────────
+//
+// Contrairement à Evolution, Meta SIGNE chaque POST de webhook :
+//   X-Hub-Signature-256: sha256=<HMAC-SHA256(app_secret, corps brut)>
+// Sans cette vérification, n'importe qui connaissant un page_id (public) peut
+// injecter de faux messages : consommation des clés Gemini du tenant, sessions
+// et commandes fabriquées, faux envois vers son Google Sheet.
+//
+// Même déploiement progressif que verifyWebhookSecret : si FACEBOOK_APP_SECRET
+// n'est pas défini, on n'applique pas (le flux OAuth Facebook ne fonctionne de
+// toute façon pas sans ce secret, donc un tenant Facebook actif l'a forcément).
+
+export type MetaSignatureResult =
+  | { ok: true; mode: 'verified' | 'unenforced' }
+  | { ok: false; reason: 'missing_signature' | 'bad_signature'; status: number };
+
+/** Vérifie X-Hub-Signature-256 sur le corps BRUT (avant tout JSON.parse). */
+export function verifyMetaSignature(
+  rawBody: string,
+  signatureHeader: string | null,
+  appSecret: string | undefined = process.env.FACEBOOK_APP_SECRET
+): MetaSignatureResult {
+  if (!appSecret) return { ok: true, mode: 'unenforced' };
+  if (!signatureHeader) return { ok: false, reason: 'missing_signature', status: 401 };
+
+  const [algo, provided] = signatureHeader.split('=', 2);
+  if (algo !== 'sha256' || !provided) {
+    return { ok: false, reason: 'bad_signature', status: 403 };
+  }
+  const expected = crypto.createHmac('sha256', appSecret).update(rawBody, 'utf8').digest('hex');
+  if (!safeEqual(provided.toLowerCase(), expected)) {
+    return { ok: false, reason: 'bad_signature', status: 403 };
+  }
+  return { ok: true, mode: 'verified' };
+}
