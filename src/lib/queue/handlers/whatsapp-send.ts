@@ -27,6 +27,7 @@ import { logEvent, maskPhone } from '@/lib/security/safe-log';
 import { circuitState, afterFailure, afterSuccess } from '../circuit-breaker';
 import { getTenantSettings, upsertTenantSettings } from '../repository';
 import type { Job, HandlerResult, WhatsAppSendPayload } from '../types';
+import { evolutionErrorMessage } from '@/lib/whatsapp/evolution-error';
 
 /** Report quand le quota est épuisé : on retente à la prochaine fenêtre utile. */
 const QUOTA_RETRY_MS = 30 * 60_000;
@@ -125,7 +126,7 @@ export async function handleWhatsAppSend(job: Job): Promise<HandlerResult> {
     ok = res.ok;
     if (!ok) {
       const text = await res.text().catch(() => '');
-      error = `Evolution HTTP ${res.status}: ${text.slice(0, 160)}`;
+      error = evolutionErrorMessage('queue.whatsapp', res.status, text);
     }
   } catch (e) {
     error = e instanceof Error ? e.message : 'erreur réseau Evolution';

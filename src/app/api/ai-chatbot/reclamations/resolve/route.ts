@@ -16,6 +16,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
+import { evolutionErrorMessage } from '@/lib/whatsapp/evolution-error';
 
 type Resolution = 'exchange' | 'refund' | 'resolved';
 
@@ -78,7 +79,10 @@ async function sendWhatsAppViaSAV(
     });
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
-      return { ok: false, reason: `Evolution HTTP ${res.status}: ${errText.slice(0, 120)}` };
+      return {
+        ok: false,
+        reason: evolutionErrorMessage('reclamations.resolve', res.status, errText),
+      };
     }
     return { ok: true };
   } catch (e: any) {

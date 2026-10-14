@@ -8,6 +8,7 @@ import {
   varyMessage,
   remainingDailyQuota,
 } from '@/lib/whatsapp/anti-spam';
+import { evolutionErrorMessage } from '@/lib/whatsapp/evolution-error';
 
 // Envoie un message WhatsApp via Evolution API en utilisant l'instance
 // « auto_confirmation » de l'utilisateur (la même que celle de l'onglet
@@ -116,7 +117,7 @@ async function sendOne(
         ok: false,
         error: dead
           ? 'Session WhatsApp expirée (Connection Closed) — reconnecte le QR'
-          : `Evolution HTTP ${res.status}: ${errText.slice(0, 200)}`,
+          : evolutionErrorMessage('whatsapp.send', res.status, errText),
         sessionDead: dead,
       };
     }
