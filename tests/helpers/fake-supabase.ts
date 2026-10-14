@@ -373,7 +373,7 @@ class Builder implements PromiseLike<{ data: any; error: PgError | null; count: 
 
     if (this.countMode && this.headMode) return { data: null, error: null, count: rows.length };
     if (this.db.maxRows != null) rows = rows.slice(0, this.db.maxRows);
-    return this.shape(rows.map((r) => structuredClone(r)));
+    return this.shape(rows.map((r) => ({ ...r })));
   }
 
   private runInsert(upsert: boolean): { rows: Row[]; error: PgError | null } {
@@ -469,7 +469,11 @@ class Builder implements PromiseLike<{ data: any; error: PgError | null; count: 
     return this.shape(r.rows.map((x) => structuredClone(x)));
   }
 
-  private shape(rows: Row[]) {
+  private shape(input: Row[]) {
+    // Copie PROFONDE : un appelant qui mute un tableau lu (conversation) ne
+    // doit pas modifier la base simulée — sinon les tests de concurrence
+    // verraient des écritures « fantômes ».
+    const rows = input.map((r) => structuredClone(r));
     if (this.singleMode === 'maybe') {
       if (rows.length > 1) {
         return {
