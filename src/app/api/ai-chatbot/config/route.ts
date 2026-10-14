@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { sheetsUrlError } from '@/lib/ai-chatbot/sheets-url';
 
 const DEFAULT_PROMPTS: Record<string, string> = {
   auto_confirmation: `Nta agent dyal [NOM_BOUTIQUE] — khidmtek hiya tconfirmiwi les commandes dyal clients.
@@ -123,6 +124,9 @@ export async function POST(req: NextRequest) {
     blocked_prefixes,
     human_pause_hours,
   } = body;
+
+  const urlError = sheetsUrlError(google_sheets_url);
+  if (urlError) return NextResponse.json({ error: urlError }, { status: 400 });
 
   const { data, error } = await supabase
     .from('chatbot_configs')

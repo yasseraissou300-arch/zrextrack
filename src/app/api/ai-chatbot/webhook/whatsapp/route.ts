@@ -5,6 +5,7 @@ import { verifyWebhookSecret } from '@/lib/security/webhook-auth';
 import { isReplayDurable, isStaleEvent } from '@/lib/security/replay-store';
 import { logEvent, maskPhone } from '@/lib/security/safe-log';
 import { commitSession } from '@/lib/ai-chatbot/session-store';
+import { sendSheetRow } from '@/lib/ai-chatbot/sheets-sink';
 import { isAngerDetected, isBlabla } from '@/lib/ai-chatbot/classifiers';
 import {
   correctionReply,
@@ -238,29 +239,6 @@ async function sendWhatsAppMedia(
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: evKey },
       body: JSON.stringify({ number: cleanNumber, mediatype: 'image', media: mediaUrl, caption }),
-    });
-  } catch {
-    /* non-blocking */
-  }
-}
-
-// ─── Google Sheets notifier ───────────────────────────────────────────────────
-async function notifyGoogleSheets(
-  webhookUrl: string,
-  type: string,
-  data: Record<string, unknown>
-): Promise<void> {
-  if (!webhookUrl) return;
-  try {
-    await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type,
-        timestamp: new Date().toISOString(),
-        source: 'whatsapp_ai',
-        ...data,
-      }),
     });
   } catch {
     /* non-blocking */
@@ -662,11 +640,13 @@ export async function POST(req: NextRequest) {
 
       if (Array.isArray(claimed) && claimed.length === 1) {
         if (config.google_sheets_url) {
-          await notifyGoogleSheets(
-            config.google_sheets_url,
-            config.template_type,
-            toSheetRow(newData)
-          );
+          await sendSheetRow({
+            url: config.google_sheets_url,
+            type: config.template_type,
+            source: 'whatsapp_ai',
+            data: toSheetRow(newData),
+            tenantId: userId,
+          });
         }
         if (config.admin_whatsapp) {
           await notifyAdmin(
