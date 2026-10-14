@@ -1,3 +1,4 @@
+import { internalErrorResponse } from '@/lib/security/public-error';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
@@ -39,8 +40,8 @@ async function postJson(
     });
     const text = await res.text().catch(() => '');
     return { status: res.status, text };
-  } catch (e) {
-    return { status: 0, text: e instanceof Error ? e.message : String(e) };
+  } catch {
+    return { status: 0, text: 'network_error' };
   }
 }
 
@@ -161,7 +162,7 @@ export async function POST(req: NextRequest) {
   const { data: instances, error } = await query;
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return internalErrorResponse('api.ai-chatbot.whatsapp.webhook-reset', error, 500);
   }
   if (!instances || instances.length === 0) {
     return NextResponse.json({ error: 'No instances found for this user.' }, { status: 404 });

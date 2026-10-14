@@ -1,3 +1,4 @@
+import { internalErrorResponse } from '@/lib/security/public-error';
 // CRUD des clés API par utilisateur — alimente la page /parametres/api-keys
 // GET   → liste toutes les credentials de l'utilisateur courant (sans la clé brute)
 // POST  → upsert d'une credential (user_id + service + valeurs)
@@ -40,7 +41,7 @@ export async function GET() {
     .select('service, api_key, api_url, api_secret, is_active, updated_at')
     .eq('user_id', user.id);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalErrorResponse('api.user-credentials', error, 500);
 
   // On ne renvoie JAMAIS la clé en clair au navigateur. Seulement masquée +
   // un flag `configured`. Le user peut donc voir qu'il a une clé sans la lire.
@@ -109,7 +110,7 @@ export async function POST(request: NextRequest) {
     { onConflict: 'user_id,service' }
   );
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalErrorResponse('api.user-credentials', error, 500);
   return NextResponse.json({ ok: true });
 }
 
@@ -133,6 +134,6 @@ export async function DELETE(request: NextRequest) {
     .eq('user_id', user.id)
     .eq('service', service);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalErrorResponse('api.user-credentials', error, 500);
   return NextResponse.json({ ok: true });
 }

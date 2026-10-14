@@ -40,8 +40,8 @@ async function evolutionGet(
       json = text;
     }
     return { ok: res.ok, status: res.status, json };
-  } catch (e) {
-    return { ok: false, status: 0, json: e instanceof Error ? e.message : String(e) };
+  } catch {
+    return { ok: false, status: 0, json: 'network_error' };
   }
 }
 
@@ -148,7 +148,7 @@ export async function GET() {
   }
   if (instErr) {
     issues.push(
-      `Erreur lecture whatsapp_instances: ${instErr.message}. La colonne service_type est-elle créée ?`
+      `Erreur lecture whatsapp_instances (code ${instErr.code ?? 'inconnu'}). La colonne service_type est-elle créée ?`
     );
   }
   for (const d of instanceDiagnostics) {

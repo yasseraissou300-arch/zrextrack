@@ -1,3 +1,4 @@
+import { internalErrorResponse } from '@/lib/security/public-error';
 // Valide une réclamation SAV : enregistre la résolution choisie par l'opérateur
 // et envoie un message WhatsApp de confirmation au client.
 //
@@ -81,8 +82,8 @@ async function sendWhatsAppViaSAV(
       return { ok: false, reason: `Evolution HTTP ${res.status}: ${errText.slice(0, 120)}` };
     }
     return { ok: true };
-  } catch (e: any) {
-    return { ok: false, reason: e?.message || 'Erreur réseau Evolution' };
+  } catch {
+    return { ok: false, reason: 'Erreur réseau Evolution' };
   }
 }
 
@@ -141,7 +142,8 @@ export async function POST(req: NextRequest) {
     .eq('id', sessionId)
     .eq('user_id', user.id);
 
-  if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
+  if (updateErr)
+    return internalErrorResponse('api.ai-chatbot.reclamations.resolve', updateErr, 500);
 
   // 2) Envoie la notification WhatsApp (best effort — n'annule pas la résolution si KO)
   const message = buildMessage(resolution, session.contact_name || '');
