@@ -91,4 +91,17 @@ describe('corbeille', () => {
     const json = await (await GET()).json();
     expect(json.data).toHaveLength(1500);
   });
+
+  it('erreur base → message générique, jamais le message brut', async () => {
+    db.failNext('public', 'orders', 'select', {
+      code: '42P01',
+      message: 'relation "orders" TEST_LEAK_detail does not exist',
+    });
+    const { GET } = await import('@/app/api/orders/deleted/route');
+    const res = await GET();
+    expect(res.status).toBe(500);
+    const text = await res.text();
+    expect(text).not.toContain('TEST_LEAK');
+    expect(JSON.parse(text).error).toMatch(/Erreur interne/);
+  });
 });

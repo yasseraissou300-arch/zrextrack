@@ -1,3 +1,4 @@
+import { logEvent } from '@/lib/security/safe-log';
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 
@@ -24,12 +25,28 @@ export async function GET() {
         .order('deleted_at', { ascending: false })
         .order('id', { ascending: true })
         .range(from, from + 999);
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (error) {
+        logEvent('error', 'api.orders.deleted', { status: 'failed', error_code: errorCode(error) });
+        return NextResponse.json(
+          { error: 'Erreur interne — réessaie dans un instant.' },
+          { status: 500 }
+        );
+      }
       data.push(...(page ?? []));
       if (!page || page.length < 1000) break;
     }
     return NextResponse.json({ data });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (err) {
+    logEvent('error', 'api.orders.deleted', { status: 'failed', error_code: errorCode(err) });
+    return NextResponse.json(
+      { error: 'Erreur interne — réessaie dans un instant.' },
+      { status: 500 }
+    );
   }
+}
+
+// Réponse générique : jamais le message brut (PostgREST cite filtres et valeurs).
+function errorCode(err: unknown): string {
+  const code = (err as { code?: unknown } | null)?.code;
+  return typeof code === 'string' && code ? code.slice(0, 40) : 'unknown';
 }
