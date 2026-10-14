@@ -1,6 +1,6 @@
+import { sheetsUrlError } from '@/lib/ai-chatbot/sheets-url';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { sheetsUrlError } from '@/lib/ai-chatbot/sheets-url';
 
 const DEFAULT_PROMPTS: Record<string, string> = {
   auto_confirmation: `Nta agent dyal [NOM_BOUTIQUE] — khidmtek hiya tconfirmiwi les commandes dyal clients.

@@ -1,6 +1,6 @@
+import { sheetsUrlError } from '@/lib/ai-chatbot/sheets-url';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { sheetsUrlError } from '@/lib/ai-chatbot/sheets-url';
 
 function extractSheetId(url: string): string | null {
   const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
