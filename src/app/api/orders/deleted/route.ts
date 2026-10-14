@@ -1,4 +1,3 @@
-import { internalErrorResponse } from '@/lib/security/public-error';
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 
@@ -20,9 +19,9 @@ export async function GET() {
       .not('deleted_at', 'is', null)
       .order('deleted_at', { ascending: false });
 
-    if (error) return internalErrorResponse('api.orders.deleted', error, 500);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ data: data || [] });
   } catch (err: any) {
-    return internalErrorResponse('api.orders.deleted', err, 500);
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

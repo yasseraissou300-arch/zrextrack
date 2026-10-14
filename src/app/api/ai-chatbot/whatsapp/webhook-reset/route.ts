@@ -1,4 +1,3 @@
-import { internalErrorResponse } from '@/lib/security/public-error';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
@@ -162,7 +161,7 @@ export async function POST(req: NextRequest) {
   const { data: instances, error } = await query;
 
   if (error) {
-    return internalErrorResponse('api.ai-chatbot.whatsapp.webhook-reset', error, 500);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
   if (!instances || instances.length === 0) {
     return NextResponse.json({ error: 'No instances found for this user.' }, { status: 404 });

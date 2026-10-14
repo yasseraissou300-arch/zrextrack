@@ -41,7 +41,7 @@ export async function GET() {
     .select('service, api_key, api_url, api_secret, is_active, updated_at')
     .eq('user_id', user.id);
 
-  if (error) return internalErrorResponse('api.user-credentials', error, 500);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   // On ne renvoie JAMAIS la clé en clair au navigateur. Seulement masquée +
   // un flag `configured`. Le user peut donc voir qu'il a une clé sans la lire.
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
     { onConflict: 'user_id,service' }
   );
 
-  if (error) return internalErrorResponse('api.user-credentials', error, 500);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
 

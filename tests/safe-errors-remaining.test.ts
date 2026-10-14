@@ -45,7 +45,8 @@ function routeFiles(dir: string): string[] {
 const SAFE_LINE =
   /logEvent|event\.message|msgData\.message|\br\.message\b|error_message|err = e\?\.message/;
 // Routes couvertes par CETTE PR. Les autres routes sont corrigées par leurs
-// propres PR (#110, #111, #117, #118, #120, #124) ; restant connu, documenté :
+// propres PR (#104, #110, #111, #117, #118, #120, #124 ; resolve et
+// orders/deleted : commit ajouté sur #104 et #110) ; restant connu, documenté :
 // campaigns/[id]/send, qui dépend de la chaîne #127/#128 (bloquée par décision).
 const COVERED = new Set(
   [
@@ -53,25 +54,21 @@ const COVERED = new Set(
     'ai-chatbot/diagnostic',
     'ai-chatbot/facebook',
     'ai-chatbot/reclamations/lookup',
-    'ai-chatbot/reclamations/resolve',
     'ai-chatbot/whatsapp/instance',
-    'ai-chatbot/whatsapp/webhook-reset',
     'autoswap/diagnostic',
     'autoswap/execute',
     'autoswap/preview',
     'autoswap/swapped-stats',
     'campaigns/delivered-customers',
-    'orders/deleted',
     'stats',
     'sync-zrexpress',
     'track/[tracking]',
-    'user-credentials',
     'whatsapp/send',
   ].map((r) => `src/app/api/${r}/route.ts`)
 );
 
 describe('inventaire statique des routes API', () => {
-  it("aucun `.message` d'exception dans une réponse (18 routes de cette PR)", () => {
+  it("aucun `.message` d'exception dans une réponse (routes de cette PR)", () => {
     const root = path.join(process.cwd(), 'src', 'app', 'api');
     const offenders: string[] = [];
     for (const file of routeFiles(root)) {
