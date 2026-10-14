@@ -205,6 +205,27 @@ describe('résolution SAV', () => {
     expect([r1.status, r2.status].sort()).toEqual([200, 409]);
     expect(sends).toHaveLength(1);
   });
+
+  it('erreur base à la prise → message générique, aucun envoi', async () => {
+    db.seed('public', 'ai_chat_sessions', [
+      { id: 's2', user_id: A, channel: 'whatsapp', contact_id: 'x', template_type: 'sav' },
+    ]);
+    db.failNext('public', 'ai_chat_sessions', 'update', {
+      code: '23514',
+      message: 'TEST_LEAK check constraint "resolution_check" failed',
+    });
+    currentUser = { id: A };
+    const { POST } = await import('@/app/api/ai-chatbot/reclamations/resolve/route');
+    const res = await POST(
+      new NextRequest('https://app.test/api/ai-chatbot/reclamations/resolve', {
+        method: 'POST',
+        body: JSON.stringify({ sessionId: 's2', resolution: 'refund' }),
+      })
+    );
+    expect(res.status).toBe(500);
+    expect(await res.text()).not.toContain('TEST_LEAK');
+    expect(sends).toHaveLength(0);
+  });
 });
 
 describe('mode simulation (?dry_run=1) — vérification post-gel sans envoi', () => {
