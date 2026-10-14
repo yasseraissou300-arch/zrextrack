@@ -54,6 +54,13 @@ export async function guardTwilioRequest(
     .eq('id', cid)
     .maybeSingle();
 
+  // cid inconnu : aucun appel légitime ne peut le porter (la ligne voice_calls
+  // est créée AVANT placeCall). Refus au lieu du mode « non appliqué ».
+  if (!call) {
+    logEvent('warn', scope, { status: 'rejected', reason: 'unknown_cid' });
+    return { ok: false, status: 404, reason: 'unknown_cid' };
+  }
+
   const userId: string | null = call?.user_id ?? null;
   let authToken: string | null = null;
   if (userId) {
