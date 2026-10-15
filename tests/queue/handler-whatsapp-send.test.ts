@@ -169,6 +169,7 @@ describe('Succès — comptabilisation', () => {
   });
 
   it('avec media_url → sendMedia, et trace le destinataire de campagne', async () => {
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://abcdefghijklmnop.supabase.co');
     seedInstance();
     evolutionResponds(201);
 
@@ -177,13 +178,18 @@ describe('Succès — comptabilisation', () => {
         payload: {
           ...makeJob().payload,
           campaign_id: 'camp-1',
-          media_url: 'https://cdn.test/promo.jpg',
+          media_url: OWN_MEDIA,
         },
       })
     );
 
     expect(evolutionCalls[0].url).toContain('/message/sendMedia/');
-    expect(evolutionCalls[0].body).toMatchObject({ mediatype: 'image', fileName: 'promo.jpg' });
+    // Stockage de la plateforme : URL transmise telle quelle à Evolution.
+    expect(evolutionCalls[0].body).toMatchObject({
+      mediatype: 'image',
+      fileName: 'promo.jpg',
+      media: OWN_MEDIA,
+    });
     expect(fake.all('public', 'campaign_recipients')).toHaveLength(1);
     expect(fake.all('public', 'campaign_recipients')[0]).toMatchObject({
       campaign_id: 'camp-1',
@@ -563,7 +569,48 @@ describe('RLS-TENANT-001 — instance d’un autre tenant', () => {
   });
 });
 
+const OWN_MEDIA =
+  'https://abcdefghijklmnop.supabase.co/storage/v1/object/public/campaign-media/t/promo.jpg';
+
 describe('SSRF — média revérifié au moment de l’envoi', () => {
+  beforeEach(() => vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://abcdefghijklmnop.supabase.co'));
+
+  it('URL externe → téléchargée par le SERVEUR puis transmise en base64 (Evolution ne la résout jamais)', async () => {
+    seedInstance();
+    const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
+    fetchMock.mockImplementation(async (input: any, init?: any) => {
+      const url = String(input);
+      if (url === 'https://cdn.test/promo.jpg')
+        return new Response(jpeg, { status: 200, headers: { 'content-type': 'image/jpeg' } });
+      if (!url.startsWith(EVOLUTION_URL)) throw new Error(`appel réseau interdit en test : ${url}`);
+      evolutionCalls.push({ url, body: JSON.parse(init?.body ?? '{}') });
+      return new Response('{}', { status: 201 });
+    });
+    const job = makeJob();
+    job.payload = { ...job.payload, media_url: 'https://cdn.test/promo.jpg' };
+    expect((await handleWhatsAppSend(job)).outcome).toBe('done');
+    expect(evolutionCalls[0].body).toMatchObject({
+      media: Buffer.from(jpeg).toString('base64'),
+      mimetype: 'image/jpeg',
+    });
+    expect(JSON.stringify(evolutionCalls[0].body)).not.toContain('cdn.test/promo');
+  });
+
+  it('URL externe qui renvoie du HTML → refusée, aucun appel Evolution', async () => {
+    seedInstance();
+    fetchMock.mockImplementation(async (input: any, init?: any) => {
+      const url = String(input);
+      if (url.startsWith('https://cdn.test/'))
+        return new Response('<html>', { status: 200, headers: { 'content-type': 'text/html' } });
+      evolutionCalls.push({ url, body: JSON.parse(init?.body ?? '{}') });
+      return new Response('{}', { status: 201 });
+    });
+    const job = makeJob();
+    job.payload = { ...job.payload, media_url: 'https://cdn.test/page' };
+    expect((await handleWhatsAppSend(job)).outcome).toBe('failed');
+    expect(evolutionCalls).toHaveLength(0);
+  });
+
   it('domaine repointé vers une IP privée → job en échec, AUCUN appel Evolution', async () => {
     seedInstance();
     evolutionResponds(201);
