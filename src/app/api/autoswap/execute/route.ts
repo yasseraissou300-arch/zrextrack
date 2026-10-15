@@ -1,3 +1,4 @@
+import { internalErrorResponse } from '@/lib/security/public-error';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import type {
@@ -113,13 +114,13 @@ export async function POST(request: NextRequest) {
             zr_response: body,
           };
         }
-      } catch (err: any) {
+      } catch {
         failed += 1;
         result = {
           source_tracking: swap.swappable.tracking,
           target_tracking: swap.target.tracking,
           status: 'failed',
-          error: err?.message || 'Erreur réseau inconnue',
+          error: 'Erreur réseau',
         };
       }
 
@@ -143,6 +144,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ executed, failed, results } as ExecuteResponse);
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || 'Erreur AutoSwap execute' }, { status: 500 });
+    return internalErrorResponse('api.autoswap.execute', err, 500, 'Erreur AutoSwap execute');
   }
 }

@@ -1,3 +1,4 @@
+import { internalErrorResponse } from '@/lib/security/public-error';
 // Enrichit chaque réclamation SAV avec les données réelles du colis ZRExpress.
 //
 // Stratégie de matching (la première qui matche gagne) :
@@ -102,7 +103,7 @@ export async function POST(req: NextRequest) {
   try {
     allParcels = await fetchAllParcels(token, tenantId);
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'Erreur ZRExpress' }, { status: 502 });
+    return internalErrorResponse('api.ai-chatbot.reclamations.lookup', e, 502, 'Erreur ZRExpress');
   }
 
   // Index pour O(1) lookup

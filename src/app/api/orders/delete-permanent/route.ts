@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { internalErrorResponse } from '@/lib/security/public-error';
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,9 +24,9 @@ export async function POST(request: NextRequest) {
       .eq('user_id', user.id)
       .not('deleted_at', 'is', null);
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return internalErrorResponse('api.orders.delete-permanent', error);
     return NextResponse.json({ deleted: count ?? ids.length });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return internalErrorResponse('api.orders.delete-permanent', err);
   }
 }
