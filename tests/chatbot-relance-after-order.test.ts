@@ -25,6 +25,10 @@ vi.mock('@/lib/user-creds', () => ({
 
 const T = '11111111-1111-4111-8111-111111111111';
 const C = '213550000001@s.whatsapp.net';
+// Garde SSRF (safe-outbound) : l'hôte factice du Sheet résout vers une IP publique.
+vi.mock('node:dns/promises', () => ({
+  lookup: async () => [{ address: '142.250.74.110', family: 4 }],
+}));
 const SHEETS = 'https://sheets.test/hook';
 const COMPLETE =
   'Sajjelna commande ✅ <data>{"nom":"Amine B","telephone":"0550123456","wilaya":"wahran","produit":"Montre"}</data>';

@@ -1,3 +1,4 @@
+import { sheetsUrlError } from '@/lib/ai-chatbot/sheets-url';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
@@ -40,6 +41,8 @@ export async function POST(req: NextRequest) {
   const googleSheetsUrl = sheetId
     ? `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Sheet1:append`
     : sheet_url || '';
+  const urlError = sheetsUrlError(googleSheetsUrl);
+  if (urlError) return NextResponse.json({ error: urlError }, { status: 400 });
 
   const { error } = await supabase.from('chatbot_configs').upsert(
     {
