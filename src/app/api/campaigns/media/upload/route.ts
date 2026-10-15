@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { internalErrorResponse } from '@/lib/security/public-error';
 
 const BUCKET = 'campaign-media';
 const MAX_SIZE = 16 * 1024 * 1024; // 16 MB — limite WhatsApp Media
@@ -82,7 +83,12 @@ export async function POST(req: NextRequest) {
   });
 
   if (upErr) {
-    return NextResponse.json({ error: `Upload échoué : ${upErr.message}` }, { status: 500 });
+    return internalErrorResponse(
+      'api.campaigns.media.upload',
+      upErr,
+      500,
+      'Upload échoué — réessaie.'
+    );
   }
 
   // URL publique — le bucket est en read public donc cette URL est accessible
@@ -112,13 +118,25 @@ export async function DELETE(req: NextRequest) {
   const path = url.searchParams.get('path');
   if (!path) return NextResponse.json({ error: 'path manquant' }, { status: 400 });
 
-  // Garde-fou : on n'autorise que la suppression dans le propre dossier de l'user
-  if (!path.startsWith(`${user.id}/`)) {
+  // Garde-fou STRICT : un seul objet, directement dans le dossier de l'user,
+  // au format produit par le POST (« <uid>/<horodatage>-<aléa>.<ext> »).
+  // `startsWith` seul laissait passer « <uid>/../<autre uid>/x » ; storage-js
+  // transmet le chemin tel quel (résolution de « .. » côté serveur non
+  // vérifiable — HUMAN-STORAGE-PATH-001) : on ne dépend plus de ce point.
+  if (!isOwnMediaPath(user.id, path)) {
     return NextResponse.json({ error: 'Interdit' }, { status: 403 });
   }
 
   const service = createServiceClient();
   const { error } = await service.storage.from(BUCKET).remove([path]);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalErrorResponse('api.campaigns.media.upload', error);
   return NextResponse.json({ ok: true });
+}
+
+/** Chemin d'un média du user : « <uid>/<nom>.<ext> », un seul segment, sans « .. ». */
+function isOwnMediaPath(userId: string, path: string): boolean {
+  const prefix = `${userId}/`;
+  if (!path.startsWith(prefix)) return false;
+  const name = path.slice(prefix.length);
+  return /^[A-Za-z0-9_-]{1,80}\.[A-Za-z0-9]{1,8}$/.test(name);
 }

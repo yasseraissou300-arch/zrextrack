@@ -137,6 +137,8 @@ export class FakeSupabase {
   private pendingErrors: Array<{ table: string; op: Op; error: PgError }> = [];
   /** Journal de toutes les écritures — utile pour les assertions d'isolation. */
   readonly writes: Array<{ table: string; op: Op; rows: Row[] }> = [];
+  /** Simule `db-max-rows` de PostgREST (1 000 sur Supabase). null = illimité. */
+  maxRows: number | null = null;
 
   // ── API publique de test ───────────────────────────────────────────────────
 
@@ -348,6 +350,7 @@ class Builder implements PromiseLike<{ data: any; error: PgError | null; count: 
     if (this.lim != null) rows = rows.slice(0, this.lim);
 
     if (this.countMode && this.headMode) return { data: null, error: null, count: rows.length };
+    if (this.db.maxRows != null) rows = rows.slice(0, this.db.maxRows);
     return this.shape(rows.map((r) => ({ ...r })));
   }
 
