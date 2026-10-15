@@ -1,3 +1,4 @@
+import { ownedInstance } from '@/lib/whatsapp/instance-ownership';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { isForeignSiteRequest } from '@/lib/security/same-site';
@@ -70,12 +71,14 @@ export async function GET(req: NextRequest) {
   const phone = rawPhone ? normalizePhone(rawPhone) : '';
   const wantPairingCode = phone.length >= 11; // 213 + 9 chiffres minimum
 
-  const { data: instance } = await supabase
+  const { data: instanceRow } = await supabase
     .from('whatsapp_instances')
     .select('instance_name, connected')
     .eq('user_id', user.id)
     .eq('service_type', serviceType)
     .single();
+  // RLS-TENANT-001 : jamais d'action Evolution sur un nom hors de l'espace du tenant.
+  const instance = ownedInstance(user.id, instanceRow, 'whatsapp.qr');
 
   if (!instance) {
     return NextResponse.json(
