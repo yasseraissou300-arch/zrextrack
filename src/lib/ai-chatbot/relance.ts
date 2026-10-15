@@ -1,3 +1,4 @@
+import { ownedInstance } from '@/lib/whatsapp/instance-ownership';
 // Relance des conversations chatbot inactives (≥ 2 h, incomplètes).
 //
 // Extrait de src/app/api/ai-chatbot/relance/route.ts. Défauts corrigés
@@ -110,12 +111,14 @@ export async function runRelance(
       ? (s.template_type as string)
       : 'auto_confirmation';
 
-    const { data: instance } = await supabase
+    const { data: instanceRow } = await supabase
       .from('whatsapp_instances')
       .select('instance_name, connected')
       .eq('user_id', s.user_id)
       .eq('service_type', service)
       .maybeSingle();
+    // RLS-TENANT-001 : jamais d'action Evolution sur un nom hors de l'espace du tenant.
+    const instance = ownedInstance(s.user_id, instanceRow, 'chatbot.relance');
     if (!instance?.connected) {
       skip('instance_not_connected');
       continue;

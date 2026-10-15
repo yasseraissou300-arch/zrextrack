@@ -54,7 +54,7 @@ function inbound(text: string) {
     method: 'POST',
     body: JSON.stringify({
       event: 'messages.upsert',
-      instance: 'zrex_test_auto',
+      instance: 'zrex_111111111111_auto',
       data: {
         key: { remoteJid: CONTACT, fromMe: false, id: `MSG-${Date.now()}-${msgSeq}` },
         message: { conversation: text },
@@ -74,7 +74,7 @@ beforeEach(() => {
   fetchMock.mockClear();
   vi.stubGlobal('fetch', fetchMock);
   db.seed('public', 'whatsapp_instances', [
-    { user_id: TENANT, service_type: 'auto_confirmation', instance_name: 'zrex_test_auto' },
+    { user_id: TENANT, service_type: 'auto_confirmation', instance_name: 'zrex_111111111111_auto' },
   ]);
   db.seed('public', 'chatbot_configs', [
     {
