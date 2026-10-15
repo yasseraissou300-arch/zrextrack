@@ -31,6 +31,8 @@ import { ownedInstance } from '@/lib/whatsapp/instance-ownership';
 import type { createServiceClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
 import { ANTI_SPAM, remainingDailyQuota } from '@/lib/whatsapp/anti-spam';
+import { circuitState } from '@/lib/queue/circuit-breaker';
+import { getTenantSettings } from '@/lib/queue/repository';
 import { logEvent, maskPhone } from '@/lib/security/safe-log';
 
 type Client = ReturnType<typeof createServiceClient>;
@@ -121,6 +123,20 @@ export async function runRelance(
     const instance = ownedInstance(s.user_id, instanceRow, 'chatbot.relance');
     if (!instance?.connected) {
       skip('instance_not_connected');
+      continue;
+    }
+
+    // Circuit breaker du tenant (ouvert par la file après des échecs
+    // consécutifs) : une relance ne doit pas insister sur un numéro en panne.
+    let circuitOpen = false;
+    try {
+      circuitOpen = circuitState(await getTenantSettings(supabase, s.user_id)).open;
+    } catch {
+      circuitOpen = false;
+    }
+    if (circuitOpen) {
+      skip('circuit_open');
+      served.add(s.user_id);
       continue;
     }
 
