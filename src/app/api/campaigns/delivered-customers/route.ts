@@ -1,3 +1,4 @@
+import { internalErrorResponse } from '@/lib/security/public-error';
 // Agrège les colis livrés depuis ZRExpress en une liste de clients dédupliqués,
 // destinée au ciblage des campagnes WhatsApp.
 //
@@ -254,7 +255,7 @@ export async function POST(request: NextRequest) {
   try {
     parcels = await fetchAllParcels(token, tenantId);
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'Erreur ZRExpress' }, { status: 502 });
+    return internalErrorResponse('api.campaigns.delivered-customers', e, 502, 'Erreur ZRExpress');
   }
 
   // Index par téléphone normalisé

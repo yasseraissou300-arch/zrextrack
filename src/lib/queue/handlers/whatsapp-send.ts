@@ -1,3 +1,4 @@
+import { ownedInstance } from '@/lib/whatsapp/instance-ownership';
 // Handler `whatsapp.send` — UN message, UNE tentative.
 //
 // C'est le handler le plus sensible de la plateforme : le numéro WhatsApp a
@@ -27,6 +28,7 @@ import { logEvent, maskPhone } from '@/lib/security/safe-log';
 import { circuitState, afterFailure, afterSuccess } from '../circuit-breaker';
 import { getTenantSettings, upsertTenantSettings } from '../repository';
 import type { Job, HandlerResult, WhatsAppSendPayload } from '../types';
+import { evolutionErrorMessage } from '@/lib/whatsapp/evolution-error';
 
 /** Report quand le quota est épuisé : on retente à la prochaine fenêtre utile. */
 const QUOTA_RETRY_MS = 30 * 60_000;
@@ -88,12 +90,14 @@ export async function handleWhatsAppSend(job: Job): Promise<HandlerResult> {
     return { outcome: 'failed', error: 'Evolution API non configurée' };
   }
 
-  const { data: inst } = await supabase
+  const { data: instRow } = await supabase
     .from('whatsapp_instances')
     .select('instance_name')
     .eq('user_id', tenantId)
     .eq('service_type', 'auto_confirmation')
     .maybeSingle();
+  // RLS-TENANT-001 : jamais d'action Evolution sur un nom hors de l'espace du tenant.
+  const inst = ownedInstance(tenantId, instRow, 'queue.whatsapp_send');
 
   if (!inst?.instance_name) {
     return { outcome: 'failed', error: 'aucune instance WhatsApp connectée' };
@@ -125,7 +129,7 @@ export async function handleWhatsAppSend(job: Job): Promise<HandlerResult> {
     ok = res.ok;
     if (!ok) {
       const text = await res.text().catch(() => '');
-      error = `Evolution HTTP ${res.status}: ${text.slice(0, 160)}`;
+      error = evolutionErrorMessage('queue.whatsapp', res.status, text);
     }
   } catch (e) {
     error = e instanceof Error ? e.message : 'erreur réseau Evolution';

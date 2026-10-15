@@ -1,3 +1,4 @@
+import { internalErrorResponse } from '@/lib/security/public-error';
 // Statistiques des commandes DÉJÀ swappées — détection automatique.
 //
 // ZRExpress expose sur chaque colis un champ `swap` avec :
@@ -100,9 +101,11 @@ export async function POST(request: NextRequest) {
       items,
     });
   } catch (err: any) {
-    return NextResponse.json(
-      { error: err?.message || 'Erreur statistiques swaps' },
-      { status: 500 }
+    return internalErrorResponse(
+      'api.autoswap.swapped-stats',
+      err,
+      500,
+      'Erreur statistiques swaps'
     );
   }
 }
