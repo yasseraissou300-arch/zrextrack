@@ -84,6 +84,19 @@ export async function handleWhatsAppSend(job: Job): Promise<HandlerResult> {
     return { outcome: 'failed', error: `numéro invalide : ${maskPhone(payload.phone)}` };
   }
 
+  // ── 3b. Média : revérifié AU MOMENT DE L'ENVOI (SSRF via Evolution) ──────
+  // Evolution télécharge l'URL lui-même. La vérification à l'enregistrement
+  // ne suffit pas : le nom de domaine a pu être repointé vers une adresse
+  // interne depuis. Refus → échec du job (DLQ), jamais d'envoi partiel.
+  if (payload.media_url && (await mediaUrlError(payload.media_url))) {
+    logEvent('warn', 'queue.whatsapp', {
+      status: 'rejected',
+      reason: 'media_url_refused',
+      tenant_id: tenantId,
+    });
+    return { outcome: 'failed', error: 'URL du média refusée (adresse non publique)' };
+  }
+
   // ── 4. Instance Evolution ─────────────────────────────────────────────────
   const ev = await resolveEvolutionCreds(tenantId);
   if (!ev.url || !ev.key) {
@@ -101,19 +114,6 @@ export async function handleWhatsAppSend(job: Job): Promise<HandlerResult> {
 
   if (!inst?.instance_name) {
     return { outcome: 'failed', error: 'aucune instance WhatsApp connectée' };
-  }
-
-  // ── 4b. Média : revérifié AU MOMENT DE L'ENVOI (SSRF via Evolution) ──────
-  // Evolution télécharge l'URL lui-même. La vérification à l'enregistrement
-  // ne suffit pas : le nom de domaine a pu être repointé vers une adresse
-  // interne depuis. Refus → échec du job (DLQ), jamais d'envoi partiel.
-  if (payload.media_url && (await mediaUrlError(payload.media_url))) {
-    logEvent('warn', 'queue.whatsapp', {
-      status: 'rejected',
-      reason: 'media_url_refused',
-      tenant_id: tenantId,
-    });
-    return { outcome: 'failed', error: 'URL du média refusée (adresse non publique)' };
   }
 
   // ── 5. Envoi ──────────────────────────────────────────────────────────────
