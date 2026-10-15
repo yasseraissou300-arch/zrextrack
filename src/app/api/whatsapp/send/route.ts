@@ -1,7 +1,7 @@
+import { NextRequest, NextResponse } from 'next/server';
 import { logEvent } from '@/lib/security/safe-log';
 import { getTenantSettings } from '@/lib/queue/repository';
 import { circuitState } from '@/lib/queue/circuit-breaker';
-import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
 import {
