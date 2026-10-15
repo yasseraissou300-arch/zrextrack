@@ -48,7 +48,11 @@ beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(() => {});
   for (const t of [TENANT_A, TENANT_B]) {
     fake.seed('public', 'whatsapp_instances', [
-      { user_id: t, instance_name: `inst-${t.slice(0, 4)}`, service_type: 'auto_confirmation' },
+      {
+        user_id: t,
+        instance_name: `zrex_${t.replace(/-/g, '').slice(0, 12)}_auto`,
+        service_type: 'auto_confirmation',
+      },
     ]);
   }
 });
@@ -94,7 +98,10 @@ describe('A — espacement : jamais de rafale dans un même tick', () => {
     await enqueueSends(TENANT_A, 2);
     await enqueueSends(TENANT_B, 2);
     await runTick(handlers, 'w1');
-    expect(sends.map((s) => s.url.split('/').pop()).sort()).toEqual(['inst-1111', 'inst-2222']);
+    expect(sends.map((s) => s.url.split('/').pop()).sort()).toEqual([
+      'zrex_111111111111_auto',
+      'zrex_222222222222_auto',
+    ]);
   });
 });
 
