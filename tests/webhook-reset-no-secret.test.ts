@@ -89,7 +89,10 @@ describe('redactWebhookToken', () => {
 describe('/api/ai-chatbot/diagnostic', () => {
   beforeEach(() => {
     // Evolution a enregistré l'URL AVEC le secret (après webhook-reset).
-    stored = `https://zrextrack.vercel.app/api/ai-chatbot/webhook/whatsapp?token=${SECRET}`;
+    // Même base que la route (NEXT_PUBLIC_APP_URL, sinon le domaine par défaut) :
+    // la CI définit NEXT_PUBLIC_APP_URL=https://ci.invalid.
+    const app = process.env.NEXT_PUBLIC_APP_URL || 'https://zrextrack.vercel.app';
+    stored = `${app}/api/ai-chatbot/webhook/whatsapp?token=${SECRET}`;
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url: string) => {
