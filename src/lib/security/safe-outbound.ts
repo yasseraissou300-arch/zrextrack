@@ -213,3 +213,81 @@ export async function safePostJson(
   }
   throw new OutboundBlocked('too_many_redirects');
 }
+
+export class OutboundTooLarge extends Error {
+  constructor() {
+    super('too_large');
+  }
+}
+
+/**
+ * GET d'une URL fournie par un marchand, octets bornés. Mêmes garanties que
+ * safePostJson : hôte public (DNS compris) à CHAQUE saut, redirections
+ * manuelles (max 3), délai borné. Lecture en flux interrompue au-delà de
+ * maxBytes (jamais chargée en entier).
+ */
+export async function safeGetBytes(
+  rawUrl: string,
+  opts: SafePostDeps & { maxBytes: number }
+): Promise<{ bytes: Uint8Array; contentType: string; finalUrl: string }> {
+  const fetchImpl = opts.fetchImpl ?? fetch;
+  const lookup = opts.lookup ?? defaultLookup;
+  let url = checkOutboundUrl(rawUrl);
+
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    await assertPublicHost(url, lookup);
+    let res: Response;
+    try {
+      res = await fetchImpl(url.toString(), {
+        method: 'GET',
+        redirect: 'manual',
+        signal: AbortSignal.timeout(opts.timeoutMs ?? TIMEOUT_MS),
+      });
+    } catch (e) {
+      const name = (e as { name?: string })?.name;
+      throw new OutboundBlocked(
+        name === 'TimeoutError' || name === 'AbortError' ? 'timeout' : 'network_error'
+      );
+    }
+    if ([301, 302, 303, 307, 308].includes(res.status)) {
+      if (hop === MAX_REDIRECTS) throw new OutboundBlocked('too_many_redirects');
+      const loc = res.headers.get('location');
+      if (!loc) throw new OutboundBlocked('bad_redirect');
+      try {
+        url = checkOutboundUrl(new URL(loc, url).toString());
+      } catch (e) {
+        throw e instanceof OutboundBlocked ? e : new OutboundBlocked('bad_redirect');
+      }
+      continue;
+    }
+    if (!res.ok || !res.body) throw new OutboundBlocked('network_error');
+    const declared = Number(res.headers.get('content-length') || 0);
+    if (declared > opts.maxBytes) throw new OutboundTooLarge();
+    const reader = res.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done || !value) break;
+        size += value.byteLength;
+        if (size > opts.maxBytes) throw new OutboundTooLarge();
+        chunks.push(value);
+      }
+    } finally {
+      reader.cancel().catch(() => {});
+    }
+    const bytes = new Uint8Array(size);
+    let off = 0;
+    for (const c of chunks) {
+      bytes.set(c, off);
+      off += c.byteLength;
+    }
+    return {
+      bytes,
+      contentType: (res.headers.get('content-type') || '').split(';')[0].trim().toLowerCase(),
+      finalUrl: url.toString(),
+    };
+  }
+  throw new OutboundBlocked('too_many_redirects');
+}

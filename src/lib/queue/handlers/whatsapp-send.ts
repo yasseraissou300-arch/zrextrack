@@ -25,7 +25,7 @@ import { resolveEvolutionCreds } from '@/lib/user-creds';
 import { remainingDailyQuota, varyMessage } from '@/lib/whatsapp/anti-spam';
 import { normalizePhone } from '@/lib/whatsapp/message-builder';
 import { logEvent, maskPhone } from '@/lib/security/safe-log';
-import { mediaUrlError } from '@/lib/security/media-url';
+import { prepareMediaForEvolution } from '@/lib/whatsapp/media-delivery';
 import { circuitState, afterFailure, afterSuccess } from '../circuit-breaker';
 import { getTenantSettings, upsertTenantSettings } from '../repository';
 import type { Job, HandlerResult, WhatsAppSendPayload } from '../types';
@@ -84,17 +84,21 @@ export async function handleWhatsAppSend(job: Job): Promise<HandlerResult> {
     return { outcome: 'failed', error: `numéro invalide : ${maskPhone(payload.phone)}` };
   }
 
-  // ── 3b. Média : revérifié AU MOMENT DE L'ENVOI (SSRF via Evolution) ──────
-  // Evolution télécharge l'URL lui-même. La vérification à l'enregistrement
-  // ne suffit pas : le nom de domaine a pu être repointé vers une adresse
-  // interne depuis. Refus → échec du job (DLQ), jamais d'envoi partiel.
-  if (payload.media_url && (await mediaUrlError(payload.media_url))) {
-    logEvent('warn', 'queue.whatsapp', {
-      status: 'rejected',
-      reason: 'media_url_refused',
-      tenant_id: tenantId,
-    });
-    return { outcome: 'failed', error: 'URL du média refusée (adresse non publique)' };
+  // ── 3b. Média : préparé par NOTRE serveur (SSRF / rebinding via Evolution)
+  // Stockage de la plateforme → URL transmise ; toute autre URL → téléchargée
+  // ici sous garde SSRF puis transmise en base64 : Evolution ne résout jamais
+  // un nom fourni par un tenant. Refus → échec du job (DLQ), aucun envoi.
+  let media: Awaited<ReturnType<typeof prepareMediaForEvolution>> | null = null;
+  if (payload.media_url) {
+    media = await prepareMediaForEvolution(payload.media_url);
+    if (!media.ok) {
+      logEvent('warn', 'queue.whatsapp', {
+        status: 'rejected',
+        reason: `media_${media.reason}`,
+        tenant_id: tenantId,
+      });
+      return { outcome: 'failed', error: 'Média refusé ou injoignable' };
+    }
   }
 
   // ── 4. Instance Evolution ─────────────────────────────────────────────────
@@ -123,15 +127,17 @@ export async function handleWhatsAppSend(job: Job): Promise<HandlerResult> {
 
   try {
     const endpoint = payload.media_url ? 'sendMedia' : 'sendText';
-    const body = payload.media_url
-      ? {
-          number: phone,
-          mediatype: guessMediaType(payload.media_url),
-          media: payload.media_url,
-          fileName: guessFileName(payload.media_url),
-          caption: varied,
-        }
-      : { number: phone, text: varied };
+    const body =
+      payload.media_url && media?.ok
+        ? {
+            number: phone,
+            mediatype: guessMediaType(payload.media_url),
+            media: media.media,
+            ...(media.mimetype ? { mimetype: media.mimetype } : {}),
+            fileName: guessFileName(payload.media_url),
+            caption: varied,
+          }
+        : { number: phone, text: varied };
 
     const res = await fetch(`${ev.url}/message/${endpoint}/${inst.instance_name}`, {
       method: 'POST',
