@@ -1,3 +1,6 @@
+import { logEvent } from '@/lib/security/safe-log';
+import { getTenantSettings } from '@/lib/queue/repository';
+import { circuitState } from '@/lib/queue/circuit-breaker';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
@@ -18,6 +21,8 @@ export const maxDuration = 60;
 
 /** Budget applicatif : on n'entame pas un envoi qui risquerait d'être coupé. */
 const SEND_BUDGET_MS = 45_000;
+/** Fenêtre anti-doublon : même destinataire + même colis déjà envoyé. */
+const RECENT_DUP_MS = 10 * 60_000;
 /** Marge pour l'appel Evolution et l'écriture du journal après l'attente. */
 const SEND_RESERVE_MS = 8_000;
 
@@ -148,7 +153,7 @@ export async function POST(request: NextRequest) {
 
   const supabase = createServiceClient();
   const body = await request.json();
-  const { recipients } = body;
+  let { recipients } = body;
 
   if (!Array.isArray(recipients) || recipients.length === 0) {
     return NextResponse.json({ error: 'Aucun destinataire' }, { status: 400 });
@@ -172,6 +177,71 @@ export async function POST(request: NextRequest) {
       },
       { status: 503 }
     );
+  }
+
+  // ── Circuit breaker du TENANT (celui de la file : ouvert après des échecs
+  // consécutifs, session morte…). L'envoi manuel ne le contournait pas
+  // seulement par lot : il l'ignorait. Illisible → on continue (le circuit
+  // par lot ci-dessous reste actif).
+  let tenantCircuit: ReturnType<typeof circuitState> | null = null;
+  try {
+    tenantCircuit = circuitState(await getTenantSettings(supabase, user.id));
+  } catch {
+    tenantCircuit = null;
+  }
+  if (tenantCircuit?.open) {
+    return NextResponse.json(
+      {
+        error: 'Envois suspendus temporairement après plusieurs échecs (protection du numéro)',
+        code: 'CIRCUIT_OPEN',
+        retryAt: tenantCircuit.until?.toISOString() ?? null,
+        sent: 0,
+        failed: 0,
+        results: [],
+      },
+      { status: 503 }
+    );
+  }
+
+  // ── ANTI-DOUBLON : même destinataire + même colis ──────────────────────
+  // (1) deux fois dans la même sélection ; (2) déjà envoyé il y a moins de
+  // RECENT_DUP_MS (double clic, deux onglets, nouvel essai après délai). Ces
+  // destinataires sont écartés AVANT le calcul du quota : ni envoyés, ni
+  // journalisés, renvoyés au client dans `duplicates`.
+  const recentSince = new Date(Date.now() - RECENT_DUP_MS).toISOString();
+  const { data: recentRows } = await supabase
+    .from('messages')
+    .select('customer_whatsapp, tracking_number')
+    .eq('user_id', user.id)
+    .eq('status', 'envoye')
+    .gte('sent_at', recentSince);
+  const dupKey = (phone: string, tracking: unknown) =>
+    `${normalizePhone(phone || '')}|${typeof tracking === 'string' ? tracking : ''}`;
+  const alreadySent = new Set(
+    (recentRows ?? []).map((m: { customer_whatsapp: string; tracking_number: string | null }) =>
+      dupKey(m.customer_whatsapp, m.tracking_number)
+    )
+  );
+  const seen = new Set<string>();
+  const duplicates: Array<{ tracking: string; client: string }> = [];
+  const uniqueRecipients = (recipients as Array<Record<string, string>>).filter((r) => {
+    const key = dupKey(r?.whatsapp, r?.tracking);
+    if (alreadySent.has(key) || seen.has(key)) {
+      duplicates.push({ tracking: r?.tracking, client: r?.client });
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+  recipients = uniqueRecipients;
+  if (recipients.length === 0) {
+    return NextResponse.json({
+      sent: 0,
+      failed: 0,
+      results: [],
+      duplicates,
+      hint: 'Déjà envoyé récemment à ces destinataires — rien renvoyé.',
+    });
   }
 
   // ── ANTI-SPAM : plafond journalier glissant ─────────────────────────────
@@ -303,10 +373,19 @@ export async function POST(request: NextRequest) {
 
   const sent = results.filter((r) => r.status === 'envoye').length;
   const failed = results.filter((r) => r.status === 'echec').length;
+  logEvent('info', 'whatsapp.manual_send', {
+    event: 'batch',
+    tenant_id: user.id,
+    status: circuitBroken ? 'circuit_broken' : sessionDeadDetected ? 'session_dead' : 'done',
+    total: recipients.length,
+    count: sent,
+    elapsed_ms: Date.now() - startedAt,
+  });
   return NextResponse.json({
     sent,
     failed,
     results,
+    ...(duplicates.length > 0 && { duplicates }),
     sentToday: (sentToday ?? 0) + sent,
     dailyLimit,
     ...(skippedForQuota > 0 && { skippedForQuota }),

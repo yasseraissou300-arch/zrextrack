@@ -47,7 +47,12 @@ beforeEach(() => {
   sends.length = 0;
   vi.stubGlobal('fetch', fetchMock);
   db.seed('public', 'whatsapp_instances', [
-    { user_id: TENANT, service_type: 'auto_confirmation', instance_name: 'zrex_111111111111_auto', connected: true },
+    {
+      user_id: TENANT,
+      service_type: 'auto_confirmation',
+      instance_name: 'zrex_111111111111_auto',
+      connected: true,
+    },
   ]);
 });
 
@@ -155,5 +160,62 @@ describe('sélection « Renvoyer les échecs »', () => {
 
   it('garde un échec récent jamais renvoyé', () => {
     expect(selectResendable([row({})], now)).toHaveLength(1);
+  });
+});
+
+async function sendList(list: unknown[]) {
+  const { POST } = await import('@/app/api/whatsapp/send/route');
+  const res = await POST(
+    new NextRequest('https://app.test/api/whatsapp/send', {
+      method: 'POST',
+      body: JSON.stringify({ recipients: list }),
+    })
+  );
+  return { status: res.status, json: await res.json() };
+}
+
+describe('anti-doublon et circuit du tenant (envoi manuel)', () => {
+  it('même numéro + même colis deux fois dans la sélection → UN seul envoi', async () => {
+    const r = recipients(1)[0];
+    const { json } = await sendList([r, { ...r, whatsapp: '+213 550 000 000' }]);
+    expect(sends).toHaveLength(1);
+    expect(json.duplicates).toHaveLength(1);
+  });
+
+  it('déjà envoyé il y a 2 min (double clic / autre onglet) → rien renvoyé', async () => {
+    const r = recipients(1)[0];
+    db.seed('public', 'messages', [
+      {
+        user_id: TENANT,
+        customer_whatsapp: r.whatsapp,
+        tracking_number: r.tracking,
+        status: 'envoye',
+        sent_at: new Date(Date.now() - 2 * 60_000).toISOString(),
+      },
+    ]);
+    const { status, json } = await sendList([r]);
+    expect(status).toBe(200);
+    expect(sends).toHaveLength(0);
+    expect(json.duplicates).toHaveLength(1);
+  });
+
+  it('même numéro, AUTRE colis → envoyé (message différent légitime)', async () => {
+    const [a] = recipients(1);
+    await sendList([a, { ...a, tracking: 'TRK-AUTRE' }]);
+    expect(sends).toHaveLength(2);
+  });
+
+  it('circuit du tenant ouvert (file) → 503, aucun appel Evolution', async () => {
+    db.seed('autotim', 'tenant_settings', [
+      {
+        tenant_id: TENANT,
+        consecutive_send_failures: 5,
+        circuit_open_until: new Date(Date.now() + 30 * 60_000).toISOString(),
+      },
+    ]);
+    const { status, json } = await sendList(recipients(2));
+    expect(status).toBe(503);
+    expect(json.code).toBe('CIRCUIT_OPEN');
+    expect(sends).toHaveLength(0);
   });
 });
