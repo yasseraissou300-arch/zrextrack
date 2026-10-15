@@ -21,6 +21,7 @@ import { effectiveDailyLimit, remainingDailyQuota } from '@/lib/whatsapp/anti-sp
 import { enqueue } from '@/lib/queue/repository';
 import { campaignDispatchKey } from '@/lib/queue/idempotency';
 import { logEvent } from '@/lib/security/safe-log';
+import { relaunchPreview, relaunchConfirmed } from '@/lib/campaigns/relaunch-preview';
 
 // maxDuration = 300 retiré : la route ne fait plus d'envoi, elle enfile.
 // Le défaut de 10 s suffit largement.
@@ -88,7 +89,7 @@ async function getReadyInstance(
   return { instance: row as Instance };
 }
 
-export async function POST(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
   const supabaseAuth = await createClient();
@@ -143,6 +144,34 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
   const dailyLimit = effectiveDailyLimit(warmupStartedAt);
   const remainingToday = remainingDailyQuota(sentToday ?? 0, warmupStartedAt);
 
+  // ── Renvoi : confirmation explicite obligatoire ──────────────────────────
+  // Un renvoi peut contacter des clients jamais visés au premier envoi
+  // (audience recalculée depuis orders). Rien n'est enfilé sans que le
+  // marchand ait vu et confirmé le chiffre exact de l'audience.
+  const isRelaunch = campaign.status === 'termine' || campaign.status === 'annule';
+  if (isRelaunch) {
+    const preview = await relaunchPreview(supabase, user.id, campaign);
+    if (!preview) {
+      return NextResponse.json(
+        { error: 'Aperçu du renvoi indisponible — réessaie.' },
+        { status: 503 }
+      );
+    }
+    const body = await request.json().catch(() => null);
+    if (!relaunchConfirmed(body, preview)) {
+      return NextResponse.json(
+        {
+          error: 'Confirmation requise avant de renvoyer cette campagne.',
+          code: 'RELAUNCH_CONFIRMATION_REQUIRED',
+          preview,
+          dailyLimit,
+          remainingToday,
+        },
+        { status: 409 }
+      );
+    }
+  }
+
   // ── Enfilement ────────────────────────────────────────────────────────────
   // Passage à « en_cours » ATOMIQUE : deux clics simultanés ne lancent pas
   // deux chaînes de dispatch.
@@ -160,7 +189,6 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
   // Un identifiant par lancement : un renvoi n'est plus dédupliqué contre le
   // premier envoi (voir campaignDispatchKey). Les destinataires déjà servis
   // restent exclus par leur propre clé.
-  const isRelaunch = campaign.status === 'termine' || campaign.status === 'annule';
   const run = isRelaunch ? `r${Date.now()}` : undefined;
 
   await enqueue(supabase, {
