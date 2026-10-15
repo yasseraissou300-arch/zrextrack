@@ -53,7 +53,7 @@ beforeEach(() => {
   );
   vi.spyOn(console, 'info').mockImplementation(() => {});
   db.seed('public', 'whatsapp_instances', [
-    { user_id: TENANT, service_type: 'auto_confirmation', instance_name: 'inst', connected: true },
+    { user_id: TENANT, service_type: 'auto_confirmation', instance_name: 'zrex_111111111111_auto', connected: true },
   ]);
   db.seed('public', 'profiles', [{ id: TENANT, whatsapp_warmup_started_at: null }]);
 });
