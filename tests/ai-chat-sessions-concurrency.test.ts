@@ -89,7 +89,7 @@ function inbound(text: string, opts: { contact?: string; instance?: string; id?:
     method: 'POST',
     body: JSON.stringify({
       event: 'messages.upsert',
-      instance: opts.instance ?? 'zrex_t1_auto',
+      instance: opts.instance ?? 'zrex_111111111111_auto',
       data: {
         key: {
           remoteJid: opts.contact ?? C1,
@@ -131,8 +131,8 @@ beforeEach(() => {
   vi.spyOn(console, 'warn').mockImplementation(() => {});
   vi.spyOn(console, 'error').mockImplementation(() => {});
   db.seed('public', 'whatsapp_instances', [
-    { user_id: T1, service_type: 'auto_confirmation', instance_name: 'zrex_t1_auto' },
-    { user_id: T2, service_type: 'auto_confirmation', instance_name: 'zrex_t2_auto' },
+    { user_id: T1, service_type: 'auto_confirmation', instance_name: 'zrex_111111111111_auto' },
+    { user_id: T2, service_type: 'auto_confirmation', instance_name: 'zrex_222222222222_auto' },
   ]);
   const cfg = {
     template_type: 'auto_confirmation',
@@ -288,7 +288,7 @@ describe('parcours normal et isolation', () => {
 
   it('même contact chez deux tenants : chaque tenant n’écrit que sa session', async () => {
     seedSession({}, T2, C1);
-    await Promise.all([post('pour T1'), post('pour T2', { instance: 'zrex_t2_auto' })]);
+    await Promise.all([post('pour T1'), post('pour T2', { instance: 'zrex_222222222222_auto' })]);
     expect(userTurns(session(T1, C1))).toEqual(['pour T1']);
     expect(userTurns(session(T2, C1))).toEqual(['nheb montre', 'pour T2']);
   });
