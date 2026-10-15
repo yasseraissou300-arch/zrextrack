@@ -47,7 +47,7 @@ const SAFE_LINE =
 // Routes couvertes par CETTE PR. Les autres routes sont corrigées par leurs
 // propres PR (#104, #110, #111, #117, #118, #120, #124 ; resolve et
 // orders/deleted : commit ajouté sur #104 et #110) ; restant connu, documenté :
-// campaigns/[id]/send, qui dépend de la chaîne #127/#128 (bloquée par décision).
+// aucun (campaigns/[id]/send corrigé ici).
 const COVERED = new Set(
   [
     'admin/users',
@@ -59,6 +59,7 @@ const COVERED = new Set(
     'autoswap/execute',
     'autoswap/preview',
     'autoswap/swapped-stats',
+    'campaigns/[id]/send',
     'campaigns/delivered-customers',
     'stats',
     'sync-zrexpress',
