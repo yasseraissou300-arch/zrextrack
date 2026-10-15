@@ -1,5 +1,6 @@
 import { ownedInstance } from '@/lib/whatsapp/instance-ownership';
 import { NextRequest, NextResponse } from 'next/server';
+import { internalErrorResponse } from '@/lib/security/public-error';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { mapStatus } from '@/lib/zrexpress/status';
 import { fetchAllParcels } from '@/lib/zrexpress/parcels';
@@ -427,7 +428,7 @@ export async function POST(request: NextRequest) {
       .upsert(rows, { onConflict: 'user_id,tracking_number', count: 'exact' });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return internalErrorResponse('api.sync-zrexpress', error, 500);
     }
 
     // 5. Notifications WhatsApp — FILE D'ATTENTE (anti-ban).
@@ -472,6 +473,6 @@ export async function POST(request: NextRequest) {
       ...(quotaState && !quotaState.isUnlimited && { quota: quotaState }),
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return internalErrorResponse('api.sync-zrexpress', err, 500);
   }
 }

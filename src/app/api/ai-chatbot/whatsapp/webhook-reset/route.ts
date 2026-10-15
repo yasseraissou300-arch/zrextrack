@@ -40,8 +40,8 @@ async function postJson(
     });
     const text = await res.text().catch(() => '');
     return { status: res.status, text };
-  } catch (e) {
-    return { status: 0, text: e instanceof Error ? e.message : String(e) };
+  } catch {
+    return { status: 0, text: 'network_error' };
   }
 }
 

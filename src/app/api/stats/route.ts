@@ -1,3 +1,4 @@
+import { internalErrorResponse } from '@/lib/security/public-error';
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 
@@ -97,6 +98,6 @@ export async function GET() {
       last7days,
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return internalErrorResponse('api.stats', err, 500);
   }
 }

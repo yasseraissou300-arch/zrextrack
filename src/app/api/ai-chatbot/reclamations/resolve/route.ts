@@ -85,8 +85,8 @@ async function sendWhatsAppViaSAV(
       return { ok: false, reason: `Evolution HTTP ${res.status}: ${errText.slice(0, 120)}` };
     }
     return { ok: true };
-  } catch (e: any) {
-    return { ok: false, reason: e?.message || 'Erreur réseau Evolution' };
+  } catch {
+    return { ok: false, reason: 'Erreur réseau Evolution' };
   }
 }
 

@@ -82,8 +82,8 @@ async function getReadyInstance(
           reason: `WhatsApp non connecté (état Evolution : ${j.instance?.state || j.state || 'inconnu'})`,
         };
     }
-  } catch (e: any) {
-    return { instance: null, reason: `Evolution injoignable : ${e?.message || 'erreur réseau'}` };
+  } catch {
+    return { instance: null, reason: 'Evolution injoignable : erreur réseau' };
   }
   return { instance: row };
 }
@@ -124,8 +124,8 @@ async function sendOne(
       };
     }
     return { ok: true };
-  } catch (e: any) {
-    return { ok: false, error: e?.message || 'Erreur réseau Evolution' };
+  } catch {
+    return { ok: false, error: 'Erreur réseau Evolution' };
   }
 }
 

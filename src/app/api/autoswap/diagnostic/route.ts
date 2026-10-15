@@ -1,3 +1,4 @@
+import { internalErrorResponse } from '@/lib/security/public-error';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { fetchAllParcels } from '@/lib/zrexpress/parcels';
@@ -172,6 +173,6 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || 'Erreur diagnostic' }, { status: 500 });
+    return internalErrorResponse('api.autoswap.diagnostic', err, 500, 'Erreur diagnostic');
   }
 }

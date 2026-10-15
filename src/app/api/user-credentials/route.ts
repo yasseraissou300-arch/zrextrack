@@ -1,3 +1,4 @@
+import { internalErrorResponse } from '@/lib/security/public-error';
 // CRUD des clés API par utilisateur — alimente la page /parametres/api-keys
 // GET   → liste toutes les credentials de l'utilisateur courant (sans la clé brute)
 // POST  → upsert d'une credential (user_id + service + valeurs)
@@ -133,6 +134,6 @@ export async function DELETE(request: NextRequest) {
     .eq('user_id', user.id)
     .eq('service', service);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalErrorResponse('api.user-credentials', error, 500);
   return NextResponse.json({ ok: true });
 }
