@@ -1,3 +1,4 @@
+import { internalErrorResponse } from '@/lib/security/public-error';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
@@ -125,7 +126,7 @@ export async function POST(req: NextRequest) {
       .select(INSTANCE_PUBLIC_COLUMNS)
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return internalErrorResponse('api.ai-chatbot.whatsapp.instance', error, 500);
     return NextResponse.json({ ok: true, instance: data });
   }
 

@@ -37,16 +37,85 @@ export interface LogFields {
   [k: string]: unknown;
 }
 
+// LOG-6 : liste BLANCHE des champs émis. Avant, le commentaire affirmait
+// « seuls les champs listés sont émis » mais le type acceptait n'importe quelle
+// clé (`[k: string]: unknown`) : un appelant passant `phone`, `email` ou un
+// corps de réponse le journalisait tel quel. Liste établie à partir de toutes
+// les clés réellement utilisées (main + PR ouvertes, 2026-10-14).
+const ALLOWED_FIELDS = new Set([
+  'event',
+  'tenant_id',
+  'instance',
+  'conversation_id',
+  'message_id',
+  'status',
+  'error_code',
+  'reason',
+  'contact',
+  'worker',
+  'elapsed_ms',
+  'enqueued',
+  'recovered',
+  'scheduled',
+  'total',
+  'offset',
+  'synced',
+  'notifications',
+  'count',
+  'ref',
+  'attempt',
+  'http_status',
+  'flow',
+  'channel',
+  'job_id',
+  'job_type',
+]);
+
+/** Champs texte libres : bornés et assainis (LOG-2 : err.message brut). */
+const FREE_TEXT_FIELDS = new Set(['reason', 'error_code', 'event', 'flow']);
+const MAX_FREE_TEXT = 200;
+
+/** Numéros (≥ 9 chiffres), emails, `key=` / `token=` d'URL → masqués. */
+export function redactFreeText(value: string): string {
+  return value
+    .slice(0, MAX_FREE_TEXT)
+    .replace(/([?&](?:key|token|apikey|access_token)=)[^&\s"']+/gi, '$1••••')
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[email]')
+    .replace(/\+?\d[\d\s.-]{7,}\d/g, (m) => (m.replace(/\D/g, '').length >= 9 ? '[num]' : m));
+}
+
+function sanitizeFields(fields: LogFields): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  const dropped: string[] = [];
+  for (const [k, v] of Object.entries(fields)) {
+    if (v === undefined) continue;
+    if (!ALLOWED_FIELDS.has(k)) {
+      dropped.push(k);
+      continue;
+    }
+    if (k === 'contact' && typeof v === 'string' && /\d{7,}/.test(v.replace(/\D/g, ''))) {
+      // Contact jamais en clair, même si l'appelant a oublié maskPhone.
+      out[k] = v.includes('***') ? v : maskPhone(v);
+      continue;
+    }
+    out[k] = FREE_TEXT_FIELDS.has(k) && typeof v === 'string' ? redactFreeText(v) : v;
+  }
+  if (dropped.length) out.dropped_keys = dropped.sort();
+  return out;
+}
+
 /**
  * Log structuré à champ unique (JSON) — exploitable par n'importe quel
- * agrégateur, et sûr par construction : seuls les champs listés sont émis.
+ * agrégateur, et sûr par construction : seuls les champs de la liste blanche
+ * sont émis (les autres sont signalés par leur NOM dans `dropped_keys`), les
+ * champs texte libres sont bornés et assainis, `contact` est toujours masqué.
  */
 export function logEvent(level: LogLevel, scope: string, fields: LogFields): void {
   const payload = {
     ts: new Date().toISOString(),
     level,
     scope,
-    ...fields,
+    ...sanitizeFields(fields),
   };
   const line = JSON.stringify(payload);
   if (level === 'error') console.error(line);

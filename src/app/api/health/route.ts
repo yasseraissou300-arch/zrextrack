@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
+import { logEvent } from '@/lib/security/safe-log';
 
 // Endpoint public de supervision (pour UptimeRobot ou tout autre moniteur).
 //
@@ -23,17 +24,23 @@ export async function GET() {
     // Requête la moins chère possible : un count sur `plans` (3 lignes),
     // head:true → aucune donnée transférée.
     const { error } = await supabase.from('plans').select('id', { count: 'exact', head: true });
-    if (error) throw new Error(error.message);
+    if (error) {
+      // Endpoint PUBLIC : jamais le message brut (URL / hôte interne, détails
+      // Postgres). Le code seul va au journal.
+      logEvent('error', 'api.health', { status: 'db_down', error_code: error.code });
+      return NextResponse.json({ status: 'error', db: 'down' }, { status: 503 });
+    }
 
     return NextResponse.json({
       status: 'ok',
       db: 'up',
       time: new Date().toISOString(),
     });
-  } catch (e: any) {
-    return NextResponse.json(
-      { status: 'error', db: 'down', detail: e?.message || 'inconnu' },
-      { status: 503 }
-    );
+  } catch (e: unknown) {
+    logEvent('error', 'api.health', {
+      status: 'db_down',
+      error_code: e instanceof Error ? e.name : 'unknown',
+    });
+    return NextResponse.json({ status: 'error', db: 'down' }, { status: 503 });
   }
 }
