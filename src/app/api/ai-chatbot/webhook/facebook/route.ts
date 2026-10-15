@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { commitSession } from '@/lib/ai-chatbot/session-store';
 import { createServiceClient } from '@/lib/supabase/server';
 import { resolveGeminiKeys } from '@/lib/user-creds';
+import { verifyMetaSignature } from '@/lib/security/webhook-auth';
+import {
+  correctionReply,
+  groundExtracted,
+  isExtractionComplete,
+  sanitizeExtracted,
+  toSheetRow,
+} from '@/lib/ai-chatbot/extraction';
+import { isReplayDurable, isStaleEvent } from '@/lib/security/replay-store';
+import { logEvent } from '@/lib/security/safe-log';
 
 const DEFAULT_PROMPT = `Nta agent IA l [NOM_BOUTIQUE].
 Jme3 les informations li la7jinhom bach ntabet la commande:
@@ -115,8 +126,23 @@ export async function GET(req: NextRequest) {
 
 // POST — Facebook Messenger incoming messages (multi-tenant by page_id)
 export async function POST(req: NextRequest) {
+  // Corps BRUT d'abord : la signature Meta porte sur les octets reçus, pas sur
+  // un JSON re-sérialisé.
+  const rawBody = await req.text();
+  const sig = verifyMetaSignature(rawBody, req.headers.get('x-hub-signature-256'));
+  if (!sig.ok) {
+    logEvent('warn', 'webhook.facebook', { status: 'rejected', reason: sig.reason });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: sig.status });
+  }
+  if (sig.mode === 'unenforced') {
+    logEvent('warn', 'webhook.facebook', {
+      status: 'unauthenticated_accepted',
+      reason: 'FACEBOOK_APP_SECRET non défini — signature non vérifiée',
+    });
+  }
+
   try {
-    const body = await req.json();
+    const body = JSON.parse(rawBody);
     if (body.object !== 'page')
       return NextResponse.json({ error: 'Not a page event' }, { status: 400 });
 
@@ -150,6 +176,15 @@ export async function POST(req: NextRequest) {
       for (const event of entry.messaging ?? []) {
         if (!event.message?.text || event.message.is_echo) continue;
 
+        // Meta relivre un événement si la réponse tarde (appel Gemini) ou
+        // n'est pas 200 : sans ce filtre, l'IA répondait deux fois.
+        const mid: string = event.message.mid || '';
+        // Fenêtre de rejeu (horodatage Meta en ms) puis store DURABLE : efficace
+        // entre instances Vercel et après un démarrage à froid.
+        if (isStaleEvent(typeof event.timestamp === 'number' ? event.timestamp / 1000 : undefined))
+          continue;
+        if (mid && (await isReplayDurable(supabase, `fb:${pageId}:${mid}`))) continue;
+
         const senderId: string = event.sender.id;
         const text: string = event.message.text;
 
@@ -177,53 +212,79 @@ export async function POST(req: NextRequest) {
           .eq('contact_id', senderId)
           .single();
 
-        const conversation: AIMessage[] = session?.conversation ?? [];
-        conversation.push({ role: 'user', content: text });
+        // COPIE : la session lue sert de base à la fusion en cas de conflit.
+        const conversation: AIMessage[] = [
+          ...(session?.conversation ?? []),
+          { role: 'user', content: text },
+        ];
 
         const aiReply = await callGeminiPool(geminiKeys, systemPrompt, conversation);
         if (!aiReply) continue;
 
+        // Sortie du modèle = donnée NON fiable — même validation que WhatsApp
+        // (src/lib/ai-chatbot/extraction.ts).
         const extracted = extractData(aiReply);
-        const cleanReply = stripDataTag(aiReply);
-        conversation.push({ role: 'assistant', content: aiReply });
-
-        const newData = extracted
-          ? { ...(session?.extracted_data ?? {}), ...extracted }
-          : (session?.extracted_data ?? {});
-        const isComplete = !!extracted && Object.keys(extracted).length >= 3;
-
-        await supabase.from('ai_chat_sessions').upsert(
-          {
-            user_id: userId,
-            channel: 'facebook',
-            contact_id: senderId,
-            template_type: config?.template_type ?? 'auto_confirmation',
-            conversation,
-            extracted_data: newData,
-            is_complete: isComplete,
-            sheets_sent: session?.sheets_sent ?? false,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'user_id,channel,contact_id' }
+        const templateType: string = config?.template_type ?? 'auto_confirmation';
+        const customPrompt = !!config?.custom_prompt?.trim();
+        // Téléphone ancré : il doit figurer dans un message du client. L'identifiant
+        // Messenger (PSID) n'est pas un numéro : aucun repli sur l'expéditeur.
+        const customerTexts = conversation.filter((m) => m.role === 'user').map((m) => m.content);
+        const current = groundExtracted(sanitizeExtracted(extracted), customerTexts, '');
+        // Écriture concurrente-sûre : tour recalculé sur l'état FRAIS si un autre
+        // message a été enregistré pendant la génération (session-store.ts).
+        // `sheets_sent` jamais réécrit depuis une lecture périmée (défaut : false).
+        const commit = await commitSession(
+          supabase,
+          { userId, channel: 'facebook', contactId: senderId },
+          session ?? null,
+          (fresh) => {
+            const existingData: Record<string, string> = fresh?.extracted_data ?? {};
+            const newData = extracted
+              ? sanitizeExtracted({ ...existingData, ...current.data }).data
+              : existingData;
+            const check = { templateType, customPrompt, current, merged: newData };
+            const isComplete = !!extracted && isExtractionComplete(check);
+            const correction = extracted && !isComplete ? correctionReply(check) : null;
+            return {
+              patch: {
+                template_type: templateType,
+                conversation: [
+                  ...(fresh?.conversation ?? []),
+                  { role: 'user', content: text },
+                  { role: 'assistant', content: correction ?? aiReply },
+                ],
+                extracted_data: newData,
+                is_complete: isComplete,
+              },
+              result: { newData, isComplete, cleanReply: correction ?? stripDataTag(aiReply) },
+            };
+          }
         );
+        const { newData, isComplete, cleanReply } = commit.result;
 
-        if (isComplete && !session?.sheets_sent && config?.google_sheets_url) {
-          await fetch(config.google_sheets_url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: config.template_type,
-              timestamp: new Date().toISOString(),
-              source: 'facebook_ai',
-              ...newData,
-            }),
-          }).catch(() => {});
-          await supabase
+        // Prise atomique : une seule ligne dans le Sheet par commande, même si
+        // deux messages du client sont traités en parallèle.
+        if (isComplete && commit.ok && config?.google_sheets_url) {
+          const { data: claimed } = await supabase
             .from('ai_chat_sessions')
             .update({ sheets_sent: true })
             .eq('user_id', userId)
             .eq('channel', 'facebook')
-            .eq('contact_id', senderId);
+            .eq('contact_id', senderId)
+            .eq('sheets_sent', false)
+            .select('id');
+          if (Array.isArray(claimed) && claimed.length === 1) {
+            await fetch(config.google_sheets_url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type: templateType,
+                timestamp: new Date().toISOString(),
+                source: 'facebook_ai',
+                ...toSheetRow(newData),
+              }),
+            }).catch(() => {});
+          }
         }
 
         if (cleanReply) await sendFBMessage(pageToken, senderId, cleanReply);

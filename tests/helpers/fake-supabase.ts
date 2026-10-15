@@ -2,7 +2,7 @@
 //
 // Reproduit le sous-ensemble de l'API PostgREST réellement utilisé par
 // src/lib/queue/** et ses dépendances (plan-quotas, message-builder) :
-//   .schema() .from() .select() .insert() .upsert() .update()
+//   .schema() .from() .select() .insert() .upsert() .update() .delete()
 //   .eq() .neq() .in() .gte() .lte() .lt() .gt() .is() .not()
 //   .order() .limit() .range() .maybeSingle() .single()  + thenable
 //
@@ -37,11 +37,16 @@ interface Order {
   ascending: boolean;
 }
 
-type Op = 'select' | 'insert' | 'upsert' | 'update';
+type Op = 'select' | 'insert' | 'upsert' | 'update' | 'delete';
 
 const JOB_STATUSES = new Set(['pending', 'running', 'done', 'failed', 'dead']);
 const JOB_TYPES = new Set(['zrexpress.sync', 'whatsapp.send', 'campaign.dispatch']);
 const SYNC_SOURCES = new Set(['client', 'server', 'both']);
+
+/** Contraintes UNIQUE des tables public utilisées par les tests (hors PK). */
+const UNIQUE_KEYS: Record<string, string[]> = {
+  'public.ai_chat_sessions': ['user_id', 'channel', 'contact_id'],
+};
 
 function key(schema: string, table: string): string {
   return `${schema}.${table}`;
@@ -73,7 +78,7 @@ function chk(name: string): PgError {
 /** Valeurs par défaut (DEFAULT ...) des tables autotim. */
 function applyDefaults(fullTable: string, row: Row): Row {
   const now = new Date().toISOString();
-  const base: Row = { ...row };
+  const base: Row = structuredClone(row); // copie profonde : JSONB jamais partagé avec l’appelant
   if (base.id === undefined) base.id = randomUUID();
   if (base.created_at === undefined) base.created_at = now;
   if (base.updated_at === undefined) base.updated_at = now;
@@ -88,6 +93,17 @@ function applyDefaults(fullTable: string, row: Row): Row {
     base.locked_by ??= null;
     base.last_error ??= null;
     base.idempotency_key ??= null;
+  }
+  if (fullTable === 'public.ai_chat_sessions') {
+    // Défauts de supabase_aichatbot_full.sql
+    base.conversation ??= [];
+    base.extracted_data ??= {};
+    base.is_complete ??= false;
+    base.sheets_sent ??= false;
+    base.human_handover ??= false;
+    base.failure_count ??= 0;
+    base.tokens_used ??= 0;
+    base.relance_sent ??= false;
   }
   if (fullTable === 'autotim.tenant_settings') {
     delete base.id; // PK = tenant_id
@@ -137,6 +153,8 @@ export class FakeSupabase {
   private pendingErrors: Array<{ table: string; op: Op; error: PgError }> = [];
   /** Journal de toutes les écritures — utile pour les assertions d'isolation. */
   readonly writes: Array<{ table: string; op: Op; rows: Row[] }> = [];
+  /** Simule `db-max-rows` de PostgREST (1 000 sur Supabase). null = illimité. */
+  maxRows: number | null = null;
 
   // ── API publique de test ───────────────────────────────────────────────────
 
@@ -241,6 +259,10 @@ class Builder implements PromiseLike<{ data: any; error: PgError | null; count: 
     this.payload = patch;
     return this;
   }
+  delete() {
+    this.op = 'delete';
+    return this;
+  }
   eq(col: string, val: any) {
     this.filters.push({ kind: 'eq', col, val });
     return this;
@@ -324,6 +346,8 @@ class Builder implements PromiseLike<{ data: any; error: PgError | null; count: 
         return this.finish(this.runInsert(true));
       case 'update':
         return this.finish(this.runUpdate());
+      case 'delete':
+        return this.finish(this.runDelete());
     }
   }
 
@@ -348,6 +372,7 @@ class Builder implements PromiseLike<{ data: any; error: PgError | null; count: 
     if (this.lim != null) rows = rows.slice(0, this.lim);
 
     if (this.countMode && this.headMode) return { data: null, error: null, count: rows.length };
+    if (this.db.maxRows != null) rows = rows.slice(0, this.db.maxRows);
     return this.shape(rows.map((r) => ({ ...r })));
   }
 
@@ -364,7 +389,11 @@ class Builder implements PromiseLike<{ data: any; error: PgError | null; count: 
       const row = applyDefaults(this.table, raw);
 
       // Unicité — index jobs_idempotency_uniq (non partiel) + clé de conflit.
-      const conflictIdx = this.findConflict(store, row, conflictCols);
+      const conflictIdx = this.findConflict(
+        store,
+        row,
+        conflictCols ?? UNIQUE_KEYS[this.table] ?? null
+      );
       if (conflictIdx >= 0) {
         if (!upsert || !conflictCols) {
           return {
@@ -373,7 +402,11 @@ class Builder implements PromiseLike<{ data: any; error: PgError | null; count: 
           };
         }
         if (this.upsertOpts.ignoreDuplicates) continue; // ON CONFLICT DO NOTHING
-        const merged = { ...store[conflictIdx], ...raw, updated_at: new Date().toISOString() };
+        const merged = {
+          ...store[conflictIdx],
+          ...structuredClone(raw),
+          updated_at: new Date().toISOString(),
+        };
         const err = checkConstraints(this.table, merged);
         if (err) return { rows: [], error: err };
         store[conflictIdx] = merged;
@@ -409,7 +442,7 @@ class Builder implements PromiseLike<{ data: any; error: PgError | null; count: 
     const out: Row[] = [];
     for (const t of targets) {
       const idx = store.indexOf(t);
-      const merged = { ...t, ...patch };
+      const merged = { ...t, ...structuredClone(patch) };
       const err = checkConstraints(this.table, merged);
       if (err) return { rows: [], error: err };
       store[idx] = merged;
@@ -419,13 +452,28 @@ class Builder implements PromiseLike<{ data: any; error: PgError | null; count: 
     return { rows: out, error: null };
   }
 
+  private runDelete(): { rows: Row[]; error: PgError | null } {
+    const store = this.db.rows(this.table);
+    const targets = new Set(this.filtered());
+    const kept = store.filter((r) => !targets.has(r));
+    store.length = 0;
+    store.push(...kept);
+    const out = [...targets];
+    this.db.writes.push({ table: this.table, op: 'delete', rows: out });
+    return { rows: out, error: null };
+  }
+
   private finish(r: { rows: Row[]; error: PgError | null }) {
     if (r.error) return { data: null, error: r.error, count: null };
     if (!this.wantRows) return { data: null, error: null, count: null };
-    return this.shape(r.rows.map((x) => ({ ...x })));
+    return this.shape(r.rows.map((x) => structuredClone(x)));
   }
 
-  private shape(rows: Row[]) {
+  private shape(input: Row[]) {
+    // Copie PROFONDE : un appelant qui mute un tableau lu (conversation) ne
+    // doit pas modifier la base simulée — sinon les tests de concurrence
+    // verraient des écritures « fantômes ».
+    const rows = input.map((r) => structuredClone(r));
     if (this.singleMode === 'maybe') {
       if (rows.length > 1) {
         return {
