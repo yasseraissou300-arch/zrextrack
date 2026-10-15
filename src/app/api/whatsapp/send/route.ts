@@ -1,3 +1,4 @@
+import { ownedInstance } from '@/lib/whatsapp/instance-ownership';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
@@ -8,6 +9,7 @@ import {
   varyMessage,
   remainingDailyQuota,
 } from '@/lib/whatsapp/anti-spam';
+import { evolutionErrorMessage } from '@/lib/whatsapp/evolution-error';
 
 // Envoie un message WhatsApp via Evolution API en utilisant l'instance
 // « auto_confirmation » de l'utilisateur (la même que celle de l'onglet
@@ -51,12 +53,14 @@ async function getReadyInstance(
     };
   }
   const service = createServiceClient();
-  const { data: row } = await service
+  const { data: rowRow } = await service
     .from('whatsapp_instances')
     .select('instance_name, connected')
     .eq('user_id', userId)
     .eq('service_type', DEFAULT_SERVICE)
     .single();
+  // RLS-TENANT-001 : jamais d'action Evolution sur un nom hors de l'espace du tenant.
+  const row = ownedInstance(userId, rowRow, 'whatsapp.send');
 
   if (!row)
     return {
@@ -79,8 +83,8 @@ async function getReadyInstance(
           reason: `WhatsApp non connecté (état Evolution : ${j.instance?.state || j.state || 'inconnu'})`,
         };
     }
-  } catch (e: any) {
-    return { instance: null, reason: `Evolution injoignable : ${e?.message || 'erreur réseau'}` };
+  } catch {
+    return { instance: null, reason: 'Evolution injoignable : erreur réseau' };
   }
   return { instance: row };
 }
@@ -116,13 +120,13 @@ async function sendOne(
         ok: false,
         error: dead
           ? 'Session WhatsApp expirée (Connection Closed) — reconnecte le QR'
-          : `Evolution HTTP ${res.status}: ${errText.slice(0, 200)}`,
+          : evolutionErrorMessage('whatsapp.send', res.status, errText),
         sessionDead: dead,
       };
     }
     return { ok: true };
-  } catch (e: any) {
-    return { ok: false, error: e?.message || 'Erreur réseau Evolution' };
+  } catch {
+    return { ok: false, error: 'Erreur réseau Evolution' };
   }
 }
 
