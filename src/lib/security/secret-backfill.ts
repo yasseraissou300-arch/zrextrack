@@ -65,6 +65,21 @@ export const SECRET_FIELDS: SecretField[] = [
     keyColumns: ['user_id'],
     context: (r: Row) => secretContext('facebook_connections', column, String(r.user_id)),
   })),
+  // #120 (stored-secrets) : tables absentes en production au dernier relevé
+  // (PGRST205) — lecture en erreur comptée, non fatale.
+  {
+    table: 'integrations',
+    column: 'secret_key',
+    keyColumns: ['user_id', 'platform'],
+    context: (r: Row) =>
+      secretContext('integrations', 'secret_key', `${String(r.user_id)}:${String(r.platform)}`),
+  },
+  {
+    table: 'voice_call_settings',
+    column: 'auth_token',
+    keyColumns: ['user_id'],
+    context: (r: Row) => secretContext('voice_call_settings', 'auth_token', String(r.user_id)),
+  },
 ];
 
 export type Mode = 'encrypt' | 'decrypt';

@@ -85,6 +85,16 @@ afterEach(() => {
 });
 
 describe('registre', () => {
+  it('intégrations et Twilio : contextes identiques à stored-secrets (#120)', () => {
+    const byField = (t: string) => SECRET_FIELDS.find((f) => f.table === t)!;
+    expect(byField('integrations').context({ user_id: U1, platform: 'shopify' })).toBe(
+      secretContext('integrations', 'secret_key', `${U1}:shopify`)
+    );
+    expect(byField('voice_call_settings').context({ user_id: U1 })).toBe(
+      secretContext('voice_call_settings', 'auth_token', U1)
+    );
+  });
+
   it('les contextes du backfill sont IDENTIQUES à ceux de l’application', () => {
     const zrField = SECRET_FIELDS.find((f) => f.column === 'zrexpress_token')!;
     expect(zrField.context({ user_id: U1 })).toBe(zrTokenContext(U1));
