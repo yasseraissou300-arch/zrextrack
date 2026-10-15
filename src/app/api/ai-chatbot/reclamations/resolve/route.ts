@@ -1,3 +1,5 @@
+import { logEvent } from '@/lib/security/safe-log';
+import { ownedInstance } from '@/lib/whatsapp/instance-ownership';
 // Valide une réclamation SAV : enregistre la résolution choisie par l'opérateur
 // et envoie un message WhatsApp de confirmation au client.
 //
@@ -56,12 +58,14 @@ async function sendWhatsAppViaSAV(
     return { ok: false, reason: 'Evolution API non configurée' };
   }
   const service = createServiceClient();
-  const { data: instance } = await service
+  const { data: instanceRow } = await service
     .from('whatsapp_instances')
     .select('instance_name, connected')
     .eq('user_id', userId)
     .eq('service_type', 'sav')
     .single();
+  // RLS-TENANT-001 : jamais d'action Evolution sur un nom hors de l'espace du tenant.
+  const instance = ownedInstance(userId, instanceRow, 'sav.resolve');
 
   if (!instance) return { ok: false, reason: 'Aucune instance SAV configurée' };
   if (!instance.connected) return { ok: false, reason: 'Instance SAV non connectée à WhatsApp' };
@@ -145,7 +149,16 @@ export async function POST(req: NextRequest) {
     .is('resolution', null)
     .select('id');
 
-  if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
+  if (updateErr) {
+    logEvent('error', 'api.ai-chatbot.reclamations.resolve', {
+      status: 'failed',
+      error_code: errorCode(updateErr),
+    });
+    return NextResponse.json(
+      { error: 'Erreur interne — réessaie dans un instant.' },
+      { status: 500 }
+    );
+  }
   if (!Array.isArray(claimed) || claimed.length !== 1) {
     return NextResponse.json({ error: 'Réclamation déjà résolue' }, { status: 409 });
   }
@@ -160,4 +173,10 @@ export async function POST(req: NextRequest) {
     whatsapp: wa.ok ? 'sent' : 'failed',
     whatsapp_error: wa.ok ? null : wa.reason,
   });
+}
+
+// Réponse générique : jamais le message brut (PostgREST cite filtres et valeurs).
+function errorCode(err: unknown): string {
+  const code = (err as { code?: unknown } | null)?.code;
+  return typeof code === 'string' && code ? code.slice(0, 40) : 'unknown';
 }

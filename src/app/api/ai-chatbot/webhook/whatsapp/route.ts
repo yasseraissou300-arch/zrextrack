@@ -1,3 +1,4 @@
+import { ownerRowOf } from '@/lib/whatsapp/instance-ownership';
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { resolveGeminiKeys, resolveEvolutionCreds } from '@/lib/user-creds';
@@ -383,12 +384,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, deduped: true });
     }
 
-    // Route to user + service via instance_name
-    const { data: waInstance, error: waErr } = await supabase
+    // Route to user + service via instance_name.
+    // RLS-TENANT-001 : la ligne retenue doit POSSÉDER ce nom (espace de noms
+    // dérivé de son user_id). Une ligne d'un autre tenant portant le même nom
+    // (réécrite via PostgREST) ne capte jamais les messages, et un doublon ne
+    // fait plus échouer la résolution (.single() sur 2 lignes = bot muet).
+    const { data: waRows, error: waErr } = await supabase
       .from('whatsapp_instances')
       .select('user_id, service_type')
       .eq('instance_name', instanceName)
-      .single();
+      .limit(10);
+    const waInstance = ownerRowOf(waRows, instanceName);
     if (!waInstance) {
       logEvent('warn', 'webhook.whatsapp', {
         instance: instanceName,

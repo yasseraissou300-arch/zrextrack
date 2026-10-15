@@ -35,10 +35,15 @@ function seedTenant(t: string, sessions: Array<{ id: string; template_type?: str
     {
       user_id: t,
       service_type: 'auto_confirmation',
-      instance_name: `${t.slice(0, 4)}_auto`,
+      instance_name: `zrex_${t.replace(/-/g, '').slice(0, 12)}_auto`,
       connected: true,
     },
-    { user_id: t, service_type: 'sav', instance_name: `${t.slice(0, 4)}_sav`, connected: true },
+    {
+      user_id: t,
+      service_type: 'sav',
+      instance_name: `zrex_${t.replace(/-/g, '').slice(0, 12)}_sav`,
+      connected: true,
+    },
   ]);
   db.seed('public', 'profiles', [{ id: t, whatsapp_warmup_started_at: null }]);
   db.seed(
@@ -102,7 +107,7 @@ describe('portée', () => {
     const { status, json } = await call();
     expect(status).toBe(200);
     expect(json.scope).toBe('tenant');
-    expect(sends.map((s) => s.instance)).toEqual(['1111_auto']);
+    expect(sends.map((s) => s.instance)).toEqual(['zrex_111111111111_auto']);
     const b1 = db.all('public', 'ai_chat_sessions').find((s) => s.id === 'b1');
     expect(b1?.relance_sent).toBe(false);
   });
@@ -113,7 +118,10 @@ describe('portée', () => {
     seedTenant(B, [{ id: 'b1' }]);
     const { json } = await call({ bearer: 'cron-test-secret' });
     expect(json.scope).toBe('all');
-    expect(sends.map((s) => s.instance).sort()).toEqual(['1111_auto', '2222_auto']);
+    expect(sends.map((s) => s.instance).sort()).toEqual([
+      'zrex_111111111111_auto',
+      'zrex_222222222222_auto',
+    ]);
   });
 
   it('mauvais secret, pas de session → 401', async () => {
@@ -166,7 +174,7 @@ describe('instance et doubles envois', () => {
     seedTenant(A, [{ id: 'a1', template_type: 'sav' }]);
     currentUser = { id: A };
     await call();
-    expect(sends[0].instance).toBe('1111_sav');
+    expect(sends[0].instance).toBe('zrex_111111111111_sav');
   });
 
   it('deux exécutions simultanées ne relancent qu’une fois', async () => {
@@ -180,7 +188,7 @@ describe('instance et doubles envois', () => {
 describe('résolution SAV', () => {
   it('deux clics simultanés → un seul message au client', async () => {
     db.seed('public', 'whatsapp_instances', [
-      { user_id: A, service_type: 'sav', instance_name: '1111_sav', connected: true },
+      { user_id: A, service_type: 'sav', instance_name: 'zrex_111111111111_sav', connected: true },
     ]);
     db.seed('public', 'ai_chat_sessions', [
       {
@@ -204,6 +212,27 @@ describe('résolution SAV', () => {
     const [r1, r2] = await Promise.all([click(), click()]);
     expect([r1.status, r2.status].sort()).toEqual([200, 409]);
     expect(sends).toHaveLength(1);
+  });
+
+  it('erreur base à la prise → message générique, aucun envoi', async () => {
+    db.seed('public', 'ai_chat_sessions', [
+      { id: 's2', user_id: A, channel: 'whatsapp', contact_id: 'x', template_type: 'sav' },
+    ]);
+    db.failNext('public', 'ai_chat_sessions', 'update', {
+      code: '23514',
+      message: 'TEST_LEAK check constraint "resolution_check" failed',
+    });
+    currentUser = { id: A };
+    const { POST } = await import('@/app/api/ai-chatbot/reclamations/resolve/route');
+    const res = await POST(
+      new NextRequest('https://app.test/api/ai-chatbot/reclamations/resolve', {
+        method: 'POST',
+        body: JSON.stringify({ sessionId: 's2', resolution: 'refund' }),
+      })
+    );
+    expect(res.status).toBe(500);
+    expect(await res.text()).not.toContain('TEST_LEAK');
+    expect(sends).toHaveLength(0);
   });
 });
 
