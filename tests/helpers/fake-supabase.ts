@@ -89,6 +89,16 @@ function applyDefaults(fullTable: string, row: Row): Row {
     base.last_error ??= null;
     base.idempotency_key ??= null;
   }
+  if (fullTable === 'public.ai_chat_sessions') {
+    // Défauts de supabase_aichatbot_full.sql
+    base.conversation ??= [];
+    base.extracted_data ??= {};
+    base.is_complete ??= false;
+    base.sheets_sent ??= false;
+    base.human_handover ??= false;
+    base.failure_count ??= 0;
+    base.tokens_used ??= 0;
+  }
   if (fullTable === 'autotim.tenant_settings') {
     delete base.id; // PK = tenant_id
     base.auto_sync_enabled ??= false;
