@@ -10,7 +10,8 @@
 import type { NextRequest } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { validateTwilioRequest, publicUrlFromRequest, readTwilioParams } from './twilio-signature';
-import { isReplay } from './webhook-auth';
+import { isReplayDurable } from './replay-store';
+import { openTwilioToken } from './stored-secrets';
 import { logEvent } from './safe-log';
 
 export interface TwilioGuardOk {
@@ -62,7 +63,18 @@ export async function guardTwilioRequest(
       .select('auth_token')
       .eq('user_id', userId)
       .maybeSingle();
-    authToken = settings?.auth_token ?? null;
+    authToken = openTwilioToken(userId, settings?.auth_token);
+    // Jeton STOCKÉ mais illisible (autre trousseau, valeur altérée) : ne
+    // jamais retomber en mode « non appliqué » (fail-open) → refus.
+    if (!authToken && typeof settings?.auth_token === 'string' && settings.auth_token.trim()) {
+      logEvent('warn', scope, {
+        status: 'rejected',
+        reason: 'auth_token_unreadable',
+        tenant_id: userId,
+        conversation_id: cid,
+      });
+      return { ok: false, status: 401, reason: 'auth_token_unreadable' };
+    }
   }
 
   const check = validateTwilioRequest({
@@ -96,7 +108,8 @@ export async function guardTwilioRequest(
   // Anti-rejeu : Twilio ne signe pas d'horodatage, donc une requête capturée
   // reste rejouable. On déduplique sur CallSid + statut de l'événement.
   const replayKey = `twilio:${scope}:${params.CallSid || cid}:${params.CallStatus || params.Digits || ''}`;
-  if (params.CallSid && isReplay(replayKey)) {
+  // Store DURABLE (entre instances, après démarrage à froid).
+  if (params.CallSid && (await isReplayDurable(supabase, replayKey))) {
     logEvent('info', scope, { status: 'skipped_replay', conversation_id: cid });
     return { ok: false, status: 409, reason: 'replay' };
   }

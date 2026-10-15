@@ -2,6 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { maskTwilioToken, sealTwilioToken } from '@/lib/security/stored-secrets';
 
 const ALLOWED_FIELDS = [
   'account_sid',
@@ -36,7 +37,7 @@ export async function GET() {
     return NextResponse.json({ settings: null, defaults: defaultSettings() });
   }
   const masked = { ...data };
-  if (masked.auth_token) masked.auth_token = '••••••••' + (masked.auth_token as string).slice(-4);
+  if (masked.auth_token) masked.auth_token = maskTwilioToken(user.id, masked.auth_token);
   return NextResponse.json({ settings: masked });
 }
 
@@ -54,7 +55,11 @@ export async function POST(req: NextRequest) {
       // Si l'auth_token reçu est masqué (l'utilisateur n'a pas re-saisi), on
       // n'écrase pas la valeur existante.
       if (k === 'auth_token' && typeof body[k] === 'string' && body[k].startsWith('••')) continue;
-      upd[k] = body[k];
+      // Auth Token Twilio chiffré au repos (secret-box).
+      upd[k] =
+        k === 'auth_token' && typeof body[k] === 'string'
+          ? sealTwilioToken(user.id, body[k].trim())
+          : body[k];
     }
   }
 
@@ -62,7 +67,7 @@ export async function POST(req: NextRequest) {
   const { error } = await service
     .from('voice_call_settings')
     .upsert(upd, { onConflict: 'user_id' });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: 'Enregistrement impossible' }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
 
