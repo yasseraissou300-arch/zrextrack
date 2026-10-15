@@ -107,7 +107,7 @@ describe('webhook WhatsApp', () => {
   it('le même message livré à deux instances n’est traité qu’une fois', async () => {
     const body = JSON.stringify({
       event: 'messages.upsert',
-      instance: 'zrex_test_auto',
+      instance: 'zrex_111111111111_auto',
       data: {
         key: { remoteJid: '213550000001@s.whatsapp.net', fromMe: false, id: 'EVO-DUP-1' },
         message: { conversation: 'Salam, bghit montre' },
@@ -167,7 +167,7 @@ describe('scénarios A–F', () => {
   });
 
   it('B — même événement après démarrage à froid → toujours un seul traitement', async () => {
-    const body = waBody('zrex_test_auto', 'COLD-1');
+    const body = waBody('zrex_111111111111_auto', 'COLD-1');
     expect((await postFresh(body)).deduped).toBeUndefined();
     // la « nouvelle instance » n'a aucune mémoire : seul le store durable sait
     expect((await postFresh(body)).deduped).toBe(true);
@@ -176,14 +176,14 @@ describe('scénarios A–F', () => {
 
   it('E — événement plus ancien que la rétention (8 j) → ignoré, même jamais vu', async () => {
     const old = Math.floor(Date.now() / 1000) - 8 * 86_400;
-    const r = await postFresh(waBody('zrex_test_auto', 'OLD-1', old));
+    const r = await postFresh(waBody('zrex_111111111111_auto', 'OLD-1', old));
     expect(r.stale).toBe(true);
     expect(db.all('autotim', 'webhook_events')).toHaveLength(0);
   });
 
   it('E — événement récent (1 min) → traité normalement', async () => {
     const recent = Math.floor(Date.now() / 1000) - 60;
-    const r = await postFresh(waBody('zrex_test_auto', 'NEW-1', recent));
+    const r = await postFresh(waBody('zrex_111111111111_auto', 'NEW-1', recent));
     expect(r.stale).toBeUndefined();
     expect(r.deduped).toBeUndefined();
   });
