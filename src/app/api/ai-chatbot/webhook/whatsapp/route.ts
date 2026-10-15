@@ -1,3 +1,4 @@
+import { mediaUrlError } from '@/lib/security/media-url';
 import { ownerRowOf } from '@/lib/whatsapp/instance-ownership';
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
@@ -234,6 +235,13 @@ async function sendWhatsAppMedia(
   caption: string
 ): Promise<void> {
   if (!evUrl || !evKey || !mediaUrl) return;
+  // Revérifié à l'envoi (SSRF via Evolution, voir lib/security/media-url) :
+  // un domaine repointé vers une adresse interne depuis l'enregistrement
+  // n'est jamais transmis à Evolution ; la conversation continue sans média.
+  if (await mediaUrlError(mediaUrl)) {
+    logEvent('warn', 'webhook.whatsapp', { status: 'rejected', reason: 'media_url_refused' });
+    return;
+  }
   const cleanNumber = number.replace('@s.whatsapp.net', '').replace('@g.us', '');
   try {
     await fetch(`${evUrl}/message/sendMedia/${instanceName}`, {

@@ -20,6 +20,14 @@ import { MAX_ATTEMPTS, type Job } from '@/lib/queue/types';
 
 let fake: FakeSupabase;
 
+// Garde SSRF du média (revérifiée à l'envoi) : DNS simulé. cdn.test → IP
+// publique ; internal.test → IP privée.
+vi.mock('node:dns/promises', () => ({
+  lookup: async (host: string) => [
+    { address: host === 'internal.test' ? '10.0.0.9' : '142.250.74.110', family: 4 },
+  ],
+}));
+
 vi.mock('@/lib/supabase/server', () => ({
   createServiceClient: () => fake,
   createClient: async () => {
@@ -551,6 +559,28 @@ describe('RLS-TENANT-001 — instance d’un autre tenant', () => {
     job.payload = { ...job.payload, campaign_id: 'camp-1' };
     const r = await handleWhatsAppSend(job);
     expect(r.outcome).toBe('failed');
+    expect(evolutionCalls).toHaveLength(0);
+  });
+});
+
+describe('SSRF — média revérifié au moment de l’envoi', () => {
+  it('domaine repointé vers une IP privée → job en échec, AUCUN appel Evolution', async () => {
+    seedInstance();
+    evolutionResponds(201);
+    const job = makeJob();
+    job.payload = { ...job.payload, media_url: 'https://internal.test/a.jpg' };
+    const r = await handleWhatsAppSend(job);
+    expect(r.outcome).toBe('failed');
+    expect(evolutionCalls).toHaveLength(0);
+    expect(fake.all('public', 'messages')).toHaveLength(0);
+  });
+
+  it('adresse métadonnées en clair → refusée sans DNS', async () => {
+    seedInstance();
+    evolutionResponds(201);
+    const job = makeJob();
+    job.payload = { ...job.payload, media_url: 'http://169.254.169.254/latest/meta-data/' };
+    expect((await handleWhatsAppSend(job)).outcome).toBe('failed');
     expect(evolutionCalls).toHaveLength(0);
   });
 });
