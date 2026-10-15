@@ -42,14 +42,14 @@ export async function POST(req: NextRequest) {
       const { data: existing } = await supabase
         .from('voice_calls')
         .select('outcome')
-        .or(cid ? `id.eq.${cid}` : `twilio_call_sid.eq.${callSid}`)
+        .eq('id', cid)
         .single();
       if (existing && !existing.outcome) update.outcome = 'no_answer';
     } else if (callStatus === 'failed' || callStatus === 'canceled') {
       const { data: existing } = await supabase
         .from('voice_calls')
         .select('outcome')
-        .or(cid ? `id.eq.${cid}` : `twilio_call_sid.eq.${callSid}`)
+        .eq('id', cid)
         .single();
       if (existing && !existing.outcome) update.outcome = 'failed';
     }
