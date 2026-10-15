@@ -3,12 +3,56 @@
 // Endpoint PUBLIC (le navigateur l'appelle sans session) : on ne journalise
 // que la directive violée et l'ORIGINE de la ressource bloquée — jamais
 // l'URL complète (chemins, paramètres pouvant contenir des données), jamais le
-// corps. Corps borné ; réponse 204 dans tous les cas.
+// corps. Réponse 204 dans tous les cas (rien à apprendre pour un attaquant).
+//
+// Anti-flood (n'importe qui peut POSTer ici) : corps lu en flux et coupé à
+// 8 Ko (jamais chargé en entier) + limiteur (lib/security/csp-report-limiter).
 
 import { NextRequest, NextResponse } from 'next/server';
 import { logEvent } from '@/lib/security/safe-log';
+import { allowLine, allowRequest } from '@/lib/security/csp-report-limiter';
 
 const MAX_BODY = 8_192;
+
+function clientIp(req: NextRequest): string {
+  // x-real-ip est posé par la plateforme (Vercel) ; x-forwarded-for en secours.
+  return (
+    req.headers.get('x-real-ip') ||
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    'unknown'
+  ).slice(0, 64);
+}
+
+/** Lit au plus MAX_BODY octets du flux, sans jamais charger le corps entier. */
+async function readBounded(req: NextRequest): Promise<string> {
+  const declared = Number(req.headers.get('content-length') || 0);
+  if (declared > MAX_BODY * 8) return '';
+  if (!req.body) return '';
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    while (size < MAX_BODY) {
+      const { done, value } = await reader.read();
+      if (done || !value) break;
+      chunks.push(value);
+      size += value.byteLength;
+    }
+  } catch {
+    return '';
+  } finally {
+    reader.cancel().catch(() => {});
+  }
+  const buf = new Uint8Array(Math.min(size, MAX_BODY));
+  let off = 0;
+  for (const c of chunks) {
+    const part = c.subarray(0, Math.min(c.byteLength, buf.byteLength - off));
+    buf.set(part, off);
+    off += part.byteLength;
+    if (off >= buf.byteLength) break;
+  }
+  return new TextDecoder().decode(buf);
+}
 
 function originOf(uri: unknown): string {
   if (typeof uri !== 'string' || !uri) return 'unknown';
@@ -20,8 +64,12 @@ function originOf(uri: unknown): string {
   }
 }
 
+const noContent = () => new NextResponse(null, { status: 204 });
+
 export async function POST(req: NextRequest) {
-  const text = (await req.text().catch(() => '')).slice(0, MAX_BODY);
+  if (!allowRequest(clientIp(req))) return noContent();
+
+  const text = await readBounded(req);
   try {
     const json = JSON.parse(text);
     // Format historique { "csp-report": {...} } ou Reporting API [{ body: {...} }]
@@ -33,10 +81,12 @@ export async function POST(req: NextRequest) {
         r['effective-directive'] ?? r.effectiveDirective ?? r['violated-directive'] ?? 'unknown'
       ).slice(0, 40);
       const blocked = originOf(r['blocked-uri'] ?? r.blockedURL);
-      logEvent('warn', 'csp.report', { event: 'violation', reason: `${directive} ${blocked}` });
+      const reason = `${directive} ${blocked}`;
+      if (!allowLine(reason)) continue;
+      logEvent('warn', 'csp.report', { event: 'violation', reason });
     }
   } catch {
-    // corps illisible : ignoré
+    // corps illisible ou tronqué : ignoré
   }
-  return new NextResponse(null, { status: 204 });
+  return noContent();
 }
