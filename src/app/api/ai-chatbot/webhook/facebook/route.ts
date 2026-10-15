@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { commitSession } from '@/lib/ai-chatbot/session-store';
 import { createServiceClient } from '@/lib/supabase/server';
 import { resolveGeminiKeys } from '@/lib/user-creds';
 import { verifyMetaSignature } from '@/lib/security/webhook-auth';
@@ -211,8 +212,11 @@ export async function POST(req: NextRequest) {
           .eq('contact_id', senderId)
           .single();
 
-        const conversation: AIMessage[] = session?.conversation ?? [];
-        conversation.push({ role: 'user', content: text });
+        // COPIE : la session lue sert de base à la fusion en cas de conflit.
+        const conversation: AIMessage[] = [
+          ...(session?.conversation ?? []),
+          { role: 'user', content: text },
+        ];
 
         const aiReply = await callGeminiPool(geminiKeys, systemPrompt, conversation);
         if (!aiReply) continue;
@@ -226,34 +230,41 @@ export async function POST(req: NextRequest) {
         // Messenger (PSID) n'est pas un numéro : aucun repli sur l'expéditeur.
         const customerTexts = conversation.filter((m) => m.role === 'user').map((m) => m.content);
         const current = groundExtracted(sanitizeExtracted(extracted), customerTexts, '');
-        const existingData: Record<string, string> = session?.extracted_data ?? {};
-        const newData = extracted
-          ? sanitizeExtracted({ ...existingData, ...current.data }).data
-          : existingData;
-        const check = { templateType, customPrompt, current, merged: newData };
-        const isComplete = !!extracted && isExtractionComplete(check);
-        const correction = extracted && !isComplete ? correctionReply(check) : null;
-        const cleanReply = correction ?? stripDataTag(aiReply);
-        conversation.push({ role: 'assistant', content: correction ?? aiReply });
-
+        // Écriture concurrente-sûre : tour recalculé sur l'état FRAIS si un autre
+        // message a été enregistré pendant la génération (session-store.ts).
         // `sheets_sent` jamais réécrit depuis une lecture périmée (défaut : false).
-        await supabase.from('ai_chat_sessions').upsert(
-          {
-            user_id: userId,
-            channel: 'facebook',
-            contact_id: senderId,
-            template_type: templateType,
-            conversation,
-            extracted_data: newData,
-            is_complete: isComplete,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'user_id,channel,contact_id' }
+        const commit = await commitSession(
+          supabase,
+          { userId, channel: 'facebook', contactId: senderId },
+          session ?? null,
+          (fresh) => {
+            const existingData: Record<string, string> = fresh?.extracted_data ?? {};
+            const newData = extracted
+              ? sanitizeExtracted({ ...existingData, ...current.data }).data
+              : existingData;
+            const check = { templateType, customPrompt, current, merged: newData };
+            const isComplete = !!extracted && isExtractionComplete(check);
+            const correction = extracted && !isComplete ? correctionReply(check) : null;
+            return {
+              patch: {
+                template_type: templateType,
+                conversation: [
+                  ...(fresh?.conversation ?? []),
+                  { role: 'user', content: text },
+                  { role: 'assistant', content: correction ?? aiReply },
+                ],
+                extracted_data: newData,
+                is_complete: isComplete,
+              },
+              result: { newData, isComplete, cleanReply: correction ?? stripDataTag(aiReply) },
+            };
+          }
         );
+        const { newData, isComplete, cleanReply } = commit.result;
 
         // Prise atomique : une seule ligne dans le Sheet par commande, même si
         // deux messages du client sont traités en parallèle.
-        if (isComplete && config?.google_sheets_url) {
+        if (isComplete && commit.ok && config?.google_sheets_url) {
           const { data: claimed } = await supabase
             .from('ai_chat_sessions')
             .update({ sheets_sent: true })
