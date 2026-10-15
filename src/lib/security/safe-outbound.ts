@@ -147,6 +147,17 @@ async function assertPublicHost(url: URL, lookup: LookupFn): Promise<void> {
   if (addrs.some((a) => !isPublicAddress(a.address))) throw new OutboundBlocked('private_address');
 }
 
+/**
+ * URL qu'un SERVICE TIERS ira chercher (ex. média envoyé par Evolution) : on
+ * ne contrôle pas sa requête, seule la vérification à l'enregistrement est
+ * possible. Contrôles statiques + TOUTES les résolutions DNS publiques.
+ */
+export async function assertPublicUrl(raw: string, lookup: LookupFn = defaultLookup): Promise<URL> {
+  const url = checkOutboundUrl(raw);
+  await assertPublicHost(url, lookup);
+  return url;
+}
+
 export interface SafePostDeps {
   fetchImpl?: typeof fetch;
   lookup?: LookupFn;
