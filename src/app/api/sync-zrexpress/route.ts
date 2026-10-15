@@ -299,17 +299,6 @@ export async function POST(request: NextRequest) {
     if (!zr) return NextResponse.json(ZR_NOT_CONFIGURED, { status: 400 });
     const { token, tenantId } = zr;
 
-    // Récupérer les credentials WhatsApp depuis whatsapp_settings (comme les autres routes)
-    const { data: waSettings } = userId
-      ? await supabase
-          .from('whatsapp_settings')
-          .select('instance_id, api_token')
-          .eq('user_id', userId)
-          .single()
-      : { data: null };
-    const waInstanceId: string = waSettings?.instance_id ?? '';
-    const waToken: string = waSettings?.api_token ?? '';
-
     // Templates UNIFIÉS : table message_templates (éditée dans Messages →
     // Templates). Source unique pour l'envoi auto ET manuel ; on prend la
     // version darija. Si l'utilisateur n'a rien personnalisé → DARIJA_DEFAULTS.
