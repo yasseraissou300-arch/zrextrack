@@ -83,7 +83,7 @@ describe('file whatsapp.send — last_error et journaux', () => {
     db.seed('public', 'whatsapp_instances', [
       {
         user_id: TENANT,
-        instance_name: 'inst',
+        instance_name: 'zrex_111111111111_auto',
         service_type: 'auto_confirmation',
         connected: true,
       },
