@@ -1,9 +1,11 @@
 import { imageHosts } from './image-hosts.config.mjs';
+import { buildCsp } from './csp.config.mjs';
 
 // En-têtes de sécurité appliqués à toutes les réponses (audit HDR, 2026-10-08).
-// Aucune CSP ici : elle sera introduite d'abord en Report-Only (scripts inline
-// de Next, images Supabase / Google Fonts) — chantier séparé.
+// CSP en REPORT-ONLY (csp.config.mjs) : signale sans rien bloquer ; à passer
+// en Content-Security-Policy après analyse des rapports (/api/csp-report).
 const securityHeaders = [
+  { key: 'Content-Security-Policy-Report-Only', value: buildCsp() },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
