@@ -1,10 +1,13 @@
+import { ownedInstance } from '@/lib/whatsapp/instance-ownership';
 import { NextRequest, NextResponse } from 'next/server';
+import { internalErrorResponse } from '@/lib/security/public-error';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { mapStatus } from '@/lib/zrexpress/status';
 import { fetchAllParcels } from '@/lib/zrexpress/parcels';
 import { remainingDailyQuota, sleep, varyMessage } from '@/lib/whatsapp/anti-spam';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
 import { countOrdersThisMonth, quotaStateFor } from '@/lib/plan-quotas';
+import { stateUpdatedAt } from '@/lib/zrexpress/map-parcel';
 
 const APP_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://zrextrack6753.builtwithrocket.new';
 
@@ -157,7 +160,7 @@ function mapParcel(p: any, syncedAt: string) {
     cod: Number(cod),
     delivery_status: status,
     attempts: Number(attempts),
-    last_update: syncedAt,
+    last_update: stateUpdatedAt(p, syncedAt),
   };
 }
 
@@ -189,12 +192,14 @@ async function drainNotifications(
   // Numéro Evolution connecté de l'utilisateur (instance auto_confirmation)
   const ev = await resolveEvolutionCreds(userId);
   if (!ev.url || !ev.key) return 0;
-  const { data: inst } = await supabase
+  const { data: instRow } = await supabase
     .from('whatsapp_instances')
     .select('instance_name')
     .eq('user_id', userId)
     .eq('service_type', 'auto_confirmation')
     .single();
+  // RLS-TENANT-001 : jamais d'action Evolution sur un nom hors de l'espace du tenant.
+  const inst = ownedInstance(userId, instRow, 'sync.drain');
   if (!inst?.instance_name) return 0;
 
   const { data: pendings } = await supabase
@@ -424,7 +429,7 @@ export async function POST(request: NextRequest) {
       .upsert(rows, { onConflict: 'user_id,tracking_number', count: 'exact' });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return internalErrorResponse('api.sync-zrexpress', error, 500);
     }
 
     // 5. Notifications WhatsApp — FILE D'ATTENTE (anti-ban).
@@ -469,6 +474,6 @@ export async function POST(request: NextRequest) {
       ...(quotaState && !quotaState.isUnlimited && { quota: quotaState }),
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return internalErrorResponse('api.sync-zrexpress', err, 500);
   }
 }
