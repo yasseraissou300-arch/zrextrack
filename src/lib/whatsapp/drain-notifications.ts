@@ -1,3 +1,4 @@
+import { ownedInstance } from '@/lib/whatsapp/instance-ownership';
 // Drain de la file pending_notifications — chemin « client » du sync
 // (/api/sync-zrexpress, appelé toutes les 5 min par CHAQUE onglet ouvert).
 //
@@ -102,12 +103,14 @@ export async function drainNotifications(
   // Numéro Evolution connecté de l'utilisateur (instance auto_confirmation)
   const ev = await resolveEvolutionCreds(userId);
   if (!ev.url || !ev.key) return 0;
-  const { data: inst } = await supabase
+  const { data: instRow } = await supabase
     .from('whatsapp_instances')
     .select('instance_name')
     .eq('user_id', userId)
     .eq('service_type', 'auto_confirmation')
     .single();
+  // RLS-TENANT-001 : jamais d'action Evolution sur un nom hors de l'espace du tenant.
+  const inst = ownedInstance(userId, instRow, 'sync.drain');
   if (!inst?.instance_name) return 0;
 
   const { data: pendings } = await supabase
