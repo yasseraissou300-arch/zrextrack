@@ -31,6 +31,7 @@ vi.mock('@/lib/supabase/server', () => ({
 import { handleWhatsAppSend } from '@/lib/queue/handlers/whatsapp-send';
 import { enqueue, claimJobs, markFailed, markDone } from '@/lib/queue/repository';
 import { runTick } from '@/lib/queue/runner';
+import { instanceNameFor } from '@/lib/whatsapp/instance-ownership';
 
 const TENANT_A = '11111111-1111-4111-8111-111111111111';
 const TENANT_B = '22222222-2222-4222-8222-222222222222';
@@ -88,7 +89,7 @@ function seedInstance(tenant = TENANT_A) {
   fake.seed('public', 'whatsapp_instances', [
     {
       user_id: tenant,
-      instance_name: `inst-${tenant.slice(0, 4)}`,
+      instance_name: instanceNameFor(tenant, 'auto_confirmation'),
       service_type: 'auto_confirmation',
       connected: true,
     },
@@ -124,7 +125,9 @@ describe('Succès — comptabilisation', () => {
 
     expect(r).toEqual({ outcome: 'done' });
     expect(evolutionCalls).toHaveLength(1);
-    expect(evolutionCalls[0].url).toBe(`${EVOLUTION_URL}/message/sendText/inst-1111`);
+    expect(evolutionCalls[0].url).toBe(
+      `${EVOLUTION_URL}/message/sendText/${instanceNameFor(TENANT_A, 'auto_confirmation')}`
+    );
     expect(evolutionCalls[0].body.number).toBe('213556172674'); // normalisé
 
     const messages = fake.all('public', 'messages');
@@ -374,7 +377,7 @@ describe('Circuit breaker — 5 échecs consécutifs → ouvert 30 min', () => {
     expect((await handleWhatsAppSend(makeJob({ tenant_id: TENANT_A }))).outcome).toBe('reschedule');
     expect((await handleWhatsAppSend(makeJob({ tenant_id: TENANT_B }))).outcome).toBe('done');
     expect(evolutionCalls).toHaveLength(1);
-    expect(evolutionCalls[0].url).toContain('inst-2222');
+    expect(evolutionCalls[0].url).toContain(instanceNameFor(TENANT_B, 'auto_confirmation'));
   });
 });
 
@@ -515,5 +518,41 @@ describe('Cycle complet via runTick', () => {
     expect(j).toMatchObject({ status: 'done', attempts: 1, locked_at: null, locked_by: null });
     expect(fake.all('public', 'messages')).toHaveLength(1);
     await markDone(db, j.id); // idempotent
+  });
+});
+
+// ─── RLS-TENANT-001 — 8/9. isolation de la file (campagnes comprises) ───────
+describe('RLS-TENANT-001 — instance d’un autre tenant', () => {
+  it('ligne de A réécrite avec le nom de l’instance de B → échec, AUCUN appel Evolution', async () => {
+    fake.seed('public', 'whatsapp_instances', [
+      {
+        user_id: TENANT_A,
+        service_type: 'auto_confirmation',
+        instance_name: instanceNameFor(TENANT_B, 'auto_confirmation'),
+        connected: true,
+      },
+    ]);
+    evolutionResponds(201);
+    const r = await handleWhatsAppSend(makeJob());
+    expect(r.outcome).toBe('failed');
+    expect(evolutionCalls).toHaveLength(0);
+    expect(fake.all('public', 'messages')).toHaveLength(0);
+  });
+
+  it('message de campagne : même refus (le dispatch passe par whatsapp.send)', async () => {
+    fake.seed('public', 'whatsapp_instances', [
+      {
+        user_id: TENANT_A,
+        service_type: 'auto_confirmation',
+        instance_name: 'legacy_foreign',
+        connected: true,
+      },
+    ]);
+    evolutionResponds(201);
+    const job = makeJob();
+    job.payload = { ...job.payload, campaign_id: 'camp-1' };
+    const r = await handleWhatsAppSend(job);
+    expect(r.outcome).toBe('failed');
+    expect(evolutionCalls).toHaveLength(0);
   });
 });

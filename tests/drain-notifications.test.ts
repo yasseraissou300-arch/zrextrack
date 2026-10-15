@@ -41,7 +41,7 @@ function seedTenant(tenant: string, notifs: number) {
     {
       user_id: tenant,
       service_type: 'auto_confirmation',
-      instance_name: `inst_${tenant.slice(0, 4)}`,
+      instance_name: `zrex_${tenant.replace(/-/g, '').slice(0, 12)}_auto`,
     },
   ]);
   db.seed(

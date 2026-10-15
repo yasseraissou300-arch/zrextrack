@@ -63,7 +63,7 @@ function seed(status: string, owner = TENANT_A) {
   fake.seed('public', 'whatsapp_instances', [
     {
       user_id: TENANT_A,
-      instance_name: 'inst-1111',
+      instance_name: 'zrex_111111111111_auto',
       service_type: 'auto_confirmation',
       connected: true,
     },

@@ -1,3 +1,4 @@
+import { ownedInstance } from '@/lib/whatsapp/instance-ownership';
 // Handler `whatsapp.send` — UN message, UNE tentative.
 //
 // C'est le handler le plus sensible de la plateforme : le numéro WhatsApp a
@@ -89,12 +90,14 @@ export async function handleWhatsAppSend(job: Job): Promise<HandlerResult> {
     return { outcome: 'failed', error: 'Evolution API non configurée' };
   }
 
-  const { data: inst } = await supabase
+  const { data: instRow } = await supabase
     .from('whatsapp_instances')
     .select('instance_name')
     .eq('user_id', tenantId)
     .eq('service_type', 'auto_confirmation')
     .maybeSingle();
+  // RLS-TENANT-001 : jamais d'action Evolution sur un nom hors de l'espace du tenant.
+  const inst = ownedInstance(tenantId, instRow, 'queue.whatsapp_send');
 
   if (!inst?.instance_name) {
     return { outcome: 'failed', error: 'aucune instance WhatsApp connectée' };
