@@ -1,3 +1,4 @@
+import { ownedInstance } from '@/lib/whatsapp/instance-ownership';
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
@@ -68,11 +69,13 @@ export async function POST(req: NextRequest) {
     if (session.channel !== 'whatsapp') continue;
 
     // Get user's WA instance
-    const { data: instance } = await supabase
+    const { data: instanceRow } = await supabase
       .from('whatsapp_instances')
       .select('instance_name, connected')
       .eq('user_id', session.user_id)
       .single();
+    // RLS-TENANT-001 : jamais d'action Evolution sur un nom hors de l'espace du tenant.
+    const instance = ownedInstance(session.user_id, instanceRow, 'chatbot.relance');
 
     if (!instance?.connected) continue;
 
@@ -120,11 +123,13 @@ export async function GET(req: NextRequest) {
   let relanced = 0;
   for (const session of staleSessions) {
     if (session.channel !== 'whatsapp') continue;
-    const { data: instance } = await supabase
+    const { data: instanceRow } = await supabase
       .from('whatsapp_instances')
       .select('instance_name, connected')
       .eq('user_id', session.user_id)
       .single();
+    // RLS-TENANT-001 : jamais d'action Evolution sur un nom hors de l'espace du tenant.
+    const instance = ownedInstance(session.user_id, instanceRow, 'chatbot.relance');
     if (!instance?.connected) continue;
     const ev = await resolveEvolutionCreds(session.user_id);
     const msg = RELANCE_MESSAGES[session.template_type] ?? RELANCE_MESSAGES.auto_confirmation;
