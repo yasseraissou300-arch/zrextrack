@@ -47,7 +47,7 @@ beforeEach(() => {
   sends.length = 0;
   vi.stubGlobal('fetch', fetchMock);
   db.seed('public', 'whatsapp_instances', [
-    { user_id: TENANT, service_type: 'auto_confirmation', instance_name: 'inst', connected: true },
+    { user_id: TENANT, service_type: 'auto_confirmation', instance_name: 'zrex_111111111111_auto', connected: true },
   ]);
 });
 
