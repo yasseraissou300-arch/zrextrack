@@ -1,3 +1,4 @@
+import { isOwnedInstanceName } from '@/lib/whatsapp/instance-ownership';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds, getUserCreds } from '@/lib/user-creds';
@@ -80,7 +81,8 @@ export async function GET() {
   const instanceDiagnostics: InstanceDiag[] = [];
 
   if (instances) {
-    for (const inst of instances) {
+    // RLS-TENANT-001 : seulement les noms de l'espace du tenant.
+    for (const inst of instances.filter((i) => isOwnedInstanceName(user.id, i.instance_name))) {
       const diag: InstanceDiag = {
         service_type: inst.service_type ?? '(null — migration missing?)',
         instance_name: inst.instance_name,

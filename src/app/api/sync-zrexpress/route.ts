@@ -1,4 +1,5 @@
 import { internalErrorResponse } from '@/lib/security/public-error';
+import { ownedInstance } from '@/lib/whatsapp/instance-ownership';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { mapStatus } from '@/lib/zrexpress/status';
@@ -190,12 +191,14 @@ async function drainNotifications(
   // Numéro Evolution connecté de l'utilisateur (instance auto_confirmation)
   const ev = await resolveEvolutionCreds(userId);
   if (!ev.url || !ev.key) return 0;
-  const { data: inst } = await supabase
+  const { data: instRow } = await supabase
     .from('whatsapp_instances')
     .select('instance_name')
     .eq('user_id', userId)
     .eq('service_type', 'auto_confirmation')
     .single();
+  // RLS-TENANT-001 : jamais d'action Evolution sur un nom hors de l'espace du tenant.
+  const inst = ownedInstance(userId, instRow, 'sync.drain');
   if (!inst?.instance_name) return 0;
 
   const { data: pendings } = await supabase

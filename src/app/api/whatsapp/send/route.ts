@@ -1,3 +1,4 @@
+import { ownedInstance } from '@/lib/whatsapp/instance-ownership';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
@@ -51,12 +52,14 @@ async function getReadyInstance(
     };
   }
   const service = createServiceClient();
-  const { data: row } = await service
+  const { data: rowRow } = await service
     .from('whatsapp_instances')
     .select('instance_name, connected')
     .eq('user_id', userId)
     .eq('service_type', DEFAULT_SERVICE)
     .single();
+  // RLS-TENANT-001 : jamais d'action Evolution sur un nom hors de l'espace du tenant.
+  const row = ownedInstance(userId, rowRow, 'whatsapp.send');
 
   if (!row)
     return {
