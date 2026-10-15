@@ -13,17 +13,28 @@ vi.mock('@/lib/supabase/server', () => ({
 }));
 
 import { guardTwilioRequest } from '@/lib/security/twilio-guard';
+import { computeTwilioSignature } from '@/lib/security/twilio-signature';
 import { POST as statusPOST } from '@/app/api/voice-calls/status/route';
 
 const A = '11111111-1111-4111-8111-111111111111';
 const CALL = '33333333-3333-4333-8333-333333333333';
 
-function req(cid: string, params: Record<string, string>) {
+const TOKEN = 'TEST_TWILIO_AUTH_TOKEN';
+
+function req(cid: string, params: Record<string, string>, signature?: string) {
+  const headers: Record<string, string> = { 'content-type': 'application/x-www-form-urlencoded' };
+  if (signature) headers['x-twilio-signature'] = signature;
   return new NextRequest(`https://app.test/api/voice-calls/status?cid=${encodeURIComponent(cid)}`, {
     method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    headers,
     body: new URLSearchParams(params).toString(),
   });
+}
+
+/** Requête signée comme Twilio le ferait avec le jeton du tenant. */
+function signedReq(cid: string, params: Record<string, string>) {
+  const url = `https://app.test/api/voice-calls/status?cid=${encodeURIComponent(cid)}`;
+  return req(cid, params, computeTwilioSignature(TOKEN, url, params));
 }
 
 beforeEach(() => {
@@ -54,9 +65,22 @@ describe('guardTwilioRequest — cid inconnu', () => {
     });
   });
 
-  it('cid connu (tenant sans jeton) → comportement inchangé', async () => {
+  it('jeton + signature valide → accepté (vérifié)', async () => {
+    fake.seed('public', 'voice_call_settings', [{ user_id: A, auth_token: TOKEN }]);
+    const r = await guardTwilioRequest(signedReq(CALL, { CallSid: 'CA5' }), 't');
+    expect(r).toMatchObject({ ok: true, callId: CALL, userId: A, mode: 'verified' });
+  });
+
+  it('jeton + signature d’un autre jeton → refus', async () => {
+    fake.seed('public', 'voice_call_settings', [{ user_id: A, auth_token: TOKEN }]);
+    const url = `https://app.test/api/voice-calls/status?cid=${CALL}`;
+    const forged = computeTwilioSignature('TEST_OTHER_TOKEN', url, { CallSid: 'CA6' });
+    expect((await guardTwilioRequest(req(CALL, { CallSid: 'CA6' }, forged), 't')).ok).toBe(false);
+  });
+
+  it('cid connu mais tenant SANS jeton → 401, jamais « non vérifié »', async () => {
     const r = await guardTwilioRequest(req(CALL, { CallSid: 'CA3' }), 't');
-    expect(r).toMatchObject({ ok: true, callId: CALL, userId: A, mode: 'unenforced' });
+    expect(r).toEqual({ ok: false, status: 401, reason: 'no_auth_token' });
   });
 });
 
@@ -65,7 +89,8 @@ describe('POST /api/voice-calls/status — mise à jour par id exact', () => {
     fake.seed('public', 'voice_calls', [
       { id: 'other', user_id: 'B', status: 'initiated', outcome: null },
     ]);
-    const res = await statusPOST(req(CALL, { CallSid: 'CA4', CallStatus: 'no-answer' }));
+    fake.seed('public', 'voice_call_settings', [{ user_id: A, auth_token: TOKEN }]);
+    const res = await statusPOST(signedReq(CALL, { CallSid: 'CA4', CallStatus: 'no-answer' }));
     expect(res.status).toBe(200);
     const rows = fake.all('public', 'voice_calls');
     expect(rows.find((r) => r.id === CALL)).toMatchObject({
