@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { getSettings, isReadyToCall, toE164, placeCall } from '@/lib/voice-calls/twilio';
+import { internalErrorResponse } from '@/lib/security/public-error';
 
 function appBaseUrl(req: NextRequest): string {
   const env = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL;
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (insErr || !row) {
-    return NextResponse.json({ error: insErr?.message || 'DB insert échoué' }, { status: 500 });
+    return internalErrorResponse('api.voice-calls.start', insErr);
   }
 
   // 2. Construis les URLs webhook que Twilio va appeler — elles incluent l'id

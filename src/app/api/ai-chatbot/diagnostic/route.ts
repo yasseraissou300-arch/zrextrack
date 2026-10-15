@@ -1,3 +1,4 @@
+import { isOwnedInstanceName } from '@/lib/whatsapp/instance-ownership';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds, getUserCreds } from '@/lib/user-creds';
@@ -45,8 +46,8 @@ async function evolutionGet(
       json = text;
     }
     return { ok: res.ok, status: res.status, json };
-  } catch (e) {
-    return { ok: false, status: 0, json: e instanceof Error ? e.message : String(e) };
+  } catch {
+    return { ok: false, status: 0, json: 'network_error' };
   }
 }
 
@@ -85,7 +86,8 @@ export async function GET() {
   const instanceDiagnostics: InstanceDiag[] = [];
 
   if (instances) {
-    for (const inst of instances) {
+    // RLS-TENANT-001 : seulement les noms de l'espace du tenant.
+    for (const inst of instances.filter((i) => isOwnedInstanceName(user.id, i.instance_name))) {
       const diag: InstanceDiag = {
         service_type: inst.service_type ?? '(null — migration missing?)',
         instance_name: inst.instance_name,
@@ -155,7 +157,7 @@ export async function GET() {
   }
   if (instErr) {
     issues.push(
-      `Erreur lecture whatsapp_instances: ${instErr.message}. La colonne service_type est-elle créée ?`
+      `Erreur lecture whatsapp_instances (code ${instErr.code ?? 'inconnu'}). La colonne service_type est-elle créée ?`
     );
   }
   for (const d of instanceDiagnostics) {
