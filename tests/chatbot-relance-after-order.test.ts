@@ -75,7 +75,7 @@ async function inbound(text: string, reply: string, id = `R-${++seq}`) {
       method: 'POST',
       body: JSON.stringify({
         event: 'messages.upsert',
-        instance: 'zrex_t_auto',
+        instance: 'zrex_111111111111_auto',
         data: {
           key: { remoteJid: C, fromMe: false, id },
           message: { conversation: text },
@@ -116,7 +116,7 @@ beforeEach(() => {
     {
       user_id: T,
       service_type: 'auto_confirmation',
-      instance_name: 'zrex_t_auto',
+      instance_name: 'zrex_111111111111_auto',
       connected: true,
     },
   ]);

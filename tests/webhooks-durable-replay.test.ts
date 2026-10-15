@@ -108,20 +108,29 @@ describe('Messenger — mid durable', () => {
 // ─── Twilio ─────────────────────────────────────────────────────────────────
 describe('Twilio — CallSid durable', () => {
   const URL_ = 'https://app.test/api/voice-calls/status?cid=call-1';
+  // Signature obligatoire (#134) : requêtes signées avec le jeton du tenant.
+  const TWILIO_TOKEN = 'TEST_TWILIO_AUTH_TOKEN';
   async function guard(callStatus: string) {
     vi.resetModules();
     const { guardTwilioRequest } = await import('@/lib/security/twilio-guard');
+    const { computeTwilioSignature } = await import('@/lib/security/twilio-signature');
+    const params = { CallSid: 'CA1', CallStatus: callStatus };
     return guardTwilioRequest(
       new NextRequest(URL_, {
         method: 'POST',
-        headers: { 'content-type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ CallSid: 'CA1', CallStatus: callStatus }).toString(),
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+          'x-twilio-signature': computeTwilioSignature(TWILIO_TOKEN, URL_, params),
+        },
+        body: new URLSearchParams(params).toString(),
       }),
       'test.twilio'
     );
   }
   beforeEach(() => {
+    vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://app.test');
     db.seed('public', 'voice_calls', [{ id: 'call-1', user_id: A }]);
+    db.seed('public', 'voice_call_settings', [{ user_id: A, auth_token: TWILIO_TOKEN }]);
   });
 
   it('même CallSid + statut rejoué après démarrage à froid → 409', async () => {

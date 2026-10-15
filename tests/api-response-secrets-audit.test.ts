@@ -347,7 +347,7 @@ describe('POST /api/ai-chatbot/whatsapp/webhook-reset — secret plateforme', ()
     db.seed('public', 'whatsapp_instances', [
       {
         user_id: A,
-        instance_name: 'zrex_a_auto',
+        instance_name: 'zrex_111111111111_auto',
         service_type: 'auto_confirmation',
         connected: true,
       },
