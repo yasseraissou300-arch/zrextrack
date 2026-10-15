@@ -132,6 +132,23 @@ describe('portée', () => {
 });
 
 describe('anti-rafale et plafond', () => {
+  it('circuit breaker du tenant ouvert → aucune relance, session conservée', async () => {
+    seedTenant(A, [{ id: 'a1' }]);
+    db.seed('autotim', 'tenant_settings', [
+      {
+        tenant_id: A,
+        consecutive_send_failures: 5,
+        circuit_open_until: new Date(Date.now() + 30 * 60_000).toISOString(),
+      },
+    ]);
+    currentUser = { id: A };
+    const { json } = await call();
+    expect(json.relanced).toBe(0);
+    expect(json.skipped.circuit_open).toBe(1);
+    expect(sends).toHaveLength(0);
+    expect(db.all('public', 'ai_chat_sessions')[0].relance_sent).toBe(false);
+  });
+
   it('un seul envoi par tenant et par exécution (avant : jusqu’à 50 d’affilée)', async () => {
     seedTenant(A, [{ id: 'a1' }, { id: 'a2' }, { id: 'a3' }]);
     currentUser = { id: A };
