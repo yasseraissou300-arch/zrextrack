@@ -45,7 +45,7 @@ beforeEach(() => {
     })
   );
   db.seed('public', 'whatsapp_instances', [
-    { user_id: USER, instance_name: 'zrex_test_auto', service_type: 'auto_confirmation' },
+    { user_id: USER, instance_name: 'zrex_111111111111_auto', service_type: 'auto_confirmation' },
   ]);
 });
 
@@ -137,7 +137,7 @@ describe('/api/ai-chatbot/whatsapp/qr — debug sans secret', () => {
       if (url.includes('/instance/create')) {
         // Réponse typique d'Evolution : jeton complet de l'instance + webhook.
         return Response.json({
-          instance: { instanceName: 'zrex_test_auto', status: 'created' },
+          instance: { instanceName: 'zrex_111111111111_auto', status: 'created' },
           hash: INSTANCE_HASH,
           webhook: { url: `https://app.test/api/ai-chatbot/webhook/whatsapp?token=${SECRET}` },
         });
