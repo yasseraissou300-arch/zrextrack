@@ -1,8 +1,27 @@
 import { imageHosts } from './image-hosts.config.mjs';
+import { buildCsp } from './csp.config.mjs';
+
+// En-têtes de sécurité appliqués à toutes les réponses (audit HDR, 2026-10-08).
+// CSP en REPORT-ONLY (csp.config.mjs) : signale sans rien bloquer ; à passer
+// en Content-Security-Policy après analyse des rapports (/api/csp-report).
+const securityHeaders = [
+  { key: 'Content-Security-Policy-Report-Only', value: buildCsp() },
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+];
+
+// Anti-iframe partout SAUF la page publique de suivi (/track), qu'un marchand
+// peut vouloir intégrer dans sa boutique.
+const frameHeaders = [{ key: 'X-Frame-Options', value: 'SAMEORIGIN' }];
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  productionBrowserSourceMaps: true,
+  // HDR-3 : les source maps publiaient tout le code client (commentaires
+  // compris). Désactivées en production.
+  productionBrowserSourceMaps: false,
+  // HDR-5 : ne plus annoncer le framework (X-Powered-By: Next.js).
+  poweredByHeader: false,
   distDir: process.env.DIST_DIR || '.next',
   // Phase 0 — P0-2 : les erreurs TypeScript ne sont plus ignorées au build.
   // Vérifié : `tsc --noEmit` renvoie 0 erreur. Un type cassé fait désormais
@@ -25,6 +44,13 @@ const nextConfig = {
   // /auth/callback qui redirige déjà vers /admin-dashboard.
   async redirects() {
     return [];
+  },
+
+  async headers() {
+    return [
+      { source: '/:path*', headers: securityHeaders },
+      { source: '/:path((?!track(?:/|$)).*)', headers: frameHeaders },
+    ];
   },
 
   webpack(config, { dev }) {

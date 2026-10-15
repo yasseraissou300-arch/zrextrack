@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { MatchProposal, PreviewResponse, Confidence } from '@/lib/autoswap/types';
-import { loadSyncSettings } from '@/lib/sync-settings-client';
+import { loadSyncSettings, zrReady } from '@/lib/sync-settings-client';
 
 // ZRExpress restreint l'exécution des swaps via API key (403 ApiKeyNotAllowed).
 // AutoTim agit donc comme un copilote : il identifie les matchs et facilite
@@ -75,8 +75,6 @@ interface SwapStats {
 }
 
 export default function AutoSwapPage() {
-  const [token, setToken] = useState('');
-  const [tenantId, setTenantId] = useState('');
   const [credentialsReady, setCredentialsReady] = useState(false);
 
   const [scanning, setScanning] = useState(false);
@@ -127,8 +125,9 @@ export default function AutoSwapPage() {
 
   // Charge les stats des commandes DÉJÀ swappées directement depuis ZRExpress
   // (détection automatique via swap.count) — nécessite les credentials.
-  const fetchSwapStats = useCallback(async (tk: string, ti: string) => {
-    if (!tk || !ti) {
+  // La clé ZR reste côté serveur (P2-9) : les routes la lisent pour la session.
+  const fetchSwapStats = useCallback(async (ready: boolean) => {
+    if (!ready) {
       setStatsLoading(false);
       return;
     }
@@ -138,7 +137,7 @@ export default function AutoSwapPage() {
       const res = await fetch('/api/autoswap/swapped-stats', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: tk, tenantId: ti }),
+        body: JSON.stringify({}),
       });
       const json = await res.json().catch(() => ({}) as Record<string, unknown>);
       if (res.ok) {
@@ -155,11 +154,9 @@ export default function AutoSwapPage() {
 
   useEffect(() => {
     loadSyncSettings().then((s) => {
-      setToken(s.zrexpress_token);
-      setTenantId(s.zrexpress_tenant_id);
-      setCredentialsReady(!!s.zrexpress_token && !!s.zrexpress_tenant_id);
+      setCredentialsReady(zrReady(s));
       // Charge les stats dès que les credentials sont disponibles
-      fetchSwapStats(s.zrexpress_token, s.zrexpress_tenant_id);
+      fetchSwapStats(zrReady(s));
     });
   }, [fetchSwapStats]);
 
@@ -171,7 +168,7 @@ export default function AutoSwapPage() {
       const res = await fetch('/api/autoswap/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, tenantId }),
+        body: JSON.stringify({}),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Erreur ${res.status}`);
@@ -195,7 +192,7 @@ export default function AutoSwapPage() {
       const res = await fetch('/api/autoswap/diagnostic', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, tenantId }),
+        body: JSON.stringify({}),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Erreur ${res.status}`);
@@ -293,7 +290,7 @@ export default function AutoSwapPage() {
                 </button>
               </div>
               <button
-                onClick={() => fetchSwapStats(token, tenantId)}
+                onClick={() => fetchSwapStats(credentialsReady)}
                 disabled={statsLoading || !credentialsReady}
                 className="text-xs text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:text-stone-200 flex items-center gap-1.5 disabled:opacity-50"
                 title="Rafraîchir les statistiques"

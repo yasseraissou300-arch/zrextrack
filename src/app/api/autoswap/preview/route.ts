@@ -1,6 +1,8 @@
+import { internalErrorResponse } from '@/lib/security/public-error';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { fetchAllParcels } from '@/lib/zrexpress/parcels';
+import { getZrCredentials, ZR_NOT_CONFIGURED } from '@/lib/zrexpress/credentials';
 import { matchSwappables, splitSourcesAndTargets } from '@/lib/autoswap/matcher';
 import type { PreviewResponse, ZRParcel } from '@/lib/autoswap/types';
 
@@ -10,21 +12,23 @@ import type { PreviewResponse, ZRParcel } from '@/lib/autoswap/types';
 // Aucune écriture en DB, aucun POST ZRExpress.
 export async function POST(request: NextRequest) {
   try {
-    const { token, tenantId } = await request.json();
-    if (!token)
-      return NextResponse.json({ error: 'Clé API (secretKey) manquante' }, { status: 400 });
-    if (!tenantId) return NextResponse.json({ error: 'Tenant ID manquant' }, { status: 400 });
-
-    // Charge les équivalences du user — chaque utilisateur a sa propre config
-    // (ex : ami A vend du hijab miral, ami B vend autre chose avec autres groupes).
+    // Session obligatoire ; clé ZR lue en base pour ce tenant (P2-9) — une clé
+    // envoyée dans le corps est ignorée.
     const supabaseAuth = await createClient();
     const {
       data: { user },
     } = await supabaseAuth.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
 
+    const service = createServiceClient();
+    const zr = await getZrCredentials(service, user.id);
+    if (!zr) return NextResponse.json(ZR_NOT_CONFIGURED, { status: 400 });
+    const { token, tenantId } = zr;
+
+    // Charge les équivalences du user — chaque utilisateur a sa propre config
+    // (ex : ami A vend du hijab miral, ami B vend autre chose avec autres groupes).
     const sizeEquivalences: Record<string, string[][]> = {};
-    if (user) {
-      const service = createServiceClient();
+    {
       const { data: rows } = await service
         .from('autoswap_size_equivalences')
         .select('product_key, groups')
@@ -62,6 +66,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(response);
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || 'Erreur AutoSwap preview' }, { status: 500 });
+    return internalErrorResponse('api.autoswap.preview', err, 500, 'Erreur AutoSwap preview');
   }
 }

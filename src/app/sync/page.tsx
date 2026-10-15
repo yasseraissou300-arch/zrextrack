@@ -87,6 +87,10 @@ export default function SyncPage() {
   const [result, setResult] = useState<SyncResult | null>(null);
   const [history, setHistory] = useState<SyncHistory[]>([]);
   const [tokenSaved, setTokenSaved] = useState(false);
+  // La clé enregistrée n'est jamais renvoyée par le serveur (P2-9) : on n'en
+  // connaît que les 4 derniers caractères. Le champ ne sert qu'à en saisir une
+  // NOUVELLE.
+  const [tokenMasked, setTokenMasked] = useState('');
 
   // Templates
   const [templates, setTemplates] = useState<Record<string, string>>(DEFAULT_TEMPLATES);
@@ -98,9 +102,9 @@ export default function SyncPage() {
   useEffect(() => {
     // Load from server (cross-device) — falls back to localStorage migration if empty
     loadSyncSettings().then((s) => {
-      if (s.zrexpress_token) {
-        setToken(s.zrexpress_token);
+      if (s.zrexpress_configured) {
         setTokenSaved(true);
+        setTokenMasked(s.zrexpress_token_masked);
       }
       if (s.zrexpress_tenant_id) setTenantId(s.zrexpress_tenant_id);
       if (s.templates && Object.keys(s.templates).length) {
@@ -120,12 +124,18 @@ export default function SyncPage() {
       }
   }, []);
 
+  const canSave = !!tenantId.trim() && (!!token.trim() || tokenSaved);
+
+  // Écriture seule : la clé part vers le serveur une fois, puis le champ est vidé.
   const saveToken = async () => {
-    if (!token.trim() || !tenantId.trim()) return;
+    if (!canSave) return;
+    const fresh = token.trim();
     await saveSyncSettings({
-      zrexpress_token: token.trim(),
       zrexpress_tenant_id: tenantId.trim(),
+      ...(fresh ? { zrexpress_token: fresh } : {}),
     });
+    if (fresh) setTokenMasked(fresh.length > 8 ? `••••${fresh.slice(-4)}` : '••••');
+    setToken('');
     setTokenSaved(true);
   };
 
@@ -134,6 +144,7 @@ export default function SyncPage() {
     setToken('');
     setTenantId('');
     setTokenSaved(false);
+    setTokenMasked('');
   };
 
   const saveTemplates = async () => {
@@ -153,7 +164,10 @@ export default function SyncPage() {
   };
 
   const runSync = async () => {
-    if (!token.trim() || !tenantId.trim()) return;
+    if (!canSave) return;
+    // Enregistre d'abord le formulaire (tenant, et clé si une nouvelle est
+    // saisie) : la route de sync ne lit plus que les identifiants stockés.
+    await saveToken();
     setLoading(true);
     setResult(null);
 
@@ -162,8 +176,6 @@ export default function SyncPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          token: token.trim(),
-          tenantId: tenantId.trim(),
           templates,
           notifyEnabled,
         }),
@@ -257,7 +269,11 @@ export default function SyncPage() {
                       type={showToken ? 'text' : 'password'}
                       value={token}
                       onChange={(e) => setToken(e.target.value)}
-                      placeholder="zZhWCuWz..."
+                      placeholder={
+                        tokenSaved
+                          ? `Enregistrée (${tokenMasked || '••••'}) — saisir pour remplacer`
+                          : 'zZhWCuWz...'
+                      }
                       className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-4 py-3 pr-12 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-400"
                     />
                     <button
@@ -284,7 +300,7 @@ export default function SyncPage() {
               <div className="flex gap-3 mt-4">
                 <button
                   onClick={saveToken}
-                  disabled={!token.trim() || !tenantId.trim()}
+                  disabled={!canSave}
                   className="flex-1 bg-stone-900 text-white text-sm font-medium py-2.5 rounded-xl hover:bg-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   Enregistrer les clés
@@ -314,7 +330,7 @@ export default function SyncPage() {
               </p>
               <button
                 onClick={runSync}
-                disabled={loading || !token.trim() || !tenantId.trim()}
+                disabled={loading || !canSave}
                 className="w-full flex items-center justify-center gap-3 bg-gradient-to-br from-violet-500 to-fuchsia-500 hover:shadow-lg hover:shadow-violet-500/30 shadow-md shadow-violet-500/20 disabled:bg-stone-200 disabled:text-stone-400 dark:text-stone-500 text-white font-semibold py-4 rounded-xl transition-colors text-base disabled:cursor-not-allowed"
               >
                 <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
