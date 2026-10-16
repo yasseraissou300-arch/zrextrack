@@ -26,7 +26,7 @@ import {
   Check,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { loadSyncSettings } from '@/lib/sync-settings-client';
+import { loadSyncSettings, zrReady } from '@/lib/sync-settings-client';
 
 interface Campaign {
   id: string;
@@ -999,15 +999,13 @@ function DeliveredCustomersTab({
 
   useEffect(() => {
     loadSyncSettings().then((s) => {
-      setCredentialsReady(!!s.zrexpress_token && !!s.zrexpress_tenant_id);
+      setCredentialsReady(zrReady(s));
     });
   }, []);
 
   const fetchData = useCallback(async () => {
     const s = await loadSyncSettings();
-    const token = s.zrexpress_token;
-    const tenantId = s.zrexpress_tenant_id;
-    if (!token || !tenantId) {
+    if (!zrReady(s)) {
       setError('Clé API ZRExpress non configurée. Va sur /sync pour la saisir.');
       return;
     }
@@ -1017,7 +1015,7 @@ function DeliveredCustomersTab({
       const res = await fetch('/api/campaigns/delivered-customers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, tenantId }),
+        body: JSON.stringify({}), // clé ZR lue côté serveur (P2-9)
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);

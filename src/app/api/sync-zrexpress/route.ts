@@ -1,11 +1,14 @@
 import { ownedInstance } from '@/lib/whatsapp/instance-ownership';
 import { NextRequest, NextResponse } from 'next/server';
+import { internalErrorResponse } from '@/lib/security/public-error';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { getZrCredentials, ZR_NOT_CONFIGURED } from '@/lib/zrexpress/credentials';
 import { mapStatus } from '@/lib/zrexpress/status';
 import { fetchAllParcels } from '@/lib/zrexpress/parcels';
 import { remainingDailyQuota, sleep, varyMessage } from '@/lib/whatsapp/anti-spam';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
 import { countOrdersThisMonth, quotaStateFor } from '@/lib/plan-quotas';
+import { stateUpdatedAt } from '@/lib/zrexpress/map-parcel';
 
 const APP_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://zrextrack6753.builtwithrocket.new';
 
@@ -158,7 +161,7 @@ function mapParcel(p: any, syncedAt: string) {
     cod: Number(cod),
     delivery_status: status,
     attempts: Number(attempts),
-    last_update: syncedAt,
+    last_update: stateUpdatedAt(p, syncedAt),
   };
 }
 
@@ -279,29 +282,27 @@ async function drainNotifications(
 
 export async function POST(request: NextRequest) {
   try {
-    const { token, tenantId, notifyEnabled } = await request.json();
-    if (!token)
-      return NextResponse.json({ error: 'Clé API (secretKey) manquante' }, { status: 400 });
-    if (!tenantId) return NextResponse.json({ error: 'Tenant ID manquant' }, { status: 400 });
+    // La clé ZR n'est PLUS lue dans le corps (P2-9) : celle du tenant de la
+    // session, lue en base, fait foi. Une clé injectée par le client est ignorée.
+    const { notifyEnabled } = await request.json().catch(() => ({}));
 
     const supabaseAuth = await createClient();
     const {
       data: { user },
     } = await supabaseAuth.auth.getUser();
-    const userId = user?.id ?? null;
+    // Session OBLIGATOIRE. Sans elle, l'ancien code appelait ZRExpress, sautait
+    // le quota et upsertait tous les colis avec user_id = NULL : NULL ne viole
+    // jamais l'index unique (user_id, tracking_number), donc chaque appel
+    // anonyme insérait des lignes orphelines dans `orders` (colonne nullable
+    // d'après supabase_orders.sql). Le middleware laisse /api/* passer.
+    if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    const userId = user.id;
 
     const supabase = createServiceClient();
 
-    // Récupérer les credentials WhatsApp depuis whatsapp_settings (comme les autres routes)
-    const { data: waSettings } = userId
-      ? await supabase
-          .from('whatsapp_settings')
-          .select('instance_id, api_token')
-          .eq('user_id', userId)
-          .single()
-      : { data: null };
-    const waInstanceId: string = waSettings?.instance_id ?? '';
-    const waToken: string = waSettings?.api_token ?? '';
+    const zr = await getZrCredentials(supabase, userId);
+    if (!zr) return NextResponse.json(ZR_NOT_CONFIGURED, { status: 400 });
+    const { token, tenantId } = zr;
 
     // Templates UNIFIÉS : table message_templates (éditée dans Messages →
     // Templates). Source unique pour l'envoi auto ET manuel ; on prend la
@@ -427,7 +428,7 @@ export async function POST(request: NextRequest) {
       .upsert(rows, { onConflict: 'user_id,tracking_number', count: 'exact' });
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return internalErrorResponse('api.sync-zrexpress', error, 500);
     }
 
     // 5. Notifications WhatsApp — FILE D'ATTENTE (anti-ban).
@@ -472,6 +473,6 @@ export async function POST(request: NextRequest) {
       ...(quotaState && !quotaState.isUnlimited && { quota: quotaState }),
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return internalErrorResponse('api.sync-zrexpress', err, 500);
   }
 }
