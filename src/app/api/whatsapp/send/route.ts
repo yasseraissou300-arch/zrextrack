@@ -1,4 +1,8 @@
+import { ownedInstance } from '@/lib/whatsapp/instance-ownership';
 import { NextRequest, NextResponse } from 'next/server';
+import { logEvent } from '@/lib/security/safe-log';
+import { getTenantSettings } from '@/lib/queue/repository';
+import { circuitState } from '@/lib/queue/circuit-breaker';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
 import {
@@ -7,7 +11,22 @@ import {
   sleep,
   varyMessage,
   remainingDailyQuota,
+  effectiveDailyLimit,
 } from '@/lib/whatsapp/anti-spam';
+import { evolutionErrorMessage } from '@/lib/whatsapp/evolution-error';
+
+// Vercel Hobby plafonne à 60 s. Sans déclaration, la fonction était coupée en
+// plein lot (throttle 20-60 s entre deux envois) : la réponse n'arrivait
+// jamais, le bouton restait bloqué, et un nouveau clic renvoyait les premiers
+// destinataires, déjà servis.
+export const maxDuration = 60;
+
+/** Budget applicatif : on n'entame pas un envoi qui risquerait d'être coupé. */
+const SEND_BUDGET_MS = 45_000;
+/** Fenêtre anti-doublon : même destinataire + même colis déjà envoyé. */
+const RECENT_DUP_MS = 10 * 60_000;
+/** Marge pour l'appel Evolution et l'écriture du journal après l'attente. */
+const SEND_RESERVE_MS = 8_000;
 
 // Envoie un message WhatsApp via Evolution API en utilisant l'instance
 // « auto_confirmation » de l'utilisateur (la même que celle de l'onglet
@@ -51,12 +70,14 @@ async function getReadyInstance(
     };
   }
   const service = createServiceClient();
-  const { data: row } = await service
+  const { data: rowRow } = await service
     .from('whatsapp_instances')
     .select('instance_name, connected')
     .eq('user_id', userId)
     .eq('service_type', DEFAULT_SERVICE)
     .single();
+  // RLS-TENANT-001 : jamais d'action Evolution sur un nom hors de l'espace du tenant.
+  const row = ownedInstance(userId, rowRow, 'whatsapp.send');
 
   if (!row)
     return {
@@ -79,8 +100,8 @@ async function getReadyInstance(
           reason: `WhatsApp non connecté (état Evolution : ${j.instance?.state || j.state || 'inconnu'})`,
         };
     }
-  } catch (e: any) {
-    return { instance: null, reason: `Evolution injoignable : ${e?.message || 'erreur réseau'}` };
+  } catch {
+    return { instance: null, reason: 'Evolution injoignable : erreur réseau' };
   }
   return { instance: row };
 }
@@ -116,17 +137,18 @@ async function sendOne(
         ok: false,
         error: dead
           ? 'Session WhatsApp expirée (Connection Closed) — reconnecte le QR'
-          : `Evolution HTTP ${res.status}: ${errText.slice(0, 200)}`,
+          : evolutionErrorMessage('whatsapp.send', res.status, errText),
         sessionDead: dead,
       };
     }
     return { ok: true };
-  } catch (e: any) {
-    return { ok: false, error: e?.message || 'Erreur réseau Evolution' };
+  } catch {
+    return { ok: false, error: 'Erreur réseau Evolution' };
   }
 }
 
 export async function POST(request: NextRequest) {
+  const startedAt = Date.now();
   const supabaseAuth = await createClient();
   const {
     data: { user },
@@ -135,7 +157,7 @@ export async function POST(request: NextRequest) {
 
   const supabase = createServiceClient();
   const body = await request.json();
-  const { recipients } = body;
+  let { recipients } = body;
 
   if (!Array.isArray(recipients) || recipients.length === 0) {
     return NextResponse.json({ error: 'Aucun destinataire' }, { status: 400 });
@@ -161,28 +183,100 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // ── Circuit breaker du TENANT (celui de la file : ouvert après des échecs
+  // consécutifs, session morte…). L'envoi manuel ne le contournait pas
+  // seulement par lot : il l'ignorait. Illisible → on continue (le circuit
+  // par lot ci-dessous reste actif).
+  let tenantCircuit: ReturnType<typeof circuitState> | null = null;
+  try {
+    tenantCircuit = circuitState(await getTenantSettings(supabase, user.id));
+  } catch {
+    tenantCircuit = null;
+  }
+  if (tenantCircuit?.open) {
+    return NextResponse.json(
+      {
+        error: 'Envois suspendus temporairement après plusieurs échecs (protection du numéro)',
+        code: 'CIRCUIT_OPEN',
+        retryAt: tenantCircuit.until?.toISOString() ?? null,
+        sent: 0,
+        failed: 0,
+        results: [],
+      },
+      { status: 503 }
+    );
+  }
+
+  // ── ANTI-DOUBLON : même destinataire + même colis ──────────────────────
+  // (1) deux fois dans la même sélection ; (2) déjà envoyé il y a moins de
+  // RECENT_DUP_MS (double clic, deux onglets, nouvel essai après délai). Ces
+  // destinataires sont écartés AVANT le calcul du quota : ni envoyés, ni
+  // journalisés, renvoyés au client dans `duplicates`.
+  const recentSince = new Date(Date.now() - RECENT_DUP_MS).toISOString();
+  const { data: recentRows } = await supabase
+    .from('messages')
+    .select('customer_whatsapp, tracking_number')
+    .eq('user_id', user.id)
+    .eq('status', 'envoye')
+    .gte('sent_at', recentSince);
+  const dupKey = (phone: string, tracking: unknown) =>
+    `${normalizePhone(phone || '')}|${typeof tracking === 'string' ? tracking : ''}`;
+  const alreadySent = new Set(
+    (recentRows ?? []).map((m: { customer_whatsapp: string; tracking_number: string | null }) =>
+      dupKey(m.customer_whatsapp, m.tracking_number)
+    )
+  );
+  const seen = new Set<string>();
+  const duplicates: Array<{ tracking: string; client: string }> = [];
+  const uniqueRecipients = (recipients as Array<Record<string, string>>).filter((r) => {
+    const key = dupKey(r?.whatsapp, r?.tracking);
+    if (alreadySent.has(key) || seen.has(key)) {
+      duplicates.push({ tracking: r?.tracking, client: r?.client });
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+  recipients = uniqueRecipients;
+  if (recipients.length === 0) {
+    return NextResponse.json({
+      sent: 0,
+      failed: 0,
+      results: [],
+      duplicates,
+      hint: 'Déjà envoyé récemment à ces destinataires — rien renvoyé.',
+    });
+  }
+
   // ── ANTI-SPAM : plafond journalier glissant ─────────────────────────────
   // On compte les envois RÉUSSIS des 24 dernières heures. Si on dépasse, on
   // refuse le batch entièrement plutôt que de risquer la suspension du numéro.
+  // Warm-up pris en compte comme dans la file et le drain : sans lui, un numéro
+  // en jour 1 de warm-up (plafond 8) pouvait envoyer 40 messages d'ici.
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const { count: sentToday } = await supabase
-    .from('messages')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', user.id)
-    .eq('status', 'envoye')
-    .gte('sent_at', since);
+  const [{ count: sentToday }, { data: prof }] = await Promise.all([
+    supabase
+      .from('messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('status', 'envoye')
+      .gte('sent_at', since),
+    supabase.from('profiles').select('whatsapp_warmup_started_at').eq('id', user.id).maybeSingle(),
+  ]);
+  const warmupStartedAt = prof?.whatsapp_warmup_started_at ?? null;
+  const dailyLimit = effectiveDailyLimit(warmupStartedAt);
 
-  const remaining = remainingDailyQuota(sentToday ?? 0);
+  const remaining = remainingDailyQuota(sentToday ?? 0, warmupStartedAt);
   if (remaining <= 0) {
     return NextResponse.json(
       {
-        error: `Plafond journalier atteint (${ANTI_SPAM.DAILY_LIMIT} messages/24h)`,
+        error: `Plafond journalier atteint (${dailyLimit} messages/24h)`,
         code: 'DAILY_LIMIT_REACHED',
         hint: "Cette limite protège ton numéro WhatsApp d'être suspendu pour spam. Attends que la fenêtre glissante de 24h se libère.",
         sent: 0,
         failed: 0,
         sentToday: sentToday ?? 0,
-        dailyLimit: ANTI_SPAM.DAILY_LIMIT,
+        dailyLimit,
         results: [],
       },
       { status: 429 }
@@ -199,18 +293,38 @@ export async function POST(request: NextRequest) {
     error: string;
   }
   const results: SendResult[] = [];
+  // Destinataires non traités faute de temps : ni envoyés, ni journalisés.
+  // Le client les garde sélectionnés pour un nouvel envoi — sans renvoyer ceux
+  // déjà servis.
+  const deferred: Array<{ tracking: string; client: string }> = [];
   let sessionDeadDetected = false;
   let consecutiveErrors = 0;
   let circuitBroken = false;
 
   for (let i = 0; i < recipients.length; i++) {
     const r = recipients[i];
+    const willAttempt =
+      i < willSend &&
+      !!r.whatsapp &&
+      normalizePhone(r.whatsapp).length >= 11 &&
+      !sessionDeadDetected &&
+      !circuitBroken;
+    const wait =
+      willAttempt && (results.some((x) => x.status === 'envoye') || consecutiveErrors > 0)
+        ? randomThrottle()
+        : 0;
+    if (willAttempt && Date.now() - startedAt + wait + SEND_RESERVE_MS > SEND_BUDGET_MS) {
+      for (const rest of recipients.slice(i)) {
+        deferred.push({ tracking: rest.tracking, client: rest.client });
+      }
+      break;
+    }
     const to = normalizePhone(r.whatsapp);
     let status: 'envoye' | 'echec' = 'echec';
     let errorMsg = '';
 
     if (i >= willSend) {
-      errorMsg = `Quota journalier dépassé (${ANTI_SPAM.DAILY_LIMIT}/24h) — non envoyé`;
+      errorMsg = `Quota journalier dépassé (${dailyLimit}/24h) — non envoyé`;
     } else if (!to || to.length < 11) {
       errorMsg = `Numéro invalide : "${r.whatsapp}"`;
     } else if (sessionDeadDetected) {
@@ -219,10 +333,8 @@ export async function POST(request: NextRequest) {
       errorMsg = `Circuit ouvert (${ANTI_SPAM.MAX_CONSECUTIVE_ERRORS} échecs consécutifs) — batch arrêté pour protéger le numéro`;
     } else {
       // Throttle entre 2 envois pour ne pas avoir un rythme robotique.
-      // Seulement à partir du 2e envoi.
-      if (results.some((x) => x.status === 'envoye') || consecutiveErrors > 0) {
-        await sleep(randomThrottle());
-      }
+      // Seulement à partir du 2e envoi (durée tirée avant le contrôle de budget).
+      if (wait > 0) await sleep(wait);
 
       // Variation du message (emoji + zero-width space) pour éviter la
       // détection de doublons côté WhatsApp.
@@ -265,13 +377,26 @@ export async function POST(request: NextRequest) {
 
   const sent = results.filter((r) => r.status === 'envoye').length;
   const failed = results.filter((r) => r.status === 'echec').length;
+  logEvent('info', 'whatsapp.manual_send', {
+    event: 'batch',
+    tenant_id: user.id,
+    status: circuitBroken ? 'circuit_broken' : sessionDeadDetected ? 'session_dead' : 'done',
+    total: recipients.length,
+    count: sent,
+    elapsed_ms: Date.now() - startedAt,
+  });
   return NextResponse.json({
     sent,
     failed,
     results,
+    ...(duplicates.length > 0 && { duplicates }),
     sentToday: (sentToday ?? 0) + sent,
-    dailyLimit: ANTI_SPAM.DAILY_LIMIT,
+    dailyLimit,
     ...(skippedForQuota > 0 && { skippedForQuota }),
+    ...(deferred.length > 0 && {
+      deferred,
+      hint: `${deferred.length} destinataire(s) non traité(s) pour rester sous la limite de durée — relance l'envoi pour continuer (les messages déjà partis ne seront pas renvoyés).`,
+    }),
     ...(circuitBroken && {
       circuitBroken: true,
       hint: `Batch arrêté après ${ANTI_SPAM.MAX_CONSECUTIVE_ERRORS} échecs consécutifs pour protéger le numéro. Vérifie ta connexion et tes destinataires.`,

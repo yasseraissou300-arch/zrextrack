@@ -23,6 +23,22 @@ export interface MappedOrder {
   last_update: string;
 }
 
+/**
+ * Date du dernier changement d'état du colis selon ZRExpress
+ * (SearchSupplierParcelResponse.lastStateUpdateAt), à défaut l'instant du sync.
+ *
+ * L'ancien code écrivait l'instant du sync dans TOUTES les lignes à chaque
+ * sync : « livrées aujourd'hui » comptait alors toutes les commandes livrées
+ * depuis toujours, et le graphique 7 jours empilait tout sur le jour du sync.
+ */
+export function stateUpdatedAt(p: any, syncedAt: string): string {
+  const raw = p?.lastStateUpdateAt ?? p?.lastStateHistoryAt ?? null;
+  if (typeof raw === 'string' && Number.isFinite(Date.parse(raw))) {
+    return new Date(raw).toISOString();
+  }
+  return syncedAt;
+}
+
 export function mapParcel(p: any, syncedAt: string): MappedOrder {
   const tracking =
     p.trackingNumber || p.trackingCode || p.tracking_code || p.tracking || p.barcode || p.id || '';
@@ -85,7 +101,7 @@ export function mapParcel(p: any, syncedAt: string): MappedOrder {
     cod: Number(cod),
     delivery_status: status,
     attempts: Number(attempts),
-    last_update: syncedAt,
+    last_update: stateUpdatedAt(p, syncedAt),
   };
 }
 

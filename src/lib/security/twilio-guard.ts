@@ -54,6 +54,13 @@ export async function guardTwilioRequest(
     .eq('id', cid)
     .maybeSingle();
 
+  // cid inconnu : aucun appel légitime ne peut le porter (la ligne voice_calls
+  // est créée AVANT placeCall). Refus au lieu du mode « non appliqué ».
+  if (!call) {
+    logEvent('warn', scope, { status: 'rejected', reason: 'unknown_cid' });
+    return { ok: false, status: 404, reason: 'unknown_cid' };
+  }
+
   const userId: string | null = call?.user_id ?? null;
   let authToken: string | null = null;
   if (userId) {
@@ -85,12 +92,18 @@ export async function guardTwilioRequest(
     return { ok: false, status: check.status, reason: check.reason };
   }
 
+  // Aucun jeton pour ce tenant : refus (signature obligatoire). Un appel ne
+  // peut être passé qu'avec un jeton (isReadyToCall) ; ce cas ne survient que
+  // si le jeton a été retiré ensuite. Avant : requête acceptée sans signature,
+  // et /twiml exposait nom, montant et tracking à quiconque détenait le cid.
   if (check.mode === 'unenforced') {
     logEvent('warn', scope, {
-      status: 'unauthenticated_accepted',
-      reason: 'auth_token Twilio indisponible — signature non vérifiée',
+      status: 'rejected',
+      reason: 'no_auth_token',
       tenant_id: userId ?? undefined,
+      conversation_id: cid,
     });
+    return { ok: false, status: 401, reason: 'no_auth_token' };
   }
 
   // Anti-rejeu : Twilio ne signe pas d'horodatage, donc une requête capturée

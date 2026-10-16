@@ -25,8 +25,8 @@
 --         periode        : 2026-04-17 → 2026-06-28
 --
 --   Par tenant :
---     7a74e3ca-…  alicherifoussama1@gmail.com   493 784 lignes    15 envoyes
---     73b8e14c-…  yasseraissou300@gmail.com      38 732 lignes    30 envoyes
+--     tenant B (7a74e3ca…)               493 784 lignes    15 envoyes
+--     tenant pilote (73b8e14c…)          38 732 lignes    30 envoyes
 --
 --   ORIGINE : session WhatsApp morte fin avril, suivie de trois mois de
 --   tentatives repetees, chacune ecrivant une ligne d'echec.
