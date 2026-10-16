@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { internalErrorResponse } from '@/lib/security/public-error';
 
 export async function GET(request: NextRequest) {
   const supabaseAuth = await createClient();
@@ -22,6 +23,6 @@ export async function GET(request: NextRequest) {
     .order('sent_at', { ascending: false })
     .range(from, to);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalErrorResponse('api.messages', error);
   return NextResponse.json({ data: data || [], count: count || 0 });
 }

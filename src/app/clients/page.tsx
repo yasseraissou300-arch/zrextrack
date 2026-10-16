@@ -1,22 +1,20 @@
 'use client';
 
 import AppLayout from '@/components/ui/AppLayout';
-import { createClient } from '@/lib/supabase/client';
 import { useEffect, useState } from 'react';
 import { Users, Package } from 'lucide-react';
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
 
   useEffect(() => {
     const fetchClients = async () => {
       setLoading(true);
-      const { data } = await supabase
-        .from('orders')
-        .select('customer_name, customer_whatsapp, wilaya, delivery_status')
-        .order('created_at', { ascending: false });
+      // Via l'API (service_role + scoping session) : la lecture directe de
+      // `orders` depuis le navigateur échoue (RLS 42P17).
+      const res = await fetch('/api/orders/view?view=clients');
+      const { data } = (res.ok ? await res.json() : { data: null }) as { data: any[] | null };
 
       if (data) {
         // Group by customer

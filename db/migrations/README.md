@@ -22,13 +22,14 @@ Toute structure nouvelle va dans le schéma dédié `autotim`.
 
 ## Ordre d'exécution
 
-| Fichier                                | Statut                                                                                                | Portée               |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------- |
-| `002_autotim_queue.sql`                | ✅ **EXÉCUTÉE** le 2026-09-11 (GO Phase 1, A1–A4)                                                     | `autotim` uniquement |
-| `002b_autotim_grants.sql`              | ✅ **EXÉCUTÉE** le 2026-09-11 (GO explicite) — `service_role` = SELECT/INSERT/UPDATE, **sans DELETE** | `autotim` uniquement |
-| `../proposed/003_public_indexes.sql`   | ⏸️ **NON EXÉCUTÉ** — validation séparée                                                               | `public`             |
-| `../proposed/004_rls_fix_42P17.sql`    | ⏸️ **NON EXÉCUTÉ** — D1 = plus tard                                                                   | `public`             |
-| `../proposed/005_messages_cleanup.sql` | ⏸️ **NON EXÉCUTÉ** — E2/E3 = plus tard                                                                | `public`             |
+| Fichier                                      | Statut                                                                                                       | Portée               |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | -------------------- |
+| `002_autotim_queue.sql`                      | ✅ **EXÉCUTÉE** le 2026-09-11 (GO Phase 1, A1–A4)                                                            | `autotim` uniquement |
+| `002b_autotim_grants.sql`                    | ✅ **EXÉCUTÉE** le 2026-09-11 (GO explicite) — `service_role` = SELECT/INSERT/UPDATE, **sans DELETE**        | `autotim` uniquement |
+| `../proposed/003_public_indexes.sql`         | ⏸️ **NON EXÉCUTÉ** — validation séparée                                                                      | `public`             |
+| `../proposed/004_rls_fix_42P17.sql`          | ⏸️ **NON EXÉCUTÉ** — D1 = plus tard                                                                          | `public`             |
+| `../proposed/005_messages_cleanup.sql`       | ⏸️ **NON EXÉCUTÉ** — E2/E3 = plus tard                                                                       | `public`             |
+| `../proposed/006_autotim_webhook_events.sql` | ⏸️ **NON EXÉCUTÉ** — anti-rejeu durable ; code tolérant à l'absence de la table. GO après le rapport 72 h v2 | `autotim` uniquement |
 
 > `001_introspection.sql` (dans `../baseline/`) est en lecture seule et peut être
 > rejoué à tout moment.
