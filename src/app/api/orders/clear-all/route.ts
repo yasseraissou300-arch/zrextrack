@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { internalErrorResponse } from '@/lib/security/public-error';
 
 export async function DELETE() {
   try {
@@ -16,9 +17,9 @@ export async function DELETE() {
       .delete({ count: 'exact' })
       .eq('user_id', user.id);
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return internalErrorResponse('api.orders.clear-all', error);
     return NextResponse.json({ deleted: count ?? 0 });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return internalErrorResponse('api.orders.clear-all', err);
   }
 }
