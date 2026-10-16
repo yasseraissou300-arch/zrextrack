@@ -82,7 +82,7 @@ Ordre recommandé : **1 → 2 → 3**, puis les autres au fil des lots de merge 
 - **EXPECTED RESULT** — le job cron-job.org répond 200 `{"ok":true,"scope":"all"}`.
 - **RISK** — aucun ; rollback : retirer la variable.
 
-## 3quater. H-SMOKE — vérification connectée (≈ 10 min, aucune donnée client)
+## 3quater. H-SMOKE — vérification connectée (≈ 15 min, aucune donnée client) — checklist détaillée : `docs/AUTOTIM-H-SMOKE.md`
 
 - **WHY** — les parcours connectés (déployés : #143, #103, #109–#114, #117) ne peuvent être vérifiés qu'avec une session.
 - **EXACT COMMAND** — se connecter sur `https://autotim.vercel.app` puis :
@@ -184,7 +184,7 @@ Ordre recommandé : **1 → 2 → 3**, puis les autres au fil des lots de merge 
 
 | ID | Question | Recommandation | Débloque |
 |---|---|---|---|
-| DECISION-127 | « Renvoyer une campagne » : nouvelle diffusion vers les clients arrivés depuis, ou reprise de l'envoi initial ? | figer l'audience au premier lancement (colonne `audience_cutoff`, migration) ; en attendant, #142 exige une confirmation chiffrée | #127, #128, #142 |
+| ~~DECISION-127~~ | **PRISE le 2026-10-16 : SAFE DEFAULT** (jamais deux fois au même destinataire ; renvoi uniquement par action explicite confirmée). Implémenté par #127 + #128 + #142. Amélioration possible plus tard : figer l'audience au premier lancement | — | #127, #128, #142 (quota Vercel) |
 | DECISION-SHEETS-OWNERSHIP | compte de service Google partagé entre tenants (connaître l'ID d'un Sheet suffit pour y écrire) | preuve de propriété (jeton à coller dans le Sheet) | durcissement P3 |
 | HUMAN-006 | domaine officiel des liens de suivi | — | liens `/track` |
 | HUMAN-LOGS-RETENTION-001 | durée de rétention des journaux Vercel | lecture du plan Vercel | conformité |

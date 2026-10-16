@@ -1,6 +1,6 @@
 # AutoTim — État de production
 
-> Mis à jour le 2026-10-16 vers 00:30 UTC. Production = `https://autotim.vercel.app` (alias `zrextrack.vercel.app`, même déploiement).
+> Mis à jour le 2026-10-16 (≈ 02:00 UTC). Production = `https://autotim.vercel.app` (alias `zrextrack.vercel.app`, même déploiement).
 > **`main` = production = `7c54428`**, vérifié via l'environnement GitHub « Production ».
 > Smoke « public » : `/`, `/login`, `/track`, `/api/health` → 200 ; `/admin-dashboard` → 307 vers `/login` ; `/api/orders` → 401.
 > Les parcours **connectés** n'ont pas été testés (aucune session disponible) : **PRODUCTION UNKNOWN**, à vérifier par l'action H-SMOKE.
@@ -43,10 +43,42 @@
 | #115, #122 admin par claim | OPEN | — | — | — | ADMIN-CLAIM-001 (GO) |
 | #120 secrets Shopify/Woo/Twilio | OPEN | — | — | — | HUMAN-READONLY-ALL (INTEGRATIONS-SECRET) |
 | #121 → #130 → #131 → #137 → #138 | OPEN | — | — | ONCONFLICT | HUMAN-READONLY-ALL (ONCONFLICT) |
-| #127, #128, #142 campagnes | OPEN | — | — | — | décision métier |
+| #127 → #128 → #142 campagnes | OPEN, à jour avec main, 674/674 | — | — | ordre de la chaîne | **décision prise (SAFE DEFAULT)** ; quota Vercel |
+| #146 tests webhook WA (A–G) + garde du script | OPEN, 670/670 | — | — | — | quota Vercel |
+| #147 UX doublons de l'envoi manuel | OPEN, tsc / lint OK | — | — | — | quota Vercel |
+| #148 SSRF / média / Google Sheet direct (remplace #137/#138) | OPEN, 761/761 | — | — | — | quota Vercel |
+| #137, #138 | OPEN | — | — | chaîne #121 | **remplacées par #148** : à fermer après le merge de #148 |
 
 ## Constats faits en production pendant le déploiement
 
 1. **`WHATSAPP_WEBHOOK_SECRET` absent** : le webhook WhatsApp entrant accepte un POST non authentifié (400 « Bad payload » au lieu de 401). → **WEBHOOK-SECRET-001** (P1), outillé par #145.
 2. **`/api/ai-chatbot/relance` ouvert** : un POST non authentifié exécutait la relance pour tous les tenants. Un tel appel a été émis pendant la vérification (résultat : `relanced: 0`, aucun message). **Corrigé et déployé (#104)** : 401.
 3. Quota de déploiements Vercel (offre Hobby) atteint après une trentaine de déploiements : les merges suivants sont suspendus jusqu'à la remise à zéro.
+
+## Ordre de merge à la remise à zéro du quota Vercel
+
+Une PR à la fois : merge → CI → déploiement → smoke.
+
+1. #148 (P2 sécurité)
+2. #107
+3. #147
+4. #146
+5. #127
+6. #128
+7. #142
+8. #144 (docs)
+
+Puis fermer #137 et #138.
+
+## Niveaux de risque (production)
+
+| Niveau | Élément | État |
+|---|---|---|
+| P0 | détournement d'instance WhatsApp | **corrigé dans l'application (#143, déployé)** ; défense en base 009 : non appliquée (GO) |
+| P1 | webhook WhatsApp entrant sans secret | **OUVERT** → WEBHOOK-SECRET-001 (humain) |
+| P1 | relance non authentifiée | **FERMÉ** (#104, 401 vérifié en production) |
+| P1 | Next.js vulnérable | **FERMÉ** (15.5.28 vérifié en production) |
+| P2 | SSRF média / Sheets | corrigé dans #148 (non déployé : quota) |
+| P2 | secrets en clair au repos | HUMAN-004 |
+| P2 | Super Admin via profiles.role | #115 / #122 (ADMIN-CLAIM-001) |
+| P3 | compte de service Google partagé | documenté |
