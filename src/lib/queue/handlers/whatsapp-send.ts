@@ -1,4 +1,5 @@
 import { ownedInstance } from '@/lib/whatsapp/instance-ownership';
+import { prepareMediaForEvolution } from '@/lib/whatsapp/media-delivery';
 // Handler `whatsapp.send` — UN message, UNE tentative.
 //
 // C'est le handler le plus sensible de la plateforme : le numéro WhatsApp a
@@ -114,6 +115,23 @@ export async function handleWhatsAppSend(job: Job): Promise<HandlerResult> {
     return { outcome: 'failed', error: `numéro invalide : ${maskPhone(payload.phone)}` };
   }
 
+  // ── 3b. Média : préparé par NOTRE serveur (SSRF / rebinding via Evolution)
+  // Stockage de la plateforme → URL transmise ; toute autre URL → téléchargée
+  // ici sous garde SSRF puis transmise en base64 : Evolution ne résout jamais
+  // un nom fourni par un tenant. Refus → échec du job (DLQ), aucun envoi.
+  let media: Awaited<ReturnType<typeof prepareMediaForEvolution>> | null = null;
+  if (payload.media_url) {
+    media = await prepareMediaForEvolution(payload.media_url);
+    if (!media.ok) {
+      logEvent('warn', 'queue.whatsapp', {
+        status: 'rejected',
+        reason: `media_${media.reason}`,
+        tenant_id: tenantId,
+      });
+      return { outcome: 'failed', error: 'Média refusé ou injoignable' };
+    }
+  }
+
   // ── 4. Instance Evolution ─────────────────────────────────────────────────
   const ev = await resolveEvolutionCreds(tenantId);
   if (!ev.url || !ev.key) {
@@ -140,15 +158,17 @@ export async function handleWhatsAppSend(job: Job): Promise<HandlerResult> {
 
   try {
     const endpoint = payload.media_url ? 'sendMedia' : 'sendText';
-    const body = payload.media_url
-      ? {
-          number: phone,
-          mediatype: guessMediaType(payload.media_url),
-          media: payload.media_url,
-          fileName: guessFileName(payload.media_url),
-          caption: varied,
-        }
-      : { number: phone, text: varied };
+    const body =
+      payload.media_url && media?.ok
+        ? {
+            number: phone,
+            mediatype: guessMediaType(payload.media_url),
+            media: media.media,
+            ...(media.mimetype ? { mimetype: media.mimetype } : {}),
+            fileName: guessFileName(payload.media_url),
+            caption: varied,
+          }
+        : { number: phone, text: varied };
 
     const res = await fetch(`${ev.url}/message/${endpoint}/${inst.instance_name}`, {
       method: 'POST',
