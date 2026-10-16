@@ -2,7 +2,8 @@ import { ownerRowOf } from '@/lib/whatsapp/instance-ownership';
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { resolveGeminiKeys, resolveEvolutionCreds } from '@/lib/user-creds';
-import { verifyWebhookSecret, isReplay } from '@/lib/security/webhook-auth';
+import { verifyWebhookSecret } from '@/lib/security/webhook-auth';
+import { isReplayDurable, isStaleEvent } from '@/lib/security/replay-store';
 import { logEvent, maskPhone } from '@/lib/security/safe-log';
 
 // Credentials résolus au début de chaque requête.
@@ -499,8 +500,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    // ── Fenêtre de rejeu : message plus ancien que la rétention du store ──────
+    // (ré-émission à la reconnexion, synchro d'historique) → jamais retraité,
+    // même si sa clé a été purgée.
+    if (isStaleEvent(msgData.messageTimestamp)) {
+      logEvent('info', 'webhook.whatsapp', {
+        event,
+        instance: instanceName,
+        message_id: messageId,
+        status: 'skipped_stale',
+      });
+      return NextResponse.json({ ok: true, stale: true });
+    }
+
+    const supabase = createServiceClient();
+
     // ── Idempotence : un même message rejoué ne relance ni l'IA ni un envoi ──
-    if (messageId && isReplay(`wa:${instanceName}:${messageId}`)) {
+    // Store partagé (Postgres) : efficace entre instances Vercel et après un
+    // démarrage à froid, contrairement au seul cache mémoire.
+    if (messageId && (await isReplayDurable(supabase, `wa:${instanceName}:${messageId}`))) {
       logEvent('info', 'webhook.whatsapp', {
         event,
         instance: instanceName,
@@ -509,8 +527,6 @@ export async function POST(req: NextRequest) {
       });
       return NextResponse.json({ ok: true, deduped: true });
     }
-
-    const supabase = createServiceClient();
 
     // Route to user + service via instance_name.
     // RLS-TENANT-001 : la ligne retenue doit POSSÉDER ce nom (espace de noms
