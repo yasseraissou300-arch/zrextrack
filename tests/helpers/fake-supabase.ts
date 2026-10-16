@@ -2,7 +2,7 @@
 //
 // Reproduit le sous-ensemble de l'API PostgREST réellement utilisé par
 // src/lib/queue/** et ses dépendances (plan-quotas, message-builder) :
-//   .schema() .from() .select() .insert() .upsert() .update()
+//   .schema() .from() .select() .insert() .upsert() .update() .delete()
 //   .eq() .neq() .in() .gte() .lte() .lt() .gt() .is() .not()
 //   .order() .limit() .range() .maybeSingle() .single()  + thenable
 //
@@ -37,7 +37,7 @@ interface Order {
   ascending: boolean;
 }
 
-type Op = 'select' | 'insert' | 'upsert' | 'update';
+type Op = 'select' | 'insert' | 'upsert' | 'update' | 'delete';
 
 const JOB_STATUSES = new Set(['pending', 'running', 'done', 'failed', 'dead']);
 const JOB_TYPES = new Set(['zrexpress.sync', 'whatsapp.send', 'campaign.dispatch']);
@@ -137,6 +137,8 @@ export class FakeSupabase {
   private pendingErrors: Array<{ table: string; op: Op; error: PgError }> = [];
   /** Journal de toutes les écritures — utile pour les assertions d'isolation. */
   readonly writes: Array<{ table: string; op: Op; rows: Row[] }> = [];
+  /** Simule `db-max-rows` de PostgREST (1 000 sur Supabase). null = illimité. */
+  maxRows: number | null = null;
 
   // ── API publique de test ───────────────────────────────────────────────────
 
@@ -241,6 +243,10 @@ class Builder implements PromiseLike<{ data: any; error: PgError | null; count: 
     this.payload = patch;
     return this;
   }
+  delete() {
+    this.op = 'delete';
+    return this;
+  }
   eq(col: string, val: any) {
     this.filters.push({ kind: 'eq', col, val });
     return this;
@@ -324,6 +330,8 @@ class Builder implements PromiseLike<{ data: any; error: PgError | null; count: 
         return this.finish(this.runInsert(true));
       case 'update':
         return this.finish(this.runUpdate());
+      case 'delete':
+        return this.finish(this.runDelete());
     }
   }
 
@@ -348,6 +356,7 @@ class Builder implements PromiseLike<{ data: any; error: PgError | null; count: 
     if (this.lim != null) rows = rows.slice(0, this.lim);
 
     if (this.countMode && this.headMode) return { data: null, error: null, count: rows.length };
+    if (this.db.maxRows != null) rows = rows.slice(0, this.db.maxRows);
     return this.shape(rows.map((r) => ({ ...r })));
   }
 
@@ -416,6 +425,17 @@ class Builder implements PromiseLike<{ data: any; error: PgError | null; count: 
       out.push(merged);
     }
     this.db.writes.push({ table: this.table, op: 'update', rows: out });
+    return { rows: out, error: null };
+  }
+
+  private runDelete(): { rows: Row[]; error: PgError | null } {
+    const store = this.db.rows(this.table);
+    const targets = new Set(this.filtered());
+    const kept = store.filter((r) => !targets.has(r));
+    store.length = 0;
+    store.push(...kept);
+    const out = [...targets];
+    this.db.writes.push({ table: this.table, op: 'delete', rows: out });
     return { rows: out, error: null };
   }
 

@@ -43,25 +43,45 @@ export async function GET(req: NextRequest) {
 
   const redirectUri = `${APP_URL}/api/ai-chatbot/facebook/callback`;
 
-  // 1. Exchange code → short-lived user token
-  const tokenRes = await fetch(
-    `https://graph.facebook.com/v19.0/oauth/access_token?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&client_secret=${appSecret}&code=${code}`
-  );
-  const tokenJson = await tokenRes.json();
-  if (!tokenJson.access_token) return redirect('/ai-chatbot?tab=facebook&error=token_exchange');
+  // Échanges OAuth : flux documenté par Meta (paramètres de requête sur
+  // /oauth/access_token, en HTTPS). Valeurs encodées ; aucune URL n'est jamais
+  // journalisée ; toute erreur réseau → redirection générique (pas de trace
+  // contenant l'URL). Les appels Graph suivants passent le jeton en EN-TÊTE.
+  const q = (o: Record<string, string>) => new URLSearchParams(o).toString();
+  let tokenJson: { access_token?: string };
+  let longJson: { access_token?: string };
+  let pagesJson: {
+    data?: {
+      id: string;
+      name: string;
+      access_token: string;
+      picture?: { data: { url: string } };
+    }[];
+  };
+  try {
+    // 1. Exchange code → short-lived user token
+    const tokenRes = await fetch(
+      `https://graph.facebook.com/v19.0/oauth/access_token?${q({ client_id: appId, redirect_uri: redirectUri, client_secret: appSecret, code })}`
+    );
+    tokenJson = await tokenRes.json();
+    if (!tokenJson.access_token) return redirect('/ai-chatbot?tab=facebook&error=token_exchange');
 
-  // 2. Exchange → long-lived user token
-  const longRes = await fetch(
-    `https://graph.facebook.com/v19.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${tokenJson.access_token}`
-  );
-  const longJson = await longRes.json();
-  const userToken = longJson.access_token ?? tokenJson.access_token;
+    // 2. Exchange → long-lived user token
+    const longRes = await fetch(
+      `https://graph.facebook.com/v19.0/oauth/access_token?${q({ grant_type: 'fb_exchange_token', client_id: appId, client_secret: appSecret, fb_exchange_token: tokenJson.access_token })}`
+    );
+    longJson = await longRes.json();
 
-  // 3. Get user's pages
-  const pagesRes = await fetch(
-    `https://graph.facebook.com/v19.0/me/accounts?fields=id,name,access_token,picture&access_token=${userToken}`
-  );
-  const pagesJson = await pagesRes.json();
+    // 3. Get user's pages — jeton en en-tête, jamais dans l'URL
+    const userToken = longJson.access_token ?? tokenJson.access_token;
+    const pagesRes = await fetch(
+      'https://graph.facebook.com/v19.0/me/accounts?fields=id,name,access_token,picture',
+      { headers: { Authorization: `Bearer ${userToken}` } }
+    );
+    pagesJson = await pagesRes.json();
+  } catch {
+    return redirect('/ai-chatbot?tab=facebook&error=token_exchange');
+  }
   const pages: {
     id: string;
     name: string;

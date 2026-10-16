@@ -1,3 +1,4 @@
+import { internalErrorResponse } from '@/lib/security/public-error';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { fetchAllParcels } from '@/lib/zrexpress/parcels';
@@ -65,6 +66,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(response);
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || 'Erreur AutoSwap preview' }, { status: 500 });
+    return internalErrorResponse('api.autoswap.preview', err, 500, 'Erreur AutoSwap preview');
   }
 }
