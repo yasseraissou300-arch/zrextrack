@@ -2,6 +2,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import {
+  configErrors,
   rewire,
   isAutotimInstance,
   maskUrl,
@@ -130,5 +131,25 @@ describe('rewire', () => {
     });
     expect(r[0].action).toBe('déjà à jour');
     expect(ev.calls.filter((c) => c.method === 'POST')).toHaveLength(0);
+  });
+});
+
+describe('configuration', () => {
+  const ok = {
+    WHATSAPP_WEBHOOK_SECRET: 'a'.repeat(64),
+    APP_URL: 'https://autotim.vercel.app',
+    EVOLUTION_API_URL: 'https://evolution.example',
+  };
+  it('configuration valide → aucune erreur', () => {
+    expect(configErrors(ok)).toEqual([]);
+  });
+  it('secret trop court, APP_URL http/locale, Evolution invalide → refus, sans jamais citer la valeur', () => {
+    const errs = configErrors({
+      WHATSAPP_WEBHOOK_SECRET: 'TEST_SHORT',
+      APP_URL: 'http://localhost:3000',
+      EVOLUTION_API_URL: 'pas une url',
+    });
+    expect(errs).toHaveLength(4);
+    expect(errs.join(' ')).not.toContain('TEST_SHORT');
   });
 });
