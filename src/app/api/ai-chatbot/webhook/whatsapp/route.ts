@@ -1,4 +1,6 @@
 import { ownerRowOf } from '@/lib/whatsapp/instance-ownership';
+import { sendSheetRow } from '@/lib/ai-chatbot/sheets-sink';
+import { prepareMediaForEvolution } from '@/lib/whatsapp/media-delivery';
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { resolveGeminiKeys, resolveEvolutionCreds } from '@/lib/user-creds';
@@ -377,12 +379,25 @@ async function sendWhatsAppMedia(
   caption: string
 ): Promise<void> {
   if (!evUrl || !evKey || !mediaUrl) return;
+  // SSRF / rebinding : Evolution ne télécharge jamais une URL fournie par un
+  // tenant (stockage de la plateforme → URL ; sinon téléchargé ici → base64).
+  const media = await prepareMediaForEvolution(mediaUrl);
+  if (!media.ok) {
+    logEvent('warn', 'webhook.whatsapp', { status: 'rejected', reason: `media_${media.reason}` });
+    return;
+  }
   const cleanNumber = number.replace('@s.whatsapp.net', '').replace('@g.us', '');
   try {
     await fetch(`${evUrl}/message/sendMedia/${instanceName}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: evKey },
-      body: JSON.stringify({ number: cleanNumber, mediatype: 'image', media: mediaUrl, caption }),
+      body: JSON.stringify({
+        number: cleanNumber,
+        mediatype: 'image',
+        media: media.media,
+        ...(media.mimetype ? { mimetype: media.mimetype } : {}),
+        caption,
+      }),
     });
   } catch {
     /* non-blocking */
@@ -393,23 +408,17 @@ async function sendWhatsAppMedia(
 async function notifyGoogleSheets(
   webhookUrl: string,
   type: string,
-  data: Record<string, unknown>
+  data: Record<string, unknown>,
+  tenantId: string
 ): Promise<void> {
-  if (!webhookUrl) return;
-  try {
-    await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type,
-        timestamp: new Date().toISOString(),
-        source: 'whatsapp_ai',
-        ...data,
-      }),
-    });
-  } catch {
-    /* non-blocking */
-  }
+  // Garde SSRF + Google Sheet direct par compte de service (lib/ai-chatbot/sheets-sink).
+  await sendSheetRow({
+    url: webhookUrl,
+    type,
+    source: 'whatsapp_ai',
+    data: Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v ?? '')])),
+    tenantId,
+  });
 }
 
 // ─── Admin WhatsApp notification ──────────────────────────────────────────────
@@ -772,7 +781,7 @@ export async function POST(req: NextRequest) {
     // Google Sheets + admin notification on completion
     if (isComplete && !existingSession?.sheets_sent) {
       if (config.google_sheets_url) {
-        await notifyGoogleSheets(config.google_sheets_url, config.template_type, newData);
+        await notifyGoogleSheets(config.google_sheets_url, config.template_type, newData, userId);
       }
       if (config.admin_whatsapp) {
         await notifyAdmin(

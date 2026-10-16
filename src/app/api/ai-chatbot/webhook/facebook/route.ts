@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { sendSheetRow } from '@/lib/ai-chatbot/sheets-sink';
 import { createServiceClient } from '@/lib/supabase/server';
 import { tokensEqual, openPageToken } from '@/lib/security/facebook-verify';
 import { resolveGeminiKeys } from '@/lib/user-creds';
@@ -220,16 +221,19 @@ export async function POST(req: NextRequest) {
         );
 
         if (isComplete && !session?.sheets_sent && config?.google_sheets_url) {
-          await fetch(config.google_sheets_url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: config.template_type,
-              timestamp: new Date().toISOString(),
-              source: 'facebook_ai',
-              ...newData,
-            }),
-          }).catch(() => {});
+          // Garde SSRF + Google Sheet direct (lib/ai-chatbot/sheets-sink).
+          await sendSheetRow({
+            url: config.google_sheets_url,
+            type: config.template_type,
+            source: 'facebook_ai',
+            data: Object.fromEntries(
+              Object.entries(newData as Record<string, unknown>).map(([k, v]) => [
+                k,
+                String(v ?? ''),
+              ])
+            ),
+            tenantId: userId,
+          });
           await supabase
             .from('ai_chat_sessions')
             .update({ sheets_sent: true })
