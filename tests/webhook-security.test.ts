@@ -57,6 +57,51 @@ describe('P0-1 — secret partagé du webhook WhatsApp', () => {
     expect(r).toEqual({ ok: true, mode: 'unenforced' });
   });
 
+  it('PRODUCTION Vercel — sans secret configuré → refus 503 (fail-closed)', () => {
+    const prev = process.env.VERCEL_ENV;
+    process.env.VERCEL_ENV = 'production';
+    try {
+      const r = verifyWebhookSecret(req('https://x.app/api/wh?token=quelconque'), ENV);
+      expect(r).toEqual({ ok: false, reason: 'secret_not_configured', status: 503 });
+    } finally {
+      if (prev === undefined) delete process.env.VERCEL_ENV;
+      else process.env.VERCEL_ENV = prev;
+    }
+  });
+
+  it('PRODUCTION Vercel — secret configuré → comportement normal (401 / 403 / accepté)', () => {
+    const prev = process.env.VERCEL_ENV;
+    process.env.VERCEL_ENV = 'production';
+    process.env[ENV] = 'secret-abc';
+    try {
+      expect(verifyWebhookSecret(req('https://x.app/api/wh'), ENV)).toMatchObject({ status: 401 });
+      expect(verifyWebhookSecret(req('https://x.app/api/wh?token=faux'), ENV)).toMatchObject({
+        status: 403,
+      });
+      expect(verifyWebhookSecret(req('https://x.app/api/wh?token=secret-abc'), ENV)).toEqual({
+        ok: true,
+        mode: 'verified',
+      });
+    } finally {
+      if (prev === undefined) delete process.env.VERCEL_ENV;
+      else process.env.VERCEL_ENV = prev;
+    }
+  });
+
+  it('PREVIEW Vercel — sans secret : non appliqué (déploiements de PR inchangés)', () => {
+    const prev = process.env.VERCEL_ENV;
+    process.env.VERCEL_ENV = 'preview';
+    try {
+      expect(verifyWebhookSecret(req('https://x.app/api/wh'), ENV)).toEqual({
+        ok: true,
+        mode: 'unenforced',
+      });
+    } finally {
+      if (prev === undefined) delete process.env.VERCEL_ENV;
+      else process.env.VERCEL_ENV = prev;
+    }
+  });
+
   it('un préfixe du secret ne passe pas (comparaison stricte)', () => {
     process.env[ENV] = 'secret-abcdef';
     expect(verifyWebhookSecret(req('https://x.app/api/wh?token=secret'), ENV).ok).toBe(false);

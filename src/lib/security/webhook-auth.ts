@@ -22,7 +22,7 @@ import type { NextRequest } from 'next/server';
 
 export type WebhookAuthResult =
   | { ok: true; mode: 'verified' | 'unenforced' }
-  | { ok: false; reason: 'missing_token' | 'bad_token'; status: number };
+  | { ok: false; reason: 'missing_token' | 'bad_token' | 'secret_not_configured'; status: number };
 
 /** Comparaison à temps constant — évite de fuiter le secret par timing. */
 function safeEqual(a: string, b: string): boolean {
@@ -41,8 +41,17 @@ function safeEqual(a: string, b: string): boolean {
 export function verifyWebhookSecret(req: NextRequest, envVarName: string): WebhookAuthResult {
   const expected = process.env[envVarName] || '';
 
-  // Secret non configuré → on n'applique pas encore (déploiement progressif).
-  if (!expected) return { ok: true, mode: 'unenforced' };
+  // Secret non configuré :
+  //  - en PRODUCTION Vercel → refus (fail-closed). Le mode « non appliqué »
+  //    a laissé le webhook WhatsApp ouvert en production (constaté le
+  //    2026-10-15) ; un secret retiré par erreur ne doit jamais le rouvrir.
+  //  - ailleurs (local, preview, tests) → non appliqué, comme avant.
+  if (!expected) {
+    if (process.env.VERCEL_ENV === 'production') {
+      return { ok: false, reason: 'secret_not_configured', status: 503 };
+    }
+    return { ok: true, mode: 'unenforced' };
+  }
 
   const provided =
     req.headers.get('x-webhook-token') || new URL(req.url).searchParams.get('token') || '';
