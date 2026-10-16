@@ -4,6 +4,10 @@
 > Statuts utilisés : **PASS**, **FAIL**, **UNKNOWN**, **BLOCKED**, **N/A**.
 > Niveaux de preuve : **LOCAL PASS** (tests / fusion d'essai), **PREVIEW PASS** (déploiement Vercel de la PR), **PRODUCTION UNKNOWN**, **PRODUCTION PASS / FAIL**.
 
+## 0. Mise à jour du 2026-10-16
+
+**32 PR mergées et déployées** (production = `7c54428`), dont #143 (P0 côté application), #136 (Next 15.5.28) et #104 (relance fermée). Le détail ligne par ligne est dans `docs/AUTOTIM-PRODUCTION-STATUS.md`. Les sections suivantes décrivent l'état **avant** le déploiement.
+
 ## 1. Executive Summary
 
 - **48 PR ouvertes (#96 → #143).** Aucune mergée, aucune déployée. `main` distant = `9c2b249`.

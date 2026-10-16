@@ -3,7 +3,7 @@
 > Uniquement ce qui ne peut **pas** être fait automatiquement sans risque : lecture de la base de production, écriture en production, secrets, merges, décisions métier.
 > Tout le code, les tests, les migrations et les rollbacks correspondants sont **déjà préparés** dans les PR.
 > Aucune action ne demande de copier un secret dans le chat.
-> État au 2026-10-15 : 48 PR ouvertes, **aucune mergée, aucune déployée**.
+> État au 2026-10-16 : **32 PR mergées et déployées** (production = `7c54428`), 18 ouvertes — voir `docs/AUTOTIM-PRODUCTION-STATUS.md`.
 
 Ordre recommandé : **1 → 2 → 3**, puis les autres au fil des lots de merge (voir `docs/AUTOTIM-FINAL-STATUS.md`, §12).
 
@@ -33,7 +33,7 @@ Ordre recommandé : **1 → 2 → 3**, puis les autres au fil des lots de merge 
 - **WHEN TO RUN** — maintenant.
 - **DEPENDENCIES** — aucune.
 
-## 2. HUMAN-MERGE-001 — merger #96 (CI)
+## 2. HUMAN-MERGE-001 — ~~merger #96~~ FAIT (#96 mergée et déployée le 2026-10-15)
 
 - **WHY** — à partir de là, chaque PR passe tsc, lint, tests et build avant merge.
 - **EXACT COMMAND** — GitHub → PR #96 → Merge. Ensuite, sur chaque PR à merger : fermer puis rouvrir, ou pousser un commit, pour déclencher la CI.
@@ -54,6 +54,50 @@ Ordre recommandé : **1 → 2 → 3**, puis les autres au fil des lots de merge 
 - **ROLLBACK** — sans objet.
 - **WHEN TO RUN** — avant le merge de #98 et de #136.
 - **DEPENDENCIES** — aucune.
+
+## 3bis. WEBHOOK-SECRET-001 — fermer le webhook WhatsApp entrant (P1, CONSTATÉ en production)
+
+- **WHY** — le 2026-10-15, un `POST /api/ai-chatbot/webhook/whatsapp` sans jeton a répondu **400 « Bad payload »** : l'authentification est en mode « non appliqué », donc **`WHATSAPP_WEBHOOK_SECRET` n'est pas défini**. N'importe qui peut forger un message entrant ; le bot répond alors via l'instance d'un tenant vers un numéro choisi, et consomme du Gemini.
+- **EXACT COMMAND**
+  1. Dans **votre** terminal : `openssl rand -hex 32` (ou `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`). Ne jamais coller la valeur dans un chat.
+  2. Vercel → Settings → Environment Variables → **Production** → `WHATSAPP_WEBHOOK_SECRET` = cette valeur → Redeploy.
+  3. **Dès que le déploiement est « Ready »** (les messages entrants sont refusés jusqu'à l'étape 4) :
+     ```bash
+     EVOLUTION_API_URL=… EVOLUTION_API_KEY=… WHATSAPP_WEBHOOK_SECRET=… APP_URL=https://autotim.vercel.app node scripts/rewire-whatsapp-webhooks.mjs
+     ```
+     Lire la simulation, puis relancer la même commande avec `--apply`.
+- **EXPECTED RESULT**
+  - le script affiche « recâblée » pour chaque instance AutoTim ;
+  - `curl -X POST https://autotim.vercel.app/api/ai-chatbot/webhook/whatsapp -d '{}'` → **401** ;
+  - un message envoyé au bot depuis votre propre téléphone reçoit une réponse.
+- **RISK** — courte interruption des messages entrants entre l'étape 2 et l'étape 3 (quelques minutes). Le script ne touche que les instances `zrex_…`.
+- **ROLLBACK** — supprimer la variable dans Vercel et redéployer : le webhook est à nouveau accepté sans jeton, y compris avec les URL déjà recâblées.
+- **WHEN TO RUN** — dès que possible, de préférence à une heure creuse.
+- **DEPENDENCIES** — aucune (script fusionné : #145).
+
+## 3ter. CRON-SECRET-001 — relances automatiques (comportement changé par #104, déployée)
+
+- **WHY** — `/api/ai-chatbot/relance` acceptait n'importe quel appelant ; c'est corrigé et déployé (#104 : 401 sans authentification). Le mode « planificateur » (toutes les boutiques) exige désormais `CRON_SECRET`. Sans lui, seules les relances déclenchées depuis le tableau de bord (session du marchand) fonctionnent.
+- **EXACT COMMAND** — si des relances automatiques sont voulues : générer une valeur comme ci-dessus → Vercel `CRON_SECRET` (Production) → Redeploy → dans cron-job.org, ajouter au job de relance l'en-tête `Authorization: Bearer <valeur>` (méthode POST).
+- **EXPECTED RESULT** — le job cron-job.org répond 200 `{"ok":true,"scope":"all"}`.
+- **RISK** — aucun ; rollback : retirer la variable.
+
+## 3quater. H-SMOKE — vérification connectée (≈ 10 min, aucune donnée client)
+
+- **WHY** — les parcours connectés (déployés : #143, #103, #109–#114, #117) ne peuvent être vérifiés qu'avec une session.
+- **EXACT COMMAND** — se connecter sur `https://autotim.vercel.app` puis :
+  1. tableau de bord, Commandes (pagination), Clients, Livraisons, Rapports ;
+  2. Messages → statut WhatsApp « connecté », puis QR (sans rescanner) ;
+  3. envoi manuel d'**un** message vers **votre propre numéro** (renvoyer le même message dans la minute : « Déjà envoyé récemment », pas de second message) ;
+  4. Synchroniser ZRExpress (bouton) ;
+  5. envoyer un message au bot depuis votre téléphone → réponse.
+- **EXPECTED RESULT** — tout fonctionne. Toute erreur affiche une référence (`ref`) : la transmettre avec l'heure, jamais une capture contenant des données client.
+- **RISK** — un seul message, vers vous-même.
+- **WHEN TO RUN** — maintenant.
+
+## 3quinquies. H-QUEUE — 24 h de journaux de la file (#125, #126)
+
+- Vercel → Logs, filtre `queue.` : présence de `queue.tick` réguliers ; absence de rafales (`whatsapp.send` espacés) ; aucun `status: exception` répété.
 
 ## 4. ADMIN-CLAIM-001 — poser le claim Super Admin du propriétaire (écriture `auth.users`)
 
