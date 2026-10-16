@@ -108,11 +108,11 @@ export async function handleCampaignDispatch(job: Job): Promise<HandlerResult> {
   await enqueue(supabase, {
     tenantId,
     type: 'campaign.dispatch',
-    payload: { campaign_id: payload.campaign_id, offset: nextOffset },
+    payload: { campaign_id: payload.campaign_id, offset: nextOffset, run: payload.run },
     // Le lot suivant part après l'écoulement de celui-ci, pour ne pas
     // accumuler des milliers de jobs en attente d'un coup.
     runAfter: new Date(Date.now() + delay),
-    idempotencyKey: campaignDispatchKey(payload.campaign_id, nextOffset),
+    idempotencyKey: campaignDispatchKey(payload.campaign_id, nextOffset, payload.run),
   });
 
   logEvent('info', 'queue.campaign', {

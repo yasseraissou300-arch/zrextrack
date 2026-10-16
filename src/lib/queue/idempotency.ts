@@ -42,7 +42,16 @@ export function campaignRecipientKey(campaignId: string, phone: string): string 
   return `camp:${campaignId}:${phone}`;
 }
 
-/** `campdisp:<campagne>:<offset>` — un lot enfourné une seule fois. */
-export function campaignDispatchKey(campaignId: string, offset: number): string {
-  return `campdisp:${campaignId}:${offset}`;
+/**
+ * `campdisp:<campagne>:<offset>` (1er envoi) ou `campdisp:<campagne>:<run>:<offset>`
+ * (renvoi) — un lot enfourné une seule fois PAR LANCEMENT.
+ *
+ * L'index jobs_idempotency_uniq n'est pas partiel : une clé reste prise pour
+ * toujours. Sans `run`, « Renvoyer » une campagne terminée ré-enfilait
+ * `campdisp:<id>:0`, déjà vue → no-op silencieux, campagne bloquée « en cours ».
+ * Les clés destinataires (`camp:<id>:<tél>`) ne changent PAS : un renvoi ne
+ * contacte que ceux qui n'ont pas encore reçu la campagne.
+ */
+export function campaignDispatchKey(campaignId: string, offset: number, run?: string): string {
+  return run ? `campdisp:${campaignId}:${run}:${offset}` : `campdisp:${campaignId}:${offset}`;
 }
