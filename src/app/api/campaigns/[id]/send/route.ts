@@ -1,3 +1,4 @@
+import { ownedInstance } from '@/lib/whatsapp/instance-ownership';
 // Lancement d'une campagne WhatsApp — Phase 1 : ENFILEUR, plus exécuteur.
 //
 // AVANT : cette route bouclait sur N destinataires avec sleep(20-60 s) dans une
@@ -51,12 +52,14 @@ async function getReadyInstance(
   }
 
   const service = createServiceClient();
-  const { data: row } = await service
+  const { data: rowRow } = await service
     .from('whatsapp_instances')
     .select('instance_name, connected')
     .eq('user_id', userId)
     .eq('service_type', DEFAULT_SERVICE)
     .maybeSingle();
+  // RLS-TENANT-001 : jamais d'action Evolution sur un nom hors de l'espace du tenant.
+  const row = ownedInstance(userId, rowRow, 'campaign.send');
 
   if (!row) {
     return {
@@ -79,10 +82,11 @@ async function getReadyInstance(
         };
       }
     }
-  } catch (e) {
+  } catch {
+    // Jamais le message réseau brut (hôte / adresse internes d'Evolution).
     return {
       instance: null,
-      reason: `Evolution injoignable : ${e instanceof Error ? e.message : 'erreur réseau'}`,
+      reason: 'Evolution injoignable : erreur réseau',
     };
   }
 
