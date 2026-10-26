@@ -29,7 +29,9 @@ import {
   varyMessage,
 } from '@/lib/whatsapp/anti-spam';
 import { normalizePhone } from '@/lib/whatsapp/message-builder';
+import { claimNotification } from '@/lib/whatsapp/drain-notifications';
 import { logEvent, maskPhone } from '@/lib/security/safe-log';
+import { prepareMediaForEvolution } from '@/lib/whatsapp/media-delivery';
 import { circuitState, afterFailure, afterSuccess } from '../circuit-breaker';
 import { getTenantSettings, upsertTenantSettings } from '../repository';
 import type { Job, HandlerResult, WhatsAppSendPayload } from '../types';
@@ -114,6 +116,23 @@ export async function handleWhatsAppSend(job: Job): Promise<HandlerResult> {
     return { outcome: 'failed', error: `numéro invalide : ${maskPhone(payload.phone)}` };
   }
 
+  // ── 3b. Média : préparé par NOTRE serveur (SSRF / rebinding via Evolution)
+  // Stockage de la plateforme → URL transmise ; toute autre URL → téléchargée
+  // ici sous garde SSRF puis transmise en base64 : Evolution ne résout jamais
+  // un nom fourni par un tenant. Refus → échec du job (DLQ), aucun envoi.
+  let media: Awaited<ReturnType<typeof prepareMediaForEvolution>> | null = null;
+  if (payload.media_url) {
+    media = await prepareMediaForEvolution(payload.media_url);
+    if (!media.ok) {
+      logEvent('warn', 'queue.whatsapp', {
+        status: 'rejected',
+        reason: `media_${media.reason}`,
+        tenant_id: tenantId,
+      });
+      return { outcome: 'failed', error: 'Média refusé ou injoignable' };
+    }
+  }
+
   // ── 4. Instance Evolution ─────────────────────────────────────────────────
   const ev = await resolveEvolutionCreds(tenantId);
   if (!ev.url || !ev.key) {
@@ -133,6 +152,26 @@ export async function handleWhatsAppSend(job: Job): Promise<HandlerResult> {
     return { outcome: 'failed', error: 'aucune instance WhatsApp connectée' };
   }
 
+  // ── 4b. Prise atomique de la notification ─────────────────────────────────
+  // Le drain « client » (/api/sync-zrexpress, chaque onglet ouvert) lit aussi
+  // les lignes `pending`. Ce job a été enfilé 20-60 s plus tôt : la
+  // notification a pu être envoyée entre-temps par l'autre chemin. On la
+  // réclame (pending → sending, scopée au tenant) JUSTE avant l'envoi ; si on
+  // ne l'obtient pas, elle est déjà traitée : on s'arrête sans envoyer.
+  // max_attempts = 1 → aucune relance, donc aucun rejeu possible.
+  if (payload.notification_id) {
+    const claimed = await claimNotification(supabase, tenantId, payload.notification_id);
+    if (!claimed) {
+      logEvent('info', 'queue.whatsapp', {
+        tenant_id: tenantId,
+        contact: maskPhone(payload.phone),
+        status: 'skipped',
+        reason: 'notification_already_handled',
+      });
+      return { outcome: 'done' };
+    }
+  }
+
   // ── 5. Envoi ──────────────────────────────────────────────────────────────
   const varied = varyMessage(payload.message);
   let ok = false;
@@ -140,15 +179,17 @@ export async function handleWhatsAppSend(job: Job): Promise<HandlerResult> {
 
   try {
     const endpoint = payload.media_url ? 'sendMedia' : 'sendText';
-    const body = payload.media_url
-      ? {
-          number: phone,
-          mediatype: guessMediaType(payload.media_url),
-          media: payload.media_url,
-          fileName: guessFileName(payload.media_url),
-          caption: varied,
-        }
-      : { number: phone, text: varied };
+    const body =
+      payload.media_url && media?.ok
+        ? {
+            number: phone,
+            mediatype: guessMediaType(payload.media_url),
+            media: media.media,
+            ...(media.mimetype ? { mimetype: media.mimetype } : {}),
+            fileName: guessFileName(payload.media_url),
+            caption: varied,
+          }
+        : { number: phone, text: varied };
 
     const res = await fetch(`${ev.url}/message/${endpoint}/${inst.instance_name}`, {
       method: 'POST',

@@ -1,3 +1,4 @@
+import { mediaUrlError } from '@/lib/security/media-url';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { internalErrorResponse } from '@/lib/security/public-error';
@@ -39,6 +40,8 @@ export async function POST(request: NextRequest) {
   if (!name?.trim() || !message_template?.trim()) {
     return NextResponse.json({ error: 'Nom et message requis' }, { status: 400 });
   }
+  const mediaError = await mediaUrlError(media_url?.trim());
+  if (mediaError) return NextResponse.json({ error: mediaError }, { status: 400 });
 
   // Si une liste custom est fournie, on la nettoie et on ignore le filtre
   // audience_status. Sinon on garde le comportement historique (filtre par

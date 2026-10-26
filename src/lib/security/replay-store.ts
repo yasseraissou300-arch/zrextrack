@@ -85,6 +85,49 @@ export function isStaleEvent(tsSeconds: unknown, now: number = Date.now()): bool
   return now - sec * 1000 > REPLAY_RETENTION_DAYS * 86_400_000;
 }
 
+/**
+ * Variante « au moins une fois » (commandes Shopify / WooCommerce) : on
+ * VÉRIFIE avant le traitement et on ENREGISTRE après succès. Un échec de
+ * traitement n'enregistre rien : le fournisseur réessaie avec le même
+ * identifiant et la commande n'est pas perdue. Deux livraisons concurrentes
+ * passent toutes deux : l'écriture (upsert onConflict) est idempotente.
+ * Table absente / erreur base → non vu (comportement d'avant).
+ */
+export async function hasSeenDurable(supabase: Client, eventKey: string): Promise<boolean> {
+  if (!eventKey) return false;
+  const { data, error } = await supabase
+    .schema('autotim')
+    .from('webhook_events')
+    .select('event_key')
+    .eq('event_key', eventKey.slice(0, MAX_KEY_LENGTH))
+    .maybeSingle();
+  if (error) {
+    logEvent('warn', 'webhook.replay', {
+      status: 'durable_store_unavailable',
+      error_code: error.code,
+    });
+    return false;
+  }
+  return !!data;
+}
+
+export async function recordSeenDurable(supabase: Client, eventKey: string): Promise<void> {
+  if (!eventKey) return;
+  const { error } = await supabase
+    .schema('autotim')
+    .from('webhook_events')
+    .upsert(
+      { event_key: eventKey.slice(0, MAX_KEY_LENGTH) },
+      { onConflict: 'event_key', ignoreDuplicates: true }
+    );
+  if (error) {
+    logEvent('warn', 'webhook.replay', {
+      status: 'durable_store_unavailable',
+      error_code: error.code,
+    });
+  }
+}
+
 async function prune(supabase: Client): Promise<void> {
   const cutoff = new Date(Date.now() - REPLAY_RETENTION_DAYS * 86_400_000).toISOString();
   const { error } = await supabase
