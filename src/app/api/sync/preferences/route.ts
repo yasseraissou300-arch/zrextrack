@@ -14,6 +14,7 @@
 // pousser `auto_sync_enabled` (l'état qui vivait jusqu'ici dans localStorage).
 
 import { NextRequest, NextResponse } from 'next/server';
+import { isPlatformAdmin } from '@/lib/auth/platform-admin';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { getTenantSettings, upsertTenantSettings } from '@/lib/queue/repository';
 import type { SyncSource } from '@/lib/queue/types';
@@ -64,13 +65,9 @@ export async function PUT(request: NextRequest) {
   // La bascule de source est réservée à l'admin : c'est une étape de la
   // migration progressive, pas une préférence utilisateur.
   if (body.sync_source !== undefined) {
-    const { data: prof } = await createServiceClient()
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    if (prof?.role !== 'admin') {
+    // Super Admin = app_metadata.role du jeton (jamais profiles.role,
+    // modifiable par l'utilisateur selon la RLS — HUMAN-RLS-ROLE-001).
+    if (!isPlatformAdmin(user)) {
       return NextResponse.json(
         { error: "sync_source n'est modifiable que par un administrateur" },
         { status: 403 }

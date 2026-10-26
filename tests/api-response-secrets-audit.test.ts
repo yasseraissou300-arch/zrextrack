@@ -9,6 +9,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
 import { FakeSupabase } from './helpers/fake-supabase';
+import { instanceNameFor } from '@/lib/whatsapp/instance-ownership';
 
 let db: FakeSupabase;
 let currentUser = '';
@@ -347,7 +348,7 @@ describe('POST /api/ai-chatbot/whatsapp/webhook-reset — secret plateforme', ()
     db.seed('public', 'whatsapp_instances', [
       {
         user_id: A,
-        instance_name: 'zrex_111111111111_auto',
+        instance_name: instanceNameFor(A, 'auto_confirmation'),
         service_type: 'auto_confirmation',
         connected: true,
       },
