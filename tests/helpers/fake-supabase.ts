@@ -2,7 +2,7 @@
 //
 // Reproduit le sous-ensemble de l'API PostgREST réellement utilisé par
 // src/lib/queue/** et ses dépendances (plan-quotas, message-builder) :
-//   .schema() .from() .select() .insert() .upsert() .update()
+//   .schema() .from() .select() .insert() .upsert() .update() .delete()
 //   .eq() .neq() .in() .gte() .lte() .lt() .gt() .is() .not()
 //   .order() .limit() .range() .maybeSingle() .single()  + thenable
 //
@@ -37,7 +37,7 @@ interface Order {
   ascending: boolean;
 }
 
-type Op = 'select' | 'insert' | 'upsert' | 'update';
+type Op = 'select' | 'insert' | 'upsert' | 'update' | 'delete';
 
 const JOB_STATUSES = new Set(['pending', 'running', 'done', 'failed', 'dead']);
 const JOB_TYPES = new Set(['zrexpress.sync', 'whatsapp.send', 'campaign.dispatch']);
@@ -89,6 +89,16 @@ function applyDefaults(fullTable: string, row: Row): Row {
     base.last_error ??= null;
     base.idempotency_key ??= null;
   }
+  if (fullTable === 'public.ai_chat_sessions') {
+    // Défauts de supabase_aichatbot_full.sql
+    base.conversation ??= [];
+    base.extracted_data ??= {};
+    base.is_complete ??= false;
+    base.sheets_sent ??= false;
+    base.human_handover ??= false;
+    base.failure_count ??= 0;
+    base.tokens_used ??= 0;
+  }
   if (fullTable === 'autotim.tenant_settings') {
     delete base.id; // PK = tenant_id
     base.auto_sync_enabled ??= false;
@@ -134,7 +144,7 @@ function matches(row: Row, f: Filter): boolean {
 
 export class FakeSupabase {
   private tables = new Map<string, Row[]>();
-  private pendingErrors: Array<{ table: string; op: Op; error: PgError }> = [];
+  private pendingErrors: Array<{ table: string; op: Op; error: PgError; skip: number }> = [];
   /** Journal de toutes les écritures — utile pour les assertions d'isolation. */
   readonly writes: Array<{ table: string; op: Op; rows: Row[] }> = [];
   /** Simule `db-max-rows` de PostgREST (1 000 sur Supabase). null = illimité. */
@@ -155,12 +165,23 @@ export class FakeSupabase {
   }
 
   /** La prochaine opération `op` sur `table` échouera avec `error`. */
-  failNext(schema: string, table: string, op: Op, error: Partial<PgError> = {}): void {
+  failNext(schema: string, table: string, op: Op, error: Partial<PgError> = {}, skip = 0): void {
     this.pendingErrors.push({
       table: key(schema, table),
       op,
       error: { code: error.code ?? 'XX000', message: error.message ?? 'injected failure' },
+      skip,
     });
+  }
+
+  /** Comme failNext, mais laisse passer les `skip` premières opérations `op`. */
+  failNth(schema: string, table: string, op: Op, n: number, error: Partial<PgError> = {}): void {
+    this.failNext(schema, table, op, error, n - 1);
+  }
+
+  /** Retire les échecs injectés non consommés. */
+  clearFailures(): void {
+    this.pendingErrors = [];
   }
 
   reset(): void {
@@ -195,6 +216,10 @@ export class FakeSupabase {
   takeError(fullTable: string, op: Op): PgError | null {
     const i = this.pendingErrors.findIndex((e) => e.table === fullTable && e.op === op);
     if (i < 0) return null;
+    if (this.pendingErrors[i].skip > 0) {
+      this.pendingErrors[i].skip--;
+      return null;
+    }
     return this.pendingErrors.splice(i, 1)[0].error;
   }
 }
@@ -241,6 +266,10 @@ class Builder implements PromiseLike<{ data: any; error: PgError | null; count: 
   update(patch: Row) {
     this.op = 'update';
     this.payload = patch;
+    return this;
+  }
+  delete() {
+    this.op = 'delete';
     return this;
   }
   eq(col: string, val: any) {
@@ -326,6 +355,8 @@ class Builder implements PromiseLike<{ data: any; error: PgError | null; count: 
         return this.finish(this.runInsert(true));
       case 'update':
         return this.finish(this.runUpdate());
+      case 'delete':
+        return this.finish(this.runDelete());
     }
   }
 
@@ -400,6 +431,8 @@ class Builder implements PromiseLike<{ data: any; error: PgError | null; count: 
       if (i >= 0) return i;
     }
     if (conflictCols) {
+      // SQL : NULL ne viole jamais une contrainte d'unicité (NULL <> NULL).
+      if (conflictCols.some((c) => row[c] == null)) return -1;
       return store.findIndex((r) => conflictCols.every((c) => r[c] === row[c]));
     }
     return -1;
@@ -419,6 +452,17 @@ class Builder implements PromiseLike<{ data: any; error: PgError | null; count: 
       out.push(merged);
     }
     this.db.writes.push({ table: this.table, op: 'update', rows: out });
+    return { rows: out, error: null };
+  }
+
+  private runDelete(): { rows: Row[]; error: PgError | null } {
+    const store = this.db.rows(this.table);
+    const targets = new Set(this.filtered());
+    const kept = store.filter((r) => !targets.has(r));
+    store.length = 0;
+    store.push(...kept);
+    const out = [...targets];
+    this.db.writes.push({ table: this.table, op: 'delete', rows: out });
     return { rows: out, error: null };
   }
 
