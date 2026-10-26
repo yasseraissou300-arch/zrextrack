@@ -165,6 +165,18 @@ describe('parseProductsDescription', () => {
     expect(parseProductsDescription('robe( r )( blue L )').variantColors).toContain('bleu');
   });
 
+  it('reconnaît grenat (et ses graphies) sans le confondre avec bordeaux', () => {
+    expect(parseProductsDescription('veste emy( ve )( Grenat L ) :  - 1').variantColors).toEqual([
+      'grenat',
+    ]);
+    expect(parseProductsDescription('Veste Emy grena XL  :  - 1').variantColors).toEqual([
+      'grenat',
+    ]);
+    expect(parseProductsDescription('veste emy( ve )( bordeaux L )').variantColors).toEqual([
+      'bordeaux',
+    ]);
+  });
+
   it('ne lève pas sur description vide', () => {
     expect(() => parseProductsDescription('')).not.toThrow();
   });
@@ -211,6 +223,25 @@ describe('matchSwappables — appariement', () => {
     ]);
     expect(p).toHaveLength(1);
     expect(p[0].confidence).toBe('WEAK');
+  });
+
+  it('apparie une veste grenat (couleur absente du vocabulaire avant le correctif)', () => {
+    const p = matchSwappables([
+      colis({
+        id: 'S',
+        trackingNumber: 'S-1',
+        situation: 'Ne répond pas 3',
+        desc: 'veste emy( ve )( grenat L ) :  - 1',
+      } as Partial<ZRParcel>),
+      colis({
+        id: 'T',
+        trackingNumber: 'T-1',
+        state: { name: 'commande_recue' },
+        desc: 'Veste Emy( ve )( Grenat L ) :  - 1',
+      } as Partial<ZRParcel>),
+    ]);
+    expect(p).toHaveLength(1);
+    expect(p[0].confidence).toBe('STRONG');
   });
 
   it('REFUSE des produits différents', () => {

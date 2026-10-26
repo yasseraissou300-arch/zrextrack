@@ -1,3 +1,4 @@
+import { internalErrorResponse } from '@/lib/security/public-error';
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 
@@ -121,9 +122,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ trac
       product: data.product_name,
     });
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Erreur' },
-      { status: 500 }
-    );
+    // Endpoint PUBLIC : jamais le message brut (requête, hôte interne).
+    return internalErrorResponse('api.track', err, 500);
   }
 }
