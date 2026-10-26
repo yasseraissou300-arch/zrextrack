@@ -9,7 +9,7 @@
 // La longue cascade de fallbacks est volontaire : l'API ZRExpress n'est pas
 // cohérente d'un endpoint à l'autre sur le nom de ses champs.
 
-import { mapStatus } from './status';
+import { isPostDeliveryState, mapStatus } from './status';
 
 export interface MappedOrder {
   tracking_number: string;
@@ -21,6 +21,42 @@ export interface MappedOrder {
   delivery_status: string;
   attempts: number;
   last_update: string;
+}
+
+/**
+ * Date du dernier changement d'état du colis selon ZRExpress
+ * (SearchSupplierParcelResponse.lastStateUpdateAt), à défaut l'instant du sync.
+ *
+ * L'ancien code écrivait l'instant du sync dans TOUTES les lignes à chaque
+ * sync : « livrées aujourd'hui » comptait alors toutes les commandes livrées
+ * depuis toujours, et le graphique 7 jours empilait tout sur le jour du sync.
+ */
+export function stateUpdatedAt(p: any, syncedAt: string): string {
+  const raw = p?.lastStateUpdateAt ?? p?.lastStateHistoryAt ?? null;
+  if (typeof raw === 'string' && Number.isFinite(Date.parse(raw))) {
+    return new Date(raw).toISOString();
+  }
+  return syncedAt;
+}
+
+/** État ZRExpress brut du colis (le nom du champ varie selon l'endpoint). */
+export function parcelRawState(p: any): string {
+  return (
+    p.state?.name || p.stateName || p.status?.name || p.statusName || p.state || p.status || ''
+  );
+}
+
+/**
+ * Tracking numbers des colis dont le changement de statut doit rester
+ * silencieux (état post-livraison, voir isPostDeliveryState).
+ */
+export function silentTrackingNumbers(parcels: any[], rows: MappedOrder[]): Set<string> {
+  const silent = new Set<string>();
+  parcels.forEach((p, i) => {
+    const tracking = rows[i]?.tracking_number;
+    if (tracking && isPostDeliveryState(String(parcelRawState(p)))) silent.add(tracking);
+  });
+  return silent;
 }
 
 export function mapParcel(p: any, syncedAt: string): MappedOrder {
@@ -62,8 +98,7 @@ export function mapParcel(p: any, syncedAt: string): MappedOrder {
 
   const cod = p.amount ?? p.price ?? p.cod ?? p.codAmount ?? p.cod_amount ?? 0;
 
-  const rawStatus =
-    p.state?.name || p.stateName || p.status?.name || p.statusName || p.state || p.status || '';
+  const rawStatus = parcelRawState(p);
   const situation =
     p.situation?.name ||
     p.situationName ||
@@ -85,7 +120,7 @@ export function mapParcel(p: any, syncedAt: string): MappedOrder {
     cod: Number(cod),
     delivery_status: status,
     attempts: Number(attempts),
-    last_update: syncedAt,
+    last_update: stateUpdatedAt(p, syncedAt),
   };
 }
 

@@ -161,21 +161,27 @@ function extractTracking(text: string): string | null {
   return match ? match[1].toUpperCase() : null;
 }
 
+// GOOGLE_SHEETS_WEBHOOK_URL est une feuille UNIQUE de la plateforme : la
+// remplir depuis n'importe quel tenant mélangerait les données de tous les
+// clients du SaaS. Réservée au Super Admin (claim app_metadata du jeton) ;
+// les tenants ont leur propre feuille via /api/ai-chatbot/googlesheets.
 async function notifyWebhook(
   type: 'order' | 'complaint',
-  data: Record<string, string>
+  data: Record<string, string>,
+  isPlatformAdmin: boolean
 ): Promise<void> {
   const webhookUrl = process.env.GOOGLE_SHEETS_WEBHOOK_URL;
-  if (!webhookUrl) return;
+  if (!webhookUrl || !isPlatformAdmin) return;
   try {
     await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      // Champs fixes APRÈS les données saisies : jamais écrasés par le client.
       body: JSON.stringify({
+        ...data,
         type,
         timestamp: new Date().toISOString(),
         source: 'chatbot',
-        ...data,
       }),
     });
   } catch {
@@ -190,6 +196,7 @@ export async function POST(req: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  const isPlatformAdmin = user.app_metadata?.role === 'admin';
 
   // BYOK : clés Gemini de l'utilisateur (zéro consommation de la plateforme).
   const geminiKeys = await resolveGeminiKeys(user.id);
@@ -284,7 +291,7 @@ export async function POST(req: NextRequest) {
       const isNo = /^(non|no|لا|nope|annuler|cancel|0|×)/.test(lower);
 
       if (isYes) {
-        await notifyWebhook('order', state.data);
+        await notifyWebhook('order', state.data, isPlatformAdmin);
         state.step = 'done';
         state.intent = null;
         reply = `🎉 **Commande confirmée !**\n\nVotre commande a bien été enregistrée. Notre équipe vous contactera au **${state.data.phone}** sous peu pour finaliser les détails.\n\nMerci de votre confiance ! 🙏\n\nComment puis-je encore vous aider ?`;
@@ -314,7 +321,7 @@ export async function POST(req: NextRequest) {
       } else {
         state.data.complaint = message.trim();
         state.data.ticket = `#${Date.now().toString().slice(-6)}`;
-        await notifyWebhook('complaint', state.data);
+        await notifyWebhook('complaint', state.data, isPlatformAdmin);
         state.step = 'detect';
         state.intent = null;
         reply = `📝 **Réclamation enregistrée !**\n\nN° de ticket : **${state.data.ticket}**\n\nVotre réclamation a été transmise à notre équipe. Un conseiller vous recontactera rapidement.\n\nY a-t-il autre chose que je puisse faire pour vous ?`;

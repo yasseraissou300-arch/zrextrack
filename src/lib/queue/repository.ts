@@ -26,6 +26,51 @@ function q(supabase: Client) {
   return supabase.schema(QUEUE_SCHEMA);
 }
 
+// ── Reprise unique sur 5xx de la passerelle Supabase ────────────────────────
+//
+// Mesure 2026-09-13 : ~7 % des ticks en HTTP 500 parce qu'UNE requête
+// PostgREST recevait 504 « Gateway Timeout » de la passerelle Supabase après
+// ~5 s, alors que le SQL s'exécute en ≤ 2 ms. La requête suivante réussissait
+// toujours. postgrest-js ne réessaie que 503/520, pas 504.
+//
+// Portée volontairement étroite : uniquement les trois requêtes IDEMPOTENTES
+// du début de tick (reprise des verrous, liste des tenants, sélection des
+// candidats). Une seule reprise, puis l'erreur remonte comme avant (tick 500).
+// Chaque reprise est journalisée : un 504 n'est jamais rendu invisible.
+export const GATEWAY_RETRY_DELAY_MS = 1_000;
+
+type PgResult<T> = {
+  data: T | null;
+  error: { message: string; code?: string } | null;
+  status?: number;
+};
+
+function isGatewayFailure(r: PgResult<unknown>): boolean {
+  if (!r.error) return false;
+  if (r.status === 502 || r.status === 503 || r.status === 504) return true;
+  return /gateway time-?out|bad gateway/i.test(r.error.message ?? '');
+}
+
+async function withGatewayRetry<T>(
+  op: string,
+  run: () => PromiseLike<PgResult<T>>
+): Promise<PgResult<T>> {
+  const first = await run();
+  if (!isGatewayFailure(first)) return first;
+  logEvent('warn', 'queue.gateway', {
+    status: 'retry',
+    event: op,
+    error_code: first.status ? String(first.status) : first.error?.code,
+  });
+  await new Promise((r) => setTimeout(r, GATEWAY_RETRY_DELAY_MS));
+  const second = await run();
+  logEvent(second.error ? 'error' : 'info', 'queue.gateway', {
+    status: second.error ? 'retry_failed' : 'retry_ok',
+    event: op,
+  });
+  return second;
+}
+
 // ── Enfilement ──────────────────────────────────────────────────────────────
 
 export interface EnqueueInput {
@@ -96,14 +141,16 @@ export async function claimJobs(supabase: Client, limit: number, workerId: strin
 
   // 1) Candidats : les jobs dus, les plus anciens d'abord.
   //    On en demande plus que `limit` pour absorber la concurrence.
-  const { data: candidates, error: selErr } = await q(supabase)
-    .from('jobs')
-    .select('id')
-    .eq('status', 'pending')
-    .lte('run_after', nowIso)
-    .order('run_after', { ascending: true })
-    .order('created_at', { ascending: true })
-    .limit(limit * 2);
+  const { data: candidates, error: selErr } = await withGatewayRetry('claim.select', () =>
+    q(supabase)
+      .from('jobs')
+      .select('id, attempts')
+      .eq('status', 'pending')
+      .lte('run_after', nowIso)
+      .order('run_after', { ascending: true })
+      .order('created_at', { ascending: true })
+      .limit(limit * 2)
+  );
 
   if (selErr) {
     logEvent('error', 'queue.claim', { status: 'error', error_code: selErr.code });
@@ -111,21 +158,31 @@ export async function claimJobs(supabase: Client, limit: number, workerId: strin
   }
   if (!candidates?.length) return [];
 
-  // 2) Prise atomique, un par un.
+  // 2) Prise atomique, un par un — statut ET compteur dans le MÊME UPDATE.
+  //
+  // Avant : prise (status → running) puis second UPDATE pour `attempts`,
+  // dont l'erreur était ignorée. Si ce second UPDATE échouait (504 passerelle,
+  // mesuré sur ~7 % des ticks) et que la fonction mourait après l'envoi, la
+  // reprise du verrou mort relançait le job avec attempts = 0 → 1 ≤ max 1 :
+  // un whatsapp.send était REJOUÉ, en violation de max_attempts = 1.
+  // Condition `attempts = <lu>` : la valeur écrite dérive de celle lue, sans
+  // fenêtre entre les deux.
   const claimed: Job[] = [];
-  for (const c of candidates as Array<{ id: string }>) {
+  for (const c of candidates as Array<{ id: string; attempts: number }>) {
     if (claimed.length >= limit) break;
 
     const { data, error } = await q(supabase)
       .from('jobs')
       .update({
         status: 'running',
+        attempts: c.attempts + 1,
         locked_at: new Date().toISOString(),
         locked_by: workerId,
         updated_at: new Date().toISOString(),
       })
       .eq('id', c.id)
       .eq('status', 'pending') // ← la condition qui rend la prise exclusive
+      .eq('attempts', c.attempts)
       .select()
       .maybeSingle();
 
@@ -133,18 +190,7 @@ export async function claimJobs(supabase: Client, limit: number, workerId: strin
       logEvent('warn', 'queue.claim', { status: 'claim_failed', error_code: error.code });
       continue;
     }
-    if (data) {
-      // `attempts` est incrémenté ici et non dans l'UPDATE ci-dessus : le
-      // compteur doit refléter les exécutions réellement démarrées.
-      const job = data as Job;
-      const { data: bumped } = await q(supabase)
-        .from('jobs')
-        .update({ attempts: job.attempts + 1 })
-        .eq('id', job.id)
-        .select()
-        .maybeSingle();
-      claimed.push((bumped as Job) ?? { ...job, attempts: job.attempts + 1 });
-    }
+    if (data) claimed.push(data as Job);
     // data === null → un autre worker l'a pris entre-temps : on continue.
   }
 
@@ -230,17 +276,20 @@ export async function markRescheduled(
 export async function recoverStaleLocks(supabase: Client): Promise<number> {
   const cutoff = new Date(Date.now() - STALE_LOCK_MINUTES * 60_000).toISOString();
 
-  const { data, error } = await q(supabase)
-    .from('jobs')
-    .update({
-      status: 'pending',
-      locked_at: null,
-      locked_by: null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('status', 'running')
-    .lt('locked_at', cutoff)
-    .select('id');
+  // Idempotent : rejouer ce UPDATE ne peut que libérer les mêmes verrous morts.
+  const { data, error } = await withGatewayRetry('recoverStaleLocks', () =>
+    q(supabase)
+      .from('jobs')
+      .update({
+        status: 'pending',
+        locked_at: null,
+        locked_by: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('status', 'running')
+      .lt('locked_at', cutoff)
+      .select('id')
+  );
 
   if (error) throw new Error(`recoverStaleLocks: ${error.message}`);
   const n = data?.length ?? 0;
@@ -265,11 +314,13 @@ export async function getTenantSettings(
 
 /** Tenants dont le cron doit piloter la synchronisation. */
 export async function listServerSyncTenants(supabase: Client): Promise<TenantSettings[]> {
-  const { data, error } = await q(supabase)
-    .from('tenant_settings')
-    .select('*')
-    .eq('auto_sync_enabled', true)
-    .in('sync_source', ['server', 'both']);
+  const { data, error } = await withGatewayRetry('listServerSyncTenants', () =>
+    q(supabase)
+      .from('tenant_settings')
+      .select('*')
+      .eq('auto_sync_enabled', true)
+      .in('sync_source', ['server', 'both'])
+  );
   if (error) throw new Error(`listServerSyncTenants: ${error.message}`);
   return (data as TenantSettings[]) ?? [];
 }

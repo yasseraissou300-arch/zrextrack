@@ -83,6 +83,13 @@ const COLOR_ALIASES: Record<string, string> = {
   khaki: 'kaki',
   olive: 'kaki',
   turquoise: 'turquoise',
+  // Grenat et bordeaux restent distincts : deux teintes proches mais pas
+  // forcément le même article en stock, un swap ne doit pas les confondre.
+  grenat: 'grenat',
+  grena: 'grenat',
+  garnet: 'grenat',
+  bordeaux: 'bordeaux',
+  burgundy: 'bordeaux',
 };
 
 // Tailles standards alpha. Les tailles numériques (38, 40, 42…) sont détectées

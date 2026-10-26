@@ -2,6 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { internalErrorResponse } from '@/lib/security/public-error';
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest) {
     .order('created_at', { ascending: false })
     .limit(limit);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalErrorResponse('api.voice-calls.list', error);
 
   const list = calls ?? [];
   const stats = {
