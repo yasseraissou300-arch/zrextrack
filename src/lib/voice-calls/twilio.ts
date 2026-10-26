@@ -2,6 +2,7 @@
 // Pas de SDK lourd — juste fetch + XML pour rester léger sur Vercel.
 
 import { createServiceClient } from '@/lib/supabase/server';
+import { openTwilioToken } from '@/lib/security/stored-secrets';
 
 export interface VoiceCallSettings {
   account_sid: string | null;
@@ -45,7 +46,10 @@ export async function getSettings(userId: string): Promise<VoiceCallSettings | n
     .select('*')
     .eq('user_id', userId)
     .single();
-  return (data as VoiceCallSettings | null) ?? null;
+  if (!data) return null;
+  // Auth Token déchiffré côté serveur (illisible → null → « non prêt »).
+  const settings = data as VoiceCallSettings;
+  return { ...settings, auth_token: openTwilioToken(userId, settings.auth_token) };
 }
 
 // Vérifie que les credentials Twilio sont prêts à émettre.

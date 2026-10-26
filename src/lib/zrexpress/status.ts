@@ -24,6 +24,14 @@ export function mapStatus(rawState: string, rawSituation = ''): string {
   const sit = norm(rawSituation);
   const has = (src: string, ...terms: string[]) => terms.some((t) => src.includes(t));
 
+  // ══ PRIORITÉ 0 : ÉTATS COMPTABLES POST-LIVRAISON → LIVRÉ ═════════════════
+  // ZRExpress : Livré → Encaissé → Recouvert. Les deux derniers ne
+  // contiennent pas « livr » : ils tombaient dans le repli « en préparation »
+  // (2 525 colis recouverts affichés en préparation, 4 livrés sur 7 161).
+  // L'état est définitif et prime sur une situation restée d'une ancienne
+  // tentative (« Ne répond pas 1 » puis livré).
+  if (has(s, 'encaisse', 'recouvert', 'recouvre')) return 'livre';
+
   // ══ PRIORITÉ 1 : SITUATION → ÉCHEC ═══════════════════════════════════════
   // Si la situation indique un problème, peu importe l'état (même "En préparation")
   if (
@@ -173,6 +181,9 @@ export function mapStatus(rawState: string, rawSituation = ''): string {
     return 'echec';
 
   // ── ÉTAT → RETOURNÉ ──────────────────────────────────────────────────────
+  // « recupere_par_fournisseur » : colis revenu chez le marchand. Sans
+  // situation d'échec, il tombait lui aussi dans « en préparation ».
+  if (has(s, 'recupere par fournisseur')) return 'retourne';
   if (has(s, 'retourne', 'en retour', 'retour expediteur', 'retour confirme', 'return'))
     return 'retourne';
 
@@ -233,6 +244,18 @@ export function mapStatus(rawState: string, rawSituation = ''): string {
     return 'en_preparation';
 
   return 'en_preparation';
+}
+
+// États où le colis a fini son parcours client (encaissé, recouvert, revenu
+// chez le fournisseur, remboursé). Un passage vers l'un d'eux ne doit JAMAIS
+// déclencher de WhatsApp : le client a reçu (ou refusé) son colis il y a
+// longtemps, et la correction de classement ci-dessus ferait sinon basculer
+// des milliers de commandes anciennes d'un coup → rafale de messages.
+export function isPostDeliveryState(rawState: string): boolean {
+  const s = norm(rawState);
+  return ['encaisse', 'recouvert', 'recouvre', 'recupere par fournisseur', 'remboursement'].some(
+    (t) => s.includes(t)
+  );
 }
 
 // ── Classification spécifique aux colis DÉJÀ swappés ─────────────────────────

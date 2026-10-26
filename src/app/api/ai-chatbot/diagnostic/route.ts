@@ -1,9 +1,15 @@
+import { isOwnedInstanceName } from '@/lib/whatsapp/instance-ownership';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds, getUserCreds } from '@/lib/user-creds';
+import { redactWebhookToken, webhookTokenQuery } from '@/lib/security/webhook-auth';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || '';
-const EXPECTED_WEBHOOK = `${APP_URL || 'https://zrextrack.vercel.app'}/api/ai-chatbot/webhook/whatsapp`;
+const EXPECTED_WEBHOOK = `${APP_URL || 'https://autotim.vercel.app'}/api/ai-chatbot/webhook/whatsapp`;
+// URL réellement enregistrée par webhook-reset : AVEC le secret s'il est défini.
+// Sans ce suffixe, toutes les instances apparaîtraient « mal configurées » dès
+// que WHATSAPP_WEBHOOK_SECRET est défini. Comparaison interne uniquement.
+const EXPECTED_WEBHOOK_REGISTERED = `${EXPECTED_WEBHOOK}${webhookTokenQuery('WHATSAPP_WEBHOOK_SECRET')}`;
 
 interface EvCreds {
   url: string;
@@ -40,8 +46,8 @@ async function evolutionGet(
       json = text;
     }
     return { ok: res.ok, status: res.status, json };
-  } catch (e) {
-    return { ok: false, status: 0, json: e instanceof Error ? e.message : String(e) };
+  } catch {
+    return { ok: false, status: 0, json: 'network_error' };
   }
 }
 
@@ -80,7 +86,8 @@ export async function GET() {
   const instanceDiagnostics: InstanceDiag[] = [];
 
   if (instances) {
-    for (const inst of instances) {
+    // RLS-TENANT-001 : seulement les noms de l'espace du tenant.
+    for (const inst of instances.filter((i) => isOwnedInstanceName(user.id, i.instance_name))) {
       const diag: InstanceDiag = {
         service_type: inst.service_type ?? '(null — migration missing?)',
         instance_name: inst.instance_name,
@@ -106,11 +113,13 @@ export async function GET() {
       const whRes = await evolutionGet(ev, `/webhook/find/${inst.instance_name}`);
       if (whRes.ok) {
         const j = whRes.json as Record<string, unknown>;
-        diag.webhook_url = (j?.url as string) ?? (j?.webhook as string) ?? null;
+        const rawUrl = (j?.url as string) ?? (j?.webhook as string) ?? null;
+        // Réponse destinée au navigateur : secret global masqué.
+        diag.webhook_url = redactWebhookToken(rawUrl);
         const events = (j?.events as string[]) ?? null;
         diag.webhook_events = events;
         diag.webhook_matches_expected =
-          diag.webhook_url === EXPECTED_WEBHOOK &&
+          rawUrl === EXPECTED_WEBHOOK_REGISTERED &&
           Array.isArray(events) &&
           events.includes('MESSAGES_UPSERT');
       } else {
@@ -148,7 +157,7 @@ export async function GET() {
   }
   if (instErr) {
     issues.push(
-      `Erreur lecture whatsapp_instances: ${instErr.message}. La colonne service_type est-elle créée ?`
+      `Erreur lecture whatsapp_instances (code ${instErr.code ?? 'inconnu'}). La colonne service_type est-elle créée ?`
     );
   }
   for (const d of instanceDiagnostics) {
