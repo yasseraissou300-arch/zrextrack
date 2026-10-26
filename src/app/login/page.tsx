@@ -1,12 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const supabase = createClient();
+
+  // Retour d'un échec de connexion (/auth/callback?…→ /login?error=auth_callback).
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('error') === 'auth_callback') {
+      setError('La connexion a échoué ou a expiré. Réessayez dans ce navigateur.');
+    }
+  }, []);
 
   const handleGoogleLogin = async () => {
     setLoading(true);
