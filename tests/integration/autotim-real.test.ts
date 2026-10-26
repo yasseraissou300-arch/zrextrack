@@ -19,7 +19,8 @@
 //   DELETE FROM autotim.jobs WHERE tenant_id = '<TEST_TENANT>' AND payload->>'__test__' = 'true';
 //   DELETE FROM autotim.tenant_settings WHERE tenant_id = '<TEST_TENANT>';
 //
-// Lancer : npm run test:integration   (jamais inclus dans `npm test`)
+// Lancer : AUTOTIM_INTEGRATION_TARGET=<ref> npm run test:integration
+//          (jamais inclus dans `npm test` ; sans cible explicite → ignoré)
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -43,8 +44,17 @@ function loadEnvLocal() {
 }
 loadEnvLocal();
 
-const HAS_KEY = !!process.env.NEXT_PUBLIC_SUPABASE_URL && !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Cible EXPLICITE obligatoire : .env.local pointe vers la base de production
+// (partagée Preview/Production). Sans AUTOTIM_INTEGRATION_TARGET=<ref> cohérente
+// avec l'URL et la clé réellement chargées, les tests sont ignorés — aucune
+// connexion n'est ouverte.
+const GUARD = checkScriptDbAccess(
+  process.env.AUTOTIM_INTEGRATION_TARGET?.trim() || null,
+  process.env
+);
+const HAS_KEY = GUARD.ok;
 
+import { checkScriptDbAccess } from '@/lib/security/script-guard';
 // Importés après le chargement de l'env (createServiceClient lit process.env à l'appel).
 import { createServiceClient } from '@/lib/supabase/server';
 import {
@@ -75,7 +85,7 @@ const describeReal = HAS_KEY ? describe : describe.skip;
 if (!HAS_KEY) {
   // eslint-disable-next-line no-console
   console.warn(
-    '\n[integration] IGNORÉ — SUPABASE_SERVICE_ROLE_KEY et/ou NEXT_PUBLIC_SUPABASE_URL absents de .env.local\n'
+    `\n[integration] IGNORÉ — ${GUARD.ok ? '' : GUARD.error} (AUTOTIM_INTEGRATION_TARGET=<ref> requis)\n`
   );
 }
 

@@ -1,151 +1,21 @@
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { mapStatus } from '@/lib/zrexpress/status';
 
-function norm(raw: string): string {
-  return (raw || '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[_-]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
+// Re-classification des commandes à partir de la SITUATION stockée.
+//
+// Deux défauts corrigés :
+// 1. Cette route avait sa PROPRE copie de mapStatus, qui avait divergé de
+//    celle du sync (src/lib/zrexpress/status) : « en attente de confirmation »,
+//    « renvoi », etc. n'y figuraient pas. Re-classifier pouvait donc écrire un
+//    statut que le sync suivant écrasait. Désormais : la fonction partagée.
+// 2. Lecture sans pagination : PostgREST plafonne à 1 000 lignes → au-delà,
+//    les commandes n'étaient jamais re-classifiées (5 022 actives pour le
+//    tenant pilote).
 
-// PRIORITÉ : situation vérifiée EN PREMIER
-function mapStatus(rawState: string, rawSituation = ''): string {
-  const s = norm(rawState);
-  const sit = norm(rawSituation);
-  const has = (src: string, ...terms: string[]) => terms.some((t) => src.includes(t));
+const PAGE = 1000;
+const MAX_ROWS = 50_000;
 
-  if (
-    sit &&
-    has(
-      sit,
-      'appele sans reponse',
-      'sans reponse',
-      'appele sr',
-      'ne repond pas',
-      'repond pas',
-      'pas repondu',
-      'pas de reponse',
-      'client absent',
-      'absent',
-      'non joignable',
-      'injoignable',
-      'refus de livraison',
-      'refuse',
-      'annule',
-      'annulee',
-      'annulation',
-      'echec',
-      'echoue',
-      'echec de livraison',
-      'non livre',
-      'non remis',
-      'colis non remis',
-      'commune erronee',
-      'adresse erronee',
-      'adresse incorrecte',
-      'errone',
-      'erronee',
-      'commune incorrecte',
-      'wilaya erronee',
-      'telephone incorrect',
-      'numero incorrect',
-      'numero invalide',
-      'introuvable',
-      'adresse introuvable',
-      'client introuvable',
-      'en attente adresse',
-      'attente adresse',
-      'attente confirmation'
-    )
-  )
-    return 'echec';
-
-  if (
-    sit &&
-    has(
-      sit,
-      'retourne',
-      'retour expediteur',
-      'retour confirme',
-      'refus client',
-      'renvoye',
-      'retour marchand'
-    )
-  )
-    return 'retourne';
-  if (
-    sit &&
-    has(
-      sit,
-      'sorti en livraison',
-      'sorti',
-      'en cours de livraison',
-      'en distribution',
-      'distribution',
-      'reporte',
-      'reportee',
-      'en route vers client',
-      'appel telephonique',
-      'appel tel',
-      'appele',
-      'en attente de retrait',
-      'attente de retrait',
-      'attente retrait',
-      'en attente au bureau',
-      'disponible au bureau',
-      'au bureau',
-      'passage prevu',
-      'passage programme',
-      'livraison prevue',
-      'avise',
-      'avisee',
-      'client avise',
-      'en livraison',
-      'livraison en cours',
-      'en cours'
-    )
-  )
-    return 'en_livraison';
-  if (sit && has(sit, 'en transit', 'transit', 'hub', 'centre tri', 'expedie')) return 'en_transit';
-  if (sit && has(sit, 'livre', 'remis') && !has(sit, 'non remis', 'en cours', 'sorti'))
-    return 'livre';
-
-  if (s === 'livre' || s === 'livree' || s === 'delivered') return 'livre';
-  if (has(s, 'livre') && !has(s, 'en livr', 'en cours', 'retour')) return 'livre';
-  if (
-    has(s, 'echec', 'echoue', 'annule', 'annulee', 'annulation', 'cancel', 'errone', 'non delivre')
-  )
-    return 'echec';
-  if (has(s, 'retourne', 'en retour', 'retour expediteur', 'return')) return 'retourne';
-  if (has(s, 'expedie', 'shipped', 'en transit', 'transit', 'hub', 'centre tri', 'acheminement'))
-    return 'en_transit';
-  if (has(s, 'en livr', 'en cours de livr', 'sorti', 'distribution', 'out for delivery'))
-    return 'en_livraison';
-  if (
-    has(
-      s,
-      'en preparation',
-      'preparation',
-      'prise en charge',
-      'pec',
-      'en attente',
-      'nouveau',
-      'pending',
-      'recu',
-      'enleve',
-      'collecte'
-    )
-  )
-    return 'en_preparation';
-
-  return 'en_preparation';
-}
-
-// POST /api/orders/reclassify
-// Re-calcule le status de toutes les commandes existantes à partir de (situation + status actuel)
 export async function POST() {
   const supabaseAuth = await createClient();
   const {
@@ -155,38 +25,41 @@ export async function POST() {
 
   const supabase = createServiceClient();
 
-  // Charger toutes les commandes avec leur situation stockée
-  const { data: orders, error } = await supabase
-    .from('orders')
-    .select('id, delivery_status, situation')
-    .eq('user_id', user.id)
-    .is('deleted_at', null);
+  const orders: Array<{ id: string; delivery_status: string; situation: string | null }> = [];
+  for (let from = 0; from < MAX_ROWS; from += PAGE) {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('id, delivery_status, situation')
+      .eq('user_id', user.id)
+      .is('deleted_at', null)
+      .order('id', { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (error) return NextResponse.json({ error: 'Lecture impossible' }, { status: 500 });
+    orders.push(...(data ?? []));
+    if (!data || data.length < PAGE) break;
+  }
+  if (orders.length === 0) return NextResponse.json({ updated: 0 });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  if (!orders || orders.length === 0) return NextResponse.json({ updated: 0 });
-
-  // Re-classifier chaque commande uniquement à partir de la SITUATION stockée.
-  // Le champ delivery_status en base est déjà le statut interne mappé ('en_preparation', etc.),
-  // pas le nom ZREXpress original — on passe '' comme état pour forcer la lecture de la situation.
+  // Le delivery_status stocké est déjà le statut interne : on passe '' comme
+  // état pour forcer la lecture de la situation.
   const updates: { id: string; delivery_status: string }[] = [];
   for (const order of orders) {
     const sit = order.situation ?? '';
-    if (!sit.trim()) continue; // pas de situation → on ne peut pas reclassifier
+    if (!sit.trim()) continue; // pas de situation → rien à re-classifier
     const newStatus = mapStatus('', sit);
     if (newStatus !== order.delivery_status) {
       updates.push({ id: order.id, delivery_status: newStatus });
     }
   }
 
-  // Appliquer les corrections en batch
   let updated = 0;
   for (const upd of updates) {
-    await supabase
+    const { error } = await supabase
       .from('orders')
       .update({ delivery_status: upd.delivery_status })
       .eq('id', upd.id)
       .eq('user_id', user.id);
-    updated++;
+    if (!error) updated++; // compteur fidèle : seules les écritures réussies
   }
 
   return NextResponse.json({
