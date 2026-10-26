@@ -11,6 +11,7 @@ import type { NextRequest } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { validateTwilioRequest, publicUrlFromRequest, readTwilioParams } from './twilio-signature';
 import { isReplay } from './webhook-auth';
+import { openTwilioToken } from './stored-secrets';
 import { logEvent } from './safe-log';
 
 export interface TwilioGuardOk {
@@ -69,7 +70,18 @@ export async function guardTwilioRequest(
       .select('auth_token')
       .eq('user_id', userId)
       .maybeSingle();
-    authToken = settings?.auth_token ?? null;
+    authToken = openTwilioToken(userId, settings?.auth_token);
+    // Jeton STOCKÉ mais illisible (autre trousseau, valeur altérée) : ne
+    // jamais retomber en mode « non appliqué » (fail-open) → refus.
+    if (!authToken && typeof settings?.auth_token === 'string' && settings.auth_token.trim()) {
+      logEvent('warn', scope, {
+        status: 'rejected',
+        reason: 'auth_token_unreadable',
+        tenant_id: userId,
+        conversation_id: cid,
+      });
+      return { ok: false, status: 401, reason: 'auth_token_unreadable' };
+    }
   }
 
   const check = validateTwilioRequest({
