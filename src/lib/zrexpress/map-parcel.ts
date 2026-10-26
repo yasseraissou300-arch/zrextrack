@@ -9,7 +9,7 @@
 // La longue cascade de fallbacks est volontaire : l'API ZRExpress n'est pas
 // cohérente d'un endpoint à l'autre sur le nom de ses champs.
 
-import { mapStatus } from './status';
+import { isPostDeliveryState, mapStatus } from './status';
 
 export interface MappedOrder {
   tracking_number: string;
@@ -37,6 +37,26 @@ export function stateUpdatedAt(p: any, syncedAt: string): string {
     return new Date(raw).toISOString();
   }
   return syncedAt;
+}
+
+/** État ZRExpress brut du colis (le nom du champ varie selon l'endpoint). */
+export function parcelRawState(p: any): string {
+  return (
+    p.state?.name || p.stateName || p.status?.name || p.statusName || p.state || p.status || ''
+  );
+}
+
+/**
+ * Tracking numbers des colis dont le changement de statut doit rester
+ * silencieux (état post-livraison, voir isPostDeliveryState).
+ */
+export function silentTrackingNumbers(parcels: any[], rows: MappedOrder[]): Set<string> {
+  const silent = new Set<string>();
+  parcels.forEach((p, i) => {
+    const tracking = rows[i]?.tracking_number;
+    if (tracking && isPostDeliveryState(String(parcelRawState(p)))) silent.add(tracking);
+  });
+  return silent;
 }
 
 export function mapParcel(p: any, syncedAt: string): MappedOrder {
@@ -78,8 +98,7 @@ export function mapParcel(p: any, syncedAt: string): MappedOrder {
 
   const cod = p.amount ?? p.price ?? p.cod ?? p.codAmount ?? p.cod_amount ?? 0;
 
-  const rawStatus =
-    p.state?.name || p.stateName || p.status?.name || p.statusName || p.state || p.status || '';
+  const rawStatus = parcelRawState(p);
   const situation =
     p.situation?.name ||
     p.situationName ||
