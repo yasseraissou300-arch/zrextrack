@@ -8,7 +8,7 @@ import { fetchAllParcels } from '@/lib/zrexpress/parcels';
 import { remainingDailyQuota, sleep, varyMessage } from '@/lib/whatsapp/anti-spam';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
 import { countOrdersThisMonth, quotaStateFor } from '@/lib/plan-quotas';
-import { stateUpdatedAt } from '@/lib/zrexpress/map-parcel';
+import { silentTrackingNumbers, stateUpdatedAt } from '@/lib/zrexpress/map-parcel';
 
 const APP_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://zrextrack6753.builtwithrocket.new';
 
@@ -349,10 +349,10 @@ export async function POST(request: NextRequest) {
 
     const syncedAt = new Date().toISOString();
 
-    const allRows = parcels
-      .map((p) => mapParcel(p, syncedAt))
-      .filter((r) => r.tracking_number)
-      .map((r) => ({ ...r, user_id: userId }));
+    const mapped = parcels.map((p) => mapParcel(p, syncedAt));
+    // Passages vers un état post-livraison (encaissé, recouvert…) : jamais notifiés.
+    const silent = silentTrackingNumbers(parcels, mapped);
+    const allRows = mapped.filter((r) => r.tracking_number).map((r) => ({ ...r, user_id: userId }));
 
     const seen = new Set<string>();
     let rows = allRows.filter((r) => {
@@ -406,6 +406,7 @@ export async function POST(request: NextRequest) {
         isEnabled &&
         row.customer_whatsapp &&
         row.customer_whatsapp.length > 4 &&
+        !silent.has(row.tracking_number) &&
         existing?.delivery_status !== row.delivery_status
       ) {
         toNotify.push({
