@@ -42,8 +42,20 @@ const nextConfig = {
   // côté middleware ne suffisait pas. Les visiteurs non connectés doivent voir
   // la vitrine ; les utilisateurs connectés arrivent sur le dashboard via
   // /auth/callback qui redirige déjà vers /admin-dashboard.
+  // Un seul domaine visible : autotim.vercel.app. L'ancien alias
+  // zrextrack.vercel.app redirige les PAGES (liens de suivi déjà envoyés aux
+  // clients compris) vers autotim. Les routes /api/* ne sont PAS redirigées :
+  // webhooks Evolution/ZR et cron peuvent encore viser l'ancien domaine, et un
+  // POST redirigé n'est pas suivi de façon fiable.
   async redirects() {
-    return [];
+    return [
+      {
+        source: '/:path((?!api/).*)',
+        has: [{ type: 'host', value: 'zrextrack.vercel.app' }],
+        destination: 'https://autotim.vercel.app/:path',
+        permanent: false,
+      },
+    ];
   },
 
   async headers() {
