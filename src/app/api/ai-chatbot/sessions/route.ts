@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { internalErrorResponse } from '@/lib/security/public-error';
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
   if (complete === 'true') query = query.eq('is_complete', true);
 
   const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalErrorResponse('api.ai-chatbot.sessions', error);
 
   return NextResponse.json({ data: data ?? [], count: data?.length ?? 0 });
 }
@@ -46,6 +47,6 @@ export async function DELETE(req: NextRequest) {
     .delete()
     .eq('id', id)
     .eq('user_id', user.id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalErrorResponse('api.ai-chatbot.sessions', error);
   return NextResponse.json({ ok: true });
 }
