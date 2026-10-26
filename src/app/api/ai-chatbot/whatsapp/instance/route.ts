@@ -4,7 +4,7 @@ import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
 import { webhookTokenQuery } from '@/lib/security/webhook-auth';
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://zrextrack.vercel.app';
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://autotim.vercel.app';
 
 interface EvCreds {
   url: string;
