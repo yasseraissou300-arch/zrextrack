@@ -59,6 +59,8 @@ interface SendResponse {
   sessionDead?: boolean;
   circuitBroken?: boolean;
   deferred?: Array<{ tracking: string; client: string }>;
+  /** Écartés : même numéro + même colis déjà envoyé (< 10 min) ou en double. */
+  duplicates?: Array<{ tracking: string; client: string }>;
   results?: Array<{ error?: string }>;
 }
 
@@ -783,6 +785,12 @@ function EnvoyerTab() {
       } else {
         toast.success(`${json.sent} message(s) envoye(s)`);
         setSelected(new Set());
+      }
+      if (!json.error && json.duplicates?.length) {
+        toast.info(
+          `${json.duplicates.length} destinataire(s) déjà servi(s) récemment ou en double — non renvoyé(s).`,
+          { duration: 8000 }
+        );
       }
     } finally {
       setSending(false);

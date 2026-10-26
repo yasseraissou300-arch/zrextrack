@@ -216,7 +216,7 @@ export default function SyncPage() {
       .replace(/{tracking}/g, 'ZRX789012')
       .replace(/{wilaya}/g, 'Alger')
       .replace(/{produit}/g, 'Montre connectée')
-      .replace(/{lien}/g, 'zrextrack.vercel.app/track/ZRX789012');
+      .replace(/{lien}/g, 'autotim.vercel.app/track/ZRX789012');
 
   return (
     <AppLayout>
