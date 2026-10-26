@@ -23,6 +23,30 @@
 export const EVENTS = ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'];
 const OWN_NAME = /^zrex_[0-9a-f]{12}(_[a-z]+)?$/;
 
+/** Erreurs de configuration (liste vide = OK). Aucune valeur n'est renvoyée. */
+export function configErrors(env) {
+  const errors = [];
+  const secret = env.WHATSAPP_WEBHOOK_SECRET || '';
+  if (secret.length < 32)
+    errors.push('WHATSAPP_WEBHOOK_SECRET : 32 caractères minimum (ex. openssl rand -hex 32)');
+  for (const [key, needHttps] of [
+    ['APP_URL', true],
+    ['EVOLUTION_API_URL', false],
+  ]) {
+    let u = null;
+    try {
+      u = new URL(env[key] || '');
+    } catch {
+      errors.push(`${key} : URL invalide`);
+      continue;
+    }
+    if (needHttps && u.protocol !== 'https:') errors.push(`${key} : https:// obligatoire`);
+    if (needHttps && /^(localhost|127\.|0\.0\.0\.0|\[::1\])/.test(u.hostname))
+      errors.push(`${key} : domaine public attendu`);
+  }
+  return errors;
+}
+
 export function isAutotimInstance(name) {
   return typeof name === 'string' && OWN_NAME.test(name);
 }
@@ -132,6 +156,12 @@ if (isMain) {
     console.error(
       `Variables manquantes : ${missing.join(', ')} (aucune lecture de .env, par sécurité)`
     );
+    process.exit(2);
+  }
+  const bad = configErrors(process.env);
+  if (bad.length) {
+    console.error('Configuration refusée :');
+    for (const e of bad) console.error(`  - ${e}`);
     process.exit(2);
   }
   const apply = process.argv.includes('--apply');
