@@ -101,6 +101,25 @@ afterEach(() => {
 });
 
 describe('Messenger — commande complète', () => {
+  it('P3 concurrence : deux messages en parallèle → les deux tours sont conservés', async () => {
+    geminiReply = 'ok';
+    await Promise.all([post(event('Montre noire')), post(event('Ana f Oran'))]);
+    const conv = db.all('public', 'ai_chat_sessions')[0].conversation as Array<{
+      role: string;
+      content: string;
+    }>;
+    // La session de test contient déjà 1 message client (numéro, ancrage) :
+    // on vérifie que les DEUX nouveaux tours sont conservés.
+    const seeded = 1;
+    expect(
+      conv
+        .filter((m) => m.role === 'user' && m.content !== 'raqmi 0550 12 34 56')
+        .map((m) => m.content)
+        .sort()
+    ).toEqual(['Ana f Oran', 'Montre noire']);
+    expect(conv).toHaveLength(seeded + 4);
+  });
+
   it('deux messages en parallèle → une seule ligne dans le Sheet', async () => {
     geminiReply = COMPLETE;
     await Promise.all([post(event('Montre noire')), post(event('Ana f Oran'))]);
