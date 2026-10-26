@@ -179,3 +179,71 @@ describe('prise atomique', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+describe('drain — circuit breaker (session morte)', () => {
+  const failEvolution = () =>
+    fetchMock.mockImplementation(async () => new Response('Connection Closed', { status: 500 }));
+
+  afterEach(() => {
+    fetchMock.mockImplementation(async (_url: string, init?: RequestInit) => {
+      await new Promise((r) => setTimeout(r, 5));
+      sends.push(JSON.parse(String(init?.body)));
+      return new Response('{}', { status: 200 });
+    });
+  });
+
+  it('un échec Evolution arrête le drain (pas de 2e tentative dans le même sync)', async () => {
+    seedTenant(TENANT_A, 2);
+    failEvolution();
+    await drain(TENANT_A);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(db.all('autotim', 'tenant_settings')[0].consecutive_send_failures).toBe(1);
+  });
+
+  it('5 syncs en échec → circuit ouvert → plus aucun appel ni ligne « echec »', async () => {
+    seedTenant(TENANT_A, 10);
+    failEvolution();
+    for (let i = 0; i < 5; i++) await drain(TENANT_A);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+    expect(db.all('autotim', 'tenant_settings')[0].circuit_open_until).not.toBeNull();
+
+    const echecs = db.all('public', 'messages').length;
+    for (let i = 0; i < 20; i++) await drain(TENANT_A); // 20 syncs de plus (≈ 100 min)
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+    expect(db.all('public', 'messages')).toHaveLength(echecs);
+  });
+
+  it('un succès remet le compteur à zéro', async () => {
+    seedTenant(TENANT_A, 3);
+    db.seed('autotim', 'tenant_settings', [{ tenant_id: TENANT_A, consecutive_send_failures: 3 }]);
+    await drain(TENANT_A);
+    expect(db.all('autotim', 'tenant_settings')[0].consecutive_send_failures).toBe(0);
+  });
+
+  it('circuit expiré → les envois reprennent (aucun blocage permanent)', async () => {
+    seedTenant(TENANT_A, 2);
+    db.seed('autotim', 'tenant_settings', [
+      {
+        tenant_id: TENANT_A,
+        consecutive_send_failures: 5,
+        circuit_open_until: new Date(Date.now() - 60_000).toISOString(), // fenêtre passée
+      },
+    ]);
+    const sent = await drain(TENANT_A);
+    expect(sent).toBeGreaterThan(0);
+    expect(fetchMock).toHaveBeenCalled();
+    expect(db.all('autotim', 'tenant_settings')[0].consecutive_send_failures).toBe(0);
+  });
+
+  it('circuit d’un autre tenant ouvert → n’affecte pas ce tenant (isolation)', async () => {
+    seedTenant(TENANT_A, 1);
+    db.seed('autotim', 'tenant_settings', [
+      {
+        tenant_id: TENANT_B,
+        consecutive_send_failures: 5,
+        circuit_open_until: new Date(Date.now() + 30 * 60_000).toISOString(),
+      },
+    ]);
+    expect(await drain(TENANT_A)).toBe(1);
+  });
+});
