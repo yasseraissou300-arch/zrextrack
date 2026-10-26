@@ -20,6 +20,14 @@ import { MAX_ATTEMPTS, type Job } from '@/lib/queue/types';
 
 let fake: FakeSupabase;
 
+// Garde SSRF du média (revérifiée à l'envoi) : DNS simulé. cdn.test → IP
+// publique ; internal.test → IP privée.
+vi.mock('node:dns/promises', () => ({
+  lookup: async (host: string) => [
+    { address: host === 'internal.test' ? '10.0.0.9' : '142.250.74.110', family: 4 },
+  ],
+}));
+
 vi.mock('@/lib/supabase/server', () => ({
   createServiceClient: () => fake,
   createClient: async () => {
@@ -31,6 +39,7 @@ vi.mock('@/lib/supabase/server', () => ({
 import { handleWhatsAppSend } from '@/lib/queue/handlers/whatsapp-send';
 import { enqueue, claimJobs, markFailed, markDone } from '@/lib/queue/repository';
 import { runTick } from '@/lib/queue/runner';
+import { instanceNameFor } from '@/lib/whatsapp/instance-ownership';
 
 const TENANT_A = '11111111-1111-4111-8111-111111111111';
 const TENANT_B = '22222222-2222-4222-8222-222222222222';
@@ -88,7 +97,7 @@ function seedInstance(tenant = TENANT_A) {
   fake.seed('public', 'whatsapp_instances', [
     {
       user_id: tenant,
-      instance_name: `inst-${tenant.slice(0, 4)}`,
+      instance_name: instanceNameFor(tenant, 'auto_confirmation'),
       service_type: 'auto_confirmation',
       connected: true,
     },
@@ -124,7 +133,9 @@ describe('Succès — comptabilisation', () => {
 
     expect(r).toEqual({ outcome: 'done' });
     expect(evolutionCalls).toHaveLength(1);
-    expect(evolutionCalls[0].url).toBe(`${EVOLUTION_URL}/message/sendText/inst-1111`);
+    expect(evolutionCalls[0].url).toBe(
+      `${EVOLUTION_URL}/message/sendText/${instanceNameFor(TENANT_A, 'auto_confirmation')}`
+    );
     expect(evolutionCalls[0].body.number).toBe('213556172674'); // normalisé
 
     const messages = fake.all('public', 'messages');
@@ -158,6 +169,7 @@ describe('Succès — comptabilisation', () => {
   });
 
   it('avec media_url → sendMedia, et trace le destinataire de campagne', async () => {
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://abcdefghijklmnop.supabase.co');
     seedInstance();
     evolutionResponds(201);
 
@@ -166,13 +178,18 @@ describe('Succès — comptabilisation', () => {
         payload: {
           ...makeJob().payload,
           campaign_id: 'camp-1',
-          media_url: 'https://cdn.test/promo.jpg',
+          media_url: OWN_MEDIA,
         },
       })
     );
 
     expect(evolutionCalls[0].url).toContain('/message/sendMedia/');
-    expect(evolutionCalls[0].body).toMatchObject({ mediatype: 'image', fileName: 'promo.jpg' });
+    // Stockage de la plateforme : URL transmise telle quelle à Evolution.
+    expect(evolutionCalls[0].body).toMatchObject({
+      mediatype: 'image',
+      fileName: 'promo.jpg',
+      media: OWN_MEDIA,
+    });
     expect(fake.all('public', 'campaign_recipients')).toHaveLength(1);
     expect(fake.all('public', 'campaign_recipients')[0]).toMatchObject({
       campaign_id: 'camp-1',
@@ -374,7 +391,7 @@ describe('Circuit breaker — 5 échecs consécutifs → ouvert 30 min', () => {
     expect((await handleWhatsAppSend(makeJob({ tenant_id: TENANT_A }))).outcome).toBe('reschedule');
     expect((await handleWhatsAppSend(makeJob({ tenant_id: TENANT_B }))).outcome).toBe('done');
     expect(evolutionCalls).toHaveLength(1);
-    expect(evolutionCalls[0].url).toContain('inst-2222');
+    expect(evolutionCalls[0].url).toContain(instanceNameFor(TENANT_B, 'auto_confirmation'));
   });
 });
 
@@ -475,7 +492,9 @@ describe('Isolation tenant', () => {
     );
 
     expect(fake.all('public', 'pending_notifications')[0].status).toBe('pending'); // intacte
-    expect(fake.all('public', 'messages')[0].user_id).toBe(TENANT_A);
+    // La prise atomique (scopée au tenant du job) échoue : rien n'est envoyé,
+    // aucune ligne `messages` n'est écrite pour le compte de A.
+    expect(fake.all('public', 'messages')).toHaveLength(0);
   });
 
   it('toutes les écritures portent le tenant du job', async () => {
@@ -513,5 +532,104 @@ describe('Cycle complet via runTick', () => {
     expect(j).toMatchObject({ status: 'done', attempts: 1, locked_at: null, locked_by: null });
     expect(fake.all('public', 'messages')).toHaveLength(1);
     await markDone(db, j.id); // idempotent
+  });
+});
+
+// ─── RLS-TENANT-001 — 8/9. isolation de la file (campagnes comprises) ───────
+describe('RLS-TENANT-001 — instance d’un autre tenant', () => {
+  it('ligne de A réécrite avec le nom de l’instance de B → échec, AUCUN appel Evolution', async () => {
+    fake.seed('public', 'whatsapp_instances', [
+      {
+        user_id: TENANT_A,
+        service_type: 'auto_confirmation',
+        instance_name: instanceNameFor(TENANT_B, 'auto_confirmation'),
+        connected: true,
+      },
+    ]);
+    evolutionResponds(201);
+    const r = await handleWhatsAppSend(makeJob());
+    expect(r.outcome).toBe('failed');
+    expect(evolutionCalls).toHaveLength(0);
+    expect(fake.all('public', 'messages')).toHaveLength(0);
+  });
+
+  it('message de campagne : même refus (le dispatch passe par whatsapp.send)', async () => {
+    fake.seed('public', 'whatsapp_instances', [
+      {
+        user_id: TENANT_A,
+        service_type: 'auto_confirmation',
+        instance_name: 'legacy_foreign',
+        connected: true,
+      },
+    ]);
+    evolutionResponds(201);
+    const job = makeJob();
+    job.payload = { ...job.payload, campaign_id: 'camp-1' };
+    const r = await handleWhatsAppSend(job);
+    expect(r.outcome).toBe('failed');
+    expect(evolutionCalls).toHaveLength(0);
+  });
+});
+
+const OWN_MEDIA =
+  'https://abcdefghijklmnop.supabase.co/storage/v1/object/public/campaign-media/t/promo.jpg';
+
+describe('SSRF — média revérifié au moment de l’envoi', () => {
+  beforeEach(() => vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://abcdefghijklmnop.supabase.co'));
+
+  it('URL externe → téléchargée par le SERVEUR puis transmise en base64 (Evolution ne la résout jamais)', async () => {
+    seedInstance();
+    const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
+    fetchMock.mockImplementation(async (input: any, init?: any) => {
+      const url = String(input);
+      if (url === 'https://cdn.test/promo.jpg')
+        return new Response(jpeg, { status: 200, headers: { 'content-type': 'image/jpeg' } });
+      if (!url.startsWith(EVOLUTION_URL)) throw new Error(`appel réseau interdit en test : ${url}`);
+      evolutionCalls.push({ url, body: JSON.parse(init?.body ?? '{}') });
+      return new Response('{}', { status: 201 });
+    });
+    const job = makeJob();
+    job.payload = { ...job.payload, media_url: 'https://cdn.test/promo.jpg' };
+    expect((await handleWhatsAppSend(job)).outcome).toBe('done');
+    expect(evolutionCalls[0].body).toMatchObject({
+      media: Buffer.from(jpeg).toString('base64'),
+      mimetype: 'image/jpeg',
+    });
+    expect(JSON.stringify(evolutionCalls[0].body)).not.toContain('cdn.test/promo');
+  });
+
+  it('URL externe qui renvoie du HTML → refusée, aucun appel Evolution', async () => {
+    seedInstance();
+    fetchMock.mockImplementation(async (input: any, init?: any) => {
+      const url = String(input);
+      if (url.startsWith('https://cdn.test/'))
+        return new Response('<html>', { status: 200, headers: { 'content-type': 'text/html' } });
+      evolutionCalls.push({ url, body: JSON.parse(init?.body ?? '{}') });
+      return new Response('{}', { status: 201 });
+    });
+    const job = makeJob();
+    job.payload = { ...job.payload, media_url: 'https://cdn.test/page' };
+    expect((await handleWhatsAppSend(job)).outcome).toBe('failed');
+    expect(evolutionCalls).toHaveLength(0);
+  });
+
+  it('domaine repointé vers une IP privée → job en échec, AUCUN appel Evolution', async () => {
+    seedInstance();
+    evolutionResponds(201);
+    const job = makeJob();
+    job.payload = { ...job.payload, media_url: 'https://internal.test/a.jpg' };
+    const r = await handleWhatsAppSend(job);
+    expect(r.outcome).toBe('failed');
+    expect(evolutionCalls).toHaveLength(0);
+    expect(fake.all('public', 'messages')).toHaveLength(0);
+  });
+
+  it('adresse métadonnées en clair → refusée sans DNS', async () => {
+    seedInstance();
+    evolutionResponds(201);
+    const job = makeJob();
+    job.payload = { ...job.payload, media_url: 'http://169.254.169.254/latest/meta-data/' };
+    expect((await handleWhatsAppSend(job)).outcome).toBe('failed');
+    expect(evolutionCalls).toHaveLength(0);
   });
 });

@@ -63,6 +63,8 @@ export interface CampaignDispatchPayload {
   campaign_id: string;
   /** Curseur : index du premier destinataire du prochain lot. */
   offset: number;
+  /** Identifiant du lancement (absent pour les jobs antérieurs au correctif). */
+  run?: string;
 }
 
 /**

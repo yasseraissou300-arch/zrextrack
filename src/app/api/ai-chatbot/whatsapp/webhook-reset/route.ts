@@ -1,9 +1,10 @@
+import { isOwnedInstanceName } from '@/lib/whatsapp/instance-ownership';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
-import { webhookTokenQuery } from '@/lib/security/webhook-auth';
+import { webhookTokenQuery, redactWebhookToken } from '@/lib/security/webhook-auth';
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://zrextrack.vercel.app';
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://autotim.vercel.app';
 // P0-1 : le secret partagé est ajouté à l'URL enregistrée chez Evolution.
 // Vide tant que WHATSAPP_WEBHOOK_SECRET n'est pas défini → URL inchangée.
 const WEBHOOK_URL = `${APP_URL}/api/ai-chatbot/webhook/whatsapp${webhookTokenQuery('WHATSAPP_WEBHOOK_SECRET')}`;
@@ -39,8 +40,8 @@ async function postJson(
     });
     const text = await res.text().catch(() => '');
     return { status: res.status, text };
-  } catch (e) {
-    return { status: 0, text: e instanceof Error ? e.message : String(e) };
+  } catch {
+    return { status: 0, text: 'network_error' };
   }
 }
 
@@ -86,7 +87,7 @@ async function resetOne(
     format: 'flat_snake',
     endpoint: setUrl.replace(evUrl, '<base>'),
     status: a.status,
-    response_snippet: a.text.slice(0, 300),
+    response_snippet: redactWebhookToken(a.text.slice(0, 300)) ?? '',
   });
 
   // Verify
@@ -112,7 +113,7 @@ async function resetOne(
       format: 'nested_camel',
       endpoint: setUrl.replace(evUrl, '<base>'),
       status: b.status,
-      response_snippet: b.text.slice(0, 300),
+      response_snippet: redactWebhookToken(b.text.slice(0, 300)) ?? '',
     });
 
     check = await findWebhook(evUrl, evKey, instanceName);
@@ -125,7 +126,7 @@ async function resetOne(
   return {
     instance_name: instanceName,
     attempts,
-    final_url: check.url,
+    final_url: redactWebhookToken(check.url),
     final_events: check.events,
     verified,
   };
@@ -161,14 +162,15 @@ export async function POST(req: NextRequest) {
   const { data: instances, error } = await query;
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Lecture impossible' }, { status: 500 });
   }
   if (!instances || instances.length === 0) {
     return NextResponse.json({ error: 'No instances found for this user.' }, { status: 404 });
   }
 
   const results: InstanceReset[] = [];
-  for (const inst of instances) {
+  // RLS-TENANT-001 : seulement les noms de l'espace du tenant.
+  for (const inst of instances.filter((i) => isOwnedInstanceName(user.id, i.instance_name))) {
     const r = await resetOne(EVOLUTION_URL, EVOLUTION_KEY, inst.instance_name);
     results.push({ ...r, service_type: inst.service_type });
   }
@@ -176,7 +178,7 @@ export async function POST(req: NextRequest) {
   const verifiedCount = results.filter((r) => r.verified).length;
 
   return NextResponse.json({
-    webhook_url_sent: WEBHOOK_URL,
+    webhook_url_sent: redactWebhookToken(WEBHOOK_URL),
     app_url_used: APP_URL,
     app_url_from_env: process.env.NEXT_PUBLIC_APP_URL || null,
     total: results.length,

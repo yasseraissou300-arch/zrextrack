@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServiceClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { OAUTH_STATE_COOKIE, oauthStateMatches } from '@/lib/security/oauth-state';
+import { newVerifyToken, sealPageToken, sealPendingPages } from '@/lib/security/facebook-verify';
+import { logEvent } from '@/lib/security/safe-log';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 function redirect(path: string) {
-  return NextResponse.redirect(new URL(path, APP_URL));
+  const res = NextResponse.redirect(new URL(path, APP_URL));
+  // Nonce à usage unique : effacé quelle que soit l'issue.
+  res.cookies.set(OAUTH_STATE_COOKIE, '', { path: '/api/ai-chatbot/facebook', maxAge: 0 });
+  return res;
 }
 
 export async function GET(req: NextRequest) {
@@ -17,12 +23,19 @@ export async function GET(req: NextRequest) {
     return redirect('/ai-chatbot?tab=facebook&error=denied');
   }
 
-  let userId: string;
-  try {
-    userId = JSON.parse(Buffer.from(stateRaw, 'base64').toString()).user_id;
-  } catch {
+  // 1. Le state doit être celui posé dans CE navigateur au départ de l'OAuth.
+  if (!oauthStateMatches(stateRaw, req.cookies.get(OAUTH_STATE_COOKIE)?.value)) {
+    logEvent('warn', 'oauth.facebook', { status: 'rejected', reason: 'state_mismatch' });
     return redirect('/ai-chatbot?tab=facebook&error=invalid_state');
   }
+
+  // 2. L'identité vient de la session, jamais du paramètre state.
+  const auth = await createClient();
+  const {
+    data: { user },
+  } = await auth.auth.getUser();
+  if (!user) return redirect('/login');
+  const userId = user.id;
 
   const appId = process.env.FACEBOOK_APP_ID;
   const appSecret = process.env.FACEBOOK_APP_SECRET;
@@ -30,25 +43,45 @@ export async function GET(req: NextRequest) {
 
   const redirectUri = `${APP_URL}/api/ai-chatbot/facebook/callback`;
 
-  // 1. Exchange code → short-lived user token
-  const tokenRes = await fetch(
-    `https://graph.facebook.com/v19.0/oauth/access_token?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&client_secret=${appSecret}&code=${code}`
-  );
-  const tokenJson = await tokenRes.json();
-  if (!tokenJson.access_token) return redirect('/ai-chatbot?tab=facebook&error=token_exchange');
+  // Échanges OAuth : flux documenté par Meta (paramètres de requête sur
+  // /oauth/access_token, en HTTPS). Valeurs encodées ; aucune URL n'est jamais
+  // journalisée ; toute erreur réseau → redirection générique (pas de trace
+  // contenant l'URL). Les appels Graph suivants passent le jeton en EN-TÊTE.
+  const q = (o: Record<string, string>) => new URLSearchParams(o).toString();
+  let tokenJson: { access_token?: string };
+  let longJson: { access_token?: string };
+  let pagesJson: {
+    data?: {
+      id: string;
+      name: string;
+      access_token: string;
+      picture?: { data: { url: string } };
+    }[];
+  };
+  try {
+    // 1. Exchange code → short-lived user token
+    const tokenRes = await fetch(
+      `https://graph.facebook.com/v19.0/oauth/access_token?${q({ client_id: appId, redirect_uri: redirectUri, client_secret: appSecret, code })}`
+    );
+    tokenJson = await tokenRes.json();
+    if (!tokenJson.access_token) return redirect('/ai-chatbot?tab=facebook&error=token_exchange');
 
-  // 2. Exchange → long-lived user token
-  const longRes = await fetch(
-    `https://graph.facebook.com/v19.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${tokenJson.access_token}`
-  );
-  const longJson = await longRes.json();
-  const userToken = longJson.access_token ?? tokenJson.access_token;
+    // 2. Exchange → long-lived user token
+    const longRes = await fetch(
+      `https://graph.facebook.com/v19.0/oauth/access_token?${q({ grant_type: 'fb_exchange_token', client_id: appId, client_secret: appSecret, fb_exchange_token: tokenJson.access_token })}`
+    );
+    longJson = await longRes.json();
 
-  // 3. Get user's pages
-  const pagesRes = await fetch(
-    `https://graph.facebook.com/v19.0/me/accounts?fields=id,name,access_token,picture&access_token=${userToken}`
-  );
-  const pagesJson = await pagesRes.json();
+    // 3. Get user's pages — jeton en en-tête, jamais dans l'URL
+    const userToken = longJson.access_token ?? tokenJson.access_token;
+    const pagesRes = await fetch(
+      'https://graph.facebook.com/v19.0/me/accounts?fields=id,name,access_token,picture',
+      { headers: { Authorization: `Bearer ${userToken}` } }
+    );
+    pagesJson = await pagesRes.json();
+  } catch {
+    return redirect('/ai-chatbot?tab=facebook&error=token_exchange');
+  }
   const pages: {
     id: string;
     name: string;
@@ -59,7 +92,14 @@ export async function GET(req: NextRequest) {
   if (pages.length === 0) return redirect('/ai-chatbot?tab=facebook&error=no_pages');
 
   const supabase = createServiceClient();
-  const verify_token = `zrex_fb_${userId.slice(0, 8)}`;
+  // Jeton existant conservé (webhook déjà vérifié chez Meta) ; sinon aléatoire —
+  // l'ancien `zrex_fb_<8 car. de l'UUID>` était déductible de l'identifiant.
+  const { data: existingConn } = await supabase
+    .from('facebook_connections')
+    .select('verify_token')
+    .eq('user_id', userId)
+    .maybeSingle();
+  const verify_token: string = existingConn?.verify_token || newVerifyToken();
 
   if (pages.length === 1) {
     // Auto-connect single page
@@ -69,7 +109,7 @@ export async function GET(req: NextRequest) {
         user_id: userId,
         page_id: p.id,
         page_name: p.name,
-        page_access_token: p.access_token,
+        page_access_token: sealPageToken(userId, p.access_token), // P2-9 : chiffré si trousseau
         page_picture: p.picture?.data?.url ?? '',
         verify_token,
         connected: true,
@@ -91,13 +131,17 @@ export async function GET(req: NextRequest) {
       page_picture: '',
       verify_token,
       connected: false,
-      pending_pages: JSON.stringify(
-        pages.map((p) => ({
-          id: p.id,
-          name: p.name,
-          access_token: p.access_token,
-          picture: p.picture?.data?.url ?? '',
-        }))
+      // Contient le jeton de CHAQUE page : chiffré en bloc (P2-9).
+      pending_pages: sealPendingPages(
+        userId,
+        JSON.stringify(
+          pages.map((p) => ({
+            id: p.id,
+            name: p.name,
+            access_token: p.access_token,
+            picture: p.picture?.data?.url ?? '',
+          }))
+        )
       ),
       updated_at: new Date().toISOString(),
     },

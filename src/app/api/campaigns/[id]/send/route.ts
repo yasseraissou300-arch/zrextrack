@@ -1,3 +1,4 @@
+import { ownedInstance } from '@/lib/whatsapp/instance-ownership';
 // Lancement d'une campagne WhatsApp — Phase 1 : ENFILEUR, plus exécuteur.
 //
 // AVANT : cette route bouclait sur N destinataires avec sleep(20-60 s) dans une
@@ -21,6 +22,7 @@ import { effectiveDailyLimit, remainingDailyQuota } from '@/lib/whatsapp/anti-sp
 import { enqueue } from '@/lib/queue/repository';
 import { campaignDispatchKey } from '@/lib/queue/idempotency';
 import { logEvent } from '@/lib/security/safe-log';
+import { relaunchPreview, relaunchConfirmed } from '@/lib/campaigns/relaunch-preview';
 
 // maxDuration = 300 retiré : la route ne fait plus d'envoi, elle enfile.
 // Le défaut de 10 s suffit largement.
@@ -50,12 +52,14 @@ async function getReadyInstance(
   }
 
   const service = createServiceClient();
-  const { data: row } = await service
+  const { data: rowRow } = await service
     .from('whatsapp_instances')
     .select('instance_name, connected')
     .eq('user_id', userId)
     .eq('service_type', DEFAULT_SERVICE)
     .maybeSingle();
+  // RLS-TENANT-001 : jamais d'action Evolution sur un nom hors de l'espace du tenant.
+  const row = ownedInstance(userId, rowRow, 'campaign.send');
 
   if (!row) {
     return {
@@ -78,17 +82,18 @@ async function getReadyInstance(
         };
       }
     }
-  } catch (e) {
+  } catch {
+    // Jamais le message réseau brut (hôte / adresse internes d'Evolution).
     return {
       instance: null,
-      reason: `Evolution injoignable : ${e instanceof Error ? e.message : 'erreur réseau'}`,
+      reason: 'Evolution injoignable : erreur réseau',
     };
   }
 
   return { instance: row as Instance };
 }
 
-export async function POST(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
   const supabaseAuth = await createClient();
@@ -109,9 +114,6 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
 
   if (cErr || !campaign) {
     return NextResponse.json({ error: 'Campagne introuvable' }, { status: 404 });
-  }
-  if (campaign.status === 'en_cours') {
-    return NextResponse.json({ error: 'Campagne déjà en cours' }, { status: 400 });
   }
 
   // ── WhatsApp doit être connecté AVANT d'enfiler ───────────────────────────
@@ -146,18 +148,58 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
   const dailyLimit = effectiveDailyLimit(warmupStartedAt);
   const remainingToday = remainingDailyQuota(sentToday ?? 0, warmupStartedAt);
 
+  // ── Renvoi : confirmation explicite obligatoire ──────────────────────────
+  // Un renvoi peut contacter des clients jamais visés au premier envoi
+  // (audience recalculée depuis orders). Rien n'est enfilé sans que le
+  // marchand ait vu et confirmé le chiffre exact de l'audience.
+  const isRelaunch = campaign.status === 'termine' || campaign.status === 'annule';
+  if (isRelaunch) {
+    const preview = await relaunchPreview(supabase, user.id, campaign);
+    if (!preview) {
+      return NextResponse.json(
+        { error: 'Aperçu du renvoi indisponible — réessaie.' },
+        { status: 503 }
+      );
+    }
+    const body = await request.json().catch(() => null);
+    if (!relaunchConfirmed(body, preview)) {
+      return NextResponse.json(
+        {
+          error: 'Confirmation requise avant de renvoyer cette campagne.',
+          code: 'RELAUNCH_CONFIRMATION_REQUIRED',
+          preview,
+          dailyLimit,
+          remainingToday,
+        },
+        { status: 409 }
+      );
+    }
+  }
+
   // ── Enfilement ────────────────────────────────────────────────────────────
-  await supabase
+  // Passage à « en_cours » ATOMIQUE : deux clics simultanés ne lancent pas
+  // deux chaînes de dispatch.
+  const { data: started } = await supabase
     .from('campaigns')
     .update({ status: 'en_cours', updated_at: new Date().toISOString() })
     .eq('id', id)
-    .eq('user_id', user.id);
+    .eq('user_id', user.id)
+    .neq('status', 'en_cours')
+    .select('id');
+  if (!Array.isArray(started) || started.length !== 1) {
+    return NextResponse.json({ error: 'Campagne déjà en cours' }, { status: 400 });
+  }
+
+  // Un identifiant par lancement : un renvoi n'est plus dédupliqué contre le
+  // premier envoi (voir campaignDispatchKey). Les destinataires déjà servis
+  // restent exclus par leur propre clé.
+  const run = isRelaunch ? `r${Date.now()}` : undefined;
 
   await enqueue(supabase, {
     tenantId: user.id,
     type: 'campaign.dispatch',
-    payload: { campaign_id: id, offset: 0 },
-    idempotencyKey: campaignDispatchKey(id, 0),
+    payload: { campaign_id: id, offset: 0, ...(run ? { run } : {}) },
+    idempotencyKey: campaignDispatchKey(id, 0, run),
   });
 
   logEvent('info', 'campaign.send', {
@@ -169,8 +211,9 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
   return NextResponse.json({
     ok: true,
     queued: true,
-    message:
-      'Campagne mise en file. Les envois partent en arrière-plan, espacés pour protéger le numéro — tu peux fermer la page.',
+    message: isRelaunch
+      ? 'Renvoi mis en file : seuls les destinataires qui n’ont pas encore reçu cette campagne seront contactés.'
+      : 'Campagne mise en file. Les envois partent en arrière-plan, espacés pour protéger le numéro — tu peux fermer la page.',
     sentToday: sentToday ?? 0,
     dailyLimit,
     remainingToday,

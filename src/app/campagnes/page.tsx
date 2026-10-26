@@ -26,7 +26,7 @@ import {
   Check,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { loadSyncSettings } from '@/lib/sync-settings-client';
+import { loadSyncSettings, zrReady } from '@/lib/sync-settings-client';
 
 interface Campaign {
   id: string;
@@ -764,12 +764,51 @@ export default function CampagnesPage() {
 
   const handleSend = async (id: string) => {
     setSendingId(id);
+    const previousStatus = campaigns.find((c) => c.id === id)?.status ?? 'brouillon';
     setCampaigns((prev) => prev.map((c) => (c.id === id ? { ...c, status: 'en_cours' } : c)));
-    const res = await fetch(`/api/campaigns/${id}/send`, { method: 'POST' });
-    const json = await res.json();
+    let res = await fetch(`/api/campaigns/${id}/send`, { method: 'POST' });
+    let json = await res.json();
+    // Renvoi d'une campagne terminée : le serveur exige une confirmation
+    // explicite du chiffre exact (l'audience peut inclure de nouveaux clients).
+    if (res.status === 409 && json.code === 'RELAUNCH_CONFIRMATION_REQUIRED' && json.preview) {
+      const p = json.preview;
+      const ok = window.confirm(
+        `Renvoyer cette campagne ?
+
+` +
+          `Audience actuelle : ${p.audience}
+` +
+          `Déjà servis (jamais recontactés) : ${p.already_served}
+` +
+          `Nouveaux destinataires possibles : jusqu'à ${p.max_new_recipients}
+` +
+          (p.dynamic_audience
+            ? `
+⚠️ L'audience est recalculée depuis vos commandes : elle inclut les clients arrivés depuis le premier envoi.
+`
+            : '') +
+          (json.remainingToday != null
+            ? `
+Quota du jour restant : ${json.remainingToday}/${json.dailyLimit} (le reste part les jours suivants).`
+            : '')
+      );
+      if (!ok) {
+        setCampaigns((prev) =>
+          prev.map((c) => (c.id === id ? { ...c, status: previousStatus } : c))
+        );
+        setSendingId(null);
+        return;
+      }
+      res = await fetch(`/api/campaigns/${id}/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm_relaunch: true, expected_audience: p.audience }),
+      });
+      json = await res.json();
+    }
     if (json.error) {
       toast.error(json.error + (json.hint ? `\n${json.hint}` : ''), { duration: 10000 });
-      setCampaigns((prev) => prev.map((c) => (c.id === id ? { ...c, status: 'brouillon' } : c)));
+      setCampaigns((prev) => prev.map((c) => (c.id === id ? { ...c, status: previousStatus } : c)));
     } else {
       // Phase 1 : l'envoi est désormais asynchrone. La route met la campagne en
       // file et répond immédiatement — elle ne peut plus annoncer un nombre de
@@ -999,15 +1038,13 @@ function DeliveredCustomersTab({
 
   useEffect(() => {
     loadSyncSettings().then((s) => {
-      setCredentialsReady(!!s.zrexpress_token && !!s.zrexpress_tenant_id);
+      setCredentialsReady(zrReady(s));
     });
   }, []);
 
   const fetchData = useCallback(async () => {
     const s = await loadSyncSettings();
-    const token = s.zrexpress_token;
-    const tenantId = s.zrexpress_tenant_id;
-    if (!token || !tenantId) {
+    if (!zrReady(s)) {
       setError('Clé API ZRExpress non configurée. Va sur /sync pour la saisir.');
       return;
     }
@@ -1017,7 +1054,7 @@ function DeliveredCustomersTab({
       const res = await fetch('/api/campaigns/delivered-customers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, tenantId }),
+        body: JSON.stringify({}), // clé ZR lue côté serveur (P2-9)
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
