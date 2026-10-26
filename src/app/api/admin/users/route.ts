@@ -1,3 +1,4 @@
+import { internalErrorResponse } from '@/lib/security/public-error';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 
@@ -30,7 +31,7 @@ export async function GET() {
     .select('id, email, full_name, avatar_url, company_name, plan_id, status, role, created_at')
     .order('created_at', { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalErrorResponse('api.admin.users', error, 500);
   return NextResponse.json({ users: data || [] });
 }
 
@@ -49,6 +50,6 @@ export async function PATCH(request: NextRequest) {
   }
 
   const { error } = await a.svc.from('profiles').update(patch).eq('id', userId);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalErrorResponse('api.admin.users', error, 500);
   return NextResponse.json({ ok: true });
 }

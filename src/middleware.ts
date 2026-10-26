@@ -23,6 +23,16 @@ export function middleware(request: NextRequest) {
 
   // '/' est publique (landing page vitrine du SaaS). Match exact — sinon un
   // startsWith('/') laisserait passer TOUT le dashboard.
+  // Retour de connexion (Google / lien e-mail) : si l'URL de retour demandée
+  // n'est pas dans la liste autorisée de Supabase, Supabase renvoie vers son
+  // « Site URL » (la racine) avec ?code=… — la landing l'ignorait et aucune
+  // session n'était créée. On transmet le code à /auth/callback, qui l'échange.
+  if (pathname === '/' && request.nextUrl.searchParams.has('code')) {
+    const callback = request.nextUrl.clone();
+    callback.pathname = '/auth/callback';
+    return NextResponse.redirect(callback);
+  }
+
   if (pathname === '/') return NextResponse.next();
 
   // Routes publiques — aucune auth nécessaire.

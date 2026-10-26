@@ -22,12 +22,19 @@ import { ownedInstance } from '@/lib/whatsapp/instance-ownership';
 
 import { createServiceClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
-import { remainingDailyQuota, varyMessage } from '@/lib/whatsapp/anti-spam';
+import {
+  ANTI_SPAM,
+  randomThrottle,
+  remainingDailyQuota,
+  varyMessage,
+} from '@/lib/whatsapp/anti-spam';
 import { normalizePhone } from '@/lib/whatsapp/message-builder';
+import { claimNotification } from '@/lib/whatsapp/drain-notifications';
 import { logEvent, maskPhone } from '@/lib/security/safe-log';
 import { circuitState, afterFailure, afterSuccess } from '../circuit-breaker';
 import { getTenantSettings, upsertTenantSettings } from '../repository';
 import type { Job, HandlerResult, WhatsAppSendPayload } from '../types';
+import { evolutionErrorMessage } from '@/lib/whatsapp/evolution-error';
 
 /** Report quand le quota est épuisé : on retente à la prochaine fenêtre utile. */
 const QUOTA_RETRY_MS = 30 * 60_000;
@@ -52,9 +59,10 @@ export async function handleWhatsAppSend(job: Job): Promise<HandlerResult> {
     };
   }
 
-  // ── 2. Plafond journalier — AU MOMENT DE L'ENVOI ──────────────────────────
+  // ── 2. Plafond journalier + espacement — AU MOMENT DE L'ENVOI ─────────────
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const [{ count: sentToday }, { data: prof }] = await Promise.all([
+  const recent = new Date(Date.now() - ANTI_SPAM.THROTTLE_MIN_MS).toISOString();
+  const [{ count: sentToday }, { data: prof }, { data: lastSent }] = await Promise.all([
     supabase
       .from('messages')
       .select('id', { count: 'exact', head: true })
@@ -62,7 +70,31 @@ export async function handleWhatsAppSend(job: Job): Promise<HandlerResult> {
       .eq('status', 'envoye')
       .gte('sent_at', since),
     supabase.from('profiles').select('whatsapp_warmup_started_at').eq('id', tenantId).maybeSingle(),
+    supabase
+      .from('messages')
+      .select('sent_at')
+      .eq('user_id', tenantId)
+      .eq('status', 'envoye')
+      .gte('sent_at', recent)
+      .order('sent_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
+
+  // Espacement anti-burst. Les envois d'une campagne sont étalés par
+  // run_after (20-60 s), mais le tick ne passe que toutes les 5 min : tous les
+  // jobs devenus dus entre deux ticks étaient exécutés à la suite, en quelques
+  // secondes — le rythme robotique que le throttle devait empêcher. Un envoi
+  // réussi il y a moins de THROTTLE_MIN_MS → report, sans consommer de
+  // tentative (comme le plafond).
+  const lastSentAt = lastSent?.sent_at ? Date.parse(lastSent.sent_at) : NaN;
+  if (Number.isFinite(lastSentAt) && Date.now() - lastSentAt < ANTI_SPAM.THROTTLE_MIN_MS) {
+    return {
+      outcome: 'reschedule',
+      runAfter: new Date(lastSentAt + randomThrottle()),
+      reason: 'espacement anti-burst (20-60 s entre deux envois)',
+    };
+  }
 
   const warmupStartedAt = prof?.whatsapp_warmup_started_at ?? null;
   const remaining = remainingDailyQuota(sentToday ?? 0, warmupStartedAt);
@@ -102,6 +134,26 @@ export async function handleWhatsAppSend(job: Job): Promise<HandlerResult> {
     return { outcome: 'failed', error: 'aucune instance WhatsApp connectée' };
   }
 
+  // ── 4b. Prise atomique de la notification ─────────────────────────────────
+  // Le drain « client » (/api/sync-zrexpress, chaque onglet ouvert) lit aussi
+  // les lignes `pending`. Ce job a été enfilé 20-60 s plus tôt : la
+  // notification a pu être envoyée entre-temps par l'autre chemin. On la
+  // réclame (pending → sending, scopée au tenant) JUSTE avant l'envoi ; si on
+  // ne l'obtient pas, elle est déjà traitée : on s'arrête sans envoyer.
+  // max_attempts = 1 → aucune relance, donc aucun rejeu possible.
+  if (payload.notification_id) {
+    const claimed = await claimNotification(supabase, tenantId, payload.notification_id);
+    if (!claimed) {
+      logEvent('info', 'queue.whatsapp', {
+        tenant_id: tenantId,
+        contact: maskPhone(payload.phone),
+        status: 'skipped',
+        reason: 'notification_already_handled',
+      });
+      return { outcome: 'done' };
+    }
+  }
+
   // ── 5. Envoi ──────────────────────────────────────────────────────────────
   const varied = varyMessage(payload.message);
   let ok = false;
@@ -128,7 +180,7 @@ export async function handleWhatsAppSend(job: Job): Promise<HandlerResult> {
     ok = res.ok;
     if (!ok) {
       const text = await res.text().catch(() => '');
-      error = `Evolution HTTP ${res.status}: ${text.slice(0, 160)}`;
+      error = evolutionErrorMessage('queue.whatsapp', res.status, text);
     }
   } catch (e) {
     error = e instanceof Error ? e.message : 'erreur réseau Evolution';

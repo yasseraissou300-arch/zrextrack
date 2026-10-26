@@ -9,8 +9,15 @@
 // La route HTTP reste en place pour le bouton « Synchroniser » manuel.
 
 import { createServiceClient } from '@/lib/supabase/server';
+import {
+  diffOrders,
+  loadExistingOrders,
+  statusChanged,
+  upsertOrdersInChunks,
+} from '@/lib/zrexpress/sync-diff';
 import { fetchAllParcels } from '@/lib/zrexpress/parcels';
-import { mapParcel, dedupeByTracking } from '@/lib/zrexpress/map-parcel';
+import { mapParcel, dedupeByTracking, silentTrackingNumbers } from '@/lib/zrexpress/map-parcel';
+import { openZrToken } from '@/lib/zrexpress/credentials';
 import { buildMessage, loadUserTemplates, NOTIFY_STATUSES } from '@/lib/whatsapp/message-builder';
 import { randomThrottle } from '@/lib/whatsapp/anti-spam';
 import { countOrdersThisMonth, quotaStateFor } from '@/lib/plan-quotas';
@@ -42,7 +49,8 @@ export async function handleZrexpressSync(job: Job): Promise<HandlerResult> {
     .eq('user_id', tenantId)
     .maybeSingle();
 
-  const token = settings?.zrexpress_token;
+  // Déchiffrée si nécessaire (P2-9) ; le clair historique reste lisible.
+  const token = openZrToken(tenantId, settings?.zrexpress_token);
   const zrTenant = settings?.zrexpress_tenant_id;
   if (!token || !zrTenant) {
     return { outcome: 'failed', error: 'token ou tenant ZRExpress non configuré' };
@@ -78,28 +86,19 @@ export async function handleZrexpressSync(job: Job): Promise<HandlerResult> {
   }
 
   const syncedAt = new Date().toISOString();
-  let rows = dedupeByTracking(parcels.map((p) => mapParcel(p, syncedAt)));
+  const mapped = parcels.map((p) => mapParcel(p, syncedAt));
+  const silent = silentTrackingNumbers(parcels, mapped);
+  let rows = dedupeByTracking(mapped);
 
   // Ne pas dépasser le quota mensuel restant.
   if (!quota.isUnlimited && quota.remaining != null && rows.length > quota.remaining) {
     rows = rows.slice(0, quota.remaining);
   }
 
-  const trackingNums = rows.map((r) => r.tracking_number);
-
-  // ── 4. Détection des changements de statut ────────────────────────────────
-  const { data: existing } = await supabase
-    .from('orders')
-    .select('tracking_number, delivery_status')
-    .eq('user_id', tenantId)
-    .in('tracking_number', trackingNums);
-
-  const previous = new Map(
-    ((existing as Array<{ tracking_number: string; delivery_status: string }>) ?? []).map((o) => [
-      o.tracking_number,
-      o.delivery_status,
-    ])
-  );
+  // ── 4. Détection des changements (lecture complète, paginée) ──────────────
+  // Voir src/lib/zrexpress/sync-diff.ts : l'ancien `.in(<tous les suivis>)`
+  // plafonnait à 1 000 lignes → notifications de colis anciens.
+  const existing = await loadExistingOrders(supabase, tenantId);
 
   const notifyEnabled = (settings?.notify_enabled ?? {}) as Record<string, boolean>;
   const toNotify = rows.filter(
@@ -108,13 +107,16 @@ export async function handleZrexpressSync(job: Job): Promise<HandlerResult> {
       notifyEnabled[r.delivery_status] !== false &&
       r.customer_whatsapp &&
       r.customer_whatsapp.length > 4 &&
-      previous.get(r.tracking_number) !== r.delivery_status
+      !silent.has(r.tracking_number) &&
+      statusChanged(existing, r)
   );
 
   // ── 5. Upsert des commandes ───────────────────────────────────────────────
-  const { error: upsertErr } = await supabase.from('orders').upsert(
-    rows.map((r) => ({ ...r, user_id: tenantId })),
-    { onConflict: 'user_id,tracking_number' }
+  // Seules les lignes nouvelles ou modifiées sont écrites.
+  const withTenant = rows.map((r) => ({ ...r, user_id: tenantId }));
+  const { error: upsertErr } = await upsertOrdersInChunks(
+    supabase,
+    existing ? diffOrders(withTenant, existing, syncedAt).toWrite : withTenant
   );
 
   if (upsertErr) return { outcome: 'failed', error: `upsert orders: ${upsertErr.message}` };

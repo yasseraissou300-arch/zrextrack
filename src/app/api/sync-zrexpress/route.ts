@@ -1,54 +1,21 @@
-import { ownedInstance } from '@/lib/whatsapp/instance-ownership';
 import { NextRequest, NextResponse } from 'next/server';
+import { internalErrorResponse } from '@/lib/security/public-error';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { getZrCredentials, ZR_NOT_CONFIGURED } from '@/lib/zrexpress/credentials';
 import { mapStatus } from '@/lib/zrexpress/status';
+import {
+  diffOrders,
+  loadExistingOrders,
+  statusChanged,
+  upsertOrdersInChunks,
+} from '@/lib/zrexpress/sync-diff';
 import { fetchAllParcels } from '@/lib/zrexpress/parcels';
-import { remainingDailyQuota, sleep, varyMessage } from '@/lib/whatsapp/anti-spam';
-import { resolveEvolutionCreds } from '@/lib/user-creds';
+import { drainNotifications } from '@/lib/whatsapp/drain-notifications';
 import { countOrdersThisMonth, quotaStateFor } from '@/lib/plan-quotas';
-
-const APP_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://zrextrack6753.builtwithrocket.new';
+import { silentTrackingNumbers, stateUpdatedAt } from '@/lib/zrexpress/map-parcel';
 
 // Statuts qui déclenchent une notification WhatsApp
 const NOTIFY_STATUSES = new Set(['en_transit', 'en_livraison', 'livre', 'echec', 'retourne']);
-
-// Templates par défaut (darija) — utilisés si l'utilisateur n'a pas encore
-// personnalisé ses messages. SOURCE UNIQUE : la table message_templates,
-// éditée dans Messages → Templates. Même syntaxe à double accolade {{...}}
-// que l'envoi manuel.
-const DARIJA_DEFAULTS: Record<string, string> = {
-  en_transit: `السلام عليكم {{client}} 👋\nطردك *{{produit}}* رقم *{{tracking}}* في الطريق لـ *{{wilaya}}*.\nتبّع هنا : {{lien}} 🚚`,
-  en_livraison: `السلام عليكم {{client}} 👋\nطردك *{{produit}}* رقم *{{tracking}}* مع الليفرور دروك في *{{wilaya}}*.\nالمبلغ لي يتسلم : *{{cod}} دج*. كون فالدار 🛵`,
-  livre: `السلام عليكم {{client}} 👋\nطردك *{{produit}}* رقم *{{tracking}}* وصل.\nشكرا على ثقتك فينا 🙏`,
-  echec: `السلام عليكم {{client}} 👋\nحاولنا نوصلو طردك *{{tracking}}* ولقيناك ما جاوبتناش.\nتواصل معنا : {{lien}} 📞`,
-  retourne: `السلام عليكم {{client}} 👋\nطردك رقم *{{tracking}}* رجع لينا.\nإذا تبغي تعاود تطلب تواصل معنا 🔄`,
-};
-
-// Construit le message d'un statut à partir du template UNIFIÉ de l'utilisateur
-// (table message_templates, version darija) ou du défaut. Substitue les
-// variables {{client}} {{tracking}} {{wilaya}} {{produit}} {{cod}} {{lien}}.
-function buildMessage(
-  status: string,
-  o: {
-    customer_name: string;
-    tracking_number: string;
-    wilaya: string;
-    product_name: string;
-    cod: number;
-  },
-  userTemplates: Map<string, string>
-): string {
-  const link = `${APP_URL}/track/${o.tracking_number}`;
-  const tpl =
-    userTemplates.get(status) || DARIJA_DEFAULTS[status] || `Mise à jour {{tracking}} : {{lien}}`;
-  return tpl
-    .replace(/\{\{client\}\}/g, o.customer_name || 'cher client')
-    .replace(/\{\{tracking\}\}/g, o.tracking_number || '')
-    .replace(/\{\{wilaya\}\}/g, o.wilaya || 'votre wilaya')
-    .replace(/\{\{produit\}\}/g, o.product_name || '')
-    .replace(/\{\{cod\}\}/g, String(o.cod ?? ''))
-    .replace(/\{\{lien\}\}/g, link);
-}
 
 // Normaliser numéro algérien → 213XXXXXXXXX
 function normalizePhone(phone: string): string {
@@ -158,154 +125,38 @@ function mapParcel(p: any, syncedAt: string) {
     cod: Number(cod),
     delivery_status: status,
     attempts: Number(attempts),
-    last_update: syncedAt,
+    last_update: stateUpdatedAt(p, syncedAt),
   };
-}
-
-const DRAIN_PER_SYNC = 2; // max notifs envoyées par sync (anti-burst)
-const DRAIN_SPACING_MS = 8000; // espacement entre 2 envois d'un même drain
-
-// Draine la file pending_notifications : envoie au plus DRAIN_PER_SYNC notifs
-// (jamais au-delà du plafond journalier) via le numéro Evolution connecté.
-// Renvoie le nombre réellement envoyé. Aucun envoi en masse possible.
-async function drainNotifications(
-  supabase: ReturnType<typeof createServiceClient>,
-  userId: string,
-  userTpl: Map<string, string>
-): Promise<number> {
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const [{ count: sentToday }, { data: prof }] = await Promise.all([
-    supabase
-      .from('messages')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .eq('status', 'envoye')
-      .gte('sent_at', since),
-    supabase.from('profiles').select('whatsapp_warmup_started_at').eq('id', userId).single(),
-  ]);
-  const warmupStartedAt = prof?.whatsapp_warmup_started_at ?? null;
-  const budget = Math.min(remainingDailyQuota(sentToday ?? 0, warmupStartedAt), DRAIN_PER_SYNC);
-  if (budget <= 0) return 0;
-
-  // Numéro Evolution connecté de l'utilisateur (instance auto_confirmation)
-  const ev = await resolveEvolutionCreds(userId);
-  if (!ev.url || !ev.key) return 0;
-  const { data: instRow } = await supabase
-    .from('whatsapp_instances')
-    .select('instance_name')
-    .eq('user_id', userId)
-    .eq('service_type', 'auto_confirmation')
-    .single();
-  // RLS-TENANT-001 : jamais d'action Evolution sur un nom hors de l'espace du tenant.
-  const inst = ownedInstance(userId, instRow, 'sync.drain');
-  if (!inst?.instance_name) return 0;
-
-  const { data: pendings } = await supabase
-    .from('pending_notifications')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('status', 'pending')
-    .order('created_at', { ascending: true })
-    .limit(budget);
-  if (!pendings || pendings.length === 0) return 0;
-
-  type Pending = {
-    id: string;
-    tracking_number: string;
-    delivery_status: string;
-    customer_name: string | null;
-    customer_whatsapp: string | null;
-    wilaya: string | null;
-    product_name: string | null;
-    cod: number | null;
-  };
-
-  let sent = 0;
-  for (let i = 0; i < pendings.length; i++) {
-    const p = pendings[i] as Pending;
-    if (i > 0) await sleep(DRAIN_SPACING_MS);
-
-    const message = buildMessage(
-      p.delivery_status,
-      {
-        customer_name: p.customer_name || '',
-        tracking_number: p.tracking_number,
-        wilaya: p.wilaya || '',
-        product_name: p.product_name || '',
-        cod: p.cod ?? 0,
-      },
-      userTpl
-    );
-
-    const phone = normalizePhone(p.customer_whatsapp || '');
-    let ok = false;
-    let err = '';
-    if (phone.length >= 11) {
-      try {
-        const r = await fetch(`${ev.url}/message/sendText/${inst.instance_name}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', apikey: ev.key },
-          body: JSON.stringify({ number: phone, text: varyMessage(message) }),
-        });
-        ok = r.ok;
-        if (!ok) err = `Evolution HTTP ${r.status}`;
-      } catch (e: any) {
-        err = e?.message || 'réseau';
-      }
-    } else {
-      err = 'Numéro invalide';
-    }
-
-    await supabase
-      .from('pending_notifications')
-      .update({ status: ok ? 'sent' : 'failed', sent_at: new Date().toISOString() })
-      .eq('id', p.id);
-
-    await supabase.from('messages').insert({
-      user_id: userId,
-      tracking_number: p.tracking_number,
-      customer_name: p.customer_name || '',
-      customer_whatsapp: p.customer_whatsapp || '',
-      message,
-      status: ok ? 'envoye' : 'echec',
-      error_message: ok ? null : err.slice(0, 300),
-      sent_at: new Date().toISOString(),
-    });
-
-    if (ok) sent++;
-  }
-  return sent;
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { token, tenantId, notifyEnabled } = await request.json();
-    if (!token)
-      return NextResponse.json({ error: 'Clé API (secretKey) manquante' }, { status: 400 });
-    if (!tenantId) return NextResponse.json({ error: 'Tenant ID manquant' }, { status: 400 });
+    // La clé ZR n'est PLUS lue dans le corps (P2-9) : celle du tenant de la
+    // session, lue en base, fait foi. Une clé injectée par le client est ignorée.
+    const { notifyEnabled } = await request.json().catch(() => ({}));
 
     const supabaseAuth = await createClient();
     const {
       data: { user },
     } = await supabaseAuth.auth.getUser();
-    const userId = user?.id ?? null;
+    // Session OBLIGATOIRE. Sans elle, l'ancien code appelait ZRExpress, sautait
+    // le quota et upsertait tous les colis avec user_id = NULL : NULL ne viole
+    // jamais l'index unique (user_id, tracking_number), donc chaque appel
+    // anonyme insérait des lignes orphelines dans `orders` (colonne nullable
+    // d'après supabase_orders.sql). Le middleware laisse /api/* passer.
+    if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    const userId = user.id;
 
     const supabase = createServiceClient();
 
-    // Récupérer les credentials WhatsApp depuis whatsapp_settings (comme les autres routes)
-    const { data: waSettings } = userId
-      ? await supabase
-          .from('whatsapp_settings')
-          .select('instance_id, api_token')
-          .eq('user_id', userId)
-          .single()
-      : { data: null };
-    const waInstanceId: string = waSettings?.instance_id ?? '';
-    const waToken: string = waSettings?.api_token ?? '';
+    const zr = await getZrCredentials(supabase, userId);
+    if (!zr) return NextResponse.json(ZR_NOT_CONFIGURED, { status: 400 });
+    const { token, tenantId } = zr;
 
     // Templates UNIFIÉS : table message_templates (éditée dans Messages →
     // Templates). Source unique pour l'envoi auto ET manuel ; on prend la
-    // version darija. Si l'utilisateur n'a rien personnalisé → DARIJA_DEFAULTS.
+    // version darija. Si l'utilisateur n'a rien personnalisé → DARIJA_DEFAULTS
+    // (src/lib/whatsapp/message-builder.ts).
     const { data: tplRows } = userId
       ? await supabase.from('message_templates').select('key, content_darija').eq('user_id', userId)
       : { data: null };
@@ -348,10 +199,10 @@ export async function POST(request: NextRequest) {
 
     const syncedAt = new Date().toISOString();
 
-    const allRows = parcels
-      .map((p) => mapParcel(p, syncedAt))
-      .filter((r) => r.tracking_number)
-      .map((r) => ({ ...r, user_id: userId }));
+    const mapped = parcels.map((p) => mapParcel(p, syncedAt));
+    // Passages vers un état post-livraison (encaissé, recouvert…) : jamais notifiés.
+    const silent = silentTrackingNumbers(parcels, mapped);
+    const allRows = mapped.filter((r) => r.tracking_number).map((r) => ({ ...r, user_id: userId }));
 
     const seen = new Set<string>();
     let rows = allRows.filter((r) => {
@@ -373,18 +224,12 @@ export async function POST(request: NextRequest) {
       rows = rows.slice(0, quotaState.remaining);
     }
 
-    const trackingNums = rows.map((r) => r.tracking_number);
-
-    // 2. Charger les statuts actuels pour détecter les changements
-    // Scopé par user_id : on ne regarde que les commandes de l'utilisateur courant
-    // pour éviter de cross-contaminer les notifications entre comptes.
-    const { data: existingOrders } = await supabase
-      .from('orders')
-      .select('tracking_number, delivery_status, customer_whatsapp, customer_name, wilaya')
-      .eq('user_id', userId)
-      .in('tracking_number', trackingNums);
-
-    const existingMap = new Map((existingOrders || []).map((o) => [o.tracking_number, o]));
+    // 2. Charger TOUT l'existant du tenant (paginé) pour détecter les
+    // changements — voir src/lib/zrexpress/sync-diff.ts. L'ancien
+    // `.in(<tous les suivis>)` plafonnait à 1 000 lignes : le reste passait
+    // pour « nouveau » et déclenchait des notifications de colis anciens.
+    // null = lecture échouée → aucune notification (dans le doute).
+    const existingMap = userId ? await loadExistingOrders(supabase, userId) : null;
 
     // 3. Identifier les commandes dont le statut a changé
     const toNotify: Array<{
@@ -397,7 +242,6 @@ export async function POST(request: NextRequest) {
       cod: number;
     }> = [];
     for (const row of rows) {
-      const existing = existingMap.get(row.tracking_number);
       // Vérifier si les notifications sont activées pour ce statut (true par défaut si non précisé)
       const isEnabled = notifyEnabled ? notifyEnabled[row.delivery_status] !== false : true;
       if (
@@ -405,7 +249,8 @@ export async function POST(request: NextRequest) {
         isEnabled &&
         row.customer_whatsapp &&
         row.customer_whatsapp.length > 4 &&
-        existing?.delivery_status !== row.delivery_status
+        !silent.has(row.tracking_number) &&
+        statusChanged(existingMap, row)
       ) {
         toNotify.push({
           tracking_number: row.tracking_number,
@@ -422,12 +267,14 @@ export async function POST(request: NextRequest) {
     // 4. Upsert les commandes — onConflict composite (user_id, tracking_number)
     // pour garantir qu'un sync ne touche jamais les lignes d'un autre user
     // même s'ils partagent un même tracking ZRExpress.
-    const { error, count } = await supabase
-      .from('orders')
-      .upsert(rows, { onConflict: 'user_id,tracking_number', count: 'exact' });
+    // Seules les lignes nouvelles ou modifiées sont écrites (avant : toutes,
+    // ≈ 5 000 par passage). Lecture de l'existant échouée → tout est écrit,
+    // comme avant.
+    const diff = existingMap ? diffOrders(rows, existingMap, syncedAt) : null;
+    const { written, error } = await upsertOrdersInChunks(supabase, diff ? diff.toWrite : rows);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return internalErrorResponse('api.sync-zrexpress', error, 500);
     }
 
     // 5. Notifications WhatsApp — FILE D'ATTENTE (anti-ban).
@@ -459,7 +306,9 @@ export async function POST(request: NextRequest) {
     const whatsappSent = userId ? await drainNotifications(supabase, userId, userTpl) : 0;
 
     return NextResponse.json({
-      synced: count ?? rows.length,
+      synced: rows.length,
+      written,
+      ...(diff && { created: diff.created, updated: diff.updated, unchanged: diff.unchanged }),
       total: parcels.length,
       whatsapp_sent: whatsappSent,
       notifications: toNotify.length,
@@ -472,6 +321,6 @@ export async function POST(request: NextRequest) {
       ...(quotaState && !quotaState.isUnlimited && { quota: quotaState }),
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return internalErrorResponse('api.sync-zrexpress', err, 500);
   }
 }

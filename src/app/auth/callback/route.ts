@@ -26,7 +26,10 @@ export async function GET(request: Request) {
         },
       }
     );
-    await supabase.auth.exchangeCodeForSession(code);
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    // Échec (code expiré, déjà utilisé, ouvert dans un autre navigateur) : on
+    // le dit au lieu d'afficher un tableau de bord vide sans session.
+    if (error) return NextResponse.redirect(`${origin}/login?error=auth_callback`);
   }
 
   // Redirect to admin dashboard if admin, else regular dashboard
