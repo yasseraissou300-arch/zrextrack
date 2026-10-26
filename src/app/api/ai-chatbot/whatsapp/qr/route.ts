@@ -118,7 +118,7 @@ export async function GET(req: NextRequest) {
   }
 
   const headers = { apikey: EVOLUTION_KEY };
-  const APP_URL_BASE = process.env.NEXT_PUBLIC_APP_URL || 'https://zrextrack.vercel.app';
+  const APP_URL_BASE = process.env.NEXT_PUBLIC_APP_URL || 'https://autotim.vercel.app';
   const debugLog: Record<string, unknown> = {
     instanceName: instance.instance_name,
     urlPrefix: EVOLUTION_URL.substring(0, 30),
