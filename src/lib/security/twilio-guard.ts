@@ -10,7 +10,7 @@
 import type { NextRequest } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { validateTwilioRequest, publicUrlFromRequest, readTwilioParams } from './twilio-signature';
-import { isReplay } from './webhook-auth';
+import { isReplayDurable } from './replay-store';
 import { openTwilioToken } from './stored-secrets';
 import { logEvent } from './safe-log';
 
@@ -121,7 +121,8 @@ export async function guardTwilioRequest(
   // Anti-rejeu : Twilio ne signe pas d'horodatage, donc une requête capturée
   // reste rejouable. On déduplique sur CallSid + statut de l'événement.
   const replayKey = `twilio:${scope}:${params.CallSid || cid}:${params.CallStatus || params.Digits || ''}`;
-  if (params.CallSid && isReplay(replayKey)) {
+  // Store DURABLE (entre instances, après démarrage à froid).
+  if (params.CallSid && (await isReplayDurable(supabase, replayKey))) {
     logEvent('info', scope, { status: 'skipped_replay', conversation_id: cid });
     return { ok: false, status: 409, reason: 'replay' };
   }

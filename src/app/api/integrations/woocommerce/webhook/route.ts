@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { verifyHmacSha256Base64 } from '@/lib/security/webhook-hmac';
+import { hasSeenDurable, recordSeenDurable } from '@/lib/security/replay-store';
 import { openIntegrationSecret } from '@/lib/security/stored-secrets';
 import { logEvent } from '@/lib/security/safe-log';
 
@@ -53,6 +54,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
     }
 
+    // Anti-rejeu DURABLE « au moins une fois » : vérifié ici, enregistré après
+    // succès (un échec n'enregistre rien → le fournisseur réessaie, rien n'est
+    // perdu ; l'upsert reste idempotent pour les livraisons concurrentes).
+    const deliveryId = request.headers.get('x-wc-webhook-delivery-id') || '';
+    const replayKey = deliveryId ? `woocommerce:${integration.user_id}:${deliveryId}` : '';
+    if (replayKey && (await hasSeenDurable(supabase, replayKey))) {
+      logEvent('info', 'webhook.woocommerce', { status: 'skipped_replay' });
+      return NextResponse.json({ ok: true, deduped: true });
+    }
+
     const order = JSON.parse(rawBody);
 
     if (!topic.startsWith('order.')) {
@@ -63,7 +74,7 @@ export async function POST(request: NextRequest) {
     const tracking: string = `WOO-${order.number || order.id}`;
     const status = mapWooStatus(order.status);
 
-    await supabase.from('orders').upsert(
+    const { error: writeError } = await supabase.from('orders').upsert(
       {
         user_id: integration.user_id,
         tracking_number: tracking,
@@ -78,11 +89,25 @@ export async function POST(request: NextRequest) {
         delivery_status: status,
         last_update: new Date().toISOString(),
       },
-      { onConflict: 'tracking_number' }
+      // Unicité PAR TENANT (même clé que le sync ZR) : 'tracking_number' seul
+      // échouait si seule la contrainte composite existe (commande perdue en
+      // silence) ou écrasait la commande d'un autre tenant de même numéro.
+      { onConflict: 'user_id,tracking_number' }
     );
+    if (writeError) {
+      // 500 → le fournisseur réessaie ; rien n'est marqué « vu ».
+      logEvent('error', 'webhook.woocommerce', {
+        status: 'write_failed',
+        error_code: writeError.code,
+      });
+      return NextResponse.json({ error: 'Write failed' }, { status: 500 });
+    }
 
+    await recordSeenDurable(supabase, replayKey);
     return NextResponse.json({ ok: true });
   } catch {
-    return NextResponse.json({ ok: true });
+    // Jamais « ok » sur une erreur : la commande n'a pas été enregistrée.
+    logEvent('error', 'webhook.woocommerce', { status: 'unexpected' });
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
 }
