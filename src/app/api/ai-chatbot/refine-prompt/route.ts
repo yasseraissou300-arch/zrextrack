@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { resolveGeminiKey, missingCredentialsResponse } from '@/lib/user-creds';
+import { logEvent } from '@/lib/security/safe-log';
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -45,8 +46,14 @@ Réponds UNIQUEMENT avec le prompt amélioré, sans explications.`;
     );
 
     if (!res.ok) {
-      const errText = await res.text();
-      console.error('[refine-prompt][Gemini]', res.status, errText);
+      // LOG-3 : jamais le corps brut de Google (il peut citer l'URL appelée,
+      // donc ?key=, et le prompt du marchand). Code HTTP seulement.
+      await res.text().catch(() => '');
+      logEvent('error', 'ai.gemini', {
+        status: 'failed',
+        flow: 'refine_prompt',
+        http_status: res.status,
+      });
       return NextResponse.json({ error: 'Erreur Gemini' }, { status: 502 });
     }
 

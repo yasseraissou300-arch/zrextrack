@@ -81,10 +81,11 @@ async function getReadyInstance(
         };
       }
     }
-  } catch (e) {
+  } catch {
+    // Jamais le message réseau brut (hôte / adresse internes d'Evolution).
     return {
       instance: null,
-      reason: `Evolution injoignable : ${e instanceof Error ? e.message : 'erreur réseau'}`,
+      reason: 'Evolution injoignable : erreur réseau',
     };
   }
 
