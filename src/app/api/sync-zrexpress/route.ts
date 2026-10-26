@@ -177,7 +177,14 @@ export async function POST(request: NextRequest) {
         .eq('id', userId)
         .maybeSingle();
       const used = await countOrdersThisMonth(supabase, userId);
-      quotaState = quotaStateFor(prof?.plan_id ?? 'basic', prof?.role ?? null, used);
+      // Quota illimité = claim du jeton (même règle que isPlatformAdmin, sans
+      // import pour ne pas toucher au bloc d'imports partagé par d'autres PR),
+      // jamais profiles.role (HUMAN-RLS-ROLE-001).
+      quotaState = quotaStateFor(
+        prof?.plan_id ?? 'basic',
+        user?.app_metadata?.role === 'admin' ? 'admin' : null,
+        used
+      );
       if (quotaState.isOver) {
         return NextResponse.json(
           {
