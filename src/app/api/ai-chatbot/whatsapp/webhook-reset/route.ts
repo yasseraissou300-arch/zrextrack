@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
 import { webhookTokenQuery, redactWebhookToken } from '@/lib/security/webhook-auth';
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://zrextrack.vercel.app';
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://autotim.vercel.app';
 // P0-1 : le secret partagé est ajouté à l'URL enregistrée chez Evolution.
 // Vide tant que WHATSAPP_WEBHOOK_SECRET n'est pas défini → URL inchangée.
 const WEBHOOK_URL = `${APP_URL}/api/ai-chatbot/webhook/whatsapp${webhookTokenQuery('WHATSAPP_WEBHOOK_SECRET')}`;

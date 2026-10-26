@@ -5,7 +5,7 @@ import { resolveEvolutionCreds, getUserCreds } from '@/lib/user-creds';
 import { redactWebhookToken, webhookTokenQuery } from '@/lib/security/webhook-auth';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || '';
-const EXPECTED_WEBHOOK = `${APP_URL || 'https://zrextrack.vercel.app'}/api/ai-chatbot/webhook/whatsapp`;
+const EXPECTED_WEBHOOK = `${APP_URL || 'https://autotim.vercel.app'}/api/ai-chatbot/webhook/whatsapp`;
 // URL réellement enregistrée par webhook-reset : AVEC le secret s'il est défini.
 // Sans ce suffixe, toutes les instances apparaîtraient « mal configurées » dès
 // que WHATSAPP_WEBHOOK_SECRET est défini. Comparaison interne uniquement.
