@@ -1,3 +1,5 @@
+import { mediaUrlError } from '@/lib/security/media-url';
+import { sheetsUrlError } from '@/lib/ai-chatbot/sheets-url';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { internalErrorResponse } from '@/lib/security/public-error';
@@ -124,6 +126,9 @@ export async function POST(req: NextRequest) {
     blocked_prefixes,
     human_pause_hours,
   } = body;
+
+  const urlError = sheetsUrlError(google_sheets_url) ?? (await mediaUrlError(media_url));
+  if (urlError) return NextResponse.json({ error: urlError }, { status: 400 });
 
   const { data, error } = await supabase
     .from('chatbot_configs')

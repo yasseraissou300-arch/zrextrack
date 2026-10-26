@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { commitSession } from '@/lib/ai-chatbot/session-store';
+import { sendSheetRow } from '@/lib/ai-chatbot/sheets-sink';
 import { createServiceClient } from '@/lib/supabase/server';
 import { tokensEqual, openPageToken } from '@/lib/security/facebook-verify';
 import { resolveGeminiKeys } from '@/lib/user-creds';
@@ -286,16 +287,13 @@ export async function POST(req: NextRequest) {
             .eq('sheets_sent', false)
             .select('id');
           if (Array.isArray(claimed) && claimed.length === 1) {
-            await fetch(config.google_sheets_url, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                type: templateType,
-                timestamp: new Date().toISOString(),
-                source: 'facebook_ai',
-                ...toSheetRow(newData),
-              }),
-            }).catch(() => {});
+            await sendSheetRow({
+              url: config.google_sheets_url,
+              type: templateType,
+              source: 'facebook_ai',
+              data: toSheetRow(newData),
+              tenantId: userId,
+            });
           }
         }
 

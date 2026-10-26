@@ -19,6 +19,10 @@ vi.mock('@/lib/user-creds', () => ({
 const TENANT = '11111111-1111-4111-8111-111111111111';
 const PAGE = 'page-1';
 const SENDER = 'psid-1';
+// Garde SSRF (safe-outbound) : l'hôte factice du Sheet résout vers une IP publique.
+vi.mock('node:dns/promises', () => ({
+  lookup: async () => [{ address: '142.250.74.110', family: 4 }],
+}));
 const SHEETS = 'https://sheets.test/hook';
 
 let geminiReply = '';
