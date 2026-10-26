@@ -1,8 +1,28 @@
 import { ownedInstance } from '@/lib/whatsapp/instance-ownership';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { isForeignSiteRequest } from '@/lib/security/same-site';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
 import { webhookTokenQuery } from '@/lib/security/webhook-auth';
+import { logEvent } from '@/lib/security/safe-log';
+
+/**
+ * Diagnostic renvoyé au NAVIGATEUR : statuts HTTP et nom d'instance du
+ * marchand seulement. Jamais les réponses brutes d'Evolution — celle de
+ * `instance/create` contient le `hash` (jeton complet de l'instance : envoi,
+ * lecture des discussions, déconnexion) et éventuellement l'URL du webhook
+ * avec le secret global — ni l'hôte Evolution interne (`urlPrefix`).
+ */
+function publicQrDebug(log: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(log)) {
+    if (k === 'instanceName' || /Status$/.test(k)) out[k] = v;
+    else if (/^attempt[A-Z]$/.test(k) && v && typeof v === 'object') {
+      out[k] = { status: (v as { status?: unknown }).status };
+    }
+  }
+  return out;
+}
 
 // Allow up to 60s for Evolution API to generate QR (WhatsApp handshake is slow)
 export const maxDuration = 60;
@@ -47,6 +67,11 @@ function normalizePhone(raw: string): string {
 }
 
 export async function GET(req: NextRequest) {
+  // CSRF-1 : GET à effet de bord, refusé s'il vient d'un autre site (lien
+  // piégé, redirection) — le cookie Lax y serait envoyé.
+  if (isForeignSiteRequest(req)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
   const supabase = await createClient();
   const {
     data: { user },
@@ -93,7 +118,7 @@ export async function GET(req: NextRequest) {
   }
 
   const headers = { apikey: EVOLUTION_KEY };
-  const APP_URL_BASE = process.env.NEXT_PUBLIC_APP_URL || 'https://zrextrack.vercel.app';
+  const APP_URL_BASE = process.env.NEXT_PUBLIC_APP_URL || 'https://autotim.vercel.app';
   const debugLog: Record<string, unknown> = {
     instanceName: instance.instance_name,
     urlPrefix: EVOLUTION_URL.substring(0, 30),
@@ -237,7 +262,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(
         {
           error: 'Impossible de joindre Evolution API. Vérifie la configuration côté serveur.',
-          debug: debugLog,
+          debug: publicQrDebug(debugLog),
         },
         { status: 502 }
       );
@@ -298,7 +323,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(
         {
           error: 'QR non disponible. Essaie de réinitialiser cette connexion.',
-          debug: debugLog,
+          debug: publicQrDebug(debugLog),
         },
         { status: 502 }
       );
@@ -315,7 +340,17 @@ export async function GET(req: NextRequest) {
     }
     return NextResponse.json({ qr: qrData, connected: false });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Erreur inconnue';
-    return NextResponse.json({ error: message, debug: debugLog }, { status: 502 });
+    // Jamais le message brut (URL / hôte Evolution interne) au navigateur.
+    logEvent('error', 'whatsapp.qr', {
+      status: 'unexpected',
+      error_code: err instanceof Error ? err.name : 'unknown',
+    });
+    return NextResponse.json(
+      {
+        error: 'Erreur de communication avec WhatsApp. Réessaie dans un instant.',
+        debug: publicQrDebug(debugLog),
+      },
+      { status: 502 }
+    );
   }
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
+import { tokensEqual, openPageToken } from '@/lib/security/facebook-verify';
 import { resolveGeminiKeys } from '@/lib/user-creds';
 import { verifyMetaSignature } from '@/lib/security/webhook-auth';
 import {
@@ -84,9 +85,11 @@ async function sendFBMessage(
   text: string
 ): Promise<void> {
   try {
-    await fetch(`https://graph.facebook.com/v18.0/me/messages?access_token=${pageAccessToken}`, {
+    // Jeton en en-tête, jamais dans l'URL (les URL finissent dans les logs,
+    // proxys et traces d'erreur).
+    await fetch('https://graph.facebook.com/v18.0/me/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${pageAccessToken}` },
       body: JSON.stringify({
         recipient: { id: recipientId },
         message: { text: text.slice(0, 2000) },
@@ -104,20 +107,27 @@ export async function GET(req: NextRequest) {
   const token = searchParams.get('hub.verify_token');
   const challenge = searchParams.get('hub.challenge');
 
-  if (mode !== 'subscribe' || !challenge) {
+  if (mode !== 'subscribe' || !challenge || !token) {
     return NextResponse.json({ error: 'Bad request' }, { status: 400 });
+  }
+
+  // Jeton de l'application plateforme (réglage Meta de l'app), si configuré.
+  const platformToken = process.env.FACEBOOK_VERIFY_TOKEN || '';
+  if (platformToken && tokensEqual(token, platformToken)) {
+    return new NextResponse(challenge, { status: 200 });
   }
 
   const supabase = createServiceClient();
 
-  // Match verify token against any user's facebook_connections
+  // Sinon : jeton d'une connexion marchand. limit(1) : .single() échouait si
+  // deux lignes portaient le même jeton.
   const { data } = await supabase
     .from('facebook_connections')
     .select('verify_token')
     .eq('verify_token', token)
-    .single();
+    .limit(1);
 
-  if (data) {
+  if (Array.isArray(data) && data.length === 1) {
     return new NextResponse(challenge, { status: 200 });
   }
   return NextResponse.json({ error: 'Verification failed' }, { status: 403 });
@@ -160,7 +170,9 @@ export async function POST(req: NextRequest) {
       if (!fbConn) continue;
 
       const userId = fbConn.user_id;
-      const pageToken = fbConn.page_access_token;
+      // Déchiffré ici, côté serveur (P2-9) ; illisible → pas de réponse.
+      const pageToken = openPageToken(fbConn.user_id, fbConn.page_access_token);
+      if (!pageToken) continue;
 
       // BYOK : on charge le POOL de clés Gemini du user une fois par entry
       const geminiKeys = await resolveGeminiKeys(userId);

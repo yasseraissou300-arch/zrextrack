@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { QUEUE_SCHEMA, type JobStatus } from '@/lib/queue/types';
+import { internalErrorResponse } from '@/lib/security/public-error';
 
 const STATUTS: JobStatus[] = ['pending', 'running', 'done', 'failed', 'dead'];
 
@@ -38,7 +39,7 @@ export async function GET(req: NextRequest) {
   }
 
   const { data, error } = await q;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return internalErrorResponse('api.jobs', error);
 
   // Compteurs par statut, pour l'UI.
   const counts: Record<string, number> = {};

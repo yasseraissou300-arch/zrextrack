@@ -1,3 +1,4 @@
+import { logEvent } from '@/lib/security/safe-log';
 import { ownedInstance } from '@/lib/whatsapp/instance-ownership';
 // Valide une réclamation SAV : enregistre la résolution choisie par l'opérateur
 // et envoie un message WhatsApp de confirmation au client.
@@ -17,6 +18,7 @@ import { ownedInstance } from '@/lib/whatsapp/instance-ownership';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
+import { evolutionErrorMessage } from '@/lib/whatsapp/evolution-error';
 
 type Resolution = 'exchange' | 'refund' | 'resolved';
 
@@ -81,11 +83,14 @@ async function sendWhatsAppViaSAV(
     });
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
-      return { ok: false, reason: `Evolution HTTP ${res.status}: ${errText.slice(0, 120)}` };
+      return {
+        ok: false,
+        reason: evolutionErrorMessage('reclamations.resolve', res.status, errText),
+      };
     }
     return { ok: true };
-  } catch (e: any) {
-    return { ok: false, reason: e?.message || 'Erreur réseau Evolution' };
+  } catch {
+    return { ok: false, reason: 'Erreur réseau Evolution' };
   }
 }
 
@@ -133,8 +138,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 1) Marque la résolution en DB
-  const { error: updateErr } = await service
+  // 1) Marque la résolution en DB — prise ATOMIQUE (resolution IS NULL).
+  // Sans cette condition, deux clics (ou deux onglets) lisaient tous deux
+  // « non résolue » et le client recevait deux fois le message WhatsApp.
+  const { data: claimed, error: updateErr } = await service
     .from('ai_chat_sessions')
     .update({
       resolution,
@@ -142,9 +149,23 @@ export async function POST(req: NextRequest) {
       resolved_by: user.id,
     })
     .eq('id', sessionId)
-    .eq('user_id', user.id);
+    .eq('user_id', user.id)
+    .is('resolution', null)
+    .select('id');
 
-  if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
+  if (updateErr) {
+    logEvent('error', 'api.ai-chatbot.reclamations.resolve', {
+      status: 'failed',
+      error_code: errorCode(updateErr),
+    });
+    return NextResponse.json(
+      { error: 'Erreur interne — réessaie dans un instant.' },
+      { status: 500 }
+    );
+  }
+  if (!Array.isArray(claimed) || claimed.length !== 1) {
+    return NextResponse.json({ error: 'Réclamation déjà résolue' }, { status: 409 });
+  }
 
   // 2) Envoie la notification WhatsApp (best effort — n'annule pas la résolution si KO)
   const message = buildMessage(resolution, session.contact_name || '');
@@ -156,4 +177,10 @@ export async function POST(req: NextRequest) {
     whatsapp: wa.ok ? 'sent' : 'failed',
     whatsapp_error: wa.ok ? null : wa.reason,
   });
+}
+
+// Réponse générique : jamais le message brut (PostgREST cite filtres et valeurs).
+function errorCode(err: unknown): string {
+  const code = (err as { code?: unknown } | null)?.code;
+  return typeof code === 'string' && code ? code.slice(0, 40) : 'unknown';
 }
