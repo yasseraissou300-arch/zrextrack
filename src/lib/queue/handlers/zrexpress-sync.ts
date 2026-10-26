@@ -9,6 +9,12 @@
 // La route HTTP reste en place pour le bouton « Synchroniser » manuel.
 
 import { createServiceClient } from '@/lib/supabase/server';
+import {
+  diffOrders,
+  loadExistingOrders,
+  statusChanged,
+  upsertOrdersInChunks,
+} from '@/lib/zrexpress/sync-diff';
 import { fetchAllParcels } from '@/lib/zrexpress/parcels';
 import { mapParcel, dedupeByTracking, silentTrackingNumbers } from '@/lib/zrexpress/map-parcel';
 import { openZrToken } from '@/lib/zrexpress/credentials';
@@ -89,21 +95,10 @@ export async function handleZrexpressSync(job: Job): Promise<HandlerResult> {
     rows = rows.slice(0, quota.remaining);
   }
 
-  const trackingNums = rows.map((r) => r.tracking_number);
-
-  // ── 4. Détection des changements de statut ────────────────────────────────
-  const { data: existing } = await supabase
-    .from('orders')
-    .select('tracking_number, delivery_status')
-    .eq('user_id', tenantId)
-    .in('tracking_number', trackingNums);
-
-  const previous = new Map(
-    ((existing as Array<{ tracking_number: string; delivery_status: string }>) ?? []).map((o) => [
-      o.tracking_number,
-      o.delivery_status,
-    ])
-  );
+  // ── 4. Détection des changements (lecture complète, paginée) ──────────────
+  // Voir src/lib/zrexpress/sync-diff.ts : l'ancien `.in(<tous les suivis>)`
+  // plafonnait à 1 000 lignes → notifications de colis anciens.
+  const existing = await loadExistingOrders(supabase, tenantId);
 
   const notifyEnabled = (settings?.notify_enabled ?? {}) as Record<string, boolean>;
   const toNotify = rows.filter(
@@ -113,13 +108,15 @@ export async function handleZrexpressSync(job: Job): Promise<HandlerResult> {
       r.customer_whatsapp &&
       r.customer_whatsapp.length > 4 &&
       !silent.has(r.tracking_number) &&
-      previous.get(r.tracking_number) !== r.delivery_status
+      statusChanged(existing, r)
   );
 
   // ── 5. Upsert des commandes ───────────────────────────────────────────────
-  const { error: upsertErr } = await supabase.from('orders').upsert(
-    rows.map((r) => ({ ...r, user_id: tenantId })),
-    { onConflict: 'user_id,tracking_number' }
+  // Seules les lignes nouvelles ou modifiées sont écrites.
+  const withTenant = rows.map((r) => ({ ...r, user_id: tenantId }));
+  const { error: upsertErr } = await upsertOrdersInChunks(
+    supabase,
+    existing ? diffOrders(withTenant, existing, syncedAt).toWrite : withTenant
   );
 
   if (upsertErr) return { outcome: 'failed', error: `upsert orders: ${upsertErr.message}` };
