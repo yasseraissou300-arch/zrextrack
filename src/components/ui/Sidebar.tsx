@@ -4,283 +4,262 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard,
+  Home,
   Package,
-  MessageSquare,
-  BarChart3,
-  Key,
+  Repeat,
+  MessageCircle,
+  Users,
+  LineChart,
+  Settings,
   ChevronLeft,
   ChevronRight,
-  Truck,
-  Bell,
-  RefreshCw,
-  Users,
-  Trash2,
-  Megaphone,
-  Plug,
-  MessageCircle,
-  Bot,
-  Repeat,
   Sun,
   Moon,
-  PhoneCall,
-  UserCircle,
+  Sparkles,
   Shield,
+  type LucideIcon,
 } from 'lucide-react';
 import { useChatbot } from '@/contexts/ChatbotContext';
 import { useTheme } from '@/contexts/ThemeContext';
 
-const navGroups = [
+// Navigation volontairement courte : 6 sections. Les pages secondaires restent
+// accessibles comme sous-liens, affichés seulement quand leur section est
+// ouverte — aucune page n'a été retirée, elles sont regroupées.
+interface NavItem {
+  href: string;
+  icon: LucideIcon;
+  label: string;
+  children?: { href: string; label: string }[];
+}
+
+const mainNav: NavItem[] = [
+  { href: '/admin-dashboard', icon: Home, label: 'Accueil' },
   {
-    label: 'Principal',
-    items: [
-      { href: '/admin-dashboard', icon: LayoutDashboard, label: 'Tableau de bord' },
-      { href: '/commandes', icon: Package, label: 'Commandes' },
-      { href: '/livraisons', icon: Truck, label: 'Livraisons' },
-      { href: '/autoswap', icon: Repeat, label: 'AutoSwap' },
+    href: '/commandes',
+    icon: Package,
+    label: 'Commandes',
+    children: [
+      { href: '/commandes', label: 'Toutes les commandes' },
+      { href: '/livraisons', label: 'Livraisons' },
+      { href: '/alertes', label: 'Alertes' },
+      { href: '/corbeille', label: 'Corbeille' },
     ],
   },
+  { href: '/autoswap', icon: Repeat, label: 'AutoSwap' },
   {
-    label: 'Communication',
-    items: [
-      { href: '/messages', icon: MessageSquare, label: 'Messages WhatsApp' },
-      { href: '/ai-chatbot', icon: Bot, label: 'AI Chatbot' },
-      { href: '/voice-calls', icon: PhoneCall, label: 'AI Voice Calling' },
-      { href: '/campagnes', icon: Megaphone, label: 'Campagnes' },
-      { href: '/alertes', icon: Bell, label: 'Alertes' },
-      { href: '/clients', icon: Users, label: 'Clients' },
+    href: '/messages',
+    icon: MessageCircle,
+    label: 'Messages',
+    children: [
+      { href: '/messages', label: 'WhatsApp' },
+      { href: '/ai-chatbot', label: 'Chatbot IA' },
+      { href: '/campagnes', label: 'Campagnes' },
+      { href: '/voice-calls', label: 'Appels IA' },
     ],
   },
-  {
-    label: 'Analyse',
-    items: [
-      { href: '/rapports', icon: BarChart3, label: 'Rapports' },
-      { href: '/sync', icon: RefreshCw, label: 'Sync ZREXpress' },
-    ],
-  },
-  {
-    label: 'Gestion',
-    items: [
-      { href: '/integrations', icon: Plug, label: 'Intégrations' },
-      { href: '/corbeille', icon: Trash2, label: 'Corbeille' },
-    ],
-  },
+  { href: '/clients', icon: Users, label: 'Clients' },
+  { href: '/rapports', icon: LineChart, label: 'Rapports' },
 ];
+
+const settingsNav: NavItem = {
+  href: '/sync',
+  icon: Settings,
+  label: 'Paramètres',
+  children: [
+    { href: '/sync', label: 'Synchronisation ZRExpress' },
+    { href: '/integrations', label: 'Intégrations' },
+    { href: '/parametres/api-keys', label: 'Clés API' },
+    { href: '/mon-compte', label: 'Mon compte' },
+  ],
+};
+
+const matches = (pathname: string, href: string) =>
+  pathname === href || pathname.startsWith(href + '/');
+
+const isSectionActive = (pathname: string, item: NavItem) =>
+  matches(pathname, item.href) || !!item.children?.some((c) => matches(pathname, c.href));
 
 interface SidebarProps {
   mobileOpen?: boolean;
   onMobileClose?: () => void;
 }
 
+interface Me {
+  role?: string | null;
+  full_name?: string | null;
+  email?: string | null;
+  plan_id?: string | null;
+}
+
+const PLAN_LABEL: Record<string, string> = {
+  basic: 'Basic',
+  pro: 'Pro',
+  business: 'Business',
+};
+
+function initialsOf(me: Me | null): string {
+  const source = (me?.full_name || me?.email || '').trim();
+  if (!source) return '·';
+  const parts = source.split(/[\s@._-]+/).filter(Boolean);
+  return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '·';
+}
+
 export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const pathname = usePathname();
+  const [me, setMe] = useState<Me | null>(null);
+  const pathname = usePathname() ?? '';
   const { toggle, isOpen } = useChatbot();
   const { theme, toggle: toggleTheme } = useTheme();
 
-  // Le lien « Super Admin » n'apparaît QUE pour les comptes role = 'admin'.
-  // Le rôle est lu via /api/auth/me (serveur, bypass RLS) → fiable même si la
-  // RLS de profiles est cassée.
+  // Rôle lu côté serveur (/api/auth/me) : le lien « Super Admin » n'apparaît
+  // que pour le claim admin du jeton.
   useEffect(() => {
     fetch('/api/auth/me')
-      .then((r) => r.json())
-      .then((j) => {
-        if (j.role === 'admin') setIsAdmin(true);
-      })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => setMe(j))
       .catch(() => {});
   }, []);
 
-  // Reset collapsed when in mobile drawer mode
   const isMobile = mobileOpen !== undefined && onMobileClose !== undefined;
-  const effectivelyCollapsed = isMobile ? false : collapsed;
+  const narrow = isMobile ? false : collapsed;
+  const isAdmin = me?.role === 'admin';
+
+  const renderItem = (item: NavItem) => {
+    const Icon = item.icon;
+    const open = isSectionActive(pathname, item);
+    const exact = matches(pathname, item.href) && !item.children;
+    return (
+      <li key={item.label}>
+        <Link
+          href={item.href}
+          onClick={onMobileClose}
+          title={narrow ? item.label : undefined}
+          className={`flex items-center gap-3 h-9 rounded-md text-[14px] transition-colors ${
+            narrow ? 'justify-center px-0' : 'px-3'
+          } ${
+            open || exact
+              ? 'bg-stone-900/[0.05] text-stone-900 font-medium dark:bg-white/[0.07] dark:text-stone-50'
+              : 'text-stone-500 hover:bg-stone-900/[0.03] hover:text-stone-800 dark:text-stone-400 dark:hover:bg-white/[0.04] dark:hover:text-stone-100'
+          }`}
+        >
+          <Icon size={17} strokeWidth={1.75} className="shrink-0" />
+          {!narrow && <span className="truncate">{item.label}</span>}
+        </Link>
+        {open && !narrow && item.children && (
+          <ul className="mt-0.5 mb-1.5 ml-[22px] pl-3 border-l border-stone-200 dark:border-stone-800 space-y-0.5">
+            {item.children.map((c) => {
+              const active =
+                pathname === c.href || (c.href !== item.href && matches(pathname, c.href));
+              return (
+                <li key={c.href}>
+                  <Link
+                    href={c.href}
+                    onClick={onMobileClose}
+                    className={`block px-2.5 py-1.5 rounded-md text-[13px] transition-colors ${
+                      active
+                        ? 'text-stone-900 font-medium dark:text-stone-50'
+                        : 'text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-100'
+                    }`}
+                  >
+                    {c.label}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </li>
+    );
+  };
+
+  const iconButton =
+    'flex items-center justify-center w-8 h-8 rounded-md text-stone-500 hover:bg-stone-900/[0.04] hover:text-stone-800 dark:text-stone-400 dark:hover:bg-white/[0.06] dark:hover:text-stone-100 transition-colors';
 
   return (
     <aside
-      // h-screen + flex-col garantit que la nav (flex-1) prenne tout l'espace dispo
-      // et puisse scroller en interne via overflow-y-auto. Sans h-screen explicite,
-      // l'aside prenait la hauteur naturelle de son contenu et débordait du viewport
-      // sur les petits écrans → les items du bas (Gestion, Paramètres) devenaient
-      // inaccessibles.
-      className={`relative flex flex-col h-screen bg-white dark:bg-stone-900 border-r border-stone-200 dark:border-stone-800 transition-all duration-300 ease-in-out shrink-0 ${
-        effectivelyCollapsed ? 'w-[60px]' : 'w-[220px]'
+      // h-screen + flex-col : la nav (flex-1, min-h-0) scrolle en interne même
+      // sur un petit écran ; le pied (Paramètres, compte) reste accessible.
+      className={`relative flex flex-col h-screen bg-white dark:bg-stone-950 border-r border-stone-200/70 dark:border-stone-800 transition-[width] duration-300 ease-in-out shrink-0 ${
+        narrow ? 'w-[64px]' : 'w-[232px]'
       }`}
     >
-      {/* Logo */}
-      <div
-        className={`flex items-center border-b border-stone-100 dark:border-stone-800 min-h-[60px] ${
-          effectivelyCollapsed ? 'justify-center px-3' : 'gap-2.5 px-4'
-        }`}
-      >
-        <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-lg flex items-center justify-center shrink-0 shadow-sm shadow-violet-500/25">
-          <span className="text-white font-bold text-xs">Z</span>
+      <div className={`flex items-center h-[64px] ${narrow ? 'justify-center' : 'gap-2.5 px-6'}`}>
+        <div className="w-7 h-7 rounded-md bg-stone-900 dark:bg-white flex items-center justify-center shrink-0">
+          <span className="text-white dark:text-stone-900 font-semibold text-[13px]">A</span>
         </div>
-        {!effectivelyCollapsed && (
-          <div className="flex flex-col leading-tight">
-            <span className="font-bold text-[15px] text-stone-900 dark:text-stone-100 tracking-tight">
-              Autotim
-            </span>
-            <span className="text-[10px] text-stone-400 dark:text-stone-500 font-medium tracking-wide uppercase">
-              ZREXpress
-            </span>
-          </div>
+        {!narrow && (
+          <span className="font-semibold text-[15px] tracking-tight text-stone-900 dark:text-stone-50">
+            AutoTim
+          </span>
         )}
       </div>
 
-      {/* Nav — min-h-0 indispensable pour qu'overflow-y-auto fonctionne dans un parent flex */}
-      <nav className="flex-1 min-h-0 overflow-y-auto py-3 px-2">
-        {navGroups.map((group) => (
-          <div key={group.label} className="mb-5">
-            {!effectivelyCollapsed && (
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-stone-400 dark:text-stone-500 px-2 mb-1.5">
-                {group.label}
-              </p>
-            )}
-            <ul className="space-y-0.5">
-              {group.items.map((item) => {
-                const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
-                const Icon = item.icon;
-                return (
-                  <li key={item.label}>
-                    <Link
-                      href={item.href}
-                      onClick={onMobileClose}
-                      title={effectivelyCollapsed ? item.label : undefined}
-                      className={`group relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
-                        isActive
-                          ? 'bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-300'
-                          : 'text-stone-500 hover:bg-stone-50 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100'
-                      } ${effectivelyCollapsed ? 'justify-center' : ''}`}
-                    >
-                      {isActive && !effectivelyCollapsed && (
-                        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-violet-500 rounded-r-full" />
-                      )}
-                      <Icon size={15} className="shrink-0" />
-                      {!effectivelyCollapsed && <span className="truncate">{item.label}</span>}
-                      {effectivelyCollapsed && (
-                        <div className="absolute left-full ml-2 px-2 py-1 bg-stone-800 dark:bg-stone-700 text-white text-xs rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-md">
-                          {item.label}
-                        </div>
-                      )}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ))}
+      <nav className="flex-1 min-h-0 overflow-y-auto scrollbar-thin px-3 pt-2">
+        <ul className="space-y-0.5">{mainNav.map(renderItem)}</ul>
       </nav>
 
-      {/* Bottom */}
-      <div className="border-t border-stone-100 dark:border-stone-800 p-2 space-y-0.5">
-        {/* Theme toggle */}
-        <button
-          onClick={toggleTheme}
-          title={
-            effectivelyCollapsed ? (theme === 'dark' ? 'Mode clair' : 'Mode sombre') : undefined
-          }
-          className={`group relative w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium text-stone-500 hover:bg-stone-50 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100 transition-all duration-150 ${effectivelyCollapsed ? 'justify-center' : ''}`}
-        >
-          {theme === 'dark' ? (
-            <Sun size={15} className="shrink-0" />
-          ) : (
-            <Moon size={15} className="shrink-0" />
-          )}
-          {!effectivelyCollapsed && (
-            <span className="truncate">{theme === 'dark' ? 'Mode clair' : 'Mode sombre'}</span>
-          )}
-          {effectivelyCollapsed && (
-            <div className="absolute left-full ml-2 px-2 py-1 bg-stone-800 dark:bg-stone-700 text-white text-xs rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-md">
-              {theme === 'dark' ? 'Mode clair' : 'Mode sombre'}
-            </div>
-          )}
-        </button>
+      <div className="px-3 pb-3 pt-2 space-y-0.5">
+        <ul>{renderItem(settingsNav)}</ul>
+        {isAdmin && <ul>{renderItem({ href: '/admin', icon: Shield, label: 'Super Admin' })}</ul>}
 
-        {/* Chatbot button */}
-        <button
-          onClick={toggle}
-          title={effectivelyCollapsed ? 'Assistant IA' : undefined}
-          className={`group relative w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
-            isOpen
-              ? 'bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-300'
-              : 'text-stone-500 hover:bg-stone-50 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100'
-          } ${effectivelyCollapsed ? 'justify-center' : ''}`}
-        >
-          {isOpen && !effectivelyCollapsed && (
-            <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-violet-500 rounded-r-full" />
-          )}
-          <div className="relative shrink-0">
-            <MessageCircle size={15} />
-            <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-violet-500 rounded-full border border-white dark:border-stone-900" />
-          </div>
-          {!effectivelyCollapsed && <span className="truncate">Assistant IA</span>}
-          {effectivelyCollapsed && (
-            <div className="absolute left-full ml-2 px-2 py-1 bg-stone-800 dark:bg-stone-700 text-white text-xs rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-md">
-              Assistant IA
-            </div>
-          )}
-        </button>
-
-        <Link
-          href="/parametres/api-keys"
-          onClick={onMobileClose}
-          title={effectivelyCollapsed ? 'Clés API' : undefined}
-          className={`group relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium text-stone-500 hover:bg-stone-50 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100 transition-all duration-150 ${
-            effectivelyCollapsed ? 'justify-center' : ''
+        <div
+          className={`flex items-center gap-2.5 pt-3 mt-2 border-t border-stone-100 dark:border-stone-800 ${
+            narrow ? 'flex-col' : 'px-1'
           }`}
         >
-          <Key size={15} className="shrink-0" />
-          {!effectivelyCollapsed && <span>Clés API</span>}
-          {effectivelyCollapsed && (
-            <div className="absolute left-full ml-2 px-2 py-1 bg-stone-800 dark:bg-stone-700 text-white text-xs rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-md">
-              Clés API
-            </div>
-          )}
-        </Link>
-
-        <Link
-          href="/mon-compte"
-          onClick={onMobileClose}
-          title={effectivelyCollapsed ? 'Mon compte' : undefined}
-          className={`group relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium text-stone-500 hover:bg-stone-50 hover:text-stone-800 dark:text-stone-400 dark:hover:bg-stone-800 dark:hover:text-stone-100 transition-all duration-150 ${effectivelyCollapsed ? 'justify-center' : ''}`}
-        >
-          <UserCircle size={15} className="shrink-0" />
-          {!effectivelyCollapsed && <span>Mon compte</span>}
-          {effectivelyCollapsed && (
-            <div className="absolute left-full ml-2 px-2 py-1 bg-stone-800 dark:bg-stone-700 text-white text-xs rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-md">
-              Mon compte
-            </div>
-          )}
-        </Link>
-
-        {isAdmin && (
           <Link
-            href="/admin"
+            href="/mon-compte"
             onClick={onMobileClose}
-            title={effectivelyCollapsed ? 'Super Admin' : undefined}
-            className={`group relative flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 dark:text-amber-300 dark:bg-amber-500/10 dark:hover:bg-amber-500/20 transition-all duration-150 ${effectivelyCollapsed ? 'justify-center' : ''}`}
+            title={narrow ? 'Mon compte' : undefined}
+            className={`flex items-center gap-2.5 min-w-0 ${narrow ? '' : 'flex-1'}`}
           >
-            <Shield size={15} className="shrink-0" />
-            {!effectivelyCollapsed && <span>Super Admin</span>}
-            {effectivelyCollapsed && (
-              <div className="absolute left-full ml-2 px-2 py-1 bg-stone-800 dark:bg-stone-700 text-white text-xs rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-md">
-                Super Admin
+            <div className="w-7 h-7 rounded-full bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 grid place-items-center text-[11px] font-semibold shrink-0">
+              {initialsOf(me)}
+            </div>
+            {!narrow && (
+              <div className="min-w-0 leading-tight">
+                <div className="text-[13px] font-medium text-stone-900 dark:text-stone-100 truncate">
+                  {me?.full_name || me?.email || 'Mon compte'}
+                </div>
+                <div className="text-[12px] text-stone-400 truncate">
+                  {PLAN_LABEL[me?.plan_id ?? ''] ?? 'Basic'}
+                </div>
               </div>
             )}
           </Link>
-        )}
+          <button
+            onClick={toggleTheme}
+            className={iconButton}
+            title={theme === 'dark' ? 'Mode clair' : 'Mode sombre'}
+            aria-label={theme === 'dark' ? 'Mode clair' : 'Mode sombre'}
+          >
+            {theme === 'dark' ? (
+              <Sun size={16} strokeWidth={1.75} />
+            ) : (
+              <Moon size={16} strokeWidth={1.75} />
+            )}
+          </button>
+          <button
+            onClick={toggle}
+            className={`${iconButton} ${isOpen ? 'bg-stone-900/[0.05] text-stone-900 dark:bg-white/[0.07] dark:text-stone-50' : ''}`}
+            title="Assistant IA"
+            aria-label="Assistant IA"
+          >
+            <Sparkles size={16} strokeWidth={1.75} />
+          </button>
+        </div>
       </div>
 
-      {/* Collapse toggle — hidden on mobile drawer */}
       {!isMobile && (
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="hidden md:flex absolute -right-3 top-[68px] w-6 h-6 bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-full items-center justify-center shadow-sm hover:bg-stone-50 dark:hover:bg-stone-700 transition-colors z-10"
+          aria-label={collapsed ? 'Déplier le menu' : 'Replier le menu'}
+          className="hidden md:flex absolute -right-3 top-[20px] w-6 h-6 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-full items-center justify-center hover:bg-stone-50 dark:hover:bg-stone-800 transition-colors z-10"
         >
           {collapsed ? (
-            <ChevronRight size={12} className="text-stone-500 dark:text-stone-400" />
+            <ChevronRight size={12} className="text-stone-500" />
           ) : (
-            <ChevronLeft size={12} className="text-stone-500 dark:text-stone-400" />
+            <ChevronLeft size={12} className="text-stone-500" />
           )}
         </button>
       )}
