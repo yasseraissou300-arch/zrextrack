@@ -23,20 +23,19 @@ export default function AlertesPage() {
 
   return (
     <AppLayout>
-      <div className="max-w-screen-2xl mx-auto px-6 py-6 space-y-6">
+      <div className="max-w-[1120px] mx-auto px-5 sm:px-8 lg:px-10 py-8 lg:py-10 space-y-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-red-100 dark:bg-red-500/15 rounded-xl flex items-center justify-center">
-            <Bell size={20} className="text-red-600" />
-          </div>
           <div>
-            <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100">Alertes</h1>
+            <h1 className="text-[26px] font-semibold tracking-tight text-stone-900 dark:text-stone-50">
+              Alertes
+            </h1>
             <p className="text-sm text-stone-500 dark:text-stone-400">
               Commandes en échec ou retournées nécessitant attention
             </p>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 overflow-hidden">
+        <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 overflow-hidden">
           <div className="px-6 py-4 border-b border-stone-100 dark:border-stone-800 flex items-center gap-2">
             <AlertTriangle size={16} className="text-red-500" />
             <h2 className="font-semibold text-stone-900 dark:text-stone-100">

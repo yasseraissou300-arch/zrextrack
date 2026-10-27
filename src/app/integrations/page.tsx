@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
 import {
-  Plug,
   Copy,
   CheckCircle,
   XCircle,
@@ -107,7 +106,7 @@ function ConnectModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white dark:bg-stone-900 rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <div className="relative bg-white dark:bg-stone-900 rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="p-6 space-y-5">
           <div className="flex items-center gap-3">
             <div
@@ -150,7 +149,7 @@ function ConnectModal({
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
               placeholder={platform.identifierPlaceholder}
-              className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+              className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10 dark:focus:ring-white/10"
             />
           </div>
 
@@ -164,7 +163,7 @@ function ConnectModal({
                 onChange={(e) => setSecret(e.target.value)}
                 placeholder="Pour valider la signature du webhook"
                 type="password"
-                className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10 dark:focus:ring-white/10"
               />
             </div>
           )}
@@ -263,11 +262,10 @@ export default function IntegrationsPage() {
     <AppLayout>
       <div className="max-w-screen-lg mx-auto px-6 py-6 space-y-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-500/15 rounded-xl flex items-center justify-center">
-            <Plug size={20} className="text-indigo-600" />
-          </div>
           <div>
-            <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100">Intégrations</h1>
+            <h1 className="text-[26px] font-semibold tracking-tight text-stone-900 dark:text-stone-50">
+              Intégrations
+            </h1>
             <p className="text-sm text-stone-500 dark:text-stone-400">
               Connectez vos plateformes e-commerce pour synchroniser les commandes automatiquement
             </p>
@@ -285,7 +283,7 @@ export default function IntegrationsPage() {
               return (
                 <div
                   key={platform.id}
-                  className={`bg-white dark:bg-stone-900 rounded-2xl border shadow-sm p-5 space-y-4 ${connected ? 'border-green-200' : 'border-stone-100 dark:border-stone-800'}`}
+                  className={`bg-white dark:bg-stone-900 rounded-xl border shadow-sm p-5 space-y-4 ${connected ? 'border-green-200' : 'border-stone-100 dark:border-stone-800'}`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
@@ -362,7 +360,7 @@ export default function IntegrationsPage() {
           </div>
         )}
 
-        <div className="bg-stone-50 rounded-2xl border border-stone-100 dark:border-stone-800 p-5 space-y-3">
+        <div className="bg-stone-50 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5 space-y-3">
           <div className="flex items-center gap-2">
             <Package size={16} className="text-stone-500 dark:text-stone-400" />
             <p className="font-semibold text-stone-700 dark:text-stone-200">

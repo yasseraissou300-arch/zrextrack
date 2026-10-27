@@ -76,7 +76,7 @@ function Modal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white dark:bg-stone-900 rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <div className="relative bg-white dark:bg-stone-900 rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         {children}
       </div>
     </div>
@@ -236,7 +236,7 @@ function CreateModal({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="ex: Promo Ramadan, Relance échecs..."
-            className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+            className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10 dark:focus:ring-white/10"
           />
         </div>
 
@@ -262,7 +262,7 @@ function CreateModal({
             <select
               value={audienceStatus}
               onChange={(e) => setAudienceStatus(e.target.value)}
-              className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white dark:bg-stone-900"
+              className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10 dark:focus:ring-white/10 bg-white dark:bg-stone-900"
             >
               {STATUS_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -387,7 +387,7 @@ function CreateModal({
             placeholder="السلام عليكم {{client}} 👋&#10;طردك رقم {{tracking}} وصل!&#10;شكرا على ثقتك 🙏"
             rows={5}
             dir="rtl"
-            className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
+            className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10 dark:focus:ring-white/10 resize-none"
           />
         </div>
 
@@ -406,7 +406,7 @@ function CreateModal({
             </div>
 
             {/* Mockup style discussion WhatsApp */}
-            <div className="rounded-2xl overflow-hidden border border-stone-200 dark:border-stone-700 shadow-inner">
+            <div className="rounded-xl overflow-hidden border border-stone-200 dark:border-stone-700 shadow-inner">
               {/* En-tête WhatsApp */}
               <div className="bg-[#075E54] text-white px-3 py-2 flex items-center gap-2">
                 <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold">
@@ -536,7 +536,7 @@ function CampaignCard({
       : null;
 
   return (
-    <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5 space-y-4 hover:shadow-md transition-shadow">
+    <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5 space-y-4 hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-stone-900 dark:text-stone-100 truncate">
@@ -839,11 +839,10 @@ Quota du jour restant : ${json.remainingToday}/${json.dailyLimit} (le reste part
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-green-100 dark:bg-green-500/15 rounded-xl flex items-center justify-center">
-              <Megaphone size={20} className="text-green-600" />
-            </div>
             <div>
-              <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100">Campagnes</h1>
+              <h1 className="text-[26px] font-semibold tracking-tight text-stone-900 dark:text-stone-50">
+                Campagnes
+              </h1>
               <p className="text-sm text-stone-500 dark:text-stone-400">
                 Envois groupés WhatsApp ciblés
               </p>
@@ -892,7 +891,7 @@ Quota du jour restant : ${json.remainingToday}/${json.dailyLimit} (le reste part
         ) : (
           <>
             {/* Info variables */}
-            <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-start gap-3">
+            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-start gap-3">
               <AlertCircle size={16} className="text-blue-500 shrink-0 mt-0.5" />
               <div className="text-sm text-blue-700">
                 <span className="font-medium">Variables disponibles dans les messages :</span>
@@ -1171,7 +1170,7 @@ function DeliveredCustomersTab({
   return (
     <div className="space-y-4">
       {/* Banner explication */}
-      <div className="bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/30 rounded-2xl p-4 flex items-start gap-3">
+      <div className="bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/30 rounded-xl p-4 flex items-start gap-3">
         <Target size={16} className="text-green-600 dark:text-green-300 shrink-0 mt-0.5" />
         <div className="text-sm text-green-900 dark:text-green-200">
           <p className="font-medium">Cible tes vrais clients</p>
@@ -1196,7 +1195,7 @@ function DeliveredCustomersTab({
 
       {/* Bouton fetch + stats */}
       {customers.length === 0 && !loading && credentialsReady && !error && (
-        <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 p-6 text-center">
+        <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-6 text-center">
           <Target size={32} className="mx-auto text-stone-300 mb-3" />
           <p className="text-sm text-stone-700 dark:text-stone-200 mb-3">
             Charge la liste de tes clients livrés depuis ZRExpress.
@@ -1316,7 +1315,7 @@ function DeliveredCustomersTab({
           )}
 
           {/* Toolbar */}
-          <div className="bg-white dark:bg-stone-900 border border-stone-100 dark:border-stone-800 rounded-2xl p-3 space-y-2.5">
+          <div className="bg-white dark:bg-stone-900 border border-stone-100 dark:border-stone-800 rounded-xl p-3 space-y-2.5">
             {/* Ligne 1 : recherche + actions */}
             <div className="flex items-center gap-3 flex-wrap">
               <div className="relative flex-1 min-w-[200px]">
@@ -1421,7 +1420,7 @@ function DeliveredCustomersTab({
           </div>
 
           {/* Table */}
-          <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 overflow-hidden">
+          <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-stone-50 dark:bg-stone-800 border-b border-stone-100 dark:border-stone-700">
@@ -1575,7 +1574,7 @@ function StatBox({
   color: string;
 }) {
   return (
-    <div className={`rounded-2xl p-3 ${color}`}>
+    <div className={`rounded-xl p-3 ${color}`}>
       <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide opacity-80">
         {icon}
         {label}
@@ -1667,7 +1666,7 @@ function ProductsMultiSelect({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Filtrer la liste…"
-                className="w-full pl-7 pr-2 py-1.5 text-xs border border-stone-200 dark:border-stone-700 rounded-md bg-stone-50 dark:bg-stone-800 focus:outline-none focus:ring-1 focus:ring-violet-500/30"
+                className="w-full pl-7 pr-2 py-1.5 text-xs border border-stone-200 dark:border-stone-700 rounded-md bg-stone-50 dark:bg-stone-800 focus:outline-none focus:ring-1 focus:ring-stone-900/10 dark:focus:ring-white/10/30"
               />
             </div>
             <div className="flex items-center justify-between text-[10px]">

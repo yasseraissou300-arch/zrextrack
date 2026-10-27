@@ -144,11 +144,10 @@ export default function CorbeillePage() {
       <div className="max-w-screen-xl mx-auto px-6 py-6 space-y-5">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center">
-            <Trash2 size={20} className="text-red-500" />
-          </div>
           <div>
-            <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100">Corbeille</h1>
+            <h1 className="text-[26px] font-semibold tracking-tight text-stone-900 dark:text-stone-50">
+              Corbeille
+            </h1>
             <p className="text-sm text-stone-400 dark:text-stone-500">
               Commandes supprimées — restaurez-les ou supprimez définitivement
             </p>
@@ -222,25 +221,25 @@ export default function CorbeillePage() {
                       className="rounded border-stone-300"
                     />
                   </th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">
+                  <th className="px-4 py-2.5 text-left text-[12.5px] font-normal text-stone-400">
                     Tracking
                   </th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">
+                  <th className="px-4 py-2.5 text-left text-[12.5px] font-normal text-stone-400">
                     Client
                   </th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">
+                  <th className="px-4 py-2.5 text-left text-[12.5px] font-normal text-stone-400">
                     Produit
                   </th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">
+                  <th className="px-4 py-2.5 text-left text-[12.5px] font-normal text-stone-400">
                     Wilaya
                   </th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">
+                  <th className="px-4 py-2.5 text-left text-[12.5px] font-normal text-stone-400">
                     Statut
                   </th>
-                  <th className="px-4 py-2.5 text-right text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">
+                  <th className="px-4 py-2.5 text-right text-[12.5px] font-normal text-stone-400">
                     COD
                   </th>
-                  <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">
+                  <th className="px-4 py-2.5 text-left text-[12.5px] font-normal text-stone-400">
                     Supprimé le
                   </th>
                 </tr>

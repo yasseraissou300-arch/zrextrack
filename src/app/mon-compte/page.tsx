@@ -7,16 +7,7 @@
 import React, { useEffect, useState } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
 import { createClient } from '@/lib/supabase/client';
-import {
-  UserCircle,
-  Mail,
-  Shield,
-  LogOut,
-  Loader2,
-  Crown,
-  Building2,
-  CalendarDays,
-} from 'lucide-react';
+import { Mail, Shield, LogOut, Loader2, Crown, Building2, CalendarDays } from 'lucide-react';
 
 interface Profile {
   email: string;
@@ -85,11 +76,10 @@ export default function MonComptePage() {
       <div className="min-h-screen bg-stone-50 dark:bg-stone-950">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-violet-100 dark:bg-violet-500/15 rounded-xl flex items-center justify-center">
-              <UserCircle size={20} className="text-violet-600 dark:text-violet-300" />
-            </div>
             <div>
-              <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100">Mon compte</h1>
+              <h1 className="text-[26px] font-semibold tracking-tight text-stone-900 dark:text-stone-50">
+                Mon compte
+              </h1>
               <p className="text-sm text-stone-500 dark:text-stone-400">
                 Vos informations de connexion
               </p>
@@ -102,7 +92,7 @@ export default function MonComptePage() {
             </div>
           ) : (
             <>
-              <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-sm p-6">
+              <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200 dark:border-stone-800 shadow-sm p-6">
                 <div className="flex items-center gap-4 mb-6">
                   {profile?.avatar_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -144,7 +134,7 @@ export default function MonComptePage() {
                 </div>
               </div>
 
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/40 rounded-2xl p-4 text-sm text-blue-700 dark:text-blue-300">
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/40 rounded-xl p-4 text-sm text-blue-700 dark:text-blue-300">
                 🔐 Vous êtes connecté <strong>via Google</strong>. Il n'y a donc pas de mot de passe
                 à gérer ici — c'est celui de votre compte Google. Pour le changer, passez par les
                 réglages de votre compte Google.

@@ -47,13 +47,12 @@ export default function LivraisonsPage() {
 
   return (
     <AppLayout>
-      <div className="max-w-screen-2xl mx-auto px-6 py-6 space-y-6">
+      <div className="max-w-[1120px] mx-auto px-5 sm:px-8 lg:px-10 py-8 lg:py-10 space-y-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-amber-100 dark:bg-amber-500/15 rounded-xl flex items-center justify-center">
-            <Truck size={20} className="text-amber-600" />
-          </div>
           <div>
-            <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100">Livraisons</h1>
+            <h1 className="text-[26px] font-semibold tracking-tight text-stone-900 dark:text-stone-50">
+              Livraisons
+            </h1>
             <p className="text-sm text-stone-500 dark:text-stone-400">
               Suivi des livraisons en cours
             </p>
@@ -70,7 +69,7 @@ export default function LivraisonsPage() {
           ].map((s) => (
             <div
               key={s.label}
-              className="bg-white dark:bg-stone-900 rounded-2xl p-4 shadow-sm border border-stone-100 dark:border-stone-800"
+              className="bg-white dark:bg-stone-900 rounded-xl p-4 shadow-sm border border-stone-100 dark:border-stone-800"
             >
               <p className="text-2xl font-bold text-stone-900 dark:text-stone-100">
                 {loading ? '—' : s.value}
@@ -81,7 +80,7 @@ export default function LivraisonsPage() {
         </div>
 
         {/* Table */}
-        <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 overflow-hidden">
+        <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 overflow-hidden">
           <div className="px-6 py-4 border-b border-stone-100 dark:border-stone-800">
             <h2 className="font-semibold text-stone-900 dark:text-stone-100">
               Détail des livraisons
@@ -89,7 +88,7 @@ export default function LivraisonsPage() {
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-stone-50 text-xs text-stone-500 dark:text-stone-400 uppercase">
+              <thead className="text-[12.5px] text-stone-400">
                 <tr>
                   <th className="px-4 py-3 text-left">Tracking</th>
                   <th className="px-4 py-3 text-left">Client</th>

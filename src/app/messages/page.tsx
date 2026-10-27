@@ -194,7 +194,7 @@ function AutoNotifyToggles() {
   };
 
   return (
-    <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5 space-y-3">
+    <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5 space-y-3">
       <div className="flex items-center gap-2">
         <Bell size={16} className="text-amber-500" />
         <h3 className="font-semibold text-stone-900 dark:text-stone-100">
@@ -322,7 +322,7 @@ function WarmupCard() {
 
   return (
     <div
-      className={`rounded-2xl p-4 border ${state.isActive ? 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30' : 'bg-stone-50 dark:bg-stone-800/50 border-stone-200 dark:border-stone-700'}`}
+      className={`rounded-xl p-4 border ${state.isActive ? 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30' : 'bg-stone-50 dark:bg-stone-800/50 border-stone-200 dark:border-stone-700'}`}
     >
       <div className="flex items-start gap-3">
         <div
@@ -528,7 +528,7 @@ function ConnexionTab() {
     <div className="max-w-xl space-y-6">
       {/* Statut */}
       <div
-        className={`rounded-2xl p-5 border-2 ${connected ? 'border-green-200 bg-green-50' : 'border-stone-200 dark:border-stone-700 bg-stone-50'}`}
+        className={`rounded-xl p-5 border-2 ${connected ? 'border-green-200 bg-green-50' : 'border-stone-200 dark:border-stone-700 bg-stone-50'}`}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -587,7 +587,7 @@ function ConnexionTab() {
 
       {/* QR Code */}
       {!connected && (
-        <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5 space-y-4">
+        <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5 space-y-4">
           <div className="flex items-center gap-2">
             <QrCode size={16} className="text-stone-500 dark:text-stone-400" />
             <h3 className="font-semibold text-stone-900 dark:text-stone-100">Connecter WhatsApp</h3>
@@ -649,7 +649,7 @@ function ConnexionTab() {
       )}
 
       {connected && (
-        <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex items-center gap-3">
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
           <CheckCircle size={20} className="text-green-600 shrink-0" />
           <div>
             <p className="text-sm font-semibold text-green-800">WhatsApp connecté</p>
@@ -822,7 +822,7 @@ function EnvoyerTab() {
   return (
     <div className="space-y-5">
       {connected === false && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-3">
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3">
           <AlertCircle size={18} className="text-amber-500 shrink-0" />
           <p className="text-sm text-amber-700">
             WhatsApp non connecte — va dans <strong>Connexion</strong> pour scanner le QR avant
@@ -832,7 +832,7 @@ function EnvoyerTab() {
       )}
 
       {/* Filtre situation */}
-      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-4 space-y-3">
+      <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-4 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-medium text-stone-700 dark:text-stone-200">
             Situation :
@@ -881,7 +881,7 @@ function EnvoyerTab() {
       </div>
 
       {/* Choisir le message + le modifier sur place (un seul endroit) */}
-      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5 space-y-4">
+      <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5 space-y-4">
         <div className="flex items-center gap-2">
           <MessageSquare size={16} className="text-green-500" />
           <h3 className="font-semibold text-stone-900 dark:text-stone-100">Message à envoyer</h3>
@@ -916,7 +916,7 @@ function EnvoyerTab() {
             placeholder="كتب رسالتك..."
             rows={4}
             dir="rtl"
-            className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+            className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10 dark:focus:ring-white/10"
           />
         ) : (
           <div className="space-y-2">
@@ -959,7 +959,7 @@ function EnvoyerTab() {
       <AutoNotifyToggles />
 
       {/* Test de message */}
-      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-blue-100 shadow-sm p-5 space-y-3">
+      <div className="bg-white dark:bg-stone-900 rounded-xl border border-blue-100 shadow-sm p-5 space-y-3">
         <div className="flex items-center gap-2">
           <Smartphone size={16} className="text-blue-500" />
           <h3 className="font-semibold text-stone-900 dark:text-stone-100">Tester la reception</h3>
@@ -989,7 +989,7 @@ function EnvoyerTab() {
       </div>
 
       {/* Table des destinataires */}
-      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 overflow-hidden">
         <div className="p-4 border-b border-stone-100 dark:border-stone-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2 flex-wrap">
             <Users size={16} className="text-stone-500 dark:text-stone-400" />
@@ -1015,7 +1015,7 @@ function EnvoyerTab() {
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-stone-50 text-xs text-stone-500 dark:text-stone-400 uppercase">
+            <thead className="text-[12.5px] text-stone-400">
               <tr>
                 <th className="px-4 py-3">
                   <input
@@ -1271,7 +1271,7 @@ function HistoriqueTab() {
     <div className="space-y-4">
       {/* Bannière protections anti-suspension — visible en permanence pour rappeler
           les règles automatiques qui protègent le numéro WhatsApp d'être banni. */}
-      <details className="bg-blue-50 border border-blue-200 rounded-2xl text-xs text-blue-900 group">
+      <details className="bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 group">
         <summary className="px-4 py-2.5 cursor-pointer flex items-center gap-2 font-medium select-none">
           <AlertCircle size={14} className="text-blue-600 shrink-0" />
           <span>Protections anti-suspension WhatsApp actives</span>
@@ -1311,7 +1311,7 @@ function HistoriqueTab() {
           mes messages échouent ». Si la session WA est déconnectée, ne pas
           essayer de renvoyer en masse — ça générera juste 200 échecs de plus. */}
       {waStatus && !waStatus.connected && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center justify-between gap-3">
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <AlertCircle size={18} className="text-amber-600 shrink-0" />
             <div>
@@ -1364,7 +1364,7 @@ function HistoriqueTab() {
 
       {/* Bannière échecs */}
       {echecCount > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center justify-between gap-3">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <AlertCircle size={18} className="text-red-500 shrink-0" />
             <p className="text-sm text-red-700 font-medium">
@@ -1390,7 +1390,7 @@ function HistoriqueTab() {
         </div>
       )}
 
-      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 overflow-hidden">
         <div className="p-4 border-b border-stone-100 dark:border-stone-800 flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2">
             <History size={16} className="text-stone-500 dark:text-stone-400" />
@@ -1572,8 +1572,8 @@ function TemplateEditCard({
     <div
       className={
         inline
-          ? 'border border-stone-100 dark:border-stone-800 rounded-2xl overflow-hidden'
-          : 'bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm overflow-hidden'
+          ? 'border border-stone-100 dark:border-stone-800 rounded-xl overflow-hidden'
+          : 'bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 overflow-hidden'
       }
     >
       {!inline && (
@@ -1626,7 +1626,7 @@ function TemplateEditCard({
             onChange={(e) => setForm((f) => ({ ...f, [lang]: e.target.value }))}
             rows={5}
             dir={langCfg.dir}
-            className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 resize-none"
+            className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10 dark:focus:ring-white/10 resize-none"
           />
           <div className="flex gap-2">
             {def && (
@@ -1664,11 +1664,8 @@ export default function MessagesPage() {
     <AppLayout>
       <div className="max-w-screen-xl mx-auto px-6 py-6 space-y-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-green-100 dark:bg-green-500/15 rounded-xl flex items-center justify-center">
-            <MessageSquare size={20} className="text-green-600" />
-          </div>
           <div>
-            <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100">
+            <h1 className="text-[26px] font-semibold tracking-tight text-stone-900 dark:text-stone-50">
               Messages WhatsApp
             </h1>
             <p className="text-sm text-stone-500 dark:text-stone-400">

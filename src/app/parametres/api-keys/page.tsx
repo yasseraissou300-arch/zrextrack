@@ -105,7 +105,7 @@ function ServiceCard({
   };
 
   return (
-    <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 shadow-sm p-5 space-y-4">
+    <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200 dark:border-stone-800 shadow-sm p-5 space-y-4">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
@@ -173,7 +173,7 @@ function ServiceCard({
           rows={4}
           autoComplete="off"
           spellCheck={false}
-          className="w-full px-3 py-2 text-sm bg-white dark:bg-stone-950 border border-stone-200 dark:border-stone-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500 font-mono resize-y"
+          className="w-full px-3 py-2 text-sm bg-white dark:bg-stone-950 border border-stone-200 dark:border-stone-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-900/10 dark:focus:ring-white/10 font-mono resize-y"
         />
         <p className="text-[11px] text-stone-400 dark:text-stone-500">
           💡 Collez plusieurs clés (1 par ligne) de comptes Google différents pour multiplier le
@@ -249,10 +249,10 @@ export default function ApiKeysPage() {
 
   return (
     <AppLayout>
-      <div className="min-h-screen bg-stone-50 dark:bg-stone-950">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <div>
+        <div className="max-w-3xl mx-auto px-5 sm:px-8 lg:px-10 py-8 lg:py-10 space-y-6">
           <div>
-            <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100">
+            <h1 className="text-[26px] font-semibold tracking-tight text-stone-900 dark:text-stone-50">
               Clé API Gemini
             </h1>
             <p className="text-sm text-stone-500 dark:text-stone-400 mt-1">

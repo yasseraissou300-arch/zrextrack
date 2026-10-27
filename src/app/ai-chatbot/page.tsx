@@ -204,7 +204,7 @@ function TemplatesTab() {
 
   return (
     <div className="space-y-4">
-      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex gap-3">
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex gap-3">
         <AlertCircle size={16} className="text-blue-600 shrink-0 mt-0.5" />
         <div className="text-sm text-blue-800 space-y-1">
           <p className="font-semibold">Comment ça marche ?</p>
@@ -226,7 +226,7 @@ function TemplatesTab() {
         return (
           <div
             key={config.template_type}
-            className={`bg-white dark:bg-stone-900 rounded-2xl border shadow-sm overflow-hidden ${config.is_active ? `border-${meta.color}-200` : 'border-stone-100 dark:border-stone-800'}`}
+            className={`bg-white dark:bg-stone-900 rounded-xl border shadow-sm overflow-hidden ${config.is_active ? `border-${meta.color}-200` : 'border-stone-100 dark:border-stone-800'}`}
           >
             {/* Card header */}
             <div className="p-5 flex items-start gap-4">
@@ -282,7 +282,7 @@ function TemplatesTab() {
             {isExpanded && (
               <div className="border-t border-stone-100 dark:border-stone-800 p-5 space-y-4 bg-stone-50/50">
                 {/* Custom prompt — FIRST so it's immediately visible */}
-                <div className="space-y-1.5 bg-white dark:bg-stone-900 rounded-2xl border border-green-200 p-4">
+                <div className="space-y-1.5 bg-white dark:bg-stone-900 rounded-xl border border-green-200 p-4">
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-sm font-bold text-stone-800 dark:text-stone-100 flex items-center gap-1.5">
                       <Sparkles size={14} className="text-green-600" />
@@ -836,7 +836,7 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5 flex justify-center">
+      <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5 flex justify-center">
         <Loader2 size={20} className="animate-spin text-stone-400 dark:text-stone-500" />
       </div>
     );
@@ -844,7 +844,7 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
 
   return (
     <div
-      className={`bg-white dark:bg-stone-900 rounded-2xl border shadow-sm overflow-hidden ${status.connected ? meta.borderCls : 'border-stone-100 dark:border-stone-800'}`}
+      className={`bg-white dark:bg-stone-900 rounded-xl border shadow-sm overflow-hidden ${status.connected ? meta.borderCls : 'border-stone-100 dark:border-stone-800'}`}
     >
       {/* Header */}
       <div
@@ -1265,7 +1265,7 @@ function WhatsAppTab() {
   return (
     <div className="space-y-4 max-w-2xl">
       {!evolutionConfigured && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex gap-3">
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3">
           <AlertCircle size={16} className="text-amber-600 shrink-0 mt-0.5" />
           <div className="text-sm text-amber-800 space-y-2">
             <p className="font-semibold">Evolution API non configurée</p>
@@ -1308,7 +1308,7 @@ function WhatsAppTab() {
       </div>
 
       {diagOpen && (
-        <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-700 shadow-sm p-4 space-y-3">
+        <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200 dark:border-stone-700 shadow-sm p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Stethoscope size={14} className="text-stone-500 dark:text-stone-400" />
@@ -1558,7 +1558,7 @@ function WhatsAppTab() {
       ))}
 
       {/* Shared webhook URL info */}
-      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-4 space-y-3">
+      <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-4 space-y-3">
         <div className="flex items-center gap-2">
           <ExternalLink size={13} className="text-stone-400 dark:text-stone-500" />
           <h3 className="font-semibold text-stone-900 dark:text-stone-100 text-sm">
@@ -1673,7 +1673,7 @@ function FacebookTab() {
     <div className="space-y-4 max-w-2xl">
       {/* Status card */}
       <div
-        className={`rounded-2xl border p-5 flex items-center gap-4 ${connection?.connected ? 'bg-blue-50 border-blue-200' : 'bg-stone-50 border-stone-200 dark:border-stone-700'}`}
+        className={`rounded-xl border p-5 flex items-center gap-4 ${connection?.connected ? 'bg-blue-50 border-blue-200' : 'bg-stone-50 border-stone-200 dark:border-stone-700'}`}
       >
         <div
           className={`w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden shrink-0 ${connection?.connected ? 'bg-blue-100' : 'bg-stone-100'}`}
@@ -1714,7 +1714,7 @@ function FacebookTab() {
 
       {/* Page selection (after OAuth with multiple pages) */}
       {pendingPages.length > 0 && (
-        <div className="bg-white dark:bg-stone-900 rounded-2xl border border-blue-200 shadow-sm p-5 space-y-3">
+        <div className="bg-white dark:bg-stone-900 rounded-xl border border-blue-200 shadow-sm p-5 space-y-3">
           <p className="font-semibold text-stone-900 dark:text-stone-100 text-sm">
             Choisissez votre page Facebook
           </p>
@@ -1756,7 +1756,7 @@ function FacebookTab() {
       {!connection?.connected && pendingPages.length === 0 && (
         <a
           href="/api/ai-chatbot/facebook/oauth"
-          className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl bg-[#1877F2] text-white font-semibold text-sm hover:bg-[#166fe5] transition-colors shadow-sm active:scale-[0.98]"
+          className="flex items-center justify-center gap-3 w-full py-4 rounded-xl bg-[#1877F2] text-white font-semibold text-sm hover:bg-[#166fe5] transition-colors shadow-sm active:scale-[0.98]"
         >
           <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white">
             <path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.3 2.246.464 3.443.464 6.627 0 12-4.974 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.131 3.259L19.752 8l-6.561 6.963z" />
@@ -1767,7 +1767,7 @@ function FacebookTab() {
 
       {/* Webhook info (visible once connected) */}
       {connection?.connected && (
-        <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5 space-y-3">
+        <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5 space-y-3">
           <h3 className="font-semibold text-stone-900 dark:text-stone-100 text-sm">
             Webhook Meta (configuré automatiquement)
           </h3>
@@ -1885,7 +1885,7 @@ function GoogleSheetsTab() {
   return (
     <div className="space-y-5 max-w-2xl">
       {/* How it works */}
-      <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex gap-3">
+      <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex gap-3">
         <CheckCircle2 size={16} className="text-green-600 shrink-0 mt-0.5" />
         <div className="text-sm text-green-800 space-y-1">
           <p className="font-semibold">Connexion directe — sans Make ni Zapier</p>
@@ -1897,7 +1897,7 @@ function GoogleSheetsTab() {
       </div>
 
       {/* Step 1 — Share with service account */}
-      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5 space-y-3">
+      <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5 space-y-3">
         <div className="flex items-center gap-2 mb-1">
           <span className="w-6 h-6 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-xs font-bold shrink-0">
             1
@@ -1938,7 +1938,7 @@ function GoogleSheetsTab() {
       </div>
 
       {/* Step 2 — Paste Sheet URL per template */}
-      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5 space-y-4">
+      <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5 space-y-4">
         <div className="flex items-center gap-2 mb-1">
           <span className="w-6 h-6 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-xs font-bold shrink-0">
             2
@@ -2013,7 +2013,7 @@ function GoogleSheetsTab() {
       </div>
 
       {/* Columns written */}
-      <div className="bg-stone-50 rounded-2xl p-4 space-y-2">
+      <div className="bg-stone-50 rounded-xl p-4 space-y-2">
         <p className="text-xs font-semibold text-stone-600 dark:text-stone-300">
           Colonnes écrites automatiquement :
         </p>
@@ -2124,7 +2124,7 @@ function DonneesTab() {
             color: 'bg-blue-50 text-blue-700',
           },
         ].map((s) => (
-          <div key={s.label} className={`rounded-2xl p-4 text-center ${s.color}`}>
+          <div key={s.label} className={`rounded-xl p-4 text-center ${s.color}`}>
             <p className="text-2xl font-bold">{s.value}</p>
             <p className="text-xs mt-0.5 opacity-80">{s.label}</p>
           </div>
@@ -2132,7 +2132,7 @@ function DonneesTab() {
       </div>
 
       {/* Table */}
-      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 overflow-hidden">
         {loading ? (
           <div className="flex justify-center py-16">
             <Loader2 size={20} className="animate-spin text-stone-400 dark:text-stone-500" />
@@ -2154,7 +2154,7 @@ function DonneesTab() {
                     (h) => (
                       <th
                         key={h}
-                        className="px-4 py-3 text-left text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide"
+                        className="px-4 py-3 text-left text-[12.5px] font-normal text-stone-400"
                       >
                         {h}
                       </th>
@@ -2349,7 +2349,7 @@ function AnalyticsTab() {
           return (
             <div
               key={kpi.label}
-              className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-4 flex items-start gap-3"
+              className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-4 flex items-start gap-3"
             >
               <div
                 className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${kpi.color}`}
@@ -2369,7 +2369,7 @@ function AnalyticsTab() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Conversations par jour (14 jours) */}
-        <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5">
+        <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-stone-900 dark:text-stone-100 flex items-center gap-2">
               <BarChart3 size={15} className="text-indigo-500" />
@@ -2405,7 +2405,7 @@ function AnalyticsTab() {
         </div>
 
         {/* Par template */}
-        <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5">
+        <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5">
           <h3 className="font-semibold text-stone-900 dark:text-stone-100 mb-4 flex items-center gap-2">
             <Bot size={15} className="text-purple-500" />
             Par template
@@ -2447,7 +2447,7 @@ function AnalyticsTab() {
         </div>
 
         {/* Top wilayas */}
-        <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5">
+        <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5">
           <h3 className="font-semibold text-stone-900 dark:text-stone-100 mb-4 flex items-center gap-2">
             <MapPin size={15} className="text-green-500" />
             Top Wilayas
@@ -2489,7 +2489,7 @@ function AnalyticsTab() {
         </div>
 
         {/* Actions */}
-        <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-5 space-y-4">
+        <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5 space-y-4">
           <h3 className="font-semibold text-stone-900 dark:text-stone-100 flex items-center gap-2">
             <RefreshCw size={15} className="text-orange-500" />
             Automatisations
@@ -2846,7 +2846,7 @@ function ReclamationsTab() {
             color: 'bg-stone-50 text-stone-700 dark:text-stone-200',
           },
         ].map((s) => (
-          <div key={s.label} className={`rounded-2xl p-4 text-center ${s.color}`}>
+          <div key={s.label} className={`rounded-xl p-4 text-center ${s.color}`}>
             <p className="text-2xl font-bold">{s.value}</p>
             <p className="text-xs mt-0.5 opacity-80">{s.label}</p>
           </div>
@@ -2854,7 +2854,7 @@ function ReclamationsTab() {
       </div>
 
       {/* Table */}
-      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 overflow-hidden">
         {loading ? (
           <div className="flex justify-center py-16">
             <Loader2 size={20} className="animate-spin text-stone-400 dark:text-stone-500" />
@@ -2902,7 +2902,7 @@ function ReclamationsTab() {
                   ].map((h) => (
                     <th
                       key={h}
-                      className="px-4 py-3 text-left text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wide"
+                      className="px-4 py-3 text-left text-[12.5px] font-normal text-stone-400"
                     >
                       {h}
                     </th>
@@ -3111,7 +3111,7 @@ function ReclamationsTab() {
           onClick={() => setSelected(null)}
         >
           <div
-            className="bg-white dark:bg-stone-900 rounded-2xl shadow-xl max-w-lg w-full p-5 space-y-4"
+            className="bg-white dark:bg-stone-900 rounded-xl shadow-xl max-w-lg w-full p-5 space-y-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">
@@ -3231,9 +3231,6 @@ export default function AIChatbotPage() {
         {/* Header */}
         <div className="mb-6">
           <div className="flex items-center gap-3 mb-1">
-            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center">
-              <Bot size={20} className="text-white" />
-            </div>
             <div>
               <h1 className="text-lg font-bold text-stone-900 dark:text-stone-100">AI Chatbot</h1>
               <p className="text-xs text-stone-500 dark:text-stone-400">
