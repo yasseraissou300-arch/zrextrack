@@ -1,36 +1,27 @@
 import React from 'react';
 import AppLayout from '@/components/ui/AppLayout';
 import DashboardHeader from './components/DashboardHeader';
-import KPIBentoGrid from './components/KPIBentoGrid';
-import PeriodStatsPanel from './components/PeriodStatsPanel';
-import ChartsRow from './components/ChartsRow';
-import OrdersTable from './components/OrdersTable';
-import WhatsAppMessageLog from './components/WhatsAppMessageLog';
+import HomeOverview from './components/HomeOverview';
+import RecentOrders from './components/RecentOrders';
 import OnboardingChecklist from '@/components/OnboardingChecklist';
 import QuotaBanner from '@/components/QuotaBanner';
 import { Toaster } from 'sonner';
 
+// Accueil (refonte) : en-tête, bandeau d'action éventuel, chiffres clés,
+// courbe des livraisons, « À faire » et dernières commandes. Les vues
+// détaillées (tableau complet, répartition, journal WhatsApp) vivent dans
+// Commandes, Rapports et Messages.
 export default function AdminDashboardPage() {
   return (
     <AppLayout>
       <Toaster position="bottom-right" richColors />
-      <div className="min-h-screen bg-[hsl(var(--background))]">
-        <div className="max-w-screen-2xl mx-auto px-6 lg:px-8 xl:px-10 py-6 space-y-6">
-          <DashboardHeader />
-          <OnboardingChecklist />
-          <QuotaBanner />
-          <KPIBentoGrid />
-          <PeriodStatsPanel />
-          <ChartsRow />
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-            <div className="xl:col-span-2">
-              <OrdersTable />
-            </div>
-            <div className="xl:col-span-1">
-              <WhatsAppMessageLog />
-            </div>
-          </div>
-        </div>
+      <div className="max-w-[1120px] mx-auto px-5 sm:px-8 lg:px-10 py-8 lg:py-10 space-y-6">
+        <DashboardHeader />
+        <OnboardingChecklist />
+        <QuotaBanner />
+        <HomeOverview>
+          <RecentOrders />
+        </HomeOverview>
       </div>
     </AppLayout>
   );

@@ -3,15 +3,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   RefreshCw,
-  Download,
-  Plus,
-  Wifi,
-  WifiOff,
-  Zap,
   PauseCircle,
   PlayCircle,
   Trash2,
   AlertTriangle,
+  MoreHorizontal,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { loadSyncSettings, zrReady } from '@/lib/sync-settings-client';
@@ -35,6 +31,26 @@ export default function DashboardHeader() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const [showClearModal, setShowClearModal] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [firstName, setFirstName] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        const name = (j?.full_name as string | undefined)?.trim().split(/\s+/)[0];
+        if (name) setFirstName(name.charAt(0).toUpperCase() + name.slice(1));
+      })
+      .catch(() => {});
+  }, []);
+
+  const hour = new Date().getHours();
+  const greeting = `${hour < 18 ? 'Bonjour' : 'Bonsoir'}${firstName ? ` ${firstName}` : ''}`;
+  const todayLabel = new Date().toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
 
   useEffect(() => {
     // Charge depuis Supabase (cross-device). Le helper hydrate aussi le miroir
@@ -228,93 +244,82 @@ export default function DashboardHeader() {
           </div>
         </div>
       )}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-stone-100 dark:border-stone-800">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2.5 mb-1.5 flex-wrap">
-            <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100 tracking-tight">
-              Tableau de bord
-            </h1>
-            {hasToken ? (
-              <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full border bg-green-50 text-green-700 border-green-200">
-                <Wifi size={10} />
-                ZREXpress connecté
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full border bg-amber-50 text-amber-700 border-amber-200">
-                <WifiOff size={10} />
-                Token non configuré
-              </span>
-            )}
-            {hasToken && (
-              <button
-                onClick={toggleAutoSync}
-                title={autoSyncEnabled ? "Arrêter l'auto-sync" : "Activer l'auto-sync"}
-                className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full border transition-all ${
-                  autoSyncEnabled
-                    ? 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100'
-                    : 'bg-stone-100 text-stone-400 dark:text-stone-500 border-stone-200 hover:bg-stone-200'
-                }`}
-              >
-                {autoSyncEnabled ? (
-                  <>
-                    <Zap size={9} className="animate-pulse" />
-                    Auto-sync 30s
-                    <PauseCircle size={10} />
-                  </>
-                ) : (
-                  <>
-                    <PlayCircle size={10} />
-                    Auto-sync OFF
-                  </>
-                )}
-              </button>
-            )}
-          </div>
-          <p className="text-sm text-stone-500 dark:text-stone-400">
-            {lastSync ? (
-              <>
-                Dernière sync :{' '}
-                <span className="font-medium text-stone-700 dark:text-stone-200">{lastSync}</span>
-                {syncedCount !== null && (
-                  <span className="text-stone-400 dark:text-stone-500">
-                    {' '}
-                    · {syncedCount} commandes
-                  </span>
-                )}
-              </>
-            ) : (
-              <span className="text-stone-500 dark:text-stone-400">
-                {hasToken
-                  ? 'Synchronisation en cours...'
-                  : 'Configurez votre token dans Sync ZREXpress'}
-              </span>
-            )}
+          <p className="text-[13px] text-stone-400 dark:text-stone-500 first-letter:uppercase">
+            {todayLabel}
           </p>
+          <h1 className="mt-1 text-[26px] font-semibold tracking-tight text-stone-900 dark:text-stone-50">
+            {greeting}
+          </h1>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-2 text-[13px] text-stone-500 dark:text-stone-400">
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                !hasToken
+                  ? 'bg-amber-500'
+                  : syncing
+                    ? 'bg-violet-500 animate-pulse'
+                    : 'bg-emerald-500'
+              }`}
+            />
+            {!hasToken
+              ? 'ZRExpress non connecté'
+              : syncing
+                ? 'Synchronisation…'
+                : lastSync
+                  ? `Synchronisé · ${lastSync.slice(-8, -3)}`
+                  : 'Prêt'}
+          </span>
+
+          <div className="relative">
+            <button
+              onClick={() => setMenuOpen((o) => !o)}
+              aria-label="Plus d'options"
+              className="h-9 w-9 grid place-items-center rounded-md border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 text-stone-500 hover:text-stone-800 dark:hover:text-stone-100 transition-colors"
+            >
+              <MoreHorizontal size={16} />
+            </button>
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />
+                <div className="absolute right-0 mt-2 w-60 z-40 rounded-lg border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 shadow-lg py-1 text-[13.5px]">
+                  {hasToken && (
+                    <button
+                      onClick={() => {
+                        setMenuOpen(false);
+                        toggleAutoSync();
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-stone-700 dark:text-stone-200 hover:bg-stone-50 dark:hover:bg-stone-800"
+                    >
+                      {autoSyncEnabled ? <PauseCircle size={15} /> : <PlayCircle size={15} />}
+                      {autoSyncEnabled ? 'Mettre en pause la sync auto' : 'Activer la sync auto'}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setShowClearModal(true);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10"
+                  >
+                    <Trash2 size={15} />
+                    Vider l'historique
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
           <button
             onClick={() => runSync(false)}
             disabled={syncing}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-stone-200 bg-white dark:bg-stone-900 text-sm font-medium text-stone-700 dark:text-stone-200 hover:bg-stone-50 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+            className="h-9 px-4 rounded-md bg-stone-900 dark:bg-white text-white dark:text-stone-900 text-[13.5px] font-medium flex items-center gap-2 hover:bg-stone-800 dark:hover:bg-stone-100 transition-colors disabled:opacity-60"
           >
-            <RefreshCw size={14} className={syncing ? 'animate-spin text-violet-500' : ''} />
-            {syncing ? 'Sync...' : 'Sync maintenant'}
-          </button>
-          <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 text-sm font-medium text-stone-700 dark:text-stone-200 hover:bg-stone-50 dark:hover:bg-stone-800 transition-all active:scale-95 shadow-sm">
-            <Download size={14} />
-            Exporter
-          </button>
-          <button
-            onClick={() => setShowClearModal(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-sm font-medium text-red-600 hover:bg-red-100 transition-all active:scale-95 shadow-sm"
-          >
-            <Trash2 size={14} />
-            Vider l'historique
-          </button>
-          <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white text-sm font-semibold hover:shadow-lg hover:shadow-violet-500/30 transition-all active:scale-95 shadow-md shadow-violet-500/20">
-            <Plus size={14} />
-            Nouvelle commande
+            <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
+            {syncing ? 'Synchronisation…' : 'Synchroniser'}
           </button>
         </div>
       </div>
