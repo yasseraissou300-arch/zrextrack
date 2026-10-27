@@ -218,14 +218,11 @@ export default function AutoSwapPage() {
 
   return (
     <AppLayout>
-      <div className="max-w-screen-xl mx-auto px-6 py-6 space-y-6">
+      <div className="max-w-[1120px] mx-auto px-5 sm:px-8 lg:px-10 py-8 lg:py-10 space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-lg flex items-center justify-center shadow-sm shadow-violet-500/25">
-            <Repeat size={16} className="text-white" />
-          </div>
           <div>
-            <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100 tracking-tight">
+            <h1 className="text-[26px] font-semibold tracking-tight text-stone-900 dark:text-stone-50">
               AutoSwap
             </h1>
             <p className="text-sm text-stone-500 dark:text-stone-400">
@@ -259,7 +256,7 @@ export default function AutoSwapPage() {
         )}
 
         {/* Statistiques des commandes swappées — focus livré vs annulé */}
-        <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 p-6 space-y-4">
+        <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-6 space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-2">
               <BarChart3 size={16} className="text-stone-500 dark:text-stone-400" />
@@ -414,7 +411,7 @@ export default function AutoSwapPage() {
         </div>
 
         {/* Scan action */}
-        <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 p-6">
+        <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-6">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
               <h2 className="font-semibold text-stone-900 dark:text-stone-100">
@@ -428,7 +425,7 @@ export default function AutoSwapPage() {
             <button
               onClick={runScan}
               disabled={scanning || !credentialsReady}
-              className="flex items-center gap-2 bg-gradient-to-br from-violet-500 to-fuchsia-500 hover:shadow-lg hover:shadow-violet-500/30 disabled:from-stone-300 disabled:to-stone-300 disabled:shadow-none disabled:cursor-not-allowed text-white font-semibold px-5 py-2.5 rounded-xl transition-all active:scale-95 shadow-md shadow-violet-500/20"
+              className="flex items-center gap-2 bg-stone-900 dark:bg-white dark:text-stone-900 hover:shadow-lg disabled:from-stone-300 disabled:to-stone-300 disabled:shadow-none disabled:cursor-not-allowed text-white font-semibold px-5 py-2.5 rounded-xl transition-all active:scale-95"
             >
               {scanning ? <Loader2 size={18} className="animate-spin" /> : <Search size={18} />}
               {scanning ? 'Analyse en cours…' : 'Scanner pour swaps'}
@@ -457,7 +454,7 @@ export default function AutoSwapPage() {
 
         {/* Diagnostic — vérité terrain des libellés ZRExpress */}
         {diag && (
-          <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200 dark:border-stone-800 p-5 space-y-4">
+          <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200 dark:border-stone-800 p-5 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-stone-900 dark:text-stone-100">Diagnostic ZRExpress</h3>
               <button
@@ -632,7 +629,7 @@ export default function AutoSwapPage() {
 
         {/* Filters */}
         {preview && preview.proposals.length > 0 && (
-          <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 p-4 flex items-center gap-3 flex-wrap">
+          <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-4 flex items-center gap-3 flex-wrap">
             <Filter size={16} className="text-stone-400 dark:text-stone-500" />
             <select
               value={filterConfidence}
@@ -663,7 +660,7 @@ export default function AutoSwapPage() {
         {/* Proposals table */}
         {preview &&
           (preview.proposals.length === 0 ? (
-            <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 p-12 text-center">
+            <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-12 text-center">
               <Package size={36} className="mx-auto text-stone-300 dark:text-stone-600 mb-3" />
               <h3 className="font-semibold text-stone-900 dark:text-stone-100 mb-1">
                 Aucun match trouvé
@@ -677,7 +674,7 @@ export default function AutoSwapPage() {
               </p>
             </div>
           ) : (
-            <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 overflow-hidden">
+            <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-stone-50 border-b border-stone-100 dark:border-stone-800">
@@ -763,7 +760,7 @@ export default function AutoSwapPage() {
                                 href={parcelDetailUrl(p.swappable.id)}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center justify-center gap-1.5 text-xs bg-violet-600 hover:bg-violet-700 text-white font-medium px-3 py-1.5 rounded-md transition-colors"
+                                className="flex items-center justify-center gap-1.5 text-xs bg-stone-900 hover:bg-stone-800 text-white dark:bg-white dark:text-stone-900 dark:hover:bg-stone-100 font-medium px-3 py-1.5 rounded-md transition-colors"
                                 title="Ouvre la fiche du colis à rediriger dans ZRExpress"
                               >
                                 <ExternalLink size={12} />
@@ -844,7 +841,7 @@ function StatCard({
             }
           : undefined
       }
-      className={`bg-white dark:bg-stone-900 rounded-2xl shadow-sm border p-4 transition-all ${
+      className={`bg-white dark:bg-stone-900 rounded-xl shadow-sm border p-4 transition-all ${
         interactive
           ? 'cursor-pointer hover:shadow-md hover:border-stone-300 dark:hover:border-stone-600 active:scale-[0.98]'
           : ''
@@ -1056,7 +1053,7 @@ function SizeEquivalencesCard() {
   };
 
   return (
-    <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 overflow-hidden">
+    <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 overflow-hidden">
       <button
         onClick={() => setExpanded((e) => !e)}
         className="w-full p-4 flex items-center gap-3 hover:bg-stone-50 dark:hover:bg-stone-800 transition-colors text-left"
@@ -1149,14 +1146,14 @@ function SizeEquivalencesCard() {
                     value={newKey}
                     onChange={(e) => setNewKey(e.target.value)}
                     placeholder="Clé produit (SKU ou nom, ex : « mrl » ou « hijab miral »)"
-                    className="w-full px-3 py-2 text-sm border border-stone-200 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="w-full px-3 py-2 text-sm border border-stone-200 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-stone-900/10 dark:focus:ring-white/10/20"
                   />
                   <input
                     type="text"
                     value={newLabel}
                     onChange={(e) => setNewLabel(e.target.value)}
                     placeholder="Nom lisible (optionnel, ex : « Hijab Miral »)"
-                    className="w-full px-3 py-2 text-sm border border-stone-200 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="w-full px-3 py-2 text-sm border border-stone-200 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-stone-900/10 dark:focus:ring-white/10/20"
                   />
                   <textarea
                     value={newGroupsText}
@@ -1165,12 +1162,12 @@ function SizeEquivalencesCard() {
                     placeholder={
                       'Groupes de tailles équivalentes — 1 ligne par groupe, virgules entre tailles\n\nExemple :\n40, 42, 44\n46, 48, 50'
                     }
-                    className="w-full px-3 py-2 text-sm font-mono border border-stone-200 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                    className="w-full px-3 py-2 text-sm font-mono border border-stone-200 dark:border-stone-700 rounded-lg bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-stone-900/10 dark:focus:ring-white/10/20"
                   />
                   <button
                     onClick={addNew}
                     disabled={saving || !newKey.trim() || !newGroupsText.trim()}
-                    className="flex items-center gap-1.5 text-sm px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white font-medium rounded-lg disabled:opacity-50"
+                    className="flex items-center gap-1.5 text-sm px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white dark:bg-white dark:text-stone-900 dark:hover:bg-stone-100 font-medium rounded-lg disabled:opacity-50"
                   >
                     {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                     Enregistrer

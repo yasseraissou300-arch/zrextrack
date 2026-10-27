@@ -50,14 +50,11 @@ export default function VoiceCallsPage() {
   const [tab, setTab] = useState<Tab>('test');
   return (
     <AppLayout>
-      <div className="max-w-screen-xl mx-auto px-6 py-6 space-y-5">
+      <div className="max-w-[1120px] mx-auto px-5 sm:px-8 lg:px-10 py-8 lg:py-10 space-y-5">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center shadow-sm shadow-emerald-500/25">
-            <PhoneCall size={16} className="text-white" />
-          </div>
           <div>
-            <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100 tracking-tight">
+            <h1 className="text-[26px] font-semibold tracking-tight text-stone-900 dark:text-stone-50">
               AI Voice Calling
             </h1>
             <p className="text-sm text-stone-500 dark:text-stone-400">
@@ -138,7 +135,7 @@ function ConnexionTab() {
 
   return (
     <div className="space-y-4">
-      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-900 space-y-1">
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-900 space-y-1">
         <p className="font-semibold">Setup Twilio (5 min)</p>
         <ol className="list-decimal pl-5 space-y-0.5">
           <li>
@@ -163,7 +160,7 @@ function ConnexionTab() {
         </ol>
       </div>
 
-      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 p-5 space-y-3">
+      <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5 space-y-3">
         <h3 className="font-semibold text-stone-900 dark:text-stone-100 text-sm">
           Identifiants Twilio
         </h3>
@@ -198,7 +195,7 @@ function ConnexionTab() {
         </label>
       </div>
 
-      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 p-5 space-y-3">
+      <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5 space-y-3">
         <h3 className="font-semibold text-stone-900 dark:text-stone-100 text-sm">Script darija</h3>
         <Field
           label="Nom de la boutique"
@@ -283,7 +280,7 @@ function TestTab() {
 
   return (
     <div className="space-y-4 max-w-xl">
-      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-xs text-blue-900">
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs text-blue-900">
         <p className="font-semibold">💡 Test sur ton propre numéro d'abord</p>
         <p className="mt-1">
           Avant de lancer des appels en masse, teste sur ton tel personnel pour vérifier la voix, le
@@ -291,7 +288,7 @@ function TestTab() {
         </p>
       </div>
 
-      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 p-5 space-y-3">
+      <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5 space-y-3">
         <Field label="Nom client" value={name} onChange={setName} placeholder="Ahmed Belkacem" />
         <Field
           label="Téléphone"
@@ -376,7 +373,7 @@ function HistoriqueTab() {
         </div>
       )}
 
-      <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 overflow-hidden">
+      <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 overflow-hidden">
         {calls.length === 0 ? (
           <div className="py-16 text-center text-stone-400">
             <Phone size={32} className="mx-auto mb-2 opacity-40" />
@@ -493,7 +490,7 @@ function FieldArea({
 
 function Stat({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className={`rounded-2xl p-4 text-center ${color}`}>
+    <div className={`rounded-xl p-4 text-center ${color}`}>
       <p className="text-2xl font-bold">{value}</p>
       <p className="text-[11px] mt-0.5 opacity-80">{label}</p>
     </div>

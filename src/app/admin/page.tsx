@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { Users, TrendingUp, Ban, CheckCircle, Crown, Package, RefreshCw } from 'lucide-react';
+import { Users, TrendingUp, Ban, CheckCircle, Package, RefreshCw } from 'lucide-react';
 
 type Profile = {
   id: string;
@@ -104,11 +104,10 @@ export default function AdminPage() {
       <div className="bg-white dark:bg-stone-900 border-b border-stone-200 dark:border-stone-800 px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-violet-100 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300 rounded-xl flex items-center justify-center">
-              <Crown size={18} />
-            </div>
             <div>
-              <h1 className="text-lg font-bold text-stone-900 dark:text-stone-100">Super Admin</h1>
+              <h1 className="text-[20px] font-semibold tracking-tight text-stone-900 dark:text-stone-50">
+                Super Admin
+              </h1>
               <p className="text-xs text-stone-500 dark:text-stone-400">
                 Gestion des clients Autotim
               </p>
@@ -123,7 +122,7 @@ export default function AdminPage() {
             </button>
             <a
               href="/admin-dashboard"
-              className="flex items-center gap-2 text-sm bg-violet-600 text-white px-4 py-2 rounded-lg hover:bg-violet-700"
+              className="flex items-center gap-2 text-sm bg-stone-900 text-white px-4 py-2 rounded-md hover:bg-stone-800 dark:bg-white dark:text-stone-900"
             >
               <Package size={14} /> Dashboard
             </a>
@@ -131,7 +130,7 @@ export default function AdminPage() {
         </div>
       </div>
 
-      <div className="p-6 max-w-7xl mx-auto">
+      <div className="p-6 lg:p-10 max-w-[1120px] mx-auto">
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           {[

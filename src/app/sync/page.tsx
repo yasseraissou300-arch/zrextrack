@@ -222,11 +222,10 @@ export default function SyncPage() {
     <AppLayout>
       <div className="max-w-screen-xl mx-auto px-6 py-6 space-y-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-green-100 dark:bg-green-500/15 rounded-xl flex items-center justify-center">
-            <RefreshCw size={20} className="text-green-600" />
-          </div>
           <div>
-            <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100">Sync ZREXpress</h1>
+            <h1 className="text-[26px] font-semibold tracking-tight text-stone-900 dark:text-stone-50">
+              Sync ZREXpress
+            </h1>
             <p className="text-sm text-stone-500 dark:text-stone-400">
               Importez vos commandes et configurez vos messages automatiques
             </p>
@@ -236,7 +235,7 @@ export default function SyncPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-5">
             {/* Clé API */}
-            <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 p-6">
+            <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Key size={18} className="text-stone-500 dark:text-stone-400" />
                 <h2 className="font-semibold text-stone-900 dark:text-stone-100">
@@ -317,7 +316,7 @@ export default function SyncPage() {
             </div>
 
             {/* Sync */}
-            <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 p-6">
+            <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Package size={18} className="text-stone-500 dark:text-stone-400" />
                 <h2 className="font-semibold text-stone-900 dark:text-stone-100">
@@ -331,7 +330,7 @@ export default function SyncPage() {
               <button
                 onClick={runSync}
                 disabled={loading || !canSave}
-                className="w-full flex items-center justify-center gap-3 bg-gradient-to-br from-violet-500 to-fuchsia-500 hover:shadow-lg hover:shadow-violet-500/30 shadow-md shadow-violet-500/20 disabled:bg-stone-200 disabled:text-stone-400 dark:text-stone-500 text-white font-semibold py-4 rounded-xl transition-colors text-base disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center gap-3 bg-stone-900 dark:bg-white dark:text-stone-900 hover:shadow-lg disabled:bg-stone-200 disabled:text-stone-400 dark:text-stone-500 text-white font-semibold py-4 rounded-xl transition-colors text-base disabled:cursor-not-allowed"
               >
                 <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
                 {loading ? 'Synchronisation en cours...' : 'Synchroniser maintenant'}
@@ -375,7 +374,7 @@ export default function SyncPage() {
                 sont désormais entièrement gérés dans Messages → Envoyer. */}
             <a
               href="/messages"
-              className="flex items-center justify-between gap-2 bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 p-5 hover:border-green-300 transition-colors"
+              className="flex items-center justify-between gap-2 bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5 hover:border-green-300 transition-colors"
             >
               <span className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-green-100 flex items-center justify-center">
@@ -396,7 +395,7 @@ export default function SyncPage() {
 
           {/* Colonne droite */}
           <div className="space-y-4">
-            <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 p-6">
+            <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-6">
               <h2 className="font-semibold text-stone-900 dark:text-stone-100 mb-4">
                 Comment ça marche
               </h2>
@@ -420,7 +419,7 @@ export default function SyncPage() {
               </div>
             </div>
 
-            <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 p-6">
+            <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Clock size={16} className="text-stone-400 dark:text-stone-500" />
                 <h2 className="font-semibold text-stone-900 dark:text-stone-100">Historique</h2>

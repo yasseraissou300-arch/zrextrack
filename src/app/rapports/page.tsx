@@ -2,7 +2,7 @@
 
 import AppLayout from '@/components/ui/AppLayout';
 import { useEffect, useState } from 'react';
-import { BarChart3, TrendingUp, Package, CheckCircle2, XCircle, RotateCcw } from 'lucide-react';
+import { TrendingUp, Package, CheckCircle2, XCircle, RotateCcw } from 'lucide-react';
 
 export default function RapportsPage() {
   const [stats, setStats] = useState<any>({});
@@ -52,13 +52,12 @@ export default function RapportsPage() {
 
   return (
     <AppLayout>
-      <div className="max-w-screen-2xl mx-auto px-6 py-6 space-y-6">
+      <div className="max-w-[1120px] mx-auto px-5 sm:px-8 lg:px-10 py-8 lg:py-10 space-y-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-500/15 rounded-xl flex items-center justify-center">
-            <BarChart3 size={20} className="text-indigo-600" />
-          </div>
           <div>
-            <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100">Rapports</h1>
+            <h1 className="text-[26px] font-semibold tracking-tight text-stone-900 dark:text-stone-50">
+              Rapports
+            </h1>
             <p className="text-sm text-stone-500 dark:text-stone-400">
               Statistiques et analyses de vos commandes
             </p>
@@ -82,7 +81,7 @@ export default function RapportsPage() {
           ].map((s) => (
             <div
               key={s.label}
-              className="bg-white dark:bg-stone-900 rounded-2xl p-4 shadow-sm border border-stone-100 dark:border-stone-800"
+              className="bg-white dark:bg-stone-900 rounded-xl p-4 shadow-sm border border-stone-100 dark:border-stone-800"
             >
               <p className="text-2xl font-bold text-stone-900 dark:text-stone-100">
                 {loading ? '—' : (s.value ?? 0)}
@@ -93,7 +92,7 @@ export default function RapportsPage() {
         </div>
 
         {/* Top wilayas */}
-        <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 p-6">
+        <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-6">
           <h2 className="font-semibold text-stone-900 dark:text-stone-100 mb-4">Top Wilayas</h2>
           {loading ? (
             <p className="text-stone-400 dark:text-stone-500">Chargement...</p>
