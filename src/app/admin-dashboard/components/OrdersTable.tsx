@@ -214,7 +214,7 @@ export default function OrdersTable() {
       />
 
       {/* Onglets par statut */}
-      <div className="flex items-center gap-6 overflow-x-auto border-b border-stone-200 dark:border-stone-800 text-[14px]">
+      <div className="flex items-center gap-6 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-b border-stone-200 dark:border-stone-800 text-[14px]">
         {TABS.map((t) => {
           const active = statusFilter === t.key;
           const n = tabCount(t.key);
@@ -345,7 +345,7 @@ export default function OrdersTable() {
           <table className="w-full text-[14px]">
             <thead>
               <tr className="text-left text-[12.5px] text-stone-400 border-b border-stone-100 dark:border-stone-800">
-                <th className="w-10 pl-6 py-3 font-normal">
+                <th className="w-12 pl-6 pr-3 py-3 font-normal">
                   <input
                     type="checkbox"
                     checked={allSelected}
@@ -394,7 +394,10 @@ export default function OrdersTable() {
                         selected.has(order.id) ? 'bg-stone-50 dark:bg-white/[0.04]' : ''
                       }`}
                     >
-                      <td className="pl-6 py-3.5" onClick={(e) => toggleSelect(order.id, e)}>
+                      <td
+                        className="w-12 pl-6 pr-3 py-3.5"
+                        onClick={(e) => toggleSelect(order.id, e)}
+                      >
                         <input
                           type="checkbox"
                           checked={selected.has(order.id)}
