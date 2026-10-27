@@ -11,6 +11,7 @@
 // incomplète reste relancée (comportement inchangé).
 
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
+import { instanceNameFor } from '@/lib/whatsapp/instance-ownership';
 import { NextRequest } from 'next/server';
 import { FakeSupabase } from './helpers/fake-supabase';
 
@@ -100,7 +101,7 @@ beforeEach(() => {
     vi.spyOn(console, m).mockImplementation(() => {});
   }
   db.seed('public', 'whatsapp_instances', [
-    { user_id: T, service_type: 'sav', instance_name: 'zrex_t_sav', connected: true },
+    { user_id: T, service_type: 'sav', instance_name: instanceNameFor(T, 'sav'), connected: true },
   ]);
   db.seed('public', 'profiles', [{ id: T, whatsapp_warmup_started_at: null }]);
 });
