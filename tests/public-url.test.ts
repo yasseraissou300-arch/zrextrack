@@ -163,3 +163,13 @@ describe('buildMessage — lien {{lien}} réellement envoyé', () => {
     );
   });
 });
+
+describe('repli final = domaine officiel AutoTim', () => {
+  it('aucune variable → https://autotim.vercel.app, jamais Rocket', () => {
+    const r = resolvePublicBaseUrl({} as NodeJS.ProcessEnv);
+    expect(r.url).toBe('https://autotim.vercel.app');
+    expect(trackingUrl('ZR-9', {} as NodeJS.ProcessEnv)).toBe(
+      'https://autotim.vercel.app/track/ZR-9'
+    );
+  });
+});

@@ -22,7 +22,8 @@
 
 import { logEvent } from '@/lib/security/safe-log';
 
-export const LEGACY_PUBLIC_URL = 'https://zrextrack6753.builtwithrocket.new';
+// Domaine officiel choisi par le propriétaire (2026-10-26) : repli final.
+export const LEGACY_PUBLIC_URL = 'https://autotim.vercel.app';
 
 export type PublicUrlSource =
   | 'NEXT_PUBLIC_SITE_URL'
