@@ -2,23 +2,16 @@
 
 import AppLayout from '@/components/ui/AppLayout';
 import OrdersTable from '../admin-dashboard/components/OrdersTable';
-import { Package } from 'lucide-react';
+import { Toaster } from 'sonner';
 
 export default function CommandesPage() {
   return (
     <AppLayout>
-      <div className="max-w-screen-2xl mx-auto px-6 py-6 space-y-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-100 dark:bg-blue-500/15 rounded-xl flex items-center justify-center">
-            <Package size={20} className="text-blue-600" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-stone-900 dark:text-stone-100">Commandes</h1>
-            <p className="text-sm text-stone-500 dark:text-stone-400">
-              Toutes vos commandes ZREXpress
-            </p>
-          </div>
-        </div>
+      <Toaster position="bottom-right" richColors />
+      <div className="max-w-[1120px] mx-auto px-5 sm:px-8 lg:px-10 py-8 lg:py-10 space-y-5">
+        <h1 className="text-[26px] font-semibold tracking-tight text-stone-900 dark:text-stone-50">
+          Commandes
+        </h1>
         <OrdersTable />
       </div>
     </AppLayout>

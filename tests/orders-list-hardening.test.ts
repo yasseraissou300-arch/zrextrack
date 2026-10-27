@@ -135,3 +135,16 @@ describe('/api/orders — erreurs', () => {
     expect(JSON.stringify(body)).not.toMatch(/logic tree|orders|tracking_number/);
   });
 });
+
+describe('/api/orders — onglets de statut', () => {
+  it('en_cours = préparation + transit + livraison (un seul filtre in)', async () => {
+    await get({ status: 'en_cours' });
+    expect(requests[0].get('delivery_status')).toBe('in.(en_preparation,en_transit,en_livraison)');
+    expect(requests[0].get('user_id')).toBe(`eq.${ME}`);
+  });
+
+  it('statut simple inchangé', async () => {
+    await get({ status: 'livre' });
+    expect(requests[0].get('delivery_status')).toBe('eq.livre');
+  });
+});

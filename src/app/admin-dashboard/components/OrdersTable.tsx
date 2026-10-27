@@ -1,20 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  Search,
-  ChevronLeft,
-  ChevronRight,
-  RefreshCw,
-  Copy,
-  CheckCheck,
-  ChevronRight as Arrow,
-  Trash2,
-  Wand2,
-} from 'lucide-react';
+import { Search, RefreshCw, CheckCheck, Trash2, Wand2, MoreHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 import { SYNC_DONE_EVENT } from './DashboardHeader';
 import OrderDetailModal from './OrderDetailModal';
+import { formatDA, prettyProduct, statusBadge } from '@/lib/ui/order-display';
 
 type Status = 'en_preparation' | 'en_transit' | 'en_livraison' | 'livre' | 'echec' | 'retourne';
 
@@ -35,23 +26,13 @@ interface Order {
   cod: number;
 }
 
-const statusConfig: Record<Status, { label: string; badge: string }> = {
-  en_preparation: { label: 'En préparation', badge: 'bg-purple-100 text-purple-700' },
-  en_transit: { label: 'En transit', badge: 'bg-blue-100 text-blue-700' },
-  en_livraison: { label: 'En livraison', badge: 'bg-amber-100 text-amber-700' },
-  livre: { label: 'Livré', badge: 'bg-green-100 text-green-700' },
-  echec: { label: 'Échec', badge: 'bg-red-100 text-red-700' },
-  retourne: { label: 'Retourné', badge: 'bg-stone-100 text-stone-600 dark:text-stone-300' },
-};
-
-function formatDeliveryType(type: string): string {
-  if (!type) return '—';
-  const t = type.toLowerCase();
-  if (t.includes('pickup') || t.includes('point')) return 'Point relais';
-  if (t.includes('home') || t.includes('domicile')) return 'Domicile';
-  if (t.includes('bureau') || t.includes('desk')) return 'Bureau';
-  return type;
-}
+const TABS = [
+  { key: 'all', label: 'Toutes' },
+  { key: 'en_cours', label: 'En cours' },
+  { key: 'livre', label: 'Livrées' },
+  { key: 'echec', label: 'Échecs' },
+  { key: 'retourne', label: 'Retours' },
+];
 
 // Était 5 s → une requête /api/orders (+ COUNT pagination) toutes les 5 s.
 // Passé à 60 s + pause onglet inactif pour soulager la base.
@@ -71,6 +52,26 @@ export default function OrdersTable() {
   const [deleting, setDeleting] = useState(false);
   const [pageSize, setPageSize] = useState(10);
   const [reclassifying, setReclassifying] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [counts, setCounts] = useState<Record<string, number> | null>(null);
+
+  // Compteurs des onglets : une requête /api/stats (répartition), rafraîchie
+  // après chaque sync.
+  const fetchCounts = useCallback(async () => {
+    try {
+      const r = await fetch('/api/stats', { cache: 'no-store' });
+      const j = r.ok ? await r.json() : null;
+      if (j?.distribution) setCounts(j.distribution);
+    } catch {
+      /* compteurs facultatifs */
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCounts();
+    window.addEventListener(SYNC_DONE_EVENT, fetchCounts);
+    return () => window.removeEventListener(SYNC_DONE_EVENT, fetchCounts);
+  }, [fetchCounts]);
 
   const fetchOrders = useCallback(
     async (silent = false) => {
@@ -186,8 +187,23 @@ export default function OrdersTable() {
     setReclassifying(false);
   };
 
-  const totalPages = Math.ceil(total / pageSize);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const allSelected = orders.length > 0 && selected.size === orders.length;
+  const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, total);
+
+  const tabCount = (key: string) => {
+    if (!counts) return null;
+    if (key === 'all') return Object.values(counts).reduce((a, b) => a + b, 0);
+    if (key === 'en_cours')
+      return (counts.en_preparation ?? 0) + (counts.en_transit ?? 0) + (counts.en_livraison ?? 0);
+    return counts[key] ?? 0;
+  };
+
+  const menuItem =
+    'w-full flex items-center gap-2.5 px-3 py-2 text-left text-stone-700 dark:text-stone-200 hover:bg-stone-50 dark:hover:bg-stone-800 disabled:opacity-50';
+  const pagerButton =
+    'h-8 px-3 rounded-md border border-stone-200 dark:border-stone-800 text-stone-700 dark:text-stone-200 disabled:text-stone-300 dark:disabled:text-stone-600 hover:bg-stone-50 dark:hover:bg-stone-800 disabled:hover:bg-transparent';
 
   return (
     <>
@@ -197,273 +213,270 @@ export default function OrdersTable() {
         onDeleted={() => fetchOrders(true)}
       />
 
-      <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-stone-100 dark:border-stone-800 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-          <div className="flex items-center gap-2">
-            <h2 className="font-semibold text-stone-800 dark:text-stone-100 text-sm">
-              Commandes récentes{' '}
-              <span className="text-stone-400 dark:text-stone-500 font-normal">({total})</span>
-            </h2>
-            {lastRefresh && (
-              <span className="text-[10px] text-stone-300 dark:text-stone-600 font-mono">
-                {lastRefresh}
-              </span>
-            )}
-          </div>
-          <div className="flex gap-2 flex-wrap items-center">
-            {selected.size > 0 && (
-              <div className="flex items-center gap-2 mr-1">
-                <span className="text-xs font-medium text-stone-500 dark:text-stone-400 bg-stone-100 px-2 py-1 rounded-lg">
-                  {selected.size} sélectionnée(s)
-                </span>
-                <button
-                  onClick={handleBulkDelete}
-                  disabled={deleting}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 border border-red-200 text-red-600 text-xs font-semibold hover:bg-red-100 transition-colors disabled:opacity-50"
+      {/* Onglets par statut */}
+      <div className="flex items-center gap-6 overflow-x-auto border-b border-stone-200 dark:border-stone-800 text-[14px]">
+        {TABS.map((t) => {
+          const active = statusFilter === t.key;
+          const n = tabCount(t.key);
+          return (
+            <button
+              key={t.key}
+              onClick={() => {
+                setStatusFilter(t.key);
+                setPage(1);
+              }}
+              className={`pb-3 -mb-px border-b-2 whitespace-nowrap transition-colors ${
+                active
+                  ? 'border-stone-900 dark:border-stone-100 text-stone-900 dark:text-stone-50 font-medium'
+                  : 'border-transparent text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200'
+              }`}
+            >
+              {t.label}
+              {n !== null && (
+                <span
+                  className={`ml-1.5 tabular-nums ${active ? 'text-stone-400' : 'text-stone-300 dark:text-stone-600'}`}
                 >
-                  <Trash2 size={12} />
-                  {deleting ? 'Suppression...' : 'Mettre à la corbeille'}
-                </button>
-              </div>
-            )}
-            <div className="relative">
-              <Search
-                size={14}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 dark:text-stone-500"
-              />
-              <input
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-                placeholder="Rechercher..."
-                className="pl-8 pr-3 py-1.5 text-sm border border-stone-200 dark:border-stone-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"
-              />
-            </div>
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setPage(1);
-              }}
-              className="text-sm border border-stone-200 dark:border-stone-700 rounded-lg px-2 py-1.5 focus:outline-none"
-            >
-              <option value="all">Tous les statuts</option>
-              <option value="en_preparation">En préparation</option>
-              <option value="en_transit">En transit</option>
-              <option value="en_livraison">En livraison</option>
-              <option value="livre">Livrés</option>
-              <option value="echec">Échecs</option>
-              <option value="retourne">Retournés</option>
-            </select>
-            <select
-              value={pageSize}
-              onChange={(e) => {
-                setPageSize(Number(e.target.value));
-                setPage(1);
-              }}
-              className="text-sm border border-stone-200 dark:border-stone-700 rounded-lg px-2 py-1.5 focus:outline-none text-stone-600 dark:text-stone-300"
-              title="Commandes par page"
-            >
-              <option value={10}>10 / page</option>
-              <option value={25}>25 / page</option>
-              <option value={50}>50 / page</option>
-              <option value={100}>100 / page</option>
-            </select>
-            <button
-              onClick={reclassify}
-              disabled={reclassifying}
-              title="Recorrige les statuts mal classifiés (Appelé sans réponse, Annulé, Erroné…)"
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium border border-amber-200 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 disabled:opacity-50 transition-colors"
-            >
-              <Wand2 size={12} className={reclassifying ? 'animate-spin' : ''} />
-              {reclassifying ? 'Correction...' : 'Corriger statuts'}
+                  {n.toLocaleString('fr-FR')}
+                </span>
+              )}
             </button>
-            <button
-              onClick={() => fetchOrders()}
-              className="p-1.5 border border-stone-200 dark:border-stone-700 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800"
-            >
-              <RefreshCw size={14} className="text-stone-500 dark:text-stone-400" />
-            </button>
-          </div>
+          );
+        })}
+      </div>
+
+      {/* Recherche + actions */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[220px] max-w-[380px]">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+          <input
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Rechercher un client, un numéro, un tracking…"
+            className="w-full h-9 pl-9 pr-3 text-[13.5px] rounded-md border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-900/10 dark:focus:ring-white/10"
+          />
         </div>
 
+        {selected.size > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-[13px] text-stone-500">{selected.size} sélectionnée(s)</span>
+            <button
+              onClick={handleBulkDelete}
+              disabled={deleting}
+              className="h-9 px-3 rounded-md border border-red-200 dark:border-red-500/30 text-[13px] text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <Trash2 size={14} />
+              {deleting ? 'Déplacement…' : 'Corbeille'}
+            </button>
+          </div>
+        )}
+
+        <div className="flex-1" />
+        {lastRefresh && (
+          <span className="hidden md:inline text-[12.5px] text-stone-400">
+            Mis à jour à {lastRefresh.slice(0, 5)}
+          </span>
+        )}
+
+        <div className="relative">
+          <button
+            onClick={() => setMenuOpen((o) => !o)}
+            aria-label="Plus d'options"
+            className="h-9 w-9 grid place-items-center rounded-md border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 text-stone-500 hover:text-stone-800 dark:hover:text-stone-100"
+          >
+            <MoreHorizontal size={16} />
+          </button>
+          {menuOpen && (
+            <>
+              <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />
+              <div className="absolute right-0 mt-2 w-64 z-40 rounded-lg border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 shadow-lg py-1 text-[13.5px]">
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    fetchOrders();
+                    fetchCounts();
+                  }}
+                  className={menuItem}
+                >
+                  <RefreshCw size={15} /> Actualiser
+                </button>
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    reclassify();
+                  }}
+                  disabled={reclassifying}
+                  className={menuItem}
+                >
+                  <Wand2 size={15} /> Corriger les statuts
+                </button>
+                <div className="my-1 border-t border-stone-100 dark:border-stone-800" />
+                <div className="px-3 py-1.5 text-[12px] text-stone-400">Commandes par page</div>
+                <div className="flex gap-1 px-3 pb-2">
+                  {[10, 25, 50, 100].map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => {
+                        setPageSize(n);
+                        setPage(1);
+                        setMenuOpen(false);
+                      }}
+                      className={`flex-1 h-7 rounded text-[12.5px] tabular-nums ${
+                        pageSize === n
+                          ? 'bg-stone-900 text-white dark:bg-white dark:text-stone-900'
+                          : 'text-stone-600 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800'
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Tableau */}
+      <div className="rounded-xl border border-stone-200/80 dark:border-stone-800 bg-white dark:bg-stone-900 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-[14px]">
             <thead>
-              <tr className="border-b border-stone-100 dark:border-stone-800 bg-stone-50/60">
-                <th className="px-4 py-2.5 w-10">
+              <tr className="text-left text-[12.5px] text-stone-400 border-b border-stone-100 dark:border-stone-800">
+                <th className="w-10 pl-6 py-3 font-normal">
                   <input
                     type="checkbox"
                     checked={allSelected}
                     onChange={toggleAll}
-                    className="rounded border-stone-300 cursor-pointer"
+                    aria-label="Tout sélectionner"
+                    className="rounded border-stone-300 dark:border-stone-600 cursor-pointer"
                   />
                 </th>
-                <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">
-                  Tracking
-                </th>
-                <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">
-                  Client
-                </th>
-                <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">
-                  Produit
-                </th>
-                <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">
-                  Wilaya
-                </th>
-                <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">
-                  Statut
-                </th>
-                <th className="px-4 py-2.5 text-left text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">
-                  Livraison
-                </th>
-                <th className="px-4 py-2.5 text-right text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">
-                  COD
-                </th>
-                <th className="px-4 py-2.5 text-center text-[10px] font-semibold text-stone-400 dark:text-stone-500 uppercase tracking-wider">
-                  Tentatives
-                </th>
-                <th className="px-2 py-2.5 w-6"></th>
+                <th className="py-3 pr-4 font-normal">Client</th>
+                <th className="py-3 pr-4 font-normal">Produit</th>
+                <th className="py-3 pr-4 font-normal">Wilaya</th>
+                <th className="py-3 pr-4 font-normal">Statut</th>
+                <th className="py-3 pr-6 font-normal text-right">Montant</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-stone-50 dark:divide-stone-800">
+            <tbody>
               {loading ? (
-                <tr>
-                  <td
-                    colSpan={10}
-                    className="px-4 py-8 text-center text-stone-400 dark:text-stone-500"
-                  >
-                    Chargement...
-                  </td>
-                </tr>
-              ) : orders.length === 0 ? (
-                <tr>
-                  <td colSpan={10} className="px-4 py-12 text-center">
-                    <div className="flex flex-col items-center gap-2.5">
-                      <div className="relative">
-                        <div className="absolute inset-0 bg-gradient-to-br from-violet-200 to-fuchsia-200 dark:from-violet-500/20 dark:to-fuchsia-500/20 blur-xl rounded-full" />
-                        <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-violet-100 to-fuchsia-100 dark:from-violet-500/15 dark:to-fuchsia-500/15 flex items-center justify-center">
-                          <Search size={18} className="text-violet-500 dark:text-violet-300" />
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-stone-700 dark:text-stone-200">
-                          Aucune commande trouvée
-                        </p>
-                        <p className="text-xs text-stone-400 dark:text-stone-500 mt-0.5">
-                          Essayez de modifier les filtres ou lancez un sync
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                orders.map((order) => (
-                  <tr
-                    key={order.id}
-                    onClick={() => setSelectedOrder(order)}
-                    className={`border-b border-stone-50 dark:border-stone-800 hover:bg-stone-50 dark:hover:bg-stone-800/40 transition-colors cursor-pointer group ${selected.has(order.id) ? 'bg-red-50/40 dark:bg-red-500/10' : ''}`}
-                  >
-                    <td className="px-4 py-3" onClick={(e) => toggleSelect(order.id, e)}>
-                      <input
-                        type="checkbox"
-                        checked={selected.has(order.id)}
-                        onChange={() => {}}
-                        className="rounded border-stone-300 cursor-pointer"
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-xs font-semibold text-violet-600">
-                          {order.tracking_number}
-                        </span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            copyTracking(order.tracking_number);
-                          }}
-                          className="text-stone-300 dark:text-stone-600 hover:text-stone-500 dark:text-stone-400 transition-colors"
-                        >
-                          {copiedId === order.tracking_number ? (
-                            <CheckCheck size={11} className="text-green-500" />
-                          ) : (
-                            <Copy size={11} />
-                          )}
-                        </button>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="text-sm font-medium text-stone-800 dark:text-stone-100">
-                        {order.customer_name}
-                      </p>
-                      <p className="text-xs text-stone-400 dark:text-stone-500">
-                        {order.customer_whatsapp}
-                      </p>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-stone-500 dark:text-stone-400 max-w-[140px] truncate">
-                      {order.product_name || '—'}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-stone-600 dark:text-stone-300 font-medium">
-                      {order.wilaya || '—'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full ${statusConfig[order.delivery_status]?.badge || 'bg-stone-100 text-stone-600 dark:text-stone-300'}`}
-                      >
-                        {order.situation?.trim() ||
-                          statusConfig[order.delivery_status]?.label ||
-                          order.delivery_status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-stone-500 dark:text-stone-400">
-                      {formatDeliveryType(order.delivery_type)}
-                    </td>
-                    <td className="px-4 py-3 text-right text-sm font-semibold text-stone-800 dark:text-stone-100">
-                      {order.cod ? `${Number(order.cod).toLocaleString('fr-DZ')} DA` : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="text-xs font-medium text-stone-500 dark:text-stone-400 bg-stone-100 rounded-md px-2 py-0.5">
-                        {order.attempts ?? 0}
-                      </span>
-                    </td>
-                    <td className="px-2 py-3">
-                      <Arrow
-                        size={13}
-                        className="text-stone-300 dark:text-stone-600 group-hover:text-stone-500 dark:text-stone-400 transition-colors"
-                      />
+                [0, 1, 2, 3, 4].map((i) => (
+                  <tr key={i} className="border-t border-stone-100 dark:border-stone-800">
+                    <td colSpan={6} className="px-6 py-4">
+                      <div className="h-8 rounded bg-stone-100 dark:bg-stone-800 animate-pulse" />
                     </td>
                   </tr>
                 ))
+              ) : orders.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-16 text-center">
+                    <p className="text-[14px] font-medium text-stone-700 dark:text-stone-200">
+                      Aucune commande trouvée
+                    </p>
+                    <p className="text-[13px] text-stone-400 mt-1">
+                      Changez d’onglet ou de recherche, ou lancez une synchronisation.
+                    </p>
+                  </td>
+                </tr>
+              ) : (
+                orders.map((order) => {
+                  const p = prettyProduct(order.product_name);
+                  const b = statusBadge(order.delivery_status);
+                  const situation = order.situation?.trim();
+                  return (
+                    <tr
+                      key={order.id}
+                      onClick={() => setSelectedOrder(order)}
+                      className={`border-t border-stone-100 dark:border-stone-800 cursor-pointer transition-colors hover:bg-stone-50/70 dark:hover:bg-white/[0.03] ${
+                        selected.has(order.id) ? 'bg-stone-50 dark:bg-white/[0.04]' : ''
+                      }`}
+                    >
+                      <td className="pl-6 py-3.5" onClick={(e) => toggleSelect(order.id, e)}>
+                        <input
+                          type="checkbox"
+                          checked={selected.has(order.id)}
+                          onChange={() => {}}
+                          aria-label="Sélectionner"
+                          className="rounded border-stone-300 dark:border-stone-600 cursor-pointer"
+                        />
+                      </td>
+                      <td className="py-3.5 pr-4 max-w-[220px]">
+                        <div className="font-medium text-stone-900 dark:text-stone-100 truncate">
+                          <bdi>{order.customer_name || '—'}</bdi>
+                        </div>
+                        <div className="text-[12.5px] text-stone-400 tabular-nums">
+                          {order.customer_whatsapp || '—'}
+                        </div>
+                      </td>
+                      <td className="py-3.5 pr-4 max-w-[260px]">
+                        <div className="text-stone-800 dark:text-stone-200 truncate">{p.name}</div>
+                        <div className="text-[12.5px] text-stone-400 truncate">
+                          {p.variant && <>{p.variant} · </>}
+                          <span
+                            className="font-mono text-[11.5px] hover:text-stone-700 dark:hover:text-stone-200"
+                            title="Copier le tracking"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              copyTracking(order.tracking_number);
+                            }}
+                          >
+                            {order.tracking_number}
+                            {copiedId === order.tracking_number && (
+                              <CheckCheck size={11} className="inline ml-1 text-emerald-500" />
+                            )}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-3.5 pr-4 text-stone-600 dark:text-stone-300 whitespace-nowrap">
+                        {order.wilaya || '—'}
+                      </td>
+                      <td className="py-3.5 pr-4">
+                        <span
+                          className={`text-[12px] font-medium px-2 py-0.5 rounded whitespace-nowrap ${b.className}`}
+                        >
+                          {b.label}
+                        </span>
+                        {situation && situation.toLowerCase() !== b.label.toLowerCase() && (
+                          <div className="text-[12px] text-stone-400 mt-1 truncate max-w-[180px]">
+                            {situation}
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-3.5 pr-6 text-right tabular-nums text-stone-900 dark:text-stone-100 whitespace-nowrap">
+                        {order.cod ? formatDA(order.cod) : '—'}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
 
-        {totalPages > 1 && (
-          <div className="px-4 py-3 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between">
-            <span className="text-sm text-stone-500 dark:text-stone-400">
-              Page {page} / {totalPages}
-            </span>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="p-1.5 border rounded-lg disabled:opacity-40 hover:bg-stone-50 dark:hover:bg-stone-800"
-              >
-                <ChevronLeft size={14} />
-              </button>
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="p-1.5 border rounded-lg disabled:opacity-40 hover:bg-stone-50 dark:hover:bg-stone-800"
-              >
-                <ChevronRight size={14} />
-              </button>
-            </div>
+        <div className="flex items-center justify-between px-6 py-4 border-t border-stone-100 dark:border-stone-800 text-[13px] text-stone-500">
+          <span className="tabular-nums">
+            {total > 0 ? `Affichage de ${from} à ${to} sur ${total.toLocaleString('fr-FR')}` : '—'}
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className={pagerButton}
+            >
+              Précédent
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className={pagerButton}
+            >
+              Suivant
+            </button>
           </div>
-        )}
+        </div>
       </div>
     </>
   );

@@ -60,7 +60,12 @@ export async function GET(request: NextRequest) {
       .eq('user_id', user.id)
       .is('deleted_at', null);
 
-    if (status !== 'all') query = query.eq('delivery_status', status);
+    // « en_cours » = tout ce qui n'est pas encore finalisé (onglet En cours).
+    if (status === 'en_cours') {
+      query = query.in('delivery_status', ['en_preparation', 'en_transit', 'en_livraison']);
+    } else if (status !== 'all') {
+      query = query.eq('delivery_status', status);
+    }
 
     if (situation) {
       // Check if this filter maps to a status code (delivery stage filters)
