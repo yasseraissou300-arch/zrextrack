@@ -67,11 +67,8 @@ export default function RecentOrders() {
                 className="flex items-center gap-4 px-6 py-3 border-t border-stone-100 dark:border-stone-800"
               >
                 <div className="flex-1 min-w-0">
-                  <div
-                    className="font-medium text-stone-900 dark:text-stone-100 truncate"
-                    dir="auto"
-                  >
-                    {o.customer_name || '—'}
+                  <div className="font-medium text-stone-900 dark:text-stone-100 truncate">
+                    <bdi>{o.customer_name || '—'}</bdi>
                   </div>
                   <div className="text-[12.5px] text-stone-400 truncate">
                     {p.name}

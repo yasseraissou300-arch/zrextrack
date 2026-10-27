@@ -168,7 +168,7 @@ export default function HomeOverview({ children }: { children?: React.ReactNode 
                 s.tone === 'good' ? 'text-emerald-600 dark:text-emerald-400' : 'text-stone-400'
               }`}
             >
-              {s.sub}
+              {kpis ? s.sub : ' '}
             </div>
           </div>
         ))}
