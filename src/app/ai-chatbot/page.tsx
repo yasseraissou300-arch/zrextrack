@@ -39,6 +39,12 @@ import {
   Wrench,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  hasCompleteData,
+  sessionDisplayStatus,
+  sessionStatusLabel,
+  type SessionDisplayStatus,
+} from '@/lib/ai-chatbot/session-status';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface TemplateConfig {
@@ -2033,6 +2039,14 @@ function GoogleSheetsTab() {
 }
 
 // ─── DonneesTab ───────────────────────────────────────────────────────────────
+// Statut affiché : sheets_sent (commande transmise) prime sur is_complete, qui ne
+// décrit que le dernier message (voir src/lib/ai-chatbot/session-status.ts).
+const STATUS_BADGE: Record<SessionDisplayStatus, string> = {
+  transmitted: 'bg-blue-100 text-blue-700',
+  complete: 'bg-green-100 text-green-700',
+  in_progress: 'bg-amber-100 text-amber-700',
+};
+
 function DonneesTab() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
@@ -2115,7 +2129,7 @@ function DonneesTab() {
           },
           {
             label: 'Données complètes',
-            value: sessions.filter((s) => s.is_complete).length,
+            value: sessions.filter(hasCompleteData).length,
             color: 'bg-green-50 text-green-700',
           },
           {
@@ -2225,9 +2239,10 @@ function DonneesTab() {
                       <td className="px-4 py-3">
                         <div className="flex flex-col gap-1">
                           <span
-                            className={`text-[10px] font-medium px-2 py-0.5 rounded-full w-fit ${session.is_complete ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}
+                            className={`text-[10px] font-medium px-2 py-0.5 rounded-full w-fit ${STATUS_BADGE[sessionDisplayStatus(session)]}`}
                           >
-                            {session.is_complete ? '✓ Complet' : '… En cours'}
+                            {sessionDisplayStatus(session) === 'in_progress' ? '… ' : '✓ '}
+                            {sessionStatusLabel(session)}
                           </span>
                           {session.sheets_sent && (
                             <span className="text-[10px] font-medium px-2 py-0.5 rounded-full w-fit bg-blue-100 text-blue-700">
@@ -2716,8 +2731,9 @@ function ReclamationsTab() {
   };
 
   const filtered = sessions.filter((s) => {
-    if (statusFilter === 'complete' && !s.is_complete) return false;
-    if (statusFilter === 'pending' && s.is_complete) return false;
+    // Réclamation transmise (sheets_sent) = complète, même après un « merci ».
+    if (statusFilter === 'complete' && !hasCompleteData(s)) return false;
+    if (statusFilter === 'pending' && hasCompleteData(s)) return false;
     if (resolvedFilter === 'pending' && s.resolution) return false;
     if (resolvedFilter === 'resolved' && !s.resolution) return false;
     if (!search.trim()) return true;
@@ -2752,7 +2768,12 @@ function ReclamationsTab() {
         phone,
         d.commande || '',
         (d.reclamation || '').replace(/\n/g, ' '),
-        s.is_complete ? 'Complète' : 'En cours',
+        // Libellés historiques conservés tant que rien n'a été transmis.
+        sessionDisplayStatus(s) === 'transmitted'
+          ? sessionStatusLabel(s)
+          : s.is_complete
+            ? 'Complète'
+            : 'En cours',
       ];
     });
     // Escape CSV : double les guillemets et entoure si la cellule en contient
@@ -2837,12 +2858,12 @@ function ReclamationsTab() {
           },
           {
             label: 'Complètes',
-            value: sessions.filter((s) => s.is_complete).length,
+            value: sessions.filter(hasCompleteData).length,
             color: 'bg-green-50 text-green-700',
           },
           {
             label: 'En cours',
-            value: sessions.filter((s) => !s.is_complete).length,
+            value: sessions.filter((s) => !hasCompleteData(s)).length,
             color: 'bg-stone-50 text-stone-700 dark:text-stone-200',
           },
         ].map((s) => (
