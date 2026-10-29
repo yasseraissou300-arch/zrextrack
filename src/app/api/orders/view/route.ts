@@ -17,6 +17,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { fetchAllPaged } from '@/lib/supabase/paged';
 
 type View = {
   columns: string;
@@ -28,7 +29,7 @@ type View = {
 const ORDER_VIEWS: Record<string, View> = {
   alertes: { columns: '*', statuses: ['echec', 'retourne'], orderBy: 'last_update', limit: 50 },
   livraisons: {
-    columns: '*',
+    columns: 'id, tracking_number, customer_name, wilaya, delivery_status, attempts, last_update',
     statuses: ['en_livraison', 'livre', 'echec', 'retourne'],
     orderBy: 'last_update',
   },
@@ -60,24 +61,23 @@ export async function GET(request: NextRequest) {
 
   const supabase = createServiceClient();
   const cap = Math.min(view.limit ?? MAX_ROWS, MAX_ROWS);
-  const rows: unknown[] = [];
-
-  for (let from = 0; from < cap; from += PAGE) {
-    let q = supabase
-      .from('orders')
-      .select(view.columns)
-      .eq('user_id', user.id)
-      .is('deleted_at', null);
-    if (view.statuses) q = q.in('delivery_status', view.statuses);
-    const to = Math.min(from + PAGE, cap) - 1;
-    const { data, error } = await q
-      .order(view.orderBy, { ascending: false })
-      .order('id', { ascending: true }) // départage stable entre les pages
-      .range(from, to);
-    if (error) return NextResponse.json({ error: 'Lecture impossible' }, { status: 500 });
-    rows.push(...(data ?? []));
-    if (!data || data.length < to - from + 1) break;
-  }
-
+  // Pages lues en parallèle (par lots de 4) : ~14 s → quelques secondes pour
+  // 7 000 commandes.
+  const { rows, error } = await fetchAllPaged<unknown>(
+    (from, to, withCount) => {
+      let q = supabase
+        .from('orders')
+        .select(view.columns, withCount ? { count: 'exact' } : undefined)
+        .eq('user_id', user.id)
+        .is('deleted_at', null);
+      if (view.statuses) q = q.in('delivery_status', view.statuses);
+      return q
+        .order(view.orderBy, { ascending: false })
+        .order('id', { ascending: true }) // départage stable entre les pages
+        .range(from, to);
+    },
+    { pageSize: PAGE, maxRows: cap }
+  );
+  if (error) return NextResponse.json({ error: 'Lecture impossible' }, { status: 500 });
   return NextResponse.json({ data: rows });
 }
