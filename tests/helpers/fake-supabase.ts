@@ -236,6 +236,7 @@ class Builder implements PromiseLike<{ data: any; error: PgError | null; count: 
   private orders: Order[] = [];
   private lim: number | null = null;
   private rangeFrom: number | null = null;
+  private totalCount: number | null = null;
   private rangeTo: number | null = null;
   private payload: Row | Row[] | null = null;
   private upsertOpts: { onConflict?: string; ignoreDuplicates?: boolean } = {};
@@ -381,12 +382,14 @@ class Builder implements PromiseLike<{ data: any; error: PgError | null; count: 
         return 0;
       });
     }
+    // Comme PostgREST : count = total des lignes filtrées, avant range/limit.
+    this.totalCount = rows.length;
     if (this.rangeFrom != null && this.rangeTo != null) {
       rows = rows.slice(this.rangeFrom, this.rangeTo + 1);
     }
     if (this.lim != null) rows = rows.slice(0, this.lim);
 
-    if (this.countMode && this.headMode) return { data: null, error: null, count: rows.length };
+    if (this.countMode && this.headMode) return { data: null, error: null, count: this.totalCount };
     if (this.db.maxRows != null) rows = rows.slice(0, this.db.maxRows);
     return this.shape(rows.map((r) => ({ ...r })));
   }
@@ -511,6 +514,10 @@ class Builder implements PromiseLike<{ data: any; error: PgError | null; count: 
       }
       return { data: rows[0], error: null, count: null };
     }
-    return { data: rows, error: null, count: this.countMode ? rows.length : null };
+    return {
+      data: rows,
+      error: null,
+      count: this.countMode ? (this.totalCount ?? rows.length) : null,
+    };
   }
 }

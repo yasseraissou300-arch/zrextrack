@@ -1,6 +1,7 @@
 'use client';
 
 import AppLayout from '@/components/ui/AppLayout';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Truck, CheckCircle2, XCircle, Clock } from 'lucide-react';
 
@@ -118,7 +119,8 @@ export default function LivraisonsPage() {
                     </td>
                   </tr>
                 ) : (
-                  orders.map((o) => (
+                  // 200 plus récentes : au-delà, le tableau gelait la page (≈7 000 lignes).
+                  orders.slice(0, 200).map((o) => (
                     <tr key={o.id} className="hover:bg-stone-50 dark:hover:bg-stone-800">
                       <td className="px-4 py-3 font-mono text-xs font-medium">
                         {o.tracking_number}
@@ -144,6 +146,17 @@ export default function LivraisonsPage() {
               </tbody>
             </table>
           </div>
+          {orders.length > 200 && (
+            <div className="px-6 py-4 border-t border-stone-100 dark:border-stone-800 text-[13px] text-stone-500 flex items-center justify-between">
+              <span>200 plus récentes sur {orders.length.toLocaleString('fr-FR')}</span>
+              <Link
+                href="/commandes"
+                className="text-stone-900 dark:text-stone-100 font-medium hover:underline"
+              >
+                Voir toutes les commandes
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </AppLayout>
