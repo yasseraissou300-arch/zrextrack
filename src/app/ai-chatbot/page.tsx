@@ -3216,77 +3216,98 @@ function Row({ label, value, mono }: { label: string; value: string; mono?: bool
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-type Tab =
-  | 'templates'
-  | 'whatsapp'
-  | 'facebook'
-  | 'googlesheets'
-  | 'donnees'
-  | 'reclamations'
-  | 'analytics';
+// 4 sections au lieu de 7 onglets. Chaque section regroupe des écrans existants
+// (aucune logique modifiée) :
+//   Conversations → Commandes (données extraites) · Réclamations SAV
+//   Réglages      → rôle du bot, boutique, instructions (Templates IA)
+//   Connexions    → WhatsApp · Facebook · Google Sheets
+//   Statistiques  → Analytiques
+type Section = 'conversations' | 'reglages' | 'connexions' | 'statistiques';
+type SubView = 'donnees' | 'reclamations' | 'whatsapp' | 'facebook' | 'googlesheets';
 
-const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: 'templates', label: 'Templates IA', icon: <Bot size={14} /> },
-  { id: 'whatsapp', label: 'WhatsApp', icon: <Phone size={14} /> },
-  {
-    id: 'facebook',
-    label: 'Facebook',
-    icon: (
-      <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-current">
-        <path d="M12 0C5.373 0 0 4.974 0 11.111c0 3.498 1.744 6.614 4.469 8.652V24l4.088-2.242c1.092.3 2.246.464 3.443.464 6.627 0 12-4.974 12-11.111S18.627 0 12 0zm1.191 14.963l-3.055-3.26-5.963 3.26L10.732 8l3.131 3.259L19.752 8l-6.561 6.963z" />
-      </svg>
-    ),
-  },
-  { id: 'googlesheets', label: 'Google Sheets', icon: <Sheet size={14} /> },
-  { id: 'donnees', label: 'Données extraites', icon: <MessageSquare size={14} /> },
-  { id: 'reclamations', label: 'Réclamations SAV', icon: <HeadphonesIcon size={14} /> },
-  { id: 'analytics', label: 'Analytiques', icon: <BarChart3 size={14} /> },
+const SECTIONS: { id: Section; label: string }[] = [
+  { id: 'conversations', label: 'Conversations' },
+  { id: 'reglages', label: 'Réglages' },
+  { id: 'connexions', label: 'Connexions' },
+  { id: 'statistiques', label: 'Statistiques' },
 ];
 
+const SUB_VIEWS: Partial<Record<Section, { id: SubView; label: string }[]>> = {
+  conversations: [
+    { id: 'donnees', label: 'Commandes' },
+    { id: 'reclamations', label: 'Réclamations' },
+  ],
+  connexions: [
+    { id: 'whatsapp', label: 'WhatsApp' },
+    { id: 'facebook', label: 'Facebook' },
+    { id: 'googlesheets', label: 'Google Sheets' },
+  ],
+};
+
 export default function AIChatbotPage() {
-  const [activeTab, setActiveTab] = useState<Tab>('templates');
+  const [section, setSection] = useState<Section>('conversations');
+  const [sub, setSub] = useState<Partial<Record<Section, SubView>>>({
+    conversations: 'donnees',
+    connexions: 'whatsapp',
+  });
+  const subs = SUB_VIEWS[section];
+  const current = sub[section];
 
   return (
     <AppLayout>
-      <div className="p-6 max-w-4xl">
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center gap-3 mb-1">
-            <div>
-              <h1 className="text-lg font-bold text-stone-900 dark:text-stone-100">AI Chatbot</h1>
-              <p className="text-xs text-stone-500 dark:text-stone-400">
-                Gestion des bots WhatsApp et configurations
-              </p>
-            </div>
-          </div>
+      <div className="max-w-[1120px] mx-auto px-5 sm:px-8 lg:px-10 py-8 lg:py-10 space-y-6">
+        <div>
+          <h1 className="text-[26px] font-semibold tracking-tight text-stone-900 dark:text-stone-50">
+            Chatbot IA
+          </h1>
+          <p className="text-[13.5px] text-stone-500 dark:text-stone-400 mt-1">
+            Répond à vos clients en darija et enregistre leurs commandes.
+          </p>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 bg-stone-100 p-1 rounded-xl mb-6 overflow-x-auto">
-          {TABS.map((tab) => (
+        <div className="flex items-center gap-6 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-b border-stone-200 dark:border-stone-800 text-[14px]">
+          {SECTIONS.map((t) => (
             <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
-                activeTab === tab.id
-                  ? 'bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 shadow-sm'
-                  : 'text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:text-stone-200'
+              key={t.id}
+              onClick={() => setSection(t.id)}
+              className={`pb-3 -mb-px border-b-2 whitespace-nowrap transition-colors ${
+                section === t.id
+                  ? 'border-stone-900 dark:border-stone-100 text-stone-900 dark:text-stone-50 font-medium'
+                  : 'border-transparent text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200'
               }`}
             >
-              {tab.icon}
-              {tab.label}
+              {t.label}
             </button>
           ))}
         </div>
 
-        {/* Tab Content */}
-        {activeTab === 'templates' && <TemplatesTab />}
-        {activeTab === 'whatsapp' && <WhatsAppTab />}
-        {activeTab === 'facebook' && <FacebookTab />}
-        {activeTab === 'googlesheets' && <GoogleSheetsTab />}
-        {activeTab === 'donnees' && <DonneesTab />}
-        {activeTab === 'reclamations' && <ReclamationsTab />}
-        {activeTab === 'analytics' && <AnalyticsTab />}
+        {subs && (
+          <div className="flex flex-wrap items-center gap-2 text-[13.5px]">
+            {subs.map((v) => (
+              <button
+                key={v.id}
+                onClick={() => setSub((prev) => ({ ...prev, [section]: v.id }))}
+                className={`h-8 px-3 rounded-full transition-colors ${
+                  current === v.id
+                    ? 'bg-stone-900 text-white dark:bg-white dark:text-stone-900'
+                    : 'border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 text-stone-600 dark:text-stone-300 hover:text-stone-900 dark:hover:text-stone-100'
+                }`}
+              >
+                {v.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="max-w-4xl">
+          {section === 'conversations' && current === 'donnees' && <DonneesTab />}
+          {section === 'conversations' && current === 'reclamations' && <ReclamationsTab />}
+          {section === 'reglages' && <TemplatesTab />}
+          {section === 'connexions' && current === 'whatsapp' && <WhatsAppTab />}
+          {section === 'connexions' && current === 'facebook' && <FacebookTab />}
+          {section === 'connexions' && current === 'googlesheets' && <GoogleSheetsTab />}
+          {section === 'statistiques' && <AnalyticsTab />}
+        </div>
       </div>
     </AppLayout>
   );
