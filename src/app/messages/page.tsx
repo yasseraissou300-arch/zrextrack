@@ -10,14 +10,8 @@ import {
   History,
   CheckCircle,
   RefreshCw,
-  ChevronLeft,
-  ChevronRight,
   AlertCircle,
-  Users,
   Loader2,
-  Smartphone,
-  Filter,
-  Copy,
   RotateCcw,
   ChevronDown,
   ChevronUp,
@@ -819,123 +813,204 @@ function EnvoyerTab() {
     }
   };
 
+  const card =
+    'rounded-xl border border-stone-200/80 dark:border-stone-800 bg-white dark:bg-stone-900';
+  const field =
+    'h-10 w-full px-3 rounded-md border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 text-[14px] text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-stone-900/10 dark:focus:ring-white/10';
+  const step = (n: number) => (
+    <span className="w-6 h-6 rounded-full bg-stone-900 dark:bg-white text-white dark:text-stone-900 grid place-items-center text-[12px] font-medium shrink-0">
+      {n}
+    </span>
+  );
+
   return (
-    <div className="space-y-5">
-      {connected === false && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3">
-          <AlertCircle size={18} className="text-amber-500 shrink-0" />
-          <p className="text-sm text-amber-700">
-            WhatsApp non connecte — va dans <strong>Connexion</strong> pour scanner le QR avant
-            d'envoyer.
-          </p>
-        </div>
-      )}
-
-      {/* Filtre situation */}
-      <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-4 space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-medium text-stone-700 dark:text-stone-200">
-            Situation :
-          </span>
-          <div className="flex flex-wrap gap-2">
-            {SITUATION_FILTERS.map((f) => (
-              <button
-                key={f.value}
-                onClick={() => {
-                  setSituationFilter(f.value);
-                  setPage(1);
-                  setSelected(new Set());
-                }}
-                className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${situationFilter === f.value ? 'bg-green-600 text-white border-green-600' : 'border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300 hover:border-green-400 hover:text-green-600'}`}
-              >
-                {f.label}
-              </button>
-            ))}
+    <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start">
+      <div className="space-y-6 min-w-0">
+        {/* 1. À qui ? */}
+        <section className={`${card} p-6`}>
+          <div className="flex items-center gap-3">
+            {step(1)}
+            <h2 className="text-[15px] font-semibold text-stone-900 dark:text-stone-50">À qui ?</h2>
           </div>
-        </div>
-        {/* Sous-filtre wilaya */}
-        {situationFilter === 'en cours de livraison' && (
-          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-stone-100 dark:border-stone-800">
-            <div className="flex items-center gap-1 text-xs font-medium text-stone-500 dark:text-stone-400">
-              <Filter size={11} /> Wilaya :
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              <button
-                onClick={() => setSubSituationFilter('')}
-                className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${subSituationFilter === '' ? 'bg-blue-600 text-white border-blue-600' : 'border-stone-200 dark:border-stone-700 text-stone-500 dark:text-stone-400 hover:border-blue-400 hover:text-blue-600'}`}
-              >
-                Toutes
-              </button>
-              {SUB_SITUATIONS.map((w) => (
-                <button
-                  key={w}
-                  onClick={() => setSubSituationFilter(w)}
-                  className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${subSituationFilter === w ? 'bg-blue-600 text-white border-blue-600' : 'border-stone-200 dark:border-stone-700 text-stone-500 dark:text-stone-400 hover:border-blue-400 hover:text-blue-600'}`}
-                >
-                  {w}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
 
-      {/* Choisir le message + le modifier sur place (un seul endroit) */}
-      <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5 space-y-4">
-        <div className="flex items-center gap-2">
-          <MessageSquare size={16} className="text-green-500" />
-          <h3 className="font-semibold text-stone-900 dark:text-stone-100">Message à envoyer</h3>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {templates.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => {
-                setTemplateId(t.key);
-                setEditing(false);
+          <div className="mt-4 flex flex-col sm:flex-row gap-3">
+            <select
+              value={situationFilter}
+              onChange={(e) => {
+                setSituationFilter(e.target.value);
+                setPage(1);
+                setSelected(new Set());
               }}
-              className={`text-xs px-3 py-2 rounded-xl border text-left font-medium transition-colors ${templateId === t.key ? 'border-green-500 bg-green-50 text-green-700' : 'border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300 hover:border-stone-300'}`}
+              className={field}
+              aria-label="Situation"
             >
-              {t.name}
-            </button>
-          ))}
-          <button
-            onClick={() => {
-              setTemplateId('custom');
-              setEditing(false);
-            }}
-            className={`text-xs px-3 py-2 rounded-xl border text-left font-medium transition-colors ${templateId === 'custom' ? 'border-green-500 bg-green-50 text-green-700' : 'border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300 hover:border-stone-300'}`}
-          >
-            Personnalisé
-          </button>
-        </div>
-        {templateId === 'custom' ? (
-          <textarea
-            value={customText}
-            onChange={(e) => setCustomText(e.target.value)}
-            placeholder="كتب رسالتك..."
-            rows={4}
-            dir="rtl"
-            className="w-full border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-stone-900/10 dark:focus:ring-white/10"
-          />
-        ) : (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-xs text-stone-400 dark:text-stone-500">
-                {editing
-                  ? 'Modifier (Darija / Arabe / Français)'
-                  : orders.length > 0
-                    ? 'Aperçu (premier client)'
-                    : 'Aperçu (exemple)'}
-              </p>
+              {SITUATION_FILTERS.map((f) => (
+                <option key={f.value} value={f.value}>
+                  {f.label}
+                </option>
+              ))}
+            </select>
+            {situationFilter === 'en cours de livraison' && (
+              <select
+                value={subSituationFilter}
+                onChange={(e) => setSubSituationFilter(e.target.value)}
+                className={`${field} sm:max-w-[260px]`}
+                aria-label="Précision"
+              >
+                <option value="">Toutes les précisions</option>
+                {SUB_SITUATIONS.map((w) => (
+                  <option key={w} value={w}>
+                    {w}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          <div className="mt-4 flex items-center justify-between rounded-lg bg-stone-50 dark:bg-white/[0.04] px-4 py-3 text-[14px]">
+            <span className="text-stone-700 dark:text-stone-200">
+              <span className="font-semibold tabular-nums">
+                {(subSituationFilter ? displayedOrders.length : total).toLocaleString('fr-FR')}
+              </span>{' '}
+              commande(s) · cochez les clients à contacter
+            </span>
+            {ordersWithPhone.length > 0 && (
+              <button
+                onClick={toggleAll}
+                className="text-[13px] text-stone-500 hover:text-stone-900 dark:hover:text-stone-100"
+              >
+                {ordersWithPhone.every((o) => selected.has(o.id))
+                  ? 'Tout décocher'
+                  : 'Cocher la page'}
+              </button>
+            )}
+          </div>
+
+          <ul className="mt-3 divide-y divide-stone-100 dark:divide-stone-800 text-[14px]">
+            {loadingOrders ? (
+              [0, 1, 2].map((i) => (
+                <li key={i} className="py-3">
+                  <div className="h-8 rounded bg-stone-100 dark:bg-stone-800 animate-pulse" />
+                </li>
+              ))
+            ) : displayedOrders.length === 0 ? (
+              <li className="py-6 text-center text-stone-400">Aucune commande pour ce filtre.</li>
+            ) : (
+              displayedOrders.map((order) => {
+                const hasPhone = !!(order.customer_whatsapp && order.customer_whatsapp.length > 5);
+                return (
+                  <li
+                    key={order.id}
+                    onClick={() => {
+                      if (!hasPhone) return;
+                      setSelected((s) => {
+                        const n = new Set(s);
+                        if (n.has(order.id)) n.delete(order.id);
+                        else n.add(order.id);
+                        return n;
+                      });
+                    }}
+                    className={`flex items-center gap-3 py-2.5 ${
+                      hasPhone
+                        ? 'cursor-pointer hover:bg-stone-50/70 dark:hover:bg-white/[0.03]'
+                        : 'opacity-40'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected.has(order.id)}
+                      disabled={!hasPhone}
+                      readOnly
+                      className="rounded border-stone-300 dark:border-stone-600"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-stone-900 dark:text-stone-100 truncate">
+                        <bdi>{order.customer_name || '—'}</bdi>
+                      </div>
+                      <div className="text-[12.5px] text-stone-400 truncate">
+                        {order.customer_whatsapp || 'Pas de numéro'} · {order.wilaya || '—'}
+                      </div>
+                    </div>
+                    <span className="hidden sm:inline text-[12px] text-stone-500 bg-stone-100 dark:bg-white/[0.06] px-2 py-0.5 rounded truncate max-w-[200px]">
+                      {order.situation || statusToLabel(order.delivery_status)}
+                    </span>
+                  </li>
+                );
+              })
+            )}
+          </ul>
+
+          {totalPages > 1 && !subSituationFilter && (
+            <div className="mt-3 pt-3 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between text-[13px] text-stone-500">
+              <span className="tabular-nums">
+                Page {page} / {totalPages}
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="h-8 px-3 rounded-md border border-stone-200 dark:border-stone-800 disabled:text-stone-300 dark:disabled:text-stone-600"
+                >
+                  Précédent
+                </button>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="h-8 px-3 rounded-md border border-stone-200 dark:border-stone-800 disabled:text-stone-300 dark:disabled:text-stone-600"
+                >
+                  Suivant
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* 2. Quel message ? */}
+        <section className={`${card} p-6`}>
+          <div className="flex items-center gap-3">
+            {step(2)}
+            <h2 className="text-[15px] font-semibold text-stone-900 dark:text-stone-50">
+              Quel message ?
+            </h2>
+            <div className="flex-1" />
+            {templateId !== 'custom' && template && (
               <button
                 onClick={() => setEditing((e) => !e)}
-                className="text-xs font-medium text-green-600 hover:text-green-700 flex items-center gap-1"
+                className="text-[13px] text-stone-500 hover:text-stone-900 dark:hover:text-stone-100"
               >
-                {editing ? '✓ Terminé' : '✏️ Modifier ce message'}
+                {editing ? 'Terminé' : 'Modifier'}
               </button>
-            </div>
-            {editing && template ? (
+            )}
+          </div>
+
+          <select
+            value={templateId}
+            onChange={(e) => {
+              setTemplateId(e.target.value);
+              setEditing(false);
+            }}
+            className={`${field} mt-4`}
+            aria-label="Message"
+          >
+            {templates.map((t) => (
+              <option key={t.key} value={t.key}>
+                {t.name}
+              </option>
+            ))}
+            <option value="custom">Message personnalisé</option>
+          </select>
+
+          <div className="mt-4">
+            {templateId === 'custom' ? (
+              <textarea
+                value={customText}
+                onChange={(e) => setCustomText(e.target.value)}
+                placeholder="كتب رسالتك..."
+                rows={5}
+                dir="rtl"
+                className="w-full rounded-md border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 px-3 py-2 text-[14px] focus:outline-none focus:ring-2 focus:ring-stone-900/10 dark:focus:ring-white/10"
+              />
+            ) : editing && template ? (
               <TemplateEditCard
                 key={template.key}
                 inline
@@ -944,193 +1019,84 @@ function EnvoyerTab() {
                 onSave={saveTemplate}
               />
             ) : (
-              <div
-                className="bg-green-50 rounded-xl p-4 text-sm text-stone-800 dark:text-stone-100 whitespace-pre-line border border-green-100 text-right leading-relaxed"
-                dir="rtl"
-              >
-                {renderTemplate(template?.content_darija ?? '', previewOrder)}
-              </div>
+              <>
+                <div
+                  className="rounded-lg bg-[#e7f8ee] dark:bg-emerald-500/10 px-4 py-3.5 text-[14px] leading-7 text-stone-800 dark:text-stone-100 whitespace-pre-line text-right"
+                  dir="rtl"
+                >
+                  {renderTemplate(template?.content_darija ?? '', previewOrder)}
+                </div>
+                <p className="mt-2 text-[12.5px] text-stone-400">
+                  {orders.length > 0 ? 'Aperçu avec le premier client' : 'Aperçu (exemple)'} · les
+                  variables sont remplacées pour chaque client.
+                </p>
+              </>
             )}
           </div>
-        )}
+        </section>
       </div>
 
-      {/* Notifications automatiques (déplacé depuis la page Sync) */}
-      <AutoNotifyToggles />
+      {/* Envoi */}
+      <aside className={`${card} p-6 lg:sticky lg:top-6`}>
+        <h2 className="text-[15px] font-semibold text-stone-900 dark:text-stone-50">Envoi</h2>
 
-      {/* Test de message */}
-      <div className="bg-white dark:bg-stone-900 rounded-xl border border-blue-100 shadow-sm p-5 space-y-3">
-        <div className="flex items-center gap-2">
-          <Smartphone size={16} className="text-blue-500" />
-          <h3 className="font-semibold text-stone-900 dark:text-stone-100">Tester la reception</h3>
-          <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-medium">
-            Test
-          </span>
-        </div>
-        <p className="text-xs text-stone-500 dark:text-stone-400">
-          Entre un numero pour verifier que le message arrive bien avant d'envoyer en masse.
+        {connected === false && (
+          <div className="mt-4 rounded-md border border-amber-200/70 bg-amber-50/70 dark:border-amber-500/20 dark:bg-amber-500/[0.06] px-3 py-2.5 text-[12.5px] text-amber-900 dark:text-amber-100">
+            WhatsApp n’est pas connecté : ouvrez l’onglet Connexion pour scanner le QR code.
+          </div>
+        )}
+
+        <dl className="mt-4 space-y-2.5 text-[14px]">
+          <div className="flex justify-between">
+            <dt className="text-stone-500">Clients cochés</dt>
+            <dd className="tabular-nums font-medium text-stone-900 dark:text-stone-100">
+              {selected.size}
+            </dd>
+          </div>
+          <div className="flex justify-between">
+            <dt className="text-stone-500">Message</dt>
+            <dd className="text-stone-900 dark:text-stone-100 truncate max-w-[160px]">
+              {templateId === 'custom' ? 'Personnalisé' : (template?.name ?? '—')}
+            </dd>
+          </div>
+        </dl>
+
+        <p className="mt-4 rounded-md bg-stone-50 dark:bg-white/[0.04] px-3 py-2.5 text-[12.5px] text-stone-500">
+          Protection anti-blocage : envois espacés et limités par jour. Ce qui dépasse la limite
+          reste coché pour plus tard.
         </p>
-        <div className="flex gap-2">
-          <input
-            value={testPhone}
-            onChange={(e) => setTestPhone(e.target.value)}
-            placeholder="ex: 0770 12 34 56"
-            className="flex-1 border border-stone-200 dark:border-stone-700 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <button
-            onClick={sendTest}
-            disabled={!testPhone || sendingTest || !connected}
-            className="flex items-center gap-1.5 text-sm px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 font-medium shrink-0"
-          >
-            {sendingTest ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-            Envoyer test
-          </button>
-        </div>
-      </div>
 
-      {/* Table des destinataires */}
-      <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 overflow-hidden">
-        <div className="p-4 border-b border-stone-100 dark:border-stone-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Users size={16} className="text-stone-500 dark:text-stone-400" />
-            <h3 className="font-semibold text-stone-900 dark:text-stone-100">Destinataires</h3>
-            <span className="text-xs text-stone-400 dark:text-stone-500">
-              ({subSituationFilter ? displayedOrders.length : total} commandes
-              {subSituationFilter ? ` — ${subSituationFilter}` : ''})
-            </span>
-            {selected.size > 0 && (
-              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
-                {selected.size} selectionne(s)
-              </span>
-            )}
+        <button
+          onClick={sendMessages}
+          disabled={sending || selected.size === 0 || !connected}
+          className="mt-5 w-full h-10 rounded-md bg-stone-900 dark:bg-white text-white dark:text-stone-900 text-[14px] font-medium flex items-center justify-center gap-2 disabled:opacity-40"
+        >
+          {sending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
+          {selected.size > 0
+            ? `Envoyer à ${selected.size} client${selected.size > 1 ? 's' : ''}`
+            : 'Cochez des clients'}
+        </button>
+
+        <div className="mt-5 pt-5 border-t border-stone-100 dark:border-stone-800">
+          <div className="text-[13px] text-stone-500 mb-2">Tester d’abord sur mon numéro</div>
+          <div className="flex gap-2">
+            <input
+              value={testPhone}
+              onChange={(e) => setTestPhone(e.target.value)}
+              placeholder="0770 12 34 56"
+              className="h-9 flex-1 min-w-0 px-3 rounded-md border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 text-[13.5px] focus:outline-none focus:ring-2 focus:ring-stone-900/10 dark:focus:ring-white/10"
+            />
+            <button
+              onClick={sendTest}
+              disabled={!testPhone || sendingTest || !connected}
+              className="h-9 px-3 rounded-md border border-stone-200 dark:border-stone-800 text-[13.5px] text-stone-700 dark:text-stone-200 disabled:opacity-40 flex items-center gap-1.5"
+            >
+              {sendingTest && <Loader2 size={13} className="animate-spin" />}
+              Tester
+            </button>
           </div>
-          <button
-            onClick={sendMessages}
-            disabled={sending || selected.size === 0 || !connected}
-            className="flex items-center gap-1.5 text-sm px-5 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 disabled:opacity-50 font-medium"
-          >
-            {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />} Envoyer
-            ({selected.size})
-          </button>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-[12.5px] text-stone-400">
-              <tr>
-                <th className="px-4 py-3">
-                  <input
-                    type="checkbox"
-                    checked={
-                      ordersWithPhone.length > 0 && ordersWithPhone.every((o) => selected.has(o.id))
-                    }
-                    onChange={toggleAll}
-                    className="rounded"
-                  />
-                </th>
-                <th className="px-4 py-3 text-left">Client</th>
-                <th className="px-4 py-3 text-left">Tracking</th>
-                <th className="px-4 py-3 text-left">Situation</th>
-                <th className="px-4 py-3 text-left">Wilaya</th>
-                <th className="px-4 py-3 text-left">Telephone</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-stone-50 dark:divide-stone-800">
-              {loadingOrders ? (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-4 py-8 text-center text-stone-400 dark:text-stone-500"
-                  >
-                    Chargement...
-                  </td>
-                </tr>
-              ) : displayedOrders.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-4 py-8 text-center text-stone-400 dark:text-stone-500"
-                  >
-                    Aucune commande
-                  </td>
-                </tr>
-              ) : (
-                displayedOrders.map((order) => {
-                  const hasPhone = !!(
-                    order.customer_whatsapp && order.customer_whatsapp.length > 5
-                  );
-                  return (
-                    <tr
-                      key={order.id}
-                      className={`transition-colors ${hasPhone ? 'hover:bg-stone-50 dark:hover:bg-stone-800 cursor-pointer' : 'opacity-40'}`}
-                      onClick={() => {
-                        if (!hasPhone) return;
-                        setSelected((s) => {
-                          const n = new Set(s);
-                          if (n.has(order.id)) n.delete(order.id);
-                          else n.add(order.id);
-                          return n;
-                        });
-                      }}
-                    >
-                      <td className="px-4 py-3">
-                        <input
-                          type="checkbox"
-                          checked={selected.has(order.id)}
-                          disabled={!hasPhone}
-                          readOnly
-                          className="rounded"
-                        />
-                      </td>
-                      <td className="px-4 py-3 font-medium text-stone-900 dark:text-stone-100">
-                        {order.customer_name || '—'}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-xs text-stone-600 dark:text-stone-300">
-                        {order.tracking_number}
-                      </td>
-                      <td className="px-4 py-3 text-xs">
-                        <span className="bg-stone-100 text-stone-600 dark:text-stone-300 px-2 py-0.5 rounded-full">
-                          {order.situation || statusToLabel(order.delivery_status)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-stone-500 dark:text-stone-400">
-                        {order.wilaya || '—'}
-                      </td>
-                      <td className="px-4 py-3 text-stone-500 dark:text-stone-400">
-                        {order.customer_whatsapp || (
-                          <span className="text-red-400 text-xs">Aucun</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-        {totalPages > 1 && !subSituationFilter && (
-          <div className="px-4 py-3 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between">
-            <span className="text-sm text-stone-500 dark:text-stone-400">
-              Page {page} / {totalPages}
-            </span>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="p-1.5 border rounded-lg disabled:opacity-40 hover:bg-stone-50 dark:hover:bg-stone-800"
-              >
-                <ChevronLeft size={14} />
-              </button>
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="p-1.5 border rounded-lg disabled:opacity-40 hover:bg-stone-50 dark:hover:bg-stone-800"
-              >
-                <ChevronRight size={14} />
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      </aside>
     </div>
   );
 }
@@ -1653,44 +1619,43 @@ function TemplateEditCard({
 }
 
 const TABS = [
-  { id: 'connexion', label: 'Connexion', icon: QrCode },
-  { id: 'envoyer', label: 'Envoyer', icon: Send },
-  { id: 'historique', label: 'Historique', icon: History },
+  { id: 'envoyer', label: 'Envoyer' },
+  { id: 'automatique', label: 'Automatique' },
+  { id: 'historique', label: 'Historique' },
+  { id: 'connexion', label: 'Connexion' },
 ];
 
 export default function MessagesPage() {
   const [tab, setTab] = useState('envoyer');
   return (
     <AppLayout>
-      <div className="max-w-screen-xl mx-auto px-6 py-6 space-y-6">
-        <div className="flex items-center gap-3">
-          <div>
-            <h1 className="text-[26px] font-semibold tracking-tight text-stone-900 dark:text-stone-50">
-              Messages WhatsApp
-            </h1>
-            <p className="text-sm text-stone-500 dark:text-stone-400">
-              Envoyer des notifications en darija a tes clients
-            </p>
-          </div>
+      <div className="max-w-[1120px] mx-auto px-5 sm:px-8 lg:px-10 py-8 lg:py-10 space-y-6">
+        <h1 className="text-[26px] font-semibold tracking-tight text-stone-900 dark:text-stone-50">
+          Messages
+        </h1>
+        <div className="flex items-center gap-6 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-b border-stone-200 dark:border-stone-800 text-[14px]">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`pb-3 -mb-px border-b-2 whitespace-nowrap transition-colors ${
+                tab === t.id
+                  ? 'border-stone-900 dark:border-stone-100 text-stone-900 dark:text-stone-50 font-medium'
+                  : 'border-transparent text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
-        <div className="flex gap-1 bg-stone-100 p-1 rounded-xl w-fit">
-          {TABS.map((t) => {
-            const Icon = t.icon;
-            return (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${tab === t.id ? 'bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 shadow-sm' : 'text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:text-stone-200'}`}
-              >
-                <Icon size={15} />
-                {t.label}
-              </button>
-            );
-          })}
-        </div>
-        {tab === 'connexion' && <ConnexionTab />}
         {tab === 'envoyer' && <EnvoyerTab />}
+        {tab === 'automatique' && (
+          <div className="max-w-[760px]">
+            <AutoNotifyToggles />
+          </div>
+        )}
         {tab === 'historique' && <HistoriqueTab />}
+        {tab === 'connexion' && <ConnexionTab />}
       </div>
     </AppLayout>
   );
