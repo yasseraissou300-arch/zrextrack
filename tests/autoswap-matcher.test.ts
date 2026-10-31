@@ -342,3 +342,18 @@ describe('matchSwappables — appariement', () => {
     expect(() => matchSwappables([])).not.toThrow();
   });
 });
+
+describe('isTarget — états « pas encore expédiée »', () => {
+  it('« Prêt à expédier » et « Commande reçue » sont des cibles de swap', () => {
+    for (const name of ['pret_a_expedier', 'Prêt à expédier', 'commande_recue', 'Commande reçue'])
+      expect(isTarget(normalizeParcel(colis({ state: { name } } as Partial<ZRParcel>))), name).toBe(
+        true
+      );
+  });
+  it('un colis déjà expédié n’est pas une cible', () => {
+    for (const name of ['vers_wilaya', 'sortie_en_livraison', 'livre', 'dispatch'])
+      expect(isTarget(normalizeParcel(colis({ state: { name } } as Partial<ZRParcel>))), name).toBe(
+        false
+      );
+  });
+});

@@ -74,6 +74,18 @@ interface SwapStats {
   items: SwappedItem[];
 }
 
+// Périodes des statistiques de commandes swappées (jours glissants,
+// aujourd'hui inclus). Filtrage côté client : l'API renvoie tous les swaps.
+type SwapPeriod = 1 | 7 | 14 | 21 | 30;
+const SWAP_PERIODS: { days: SwapPeriod; label: string }[] = [
+  { days: 1, label: "Aujourd'hui" },
+  { days: 7, label: '7 j' },
+  { days: 14, label: '14 j' },
+  { days: 21, label: '21 j' },
+  { days: 30, label: '30 j' },
+];
+const periodLabel = (d: SwapPeriod) => (d === 1 ? "aujourd'hui" : `sur les ${d} derniers jours`);
+
 export default function AutoSwapPage() {
   const [credentialsReady, setCredentialsReady] = useState(false);
 
@@ -92,7 +104,7 @@ export default function AutoSwapPage() {
   // Bucket cliqué pour afficher le détail (null = aucun, 'all' = tout)
   const [openBucket, setOpenBucket] = useState<SwapBucket | 'all' | null>(null);
   // Période affichée — Aujourd'hui par défaut
-  const [period, setPeriod] = useState<'today' | '7days'>('today');
+  const [period, setPeriod] = useState<SwapPeriod>(1);
 
   // Filtre les commandes swappées par date de swap (swapped_at) selon la période,
   // et recalcule les compteurs côté client (pas besoin de re-appeler l'API).
@@ -108,12 +120,13 @@ export default function AutoSwapPage() {
     if (!swapStats) return empty;
     const now = new Date();
     const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const start7 = startToday - 6 * 24 * 60 * 60 * 1000; // 7 jours glissants (aujourd'hui inclus)
+    // N jours glissants, aujourd'hui inclus (1 = aujourd'hui seulement).
+    const start = startToday - (period - 1) * 24 * 60 * 60 * 1000;
     const items = swapStats.items.filter((it) => {
       if (!it.swapped_at) return false; // sans date → non rattachable à une période
       const t = new Date(it.swapped_at).getTime();
       if (Number.isNaN(t)) return false;
-      return period === 'today' ? t >= startToday : t >= start7;
+      return t >= start;
     });
     const delivered = items.filter((i) => i.bucket === 'delivered').length;
     const cancelled = items.filter((i) => i.bucket === 'cancelled').length;
@@ -267,24 +280,22 @@ export default function AutoSwapPage() {
             <div className="flex items-center gap-3">
               {/* Sélecteur de période — Aujourd'hui par défaut */}
               <div className="inline-flex bg-stone-100 dark:bg-stone-800 rounded-lg p-0.5">
-                <button
-                  onClick={() => {
-                    setPeriod('today');
-                    setOpenBucket(null);
-                  }}
-                  className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${period === 'today' ? 'bg-white dark:bg-stone-900 text-violet-700 dark:text-violet-300 shadow-sm' : 'text-stone-500 dark:text-stone-400'}`}
-                >
-                  Aujourd'hui
-                </button>
-                <button
-                  onClick={() => {
-                    setPeriod('7days');
-                    setOpenBucket(null);
-                  }}
-                  className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${period === '7days' ? 'bg-white dark:bg-stone-900 text-violet-700 dark:text-violet-300 shadow-sm' : 'text-stone-500 dark:text-stone-400'}`}
-                >
-                  7 derniers jours
-                </button>
+                {SWAP_PERIODS.map((p) => (
+                  <button
+                    key={p.days}
+                    onClick={() => {
+                      setPeriod(p.days);
+                      setOpenBucket(null);
+                    }}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                      period === p.days
+                        ? 'bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 shadow-sm'
+                        : 'text-stone-500 dark:text-stone-400'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
               </div>
               <button
                 onClick={() => fetchSwapStats(credentialsReady)}
@@ -321,8 +332,7 @@ export default function AutoSwapPage() {
           ) : swapStats ? (
             <>
               <p className="text-xs text-stone-400 dark:text-stone-500 -mt-1">
-                Commandes swappées {period === 'today' ? "aujourd'hui" : 'sur les 7 derniers jours'}
-                , classées par statut de livraison.
+                Commandes swappées {periodLabel(period)}, classées par statut de livraison.
                 <span className="text-stone-300 dark:text-stone-600">
                   {' '}
                   · Cliquez une carte pour voir le détail.
@@ -368,12 +378,11 @@ export default function AutoSwapPage() {
               {/* Message si aucune commande dans la période choisie */}
               {periodStats.total_swapped === 0 && (
                 <div className="text-sm text-stone-500 dark:text-stone-400 py-1">
-                  Aucune commande swappée{' '}
-                  {period === 'today' ? "aujourd'hui" : 'sur les 7 derniers jours'}.
-                  {period === 'today' && (
+                  Aucune commande swappée {periodLabel(period)}.
+                  {period < 30 && (
                     <span className="text-stone-400 dark:text-stone-500">
                       {' '}
-                      Essayez « 7 derniers jours ».
+                      Essayez une période plus longue.
                     </span>
                   )}
                 </div>
