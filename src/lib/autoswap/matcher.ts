@@ -88,6 +88,14 @@ const COLOR_ALIASES: Record<string, string> = {
   grenat: 'grenat',
   grena: 'grenat',
   garnet: 'grenat',
+  // Fautes de frappe relevées dans les commandes (« gèrent », « grenta »…).
+  gerent: 'grenat',
+  gerant: 'grenat',
+  grenta: 'grenat',
+  grent: 'grenat',
+  grenet: 'grenat',
+  granat: 'grenat',
+  gernat: 'grenat',
   bordeaux: 'bordeaux',
   burgundy: 'bordeaux',
 };
@@ -177,10 +185,16 @@ function cleanToken(s: string): string {
 }
 
 // Découpe une chaîne en tokens : sépare sur tout sauf lettres et chiffres.
+// Un mot collé à une taille numérique est séparé (« grenat48 » → grenat, 48) ;
+// les tailles alpha comme « 2xl » restent intactes.
 function tokenize(s: string): string[] {
   return s
     .split(/[\s,/()\\-]+/)
     .map((t) => cleanToken(t))
+    .flatMap((t) => {
+      const m = t.match(/^([a-z]{3,})(\d{2,3})$|^(\d{2,3})([a-z]{3,})$/);
+      return m ? m.slice(1).filter((x): x is string => !!x) : [t];
+    })
     .filter((t) => t.length > 0 && !JUNK_TOKENS.has(t));
 }
 

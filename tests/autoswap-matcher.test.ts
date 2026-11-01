@@ -165,6 +165,23 @@ describe('parseProductsDescription', () => {
     expect(parseProductsDescription('robe( r )( blue L )').variantColors).toContain('bleu');
   });
 
+  it('reconnaît grenat malgré les fautes de frappe et une taille collée', () => {
+    const cases: [string, string][] = [
+      ['Veste EMY( EMY )( 50 / gèrent ) :  - 1', '50'],
+      ['Veste EMY( EMY )( 48 / grenta ) :  - 1', '48'],
+      ['Veste EMY( EMY )( Gèrent 52 ) :  - 1', '52'],
+      ['Veste EMY( EMY )( / grenat48 ) :  - 1', '48'],
+      ['Veste EMY( EMY )( 52 / gérant ) :  - 1', '52'],
+    ];
+    for (const [desc, size] of cases) {
+      const p = parseProductsDescription(desc);
+      expect(p.variantColors).toEqual(['grenat']);
+      expect(p.variantSizes).toEqual([size]);
+    }
+    // Les tailles alpha comme « 2xl » ne sont pas coupées.
+    expect(parseProductsDescription('robe( r )( noir 2xl )').variantSizes).toEqual(['2XL']);
+  });
+
   it('reconnaît grenat (et ses graphies) sans le confondre avec bordeaux', () => {
     expect(parseProductsDescription('veste emy( ve )( Grenat L ) :  - 1').variantColors).toEqual([
       'grenat',
