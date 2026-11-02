@@ -409,6 +409,16 @@ export function isTarget(p: NormalizedParcel): boolean {
   return TARGET_STATE_PATTERNS.some((pat) => s.includes(pat));
 }
 
+// « Prêt à expédier » : le vendeur peut choisir de ne pas les proposer comme
+// cibles (colis déjà emballé). Ils ne deviennent pas des sources pour autant.
+export function isReadyToShip(p: NormalizedParcel): boolean {
+  return norm(p.stateName).includes('pret a expedier');
+}
+
+function targetFilter(options: MatchOptions): (p: NormalizedParcel) => boolean {
+  return (p) => isTarget(p) && !(options.excludeReadyToShip && isReadyToShip(p));
+}
+
 // Vérifie la contrainte géographique du swap selon la règle ZRExpress :
 // si le colis source est dans une wilaya du Sud (RESTRICTED_WILAYAS),
 // la cible doit être dans la MÊME wilaya. Sinon swap interdit.
@@ -701,6 +711,8 @@ export interface MatchOptions {
   // Format : { 'mrl': [['40','42','44'],['46','48','50']], ... }
   // Si non fourni → comparaison stricte des tailles (aucune équivalence).
   sizeEquivalences?: Record<string, string[][]>;
+  // true → les commandes « Prêt à expédier » ne sont pas proposées comme cibles.
+  excludeReadyToShip?: boolean;
 }
 
 export function matchSwappables(
@@ -710,7 +722,7 @@ export function matchSwappables(
   const equiv = options.sizeEquivalences ?? {};
   const normalized = allParcels.map(normalizeParcel);
   const swappables = normalized.filter(isSwappable);
-  const targets = normalized.filter(isTarget);
+  const targets = normalized.filter(targetFilter(options));
 
   type Candidate = { s: NormalizedParcel; t: NormalizedParcel; result: MatchResult };
   const candidates: Candidate[] = [];
@@ -750,13 +762,16 @@ export function matchSwappables(
   return proposals;
 }
 
-export function splitSourcesAndTargets(allParcels: ZRParcel[]): {
+export function splitSourcesAndTargets(
+  allParcels: ZRParcel[],
+  options: MatchOptions = {}
+): {
   swappables: NormalizedParcel[];
   targets: NormalizedParcel[];
 } {
   const normalized = allParcels.map(normalizeParcel);
   return {
     swappables: normalized.filter(isSwappable),
-    targets: normalized.filter(isTarget),
+    targets: normalized.filter(targetFilter(options)),
   };
 }
