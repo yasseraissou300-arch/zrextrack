@@ -222,6 +222,28 @@ describe('matchSwappables — appariement', () => {
     expect(p[0].confidence).toBe('STRONG');
   });
 
+  it('option excludeReadyToShip : « Prêt à expédier » n’est plus une cible', () => {
+    const ready = colis({
+      id: 'RDY',
+      trackingNumber: 'RDY-1',
+      state: { name: 'Prêt à expédier' },
+      desc: 'pantalon lain( pl )( noir M ) :  - 1',
+    } as Partial<ZRParcel>);
+    expect(matchSwappables([src(), ready])).toHaveLength(1);
+    expect(matchSwappables([src(), ready], { excludeReadyToShip: true })).toHaveLength(0);
+    // Une « Commande reçue » reste une cible ; le colis exclu ne devient pas source.
+    const recue = colis({
+      id: 'RCV',
+      trackingNumber: 'RCV-1',
+      state: { name: 'Commande reçue' },
+      desc: 'pantalon lain( pl )( noir M ) :  - 1',
+    } as Partial<ZRParcel>);
+    const p = matchSwappables([src(), ready, recue], { excludeReadyToShip: true });
+    expect(p).toHaveLength(1);
+    expect(JSON.stringify(p[0].target)).toContain('RCV-1');
+    expect(isSwappable(normalizeParcel(ready))).toBe(false);
+  });
+
   it('apparie partiellement un pack multi-couleurs (WEAK)', () => {
     // Le colis contient [noir, bleu], la cible ne veut que [noir] → utile.
     const p = matchSwappables([

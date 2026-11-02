@@ -40,10 +40,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Option : ne pas proposer les commandes « Prêt à expédier » comme cibles.
+    const body = await request.json().catch(() => ({}));
+    const excludeReadyToShip = body?.excludeReadyToShip === true;
+
     const parcels = (await fetchAllParcels(token, tenantId)) as ZRParcel[];
 
-    const { swappables, targets } = splitSourcesAndTargets(parcels);
-    const proposals = matchSwappables(parcels, { sizeEquivalences });
+    const { swappables, targets } = splitSourcesAndTargets(parcels, { excludeReadyToShip });
+    const proposals = matchSwappables(parcels, { sizeEquivalences, excludeReadyToShip });
 
     const byConfidence = { EXACT: 0, STRONG: 0, WEAK: 0 };
     let totalSavings = 0;

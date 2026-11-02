@@ -97,6 +97,24 @@ export default function AutoSwapPage() {
 
   const [filterConfidence, setFilterConfidence] = useState<'ALL' | Confidence>('ALL');
   const [onlySameCity, setOnlySameCity] = useState(false);
+  // Exclure les commandes « Prêt à expédier » des cibles (choix mémorisé).
+  const [excludeReadyToShip, setExcludeReadyToShip] = useState(false);
+  useEffect(() => {
+    try {
+      setExcludeReadyToShip(localStorage.getItem('autoswap.excludeReadyToShip') === '1');
+    } catch {
+      /* stockage indisponible : valeur par défaut */
+    }
+  }, []);
+  const toggleExcludeReadyToShip = (v: boolean) => {
+    setExcludeReadyToShip(v);
+    setPreview(null); // le résultat précédent ne correspond plus au réglage
+    try {
+      localStorage.setItem('autoswap.excludeReadyToShip', v ? '1' : '0');
+    } catch {
+      /* stockage indisponible */
+    }
+  };
 
   const [swapStats, setSwapStats] = useState<SwapStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
@@ -181,7 +199,7 @@ export default function AutoSwapPage() {
       const res = await fetch('/api/autoswap/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ excludeReadyToShip }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Erreur ${res.status}`);
@@ -449,6 +467,14 @@ export default function AutoSwapPage() {
               Diagnostic
             </button>
           </div>
+          <label className="mt-4 flex items-center gap-2 text-sm text-stone-700 dark:text-stone-200 cursor-pointer w-fit">
+            <input
+              type="checkbox"
+              checked={excludeReadyToShip}
+              onChange={(e) => toggleExcludeReadyToShip(e.target.checked)}
+            />
+            Exclure les commandes « Prêt à expédier »
+          </label>
         </div>
 
         {/* Équivalences de tailles personnalisées */}
