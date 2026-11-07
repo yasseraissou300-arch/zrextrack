@@ -122,7 +122,7 @@ export default function AdminPage() {
             </button>
             <a
               href="/admin-dashboard"
-              className="flex items-center gap-2 text-sm bg-stone-900 text-white px-4 py-2 rounded-md hover:bg-stone-800 dark:bg-white dark:text-stone-900"
+              className="flex items-center gap-2 text-sm btn-brand px-4 py-2 rounded-md"
             >
               <Package size={14} /> Dashboard
             </a>

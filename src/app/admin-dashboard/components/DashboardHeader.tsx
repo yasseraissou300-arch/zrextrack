@@ -249,7 +249,7 @@ export default function DashboardHeader() {
           <p className="text-[13px] text-stone-400 dark:text-stone-500 first-letter:uppercase">
             {todayLabel}
           </p>
-          <h1 className="mt-1 text-[26px] font-semibold tracking-tight text-stone-900 dark:text-stone-50">
+          <h1 className="mt-1 text-[28px] font-extrabold tracking-tight text-indigo-950 dark:text-stone-50">
             {greeting}
           </h1>
         </div>
@@ -316,7 +316,7 @@ export default function DashboardHeader() {
           <button
             onClick={() => runSync(false)}
             disabled={syncing}
-            className="h-9 px-4 rounded-md bg-stone-900 dark:bg-white text-white dark:text-stone-900 text-[13.5px] font-medium flex items-center gap-2 hover:bg-stone-800 dark:hover:bg-stone-100 transition-colors disabled:opacity-60"
+            className="h-9 px-4 rounded-md btn-brand text-[13.5px] font-medium flex items-center gap-2 transition-colors disabled:opacity-60"
           >
             <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
             {syncing ? 'Synchronisation…' : 'Synchroniser'}

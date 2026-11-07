@@ -6,7 +6,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ChevronRight } from 'lucide-react';
+import { CheckCircle2, Package, TrendingUp, Truck } from 'lucide-react';
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
 import { SYNC_DONE_EVENT } from './DashboardHeader';
 
@@ -33,6 +33,41 @@ interface Day {
 const POLL_INTERVAL = 60_000;
 const EMPTY: Agg = { livrees: 0, echecs: 0, retours: 0, en_cours: 0, total: 0 };
 const fmt = (n: number | undefined) => (n ?? 0).toLocaleString('fr-FR');
+
+// Couleurs par thème (pastille d'icône, badge, ligne « À faire »).
+type Tone = 'blue' | 'green' | 'violet' | 'amber' | 'red' | 'gray';
+const TONE: Record<Tone, { soft: string; text: string; dot: string }> = {
+  blue: {
+    soft: 'bg-blue-50 dark:bg-blue-500/15',
+    text: 'text-blue-600 dark:text-blue-300',
+    dot: 'bg-blue-600',
+  },
+  green: {
+    soft: 'bg-emerald-50 dark:bg-emerald-500/15',
+    text: 'text-emerald-600 dark:text-emerald-300',
+    dot: 'bg-emerald-600',
+  },
+  violet: {
+    soft: 'bg-violet-50 dark:bg-violet-500/15',
+    text: 'text-violet-600 dark:text-violet-300',
+    dot: 'bg-violet-600',
+  },
+  amber: {
+    soft: 'bg-amber-50 dark:bg-amber-500/15',
+    text: 'text-amber-600 dark:text-amber-300',
+    dot: 'bg-amber-500',
+  },
+  red: {
+    soft: 'bg-rose-50 dark:bg-rose-500/15',
+    text: 'text-rose-600 dark:text-rose-300',
+    dot: 'bg-rose-600',
+  },
+  gray: {
+    soft: 'bg-stone-100 dark:bg-white/[0.06]',
+    text: 'text-stone-600 dark:text-stone-300',
+    dot: 'bg-stone-400',
+  },
+};
 
 function ChartTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
@@ -99,13 +134,15 @@ export default function HomeOverview({ children }: { children?: React.ReactNode 
       label: 'Commandes',
       value: fmt(kpis?.totalOrders),
       sub: `${fmt(today.total)} mises à jour aujourd’hui`,
-      tone: 'muted',
+      icon: Package,
+      tone: 'blue' as Tone,
     },
     {
       label: 'Livrées',
       value: fmt(kpis?.delivered),
       sub: `+${fmt(today.livrees)} aujourd’hui`,
-      tone: today.livrees > 0 ? 'good' : 'muted',
+      icon: CheckCircle2,
+      tone: 'green' as Tone,
     },
     {
       label: 'Taux de livraison',
@@ -114,79 +151,96 @@ export default function HomeOverview({ children }: { children?: React.ReactNode 
         finalized > 0
           ? `${today.livrees} sur ${finalized} aujourd’hui`
           : 'Aucune livraison finalisée aujourd’hui',
-      tone: 'muted',
+      icon: TrendingUp,
+      tone: 'violet' as Tone,
     },
     {
       label: 'En cours',
       value: fmt(enCours),
       sub: `${fmt(kpis?.inTransit)} en route`,
-      tone: 'muted',
+      icon: Truck,
+      tone: 'amber' as Tone,
     },
   ];
 
-  const todo: { dot: string; label: string; href: string }[] = [];
+  const todo: { tone: Tone; label: string; href: string; action: string }[] = [];
   if (waConnected === false)
     todo.push({
-      dot: 'bg-amber-500',
+      tone: 'amber',
       label: 'WhatsApp déconnecté',
       href: '/messages?tab=connexion',
+      action: 'Connecter',
     });
   if (today.echecs > 0)
     todo.push({
-      dot: 'bg-rose-500',
+      tone: 'red',
+      action: 'Voir',
       label: `${fmt(today.echecs)} livraison${today.echecs > 1 ? 's' : ''} en échec aujourd’hui`,
       href: '/alertes',
     });
   if (today.retours > 0)
     todo.push({
-      dot: 'bg-stone-400',
+      tone: 'gray',
+      action: 'Voir',
       label: `${fmt(today.retours)} retour${today.retours > 1 ? 's' : ''} aujourd’hui`,
       href: '/livraisons',
     });
   if ((kpis?.enPreparation ?? 0) > 0)
     todo.push({
-      dot: 'bg-violet-500',
+      tone: 'violet',
+      action: 'Voir',
       label: `${fmt(kpis?.enPreparation)} commandes en préparation`,
       href: '/commandes',
     });
 
   return (
     <>
-      <section className="grid grid-cols-2 lg:grid-cols-4 rounded-xl border border-stone-200/80 dark:border-stone-800 bg-white dark:bg-stone-900 divide-x divide-y lg:divide-y-0 divide-stone-100 dark:divide-stone-800">
-        {stats.map((s) => (
-          <div key={s.label} className="p-6">
-            <div className="text-[13px] text-stone-500 dark:text-stone-400">{s.label}</div>
-            <div className="mt-2 text-[30px] leading-none font-semibold tracking-tight tabular-nums text-stone-900 dark:text-stone-50">
-              {kpis ? (
-                s.value
-              ) : (
-                <span className="inline-block w-20 h-7 rounded bg-stone-100 dark:bg-stone-800 animate-pulse" />
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5">
+        {stats.map((s) => {
+          const t = TONE[s.tone];
+          const Icon = s.icon;
+          return (
+            <div key={s.label} className="card-soft bg-white dark:bg-stone-900 p-5">
+              <div className={`w-11 h-11 rounded-xl grid place-items-center ${t.soft} ${t.text}`}>
+                <Icon size={21} strokeWidth={2} />
+              </div>
+              <div className="mt-3.5 text-[13.5px] font-semibold text-stone-500 dark:text-stone-400">
+                {s.label}
+              </div>
+              <div className="mt-1 text-[30px] leading-tight font-extrabold tracking-tight tabular-nums text-indigo-950 dark:text-stone-50">
+                {kpis ? (
+                  s.value
+                ) : (
+                  <span className="inline-block w-20 h-7 rounded bg-stone-100 dark:bg-stone-800 animate-pulse" />
+                )}
+              </div>
+              {kpis && (
+                <span
+                  className={`mt-1.5 inline-block rounded-full px-2.5 py-0.5 text-[12px] font-bold ${t.soft} ${t.text}`}
+                >
+                  {s.sub}
+                </span>
               )}
             </div>
-            <div
-              className={`mt-2 text-[12.5px] ${
-                s.tone === 'good' ? 'text-emerald-600 dark:text-emerald-400' : 'text-stone-400'
-              }`}
-            >
-              {kpis ? s.sub : ' '}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </section>
 
-      <section className="rounded-xl border border-stone-200/80 dark:border-stone-800 bg-white dark:bg-stone-900 p-6">
+      <section className="card-soft bg-white dark:bg-stone-900 p-6">
         <div className="flex items-baseline justify-between">
-          <h2 className="text-[15px] font-semibold text-stone-900 dark:text-stone-50">
+          <h2 className="text-[17px] font-extrabold text-indigo-950 dark:text-stone-50">
             Livraisons
           </h2>
-          <span className="text-[13px] text-stone-400">7 derniers jours</span>
+          <span className="rounded-lg bg-violet-600 px-3 py-1 text-[12.5px] font-semibold text-white">
+            7 derniers jours
+          </span>
         </div>
         <div className="h-[220px] mt-4 -mx-2">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={daily} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
               <defs>
                 <linearGradient id="homeArea" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.18} />
+                  <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.35} />
                   <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
                 </linearGradient>
               </defs>
@@ -202,7 +256,7 @@ export default function HomeOverview({ children }: { children?: React.ReactNode 
                 type="monotone"
                 dataKey="livrees"
                 stroke="#7c3aed"
-                strokeWidth={2.25}
+                strokeWidth={3}
                 fill="url(#homeArea)"
                 dot={false}
                 activeDot={{ r: 4 }}
@@ -213,26 +267,29 @@ export default function HomeOverview({ children }: { children?: React.ReactNode 
       </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        <section className="lg:col-span-2 rounded-xl border border-stone-200/80 dark:border-stone-800 bg-white dark:bg-stone-900 self-start">
-          <h2 className="px-6 pt-5 pb-3 text-[15px] font-semibold text-stone-900 dark:text-stone-50">
-            À faire
-          </h2>
+        <section className="lg:col-span-2 card-soft bg-white dark:bg-stone-900 p-5 self-start">
+          <h2 className="text-[17px] font-extrabold text-indigo-950 dark:text-stone-50">À faire</h2>
           {todo.length === 0 ? (
-            <p className="px-6 pb-6 text-[14px] text-stone-400">Rien d’urgent pour le moment.</p>
+            <p className="mt-3 text-[14px] text-stone-400">Rien d’urgent pour le moment.</p>
           ) : (
-            <ul className="text-[14px]">
-              {todo.map((t) => (
-                <li key={t.label} className="border-t border-stone-100 dark:border-stone-800">
-                  <Link
-                    href={t.href}
-                    className="flex items-center gap-3 px-6 py-3.5 text-stone-800 dark:text-stone-200 hover:bg-stone-50 dark:hover:bg-white/[0.03] transition-colors"
-                  >
-                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${t.dot}`} />
-                    <span className="flex-1">{t.label}</span>
-                    <ChevronRight size={16} className="text-stone-300 dark:text-stone-600" />
-                  </Link>
-                </li>
-              ))}
+            <ul className="mt-3 space-y-2.5 text-[14.5px]">
+              {todo.map((t) => {
+                const c = TONE[t.tone];
+                return (
+                  <li key={t.label}>
+                    <Link
+                      href={t.href}
+                      className={`flex items-center gap-3 rounded-xl px-4 py-3 font-semibold transition hover:brightness-[0.97] ${c.soft} ${c.text}`}
+                    >
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${c.dot}`} />
+                      <span className="flex-1">{t.label}</span>
+                      <span className="rounded-lg bg-white dark:bg-white/10 px-3 py-1 text-[12.5px] font-bold">
+                        {t.action}
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>

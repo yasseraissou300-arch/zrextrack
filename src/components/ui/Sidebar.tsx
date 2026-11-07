@@ -134,19 +134,19 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
           href={item.href}
           onClick={onMobileClose}
           title={narrow ? item.label : undefined}
-          className={`flex items-center gap-3 h-9 rounded-md text-[14px] transition-colors ${
+          className={`flex items-center gap-3 h-10 rounded-xl text-[14.5px] font-semibold transition-colors ${
             narrow ? 'justify-center px-0' : 'px-3'
           } ${
             open || exact
-              ? 'bg-stone-900/[0.05] text-stone-900 font-medium dark:bg-white/[0.07] dark:text-stone-50'
-              : 'text-stone-500 hover:bg-stone-900/[0.03] hover:text-stone-800 dark:text-stone-400 dark:hover:bg-white/[0.04] dark:hover:text-stone-100'
+              ? 'bg-white text-violet-800 shadow-[0_8px_20px_-8px_rgba(30,0,80,.5)] dark:bg-white/[0.14] dark:text-white dark:shadow-none'
+              : 'text-violet-100 hover:bg-white/10 hover:text-white'
           }`}
         >
           <Icon size={17} strokeWidth={1.75} className="shrink-0" />
           {!narrow && <span className="truncate">{item.label}</span>}
         </Link>
         {open && !narrow && item.children && (
-          <ul className="mt-0.5 mb-1.5 ml-[22px] pl-3 border-l border-stone-200 dark:border-stone-800 space-y-0.5">
+          <ul className="mt-1 mb-1.5 ml-[22px] pl-3 border-l border-white/25 space-y-0.5">
             {item.children.map((c) => {
               const active =
                 pathname === c.href || (c.href !== item.href && matches(pathname, c.href));
@@ -157,8 +157,8 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
                     onClick={onMobileClose}
                     className={`block px-2.5 py-1.5 rounded-md text-[13px] transition-colors ${
                       active
-                        ? 'text-stone-900 font-medium dark:text-stone-50'
-                        : 'text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-100'
+                        ? 'text-white font-semibold bg-white/10'
+                        : 'text-violet-200 hover:text-white'
                     }`}
                   >
                     {c.label}
@@ -173,24 +173,22 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
   };
 
   const iconButton =
-    'flex items-center justify-center w-8 h-8 rounded-md text-stone-500 hover:bg-stone-900/[0.04] hover:text-stone-800 dark:text-stone-400 dark:hover:bg-white/[0.06] dark:hover:text-stone-100 transition-colors';
+    'flex items-center justify-center w-8 h-8 rounded-lg text-violet-100 hover:bg-white/10 hover:text-white transition-colors';
 
   return (
     <aside
       // h-screen + flex-col : la nav (flex-1, min-h-0) scrolle en interne même
       // sur un petit écran ; le pied (Paramètres, compte) reste accessible.
-      className={`relative flex flex-col h-screen bg-white dark:bg-stone-950 border-r border-stone-200/70 dark:border-stone-800 transition-[width] duration-300 ease-in-out shrink-0 ${
+      className={`relative flex flex-col h-screen bg-gradient-to-b from-indigo-600 via-violet-600 to-purple-600 dark:from-indigo-950 dark:via-violet-950 dark:to-purple-950 text-white transition-[width] duration-300 ease-in-out shrink-0 ${
         narrow ? 'w-[64px]' : 'w-[232px]'
       }`}
     >
-      <div className={`flex items-center h-[64px] ${narrow ? 'justify-center' : 'gap-2.5 px-6'}`}>
-        <div className="w-7 h-7 rounded-md bg-stone-900 dark:bg-white flex items-center justify-center shrink-0">
-          <span className="text-white dark:text-stone-900 font-semibold text-[13px]">A</span>
+      <div className={`flex items-center h-[76px] ${narrow ? 'justify-center' : 'gap-2.5 px-5'}`}>
+        <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center shrink-0">
+          <span className="text-violet-700 font-extrabold text-[16px]">A</span>
         </div>
         {!narrow && (
-          <span className="font-semibold text-[15px] tracking-tight text-stone-900 dark:text-stone-50">
-            AutoTim
-          </span>
+          <span className="font-extrabold text-[19px] tracking-tight text-white">AutoTim</span>
         )}
       </div>
 
@@ -203,7 +201,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
         {isAdmin && <ul>{renderItem({ href: '/admin', icon: Shield, label: 'Super Admin' })}</ul>}
 
         <div
-          className={`flex items-center gap-2.5 pt-3 mt-2 border-t border-stone-100 dark:border-stone-800 ${
+          className={`flex items-center gap-2.5 pt-3 mt-2 border-t border-white/15 ${
             narrow ? 'flex-col' : 'px-1'
           }`}
         >
@@ -213,15 +211,15 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
             title={narrow ? 'Mon compte' : undefined}
             className={`flex items-center gap-2.5 min-w-0 ${narrow ? '' : 'flex-1'}`}
           >
-            <div className="w-7 h-7 rounded-full bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 grid place-items-center text-[11px] font-semibold shrink-0">
+            <div className="w-8 h-8 rounded-full bg-amber-400 text-amber-900 grid place-items-center text-[11px] font-extrabold shrink-0">
               {initialsOf(me)}
             </div>
             {!narrow && (
               <div className="min-w-0 leading-tight">
-                <div className="text-[13px] font-medium text-stone-900 dark:text-stone-100 truncate">
+                <div className="text-[13px] font-bold text-white truncate">
                   {me?.full_name || me?.email || 'Mon compte'}
                 </div>
-                <div className="text-[12px] text-stone-400 truncate">
+                <div className="text-[12px] text-violet-200 truncate">
                   {PLAN_LABEL[me?.plan_id ?? ''] ?? 'Basic'}
                 </div>
               </div>
@@ -241,7 +239,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
           </button>
           <button
             onClick={toggle}
-            className={`${iconButton} ${isOpen ? 'bg-stone-900/[0.05] text-stone-900 dark:bg-white/[0.07] dark:text-stone-50' : ''}`}
+            className={`${iconButton} ${isOpen ? 'bg-white/15 text-white' : ''}`}
             title="Assistant IA"
             aria-label="Assistant IA"
           >

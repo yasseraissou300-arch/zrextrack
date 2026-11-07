@@ -6,6 +6,15 @@ import Link from 'next/link';
 import { SYNC_DONE_EVENT } from './DashboardHeader';
 import { formatDA, prettyProduct, statusBadge } from '@/lib/ui/order-display';
 
+// Pastille colorée avec l'initiale du client (couleur stable par ligne).
+const AVATAR = [
+  'bg-violet-50 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300',
+  'bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300',
+  'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300',
+  'bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300',
+  'bg-rose-50 text-rose-600 dark:bg-rose-500/15 dark:text-rose-300',
+];
+
 interface Row {
   id: string;
   customer_name: string | null;
@@ -34,16 +43,16 @@ export default function RecentOrders() {
   }, [load]);
 
   return (
-    <section className="rounded-xl border border-stone-200/80 dark:border-stone-800 bg-white dark:bg-stone-900">
+    <section className="card-soft bg-white dark:bg-stone-900">
       <div className="px-6 pt-5 pb-3 flex items-baseline justify-between">
-        <h2 className="text-[15px] font-semibold text-stone-900 dark:text-stone-50">
+        <h2 className="text-[17px] font-extrabold text-indigo-950 dark:text-stone-50">
           Dernières commandes
         </h2>
         <Link
           href="/commandes"
-          className="text-[13px] text-stone-500 hover:text-stone-900 dark:hover:text-stone-100"
+          className="text-[14px] font-bold text-violet-600 hover:text-violet-800 dark:text-violet-300"
         >
-          Tout voir
+          Tout voir →
         </Link>
       </div>
       {rows === null ? (
@@ -58,7 +67,7 @@ export default function RecentOrders() {
         </p>
       ) : (
         <ul className="text-[14px]">
-          {rows.map((o) => {
+          {rows.map((o, i) => {
             const p = prettyProduct(o.product_name);
             const b = statusBadge(o.delivery_status);
             return (
@@ -66,8 +75,13 @@ export default function RecentOrders() {
                 key={o.id}
                 className="flex items-center gap-4 px-6 py-3 border-t border-stone-100 dark:border-stone-800"
               >
+                <div
+                  className={`w-9 h-9 rounded-xl grid place-items-center text-[13px] font-extrabold shrink-0 ${AVATAR[i % AVATAR.length]}`}
+                >
+                  {(o.customer_name || '?').trim().charAt(0).toUpperCase()}
+                </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-stone-900 dark:text-stone-100 truncate">
+                  <div className="font-bold text-indigo-950 dark:text-stone-100 truncate">
                     <bdi>{o.customer_name || '—'}</bdi>
                   </div>
                   <div className="text-[12.5px] text-stone-400 truncate">
@@ -76,11 +90,11 @@ export default function RecentOrders() {
                   </div>
                 </div>
                 <span
-                  className={`text-[12px] font-medium px-2 py-0.5 rounded shrink-0 ${b.className}`}
+                  className={`text-[12px] font-bold px-2.5 py-1 rounded-full shrink-0 ${b.className}`}
                 >
                   {b.label}
                 </span>
-                <span className="w-24 text-right tabular-nums text-stone-900 dark:text-stone-100 shrink-0">
+                <span className="w-24 text-right tabular-nums font-extrabold text-indigo-950 dark:text-stone-100 shrink-0">
                   {formatDA(o.cod)}
                 </span>
               </li>

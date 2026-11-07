@@ -253,7 +253,7 @@ export default function AutoSwapPage() {
         {/* Header */}
         <div className="flex items-center gap-3">
           <div>
-            <h1 className="text-[26px] font-semibold tracking-tight text-stone-900 dark:text-stone-50">
+            <h1 className="text-[28px] font-extrabold tracking-tight text-indigo-950 dark:text-stone-50">
               AutoSwap
             </h1>
             <p className="text-sm text-stone-500 dark:text-stone-400">
@@ -287,7 +287,7 @@ export default function AutoSwapPage() {
         )}
 
         {/* Statistiques des commandes swappées — focus livré vs annulé */}
-        <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-6 space-y-4">
+        <div className="bg-white dark:bg-stone-900 card-soft p-6 space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-2">
               <BarChart3 size={16} className="text-stone-500 dark:text-stone-400" />
@@ -438,7 +438,7 @@ export default function AutoSwapPage() {
         </div>
 
         {/* Scan action */}
-        <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-6">
+        <div className="bg-white dark:bg-stone-900 card-soft p-6">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
               <h2 className="font-semibold text-stone-900 dark:text-stone-100">
@@ -452,7 +452,7 @@ export default function AutoSwapPage() {
             <button
               onClick={runScan}
               disabled={scanning || !credentialsReady}
-              className="flex items-center gap-2 bg-stone-900 dark:bg-white dark:text-stone-900 hover:shadow-lg disabled:from-stone-300 disabled:to-stone-300 disabled:shadow-none disabled:cursor-not-allowed text-white font-semibold px-5 py-2.5 rounded-xl transition-all active:scale-95"
+              className="flex items-center gap-2 btn-brand disabled:shadow-none disabled:cursor-not-allowed font-semibold px-5 py-2.5 rounded-xl transition-all active:scale-95"
             >
               {scanning ? <Loader2 size={18} className="animate-spin" /> : <Search size={18} />}
               {scanning ? 'Analyse en cours…' : 'Scanner pour swaps'}
@@ -664,7 +664,7 @@ export default function AutoSwapPage() {
 
         {/* Filters */}
         {preview && preview.proposals.length > 0 && (
-          <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-4 flex items-center gap-3 flex-wrap">
+          <div className="bg-white dark:bg-stone-900 card-soft p-4 flex items-center gap-3 flex-wrap">
             <Filter size={16} className="text-stone-400 dark:text-stone-500" />
             <select
               value={filterConfidence}
@@ -695,7 +695,7 @@ export default function AutoSwapPage() {
         {/* Proposals table */}
         {preview &&
           (preview.proposals.length === 0 ? (
-            <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-12 text-center">
+            <div className="bg-white dark:bg-stone-900 card-soft p-12 text-center">
               <Package size={36} className="mx-auto text-stone-300 dark:text-stone-600 mb-3" />
               <h3 className="font-semibold text-stone-900 dark:text-stone-100 mb-1">
                 Aucun match trouvé
@@ -709,7 +709,7 @@ export default function AutoSwapPage() {
               </p>
             </div>
           ) : (
-            <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 overflow-hidden">
+            <div className="bg-white dark:bg-stone-900 card-soft overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-stone-50 border-b border-stone-100 dark:border-stone-800">
@@ -795,7 +795,7 @@ export default function AutoSwapPage() {
                                 href={parcelDetailUrl(p.swappable.id)}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center justify-center gap-1.5 text-xs bg-stone-900 hover:bg-stone-800 text-white dark:bg-white dark:text-stone-900 dark:hover:bg-stone-100 font-medium px-3 py-1.5 rounded-md transition-colors"
+                                className="flex items-center justify-center gap-1.5 text-xs btn-brand font-medium px-3 py-1.5 rounded-md transition-colors"
                                 title="Ouvre la fiche du colis à rediriger dans ZRExpress"
                               >
                                 <ExternalLink size={12} />
@@ -1088,7 +1088,7 @@ function SizeEquivalencesCard() {
   };
 
   return (
-    <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 overflow-hidden">
+    <div className="bg-white dark:bg-stone-900 card-soft overflow-hidden">
       <button
         onClick={() => setExpanded((e) => !e)}
         className="w-full p-4 flex items-center gap-3 hover:bg-stone-50 dark:hover:bg-stone-800 transition-colors text-left"
@@ -1202,7 +1202,7 @@ function SizeEquivalencesCard() {
                   <button
                     onClick={addNew}
                     disabled={saving || !newKey.trim() || !newGroupsText.trim()}
-                    className="flex items-center gap-1.5 text-sm px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white dark:bg-white dark:text-stone-900 dark:hover:bg-stone-100 font-medium rounded-lg disabled:opacity-50"
+                    className="flex items-center gap-1.5 text-sm px-4 py-2 btn-brand font-medium rounded-lg disabled:opacity-50"
                   >
                     {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                     Enregistrer

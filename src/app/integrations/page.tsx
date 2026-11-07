@@ -263,7 +263,7 @@ export default function IntegrationsPage() {
       <div className="max-w-screen-lg mx-auto px-6 py-6 space-y-6">
         <div className="flex items-center gap-3">
           <div>
-            <h1 className="text-[26px] font-semibold tracking-tight text-stone-900 dark:text-stone-50">
+            <h1 className="text-[28px] font-extrabold tracking-tight text-indigo-950 dark:text-stone-50">
               Intégrations
             </h1>
             <p className="text-sm text-stone-500 dark:text-stone-400">
@@ -360,7 +360,7 @@ export default function IntegrationsPage() {
           </div>
         )}
 
-        <div className="bg-stone-50 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5 space-y-3">
+        <div className="bg-stone-50 card-soft p-5 space-y-3">
           <div className="flex items-center gap-2">
             <Package size={16} className="text-stone-500 dark:text-stone-400" />
             <p className="font-semibold text-stone-700 dark:text-stone-200">

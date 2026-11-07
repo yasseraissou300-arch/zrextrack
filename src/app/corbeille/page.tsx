@@ -145,7 +145,7 @@ export default function CorbeillePage() {
         {/* Header */}
         <div className="flex items-center gap-3">
           <div>
-            <h1 className="text-[26px] font-semibold tracking-tight text-stone-900 dark:text-stone-50">
+            <h1 className="text-[28px] font-extrabold tracking-tight text-indigo-950 dark:text-stone-50">
               Corbeille
             </h1>
             <p className="text-sm text-stone-400 dark:text-stone-500">

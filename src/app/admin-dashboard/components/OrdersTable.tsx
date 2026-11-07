@@ -227,7 +227,7 @@ export default function OrdersTable() {
               }}
               className={`pb-3 -mb-px border-b-2 whitespace-nowrap transition-colors ${
                 active
-                  ? 'border-stone-900 dark:border-stone-100 text-stone-900 dark:text-stone-50 font-medium'
+                  ? 'border-violet-600 dark:border-violet-400 text-violet-700 dark:text-violet-300 font-semibold'
                   : 'border-transparent text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200'
               }`}
             >
@@ -325,7 +325,7 @@ export default function OrdersTable() {
                       }}
                       className={`flex-1 h-7 rounded text-[12.5px] tabular-nums ${
                         pageSize === n
-                          ? 'bg-stone-900 text-white dark:bg-white dark:text-stone-900'
+                          ? 'btn-brand'
                           : 'text-stone-600 hover:bg-stone-100 dark:text-stone-300 dark:hover:bg-stone-800'
                       }`}
                     >
@@ -340,7 +340,7 @@ export default function OrdersTable() {
       </div>
 
       {/* Tableau */}
-      <div className="rounded-xl border border-stone-200/80 dark:border-stone-800 bg-white dark:bg-stone-900 overflow-hidden">
+      <div className="card-soft bg-white dark:bg-stone-900 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-[14px]">
             <thead>
