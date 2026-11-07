@@ -54,7 +54,7 @@ export default function VoiceCallsPage() {
         {/* Header */}
         <div className="flex items-center gap-3">
           <div>
-            <h1 className="text-[26px] font-semibold tracking-tight text-stone-900 dark:text-stone-50">
+            <h1 className="text-[28px] font-extrabold tracking-tight text-indigo-950 dark:text-stone-50">
               AI Voice Calling
             </h1>
             <p className="text-sm text-stone-500 dark:text-stone-400">
@@ -160,7 +160,7 @@ function ConnexionTab() {
         </ol>
       </div>
 
-      <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5 space-y-3">
+      <div className="bg-white dark:bg-stone-900 card-soft p-5 space-y-3">
         <h3 className="font-semibold text-stone-900 dark:text-stone-100 text-sm">
           Identifiants Twilio
         </h3>
@@ -195,7 +195,7 @@ function ConnexionTab() {
         </label>
       </div>
 
-      <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5 space-y-3">
+      <div className="bg-white dark:bg-stone-900 card-soft p-5 space-y-3">
         <h3 className="font-semibold text-stone-900 dark:text-stone-100 text-sm">Script darija</h3>
         <Field
           label="Nom de la boutique"
@@ -288,7 +288,7 @@ function TestTab() {
         </p>
       </div>
 
-      <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5 space-y-3">
+      <div className="bg-white dark:bg-stone-900 card-soft p-5 space-y-3">
         <Field label="Nom client" value={name} onChange={setName} placeholder="Ahmed Belkacem" />
         <Field
           label="Téléphone"
@@ -373,7 +373,7 @@ function HistoriqueTab() {
         </div>
       )}
 
-      <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 overflow-hidden">
+      <div className="bg-white dark:bg-stone-900 card-soft overflow-hidden">
         {calls.length === 0 ? (
           <div className="py-16 text-center text-stone-400">
             <Phone size={32} className="mx-auto mb-2 opacity-40" />

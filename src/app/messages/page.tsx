@@ -188,7 +188,7 @@ function AutoNotifyToggles() {
   };
 
   return (
-    <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5 space-y-3">
+    <div className="bg-white dark:bg-stone-900 card-soft p-5 space-y-3">
       <div className="flex items-center gap-2">
         <Bell size={16} className="text-amber-500" />
         <h3 className="font-semibold text-stone-900 dark:text-stone-100">
@@ -581,7 +581,7 @@ function ConnexionTab() {
 
       {/* QR Code */}
       {!connected && (
-        <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5 space-y-4">
+        <div className="bg-white dark:bg-stone-900 card-soft p-5 space-y-4">
           <div className="flex items-center gap-2">
             <QrCode size={16} className="text-stone-500 dark:text-stone-400" />
             <h3 className="font-semibold text-stone-900 dark:text-stone-100">Connecter WhatsApp</h3>
@@ -813,12 +813,11 @@ function EnvoyerTab() {
     }
   };
 
-  const card =
-    'rounded-xl border border-stone-200/80 dark:border-stone-800 bg-white dark:bg-stone-900';
+  const card = 'card-soft bg-white dark:bg-stone-900';
   const field =
     'h-10 w-full px-3 rounded-md border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 text-[14px] text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-stone-900/10 dark:focus:ring-white/10';
   const step = (n: number) => (
-    <span className="w-6 h-6 rounded-full bg-stone-900 dark:bg-white text-white dark:text-stone-900 grid place-items-center text-[12px] font-medium shrink-0">
+    <span className="w-6 h-6 rounded-full btn-brand grid place-items-center text-[12px] font-medium shrink-0">
       {n}
     </span>
   );
@@ -1069,7 +1068,7 @@ function EnvoyerTab() {
         <button
           onClick={sendMessages}
           disabled={sending || selected.size === 0 || !connected}
-          className="mt-5 w-full h-10 rounded-md bg-stone-900 dark:bg-white text-white dark:text-stone-900 text-[14px] font-medium flex items-center justify-center gap-2 disabled:opacity-40"
+          className="mt-5 w-full h-10 rounded-md btn-brand text-[14px] font-medium flex items-center justify-center gap-2 disabled:opacity-40"
         >
           {sending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
           {selected.size > 0
@@ -1356,7 +1355,7 @@ function HistoriqueTab() {
         </div>
       )}
 
-      <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 overflow-hidden">
+      <div className="bg-white dark:bg-stone-900 card-soft overflow-hidden">
         <div className="p-4 border-b border-stone-100 dark:border-stone-800 flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2">
             <History size={16} className="text-stone-500 dark:text-stone-400" />
@@ -1539,7 +1538,7 @@ function TemplateEditCard({
       className={
         inline
           ? 'border border-stone-100 dark:border-stone-800 rounded-xl overflow-hidden'
-          : 'bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 overflow-hidden'
+          : 'bg-white dark:bg-stone-900 card-soft overflow-hidden'
       }
     >
       {!inline && (
@@ -1630,7 +1629,7 @@ export default function MessagesPage() {
   return (
     <AppLayout>
       <div className="max-w-[1120px] mx-auto px-5 sm:px-8 lg:px-10 py-8 lg:py-10 space-y-6">
-        <h1 className="text-[26px] font-semibold tracking-tight text-stone-900 dark:text-stone-50">
+        <h1 className="text-[28px] font-extrabold tracking-tight text-indigo-950 dark:text-stone-50">
           Messages
         </h1>
         <div className="flex items-center gap-6 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-b border-stone-200 dark:border-stone-800 text-[14px]">
@@ -1640,7 +1639,7 @@ export default function MessagesPage() {
               onClick={() => setTab(t.id)}
               className={`pb-3 -mb-px border-b-2 whitespace-nowrap transition-colors ${
                 tab === t.id
-                  ? 'border-stone-900 dark:border-stone-100 text-stone-900 dark:text-stone-50 font-medium'
+                  ? 'border-violet-600 dark:border-violet-400 text-violet-700 dark:text-violet-300 font-semibold'
                   : 'border-transparent text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200'
               }`}
             >

@@ -15,7 +15,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <ChatbotProvider>
-      <div className="flex h-screen bg-[#fafafa] dark:bg-stone-950 overflow-hidden">
+      <div className="flex h-screen bg-[#f5f3ff] dark:bg-stone-950 overflow-hidden">
         {/* Mobile top bar with menu trigger */}
         <div className="md:hidden fixed top-0 inset-x-0 z-40 h-14 bg-white/90 dark:bg-stone-950/90 backdrop-blur-md border-b border-stone-200/70 dark:border-stone-800 flex items-center px-4">
           <button
@@ -26,8 +26,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
             <Menu size={18} />
           </button>
           <div className="ml-3 flex items-center gap-2">
-            <div className="w-6 h-6 bg-stone-900 dark:bg-white rounded-md flex items-center justify-center">
-              <span className="text-white dark:text-stone-900 font-semibold text-[11px]">A</span>
+            <div className="w-6 h-6 btn-brand rounded-md flex items-center justify-center">
+              <span className="font-bold text-[11px]">A</span>
             </div>
             <span className="font-semibold text-stone-900 dark:text-stone-100 text-sm tracking-tight">
               AutoTim

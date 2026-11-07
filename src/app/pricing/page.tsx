@@ -13,8 +13,7 @@ const plans = [
     badge: null,
     features: ["Jusqu'à 200 commandes/mois", '1 utilisateur', 'Tableau de bord', 'Support email'],
     cta: 'Commencer gratuitement',
-    ctaStyle:
-      'bg-stone-900 hover:bg-stone-800 text-white dark:bg-stone-100 dark:hover:bg-white dark:text-stone-900',
+    ctaStyle: 'btn-brand',
   },
   {
     id: 'pro',

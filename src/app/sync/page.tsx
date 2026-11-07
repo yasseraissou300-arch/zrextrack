@@ -223,7 +223,7 @@ export default function SyncPage() {
       <div className="max-w-screen-xl mx-auto px-6 py-6 space-y-6">
         <div className="flex items-center gap-3">
           <div>
-            <h1 className="text-[26px] font-semibold tracking-tight text-stone-900 dark:text-stone-50">
+            <h1 className="text-[28px] font-extrabold tracking-tight text-indigo-950 dark:text-stone-50">
               Sync ZREXpress
             </h1>
             <p className="text-sm text-stone-500 dark:text-stone-400">
@@ -235,7 +235,7 @@ export default function SyncPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-5">
             {/* Clé API */}
-            <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-6">
+            <div className="bg-white dark:bg-stone-900 card-soft p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Key size={18} className="text-stone-500 dark:text-stone-400" />
                 <h2 className="font-semibold text-stone-900 dark:text-stone-100">
@@ -300,7 +300,7 @@ export default function SyncPage() {
                 <button
                   onClick={saveToken}
                   disabled={!canSave}
-                  className="flex-1 bg-stone-900 text-white text-sm font-medium py-2.5 rounded-xl hover:bg-stone-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="flex-1 btn-brand text-sm font-medium py-2.5 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   Enregistrer les clés
                 </button>
@@ -316,7 +316,7 @@ export default function SyncPage() {
             </div>
 
             {/* Sync */}
-            <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-6">
+            <div className="bg-white dark:bg-stone-900 card-soft p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Package size={18} className="text-stone-500 dark:text-stone-400" />
                 <h2 className="font-semibold text-stone-900 dark:text-stone-100">
@@ -330,7 +330,7 @@ export default function SyncPage() {
               <button
                 onClick={runSync}
                 disabled={loading || !canSave}
-                className="w-full flex items-center justify-center gap-3 bg-stone-900 dark:bg-white dark:text-stone-900 hover:shadow-lg disabled:bg-stone-200 disabled:text-stone-400 dark:text-stone-500 text-white font-semibold py-4 rounded-xl transition-colors text-base disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center gap-3 btn-brand font-semibold py-4 rounded-xl transition-colors text-base disabled:cursor-not-allowed"
               >
                 <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
                 {loading ? 'Synchronisation en cours...' : 'Synchroniser maintenant'}
@@ -374,7 +374,7 @@ export default function SyncPage() {
                 sont désormais entièrement gérés dans Messages → Envoyer. */}
             <a
               href="/messages"
-              className="flex items-center justify-between gap-2 bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5 hover:border-green-300 transition-colors"
+              className="flex items-center justify-between gap-2 bg-white dark:bg-stone-900 card-soft p-5 hover:border-green-300 transition-colors"
             >
               <span className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-green-100 flex items-center justify-center">
@@ -395,7 +395,7 @@ export default function SyncPage() {
 
           {/* Colonne droite */}
           <div className="space-y-4">
-            <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-6">
+            <div className="bg-white dark:bg-stone-900 card-soft p-6">
               <h2 className="font-semibold text-stone-900 dark:text-stone-100 mb-4">
                 Comment ça marche
               </h2>
@@ -419,7 +419,7 @@ export default function SyncPage() {
               </div>
             </div>
 
-            <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-6">
+            <div className="bg-white dark:bg-stone-900 card-soft p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Clock size={16} className="text-stone-400 dark:text-stone-500" />
                 <h2 className="font-semibold text-stone-900 dark:text-stone-100">Historique</h2>

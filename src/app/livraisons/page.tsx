@@ -51,7 +51,7 @@ export default function LivraisonsPage() {
       <div className="max-w-[1120px] mx-auto px-5 sm:px-8 lg:px-10 py-8 lg:py-10 space-y-6">
         <div className="flex items-center gap-3">
           <div>
-            <h1 className="text-[26px] font-semibold tracking-tight text-stone-900 dark:text-stone-50">
+            <h1 className="text-[28px] font-extrabold tracking-tight text-indigo-950 dark:text-stone-50">
               Livraisons
             </h1>
             <p className="text-sm text-stone-500 dark:text-stone-400">
@@ -81,7 +81,7 @@ export default function LivraisonsPage() {
         </div>
 
         {/* Table */}
-        <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 overflow-hidden">
+        <div className="bg-white dark:bg-stone-900 card-soft overflow-hidden">
           <div className="px-6 py-4 border-b border-stone-100 dark:border-stone-800">
             <h2 className="font-semibold text-stone-900 dark:text-stone-100">
               Détail des livraisons

@@ -842,7 +842,7 @@ function ServiceConnectionBlock({ serviceType }: { serviceType: WAServiceType })
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5 flex justify-center">
+      <div className="bg-white dark:bg-stone-900 card-soft p-5 flex justify-center">
         <Loader2 size={20} className="animate-spin text-stone-400 dark:text-stone-500" />
       </div>
     );
@@ -1564,7 +1564,7 @@ function WhatsAppTab() {
       ))}
 
       {/* Shared webhook URL info */}
-      <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-4 space-y-3">
+      <div className="bg-white dark:bg-stone-900 card-soft p-4 space-y-3">
         <div className="flex items-center gap-2">
           <ExternalLink size={13} className="text-stone-400 dark:text-stone-500" />
           <h3 className="font-semibold text-stone-900 dark:text-stone-100 text-sm">
@@ -1773,7 +1773,7 @@ function FacebookTab() {
 
       {/* Webhook info (visible once connected) */}
       {connection?.connected && (
-        <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5 space-y-3">
+        <div className="bg-white dark:bg-stone-900 card-soft p-5 space-y-3">
           <h3 className="font-semibold text-stone-900 dark:text-stone-100 text-sm">
             Webhook Meta (configuré automatiquement)
           </h3>
@@ -1903,7 +1903,7 @@ function GoogleSheetsTab() {
       </div>
 
       {/* Step 1 — Share with service account */}
-      <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5 space-y-3">
+      <div className="bg-white dark:bg-stone-900 card-soft p-5 space-y-3">
         <div className="flex items-center gap-2 mb-1">
           <span className="w-6 h-6 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-xs font-bold shrink-0">
             1
@@ -1944,7 +1944,7 @@ function GoogleSheetsTab() {
       </div>
 
       {/* Step 2 — Paste Sheet URL per template */}
-      <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5 space-y-4">
+      <div className="bg-white dark:bg-stone-900 card-soft p-5 space-y-4">
         <div className="flex items-center gap-2 mb-1">
           <span className="w-6 h-6 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-xs font-bold shrink-0">
             2
@@ -2146,7 +2146,7 @@ function DonneesTab() {
       </div>
 
       {/* Table */}
-      <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 overflow-hidden">
+      <div className="bg-white dark:bg-stone-900 card-soft overflow-hidden">
         {loading ? (
           <div className="flex justify-center py-16">
             <Loader2 size={20} className="animate-spin text-stone-400 dark:text-stone-500" />
@@ -2364,7 +2364,7 @@ function AnalyticsTab() {
           return (
             <div
               key={kpi.label}
-              className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-4 flex items-start gap-3"
+              className="bg-white dark:bg-stone-900 card-soft p-4 flex items-start gap-3"
             >
               <div
                 className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${kpi.color}`}
@@ -2384,7 +2384,7 @@ function AnalyticsTab() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Conversations par jour (14 jours) */}
-        <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5">
+        <div className="bg-white dark:bg-stone-900 card-soft p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-stone-900 dark:text-stone-100 flex items-center gap-2">
               <BarChart3 size={15} className="text-indigo-500" />
@@ -2420,7 +2420,7 @@ function AnalyticsTab() {
         </div>
 
         {/* Par template */}
-        <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5">
+        <div className="bg-white dark:bg-stone-900 card-soft p-5">
           <h3 className="font-semibold text-stone-900 dark:text-stone-100 mb-4 flex items-center gap-2">
             <Bot size={15} className="text-purple-500" />
             Par template
@@ -2462,7 +2462,7 @@ function AnalyticsTab() {
         </div>
 
         {/* Top wilayas */}
-        <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5">
+        <div className="bg-white dark:bg-stone-900 card-soft p-5">
           <h3 className="font-semibold text-stone-900 dark:text-stone-100 mb-4 flex items-center gap-2">
             <MapPin size={15} className="text-green-500" />
             Top Wilayas
@@ -2504,7 +2504,7 @@ function AnalyticsTab() {
         </div>
 
         {/* Actions */}
-        <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 p-5 space-y-4">
+        <div className="bg-white dark:bg-stone-900 card-soft p-5 space-y-4">
           <h3 className="font-semibold text-stone-900 dark:text-stone-100 flex items-center gap-2">
             <RefreshCw size={15} className="text-orange-500" />
             Automatisations
@@ -2875,7 +2875,7 @@ function ReclamationsTab() {
       </div>
 
       {/* Table */}
-      <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200/80 dark:border-stone-800 overflow-hidden">
+      <div className="bg-white dark:bg-stone-900 card-soft overflow-hidden">
         {loading ? (
           <div className="flex justify-center py-16">
             <Loader2 size={20} className="animate-spin text-stone-400 dark:text-stone-500" />
@@ -3257,7 +3257,7 @@ export default function AIChatbotPage() {
     <AppLayout>
       <div className="max-w-[1120px] mx-auto px-5 sm:px-8 lg:px-10 py-8 lg:py-10 space-y-6">
         <div>
-          <h1 className="text-[26px] font-semibold tracking-tight text-stone-900 dark:text-stone-50">
+          <h1 className="text-[28px] font-extrabold tracking-tight text-indigo-950 dark:text-stone-50">
             Chatbot IA
           </h1>
           <p className="text-[13.5px] text-stone-500 dark:text-stone-400 mt-1">
@@ -3272,7 +3272,7 @@ export default function AIChatbotPage() {
               onClick={() => setSection(t.id)}
               className={`pb-3 -mb-px border-b-2 whitespace-nowrap transition-colors ${
                 section === t.id
-                  ? 'border-stone-900 dark:border-stone-100 text-stone-900 dark:text-stone-50 font-medium'
+                  ? 'border-violet-600 dark:border-violet-400 text-violet-700 dark:text-violet-300 font-semibold'
                   : 'border-transparent text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200'
               }`}
             >
@@ -3289,7 +3289,7 @@ export default function AIChatbotPage() {
                 onClick={() => setSub((prev) => ({ ...prev, [section]: v.id }))}
                 className={`h-8 px-3 rounded-full transition-colors ${
                   current === v.id
-                    ? 'bg-stone-900 text-white dark:bg-white dark:text-stone-900'
+                    ? 'btn-brand'
                     : 'border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 text-stone-600 dark:text-stone-300 hover:text-stone-900 dark:hover:text-stone-100'
                 }`}
               >
