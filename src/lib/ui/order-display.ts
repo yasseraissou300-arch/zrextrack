@@ -29,7 +29,7 @@ export const STATUS_LABEL: Record<string, { label: string; className: string }> 
   },
   en_preparation: {
     label: 'Préparation',
-    className: 'text-stone-600 bg-stone-100 dark:text-stone-300 dark:bg-white/[0.06]',
+    className: 'text-violet-700 bg-violet-50 dark:text-violet-300 dark:bg-violet-500/10',
   },
   echec: {
     label: 'Échec',
