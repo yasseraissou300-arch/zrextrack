@@ -351,7 +351,7 @@ export default function OrdersTable() {
                     checked={allSelected}
                     onChange={toggleAll}
                     aria-label="Tout sélectionner"
-                    className="rounded border-stone-300 dark:border-stone-600 cursor-pointer"
+                    className="rounded border-stone-300 dark:border-stone-600 cursor-pointer accent-violet-600"
                   />
                 </th>
                 <th className="py-3 pr-4 font-normal">Client</th>
@@ -403,11 +403,11 @@ export default function OrdersTable() {
                           checked={selected.has(order.id)}
                           onChange={() => {}}
                           aria-label="Sélectionner"
-                          className="rounded border-stone-300 dark:border-stone-600 cursor-pointer"
+                          className="rounded border-stone-300 dark:border-stone-600 cursor-pointer accent-violet-600"
                         />
                       </td>
                       <td className="py-3.5 pr-4 max-w-[220px]">
-                        <div className="font-medium text-stone-900 dark:text-stone-100 truncate">
+                        <div className="font-bold text-indigo-950 dark:text-stone-100 truncate">
                           <bdi>{order.customer_name || '—'}</bdi>
                         </div>
                         <div className="text-[12.5px] text-stone-400 tabular-nums">
@@ -438,7 +438,7 @@ export default function OrdersTable() {
                       </td>
                       <td className="py-3.5 pr-4">
                         <span
-                          className={`text-[12px] font-medium px-2 py-0.5 rounded whitespace-nowrap ${b.className}`}
+                          className={`text-[12px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap ${b.className}`}
                         >
                           {b.label}
                         </span>
@@ -448,7 +448,7 @@ export default function OrdersTable() {
                           </div>
                         )}
                       </td>
-                      <td className="py-3.5 pr-6 text-right tabular-nums text-stone-900 dark:text-stone-100 whitespace-nowrap">
+                      <td className="py-3.5 pr-6 text-right tabular-nums font-extrabold text-indigo-950 dark:text-stone-100 whitespace-nowrap">
                         {order.cod ? formatDA(order.cod) : '—'}
                       </td>
                     </tr>
