@@ -167,14 +167,14 @@ export default function OrderDetailModal({ order, onClose, onDeleted }: Props) {
               href={trackingUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="p-2 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 hover:bg-stone-50 dark:hover:bg-stone-800 transition-colors"
+              className="p-2 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 hover:bg-violet-50/50 dark:hover:bg-white/[0.04] transition-colors"
               title="Voir page de suivi"
             >
               <ExternalLink size={14} className="text-stone-500 dark:text-stone-400" />
             </a>
             <button
               onClick={onClose}
-              className="p-2 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 hover:bg-stone-50 dark:hover:bg-stone-800 transition-colors"
+              className="p-2 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-900 hover:bg-violet-50/50 dark:hover:bg-white/[0.04] transition-colors"
             >
               <X size={14} className="text-stone-500 dark:text-stone-400" />
             </button>

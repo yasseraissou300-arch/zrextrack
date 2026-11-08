@@ -1,6 +1,7 @@
 'use client';
 
 import AppLayout from '@/components/ui/AppLayout';
+import { StatCard, type Tone } from '@/components/ui/primitives';
 import { useEffect, useState } from 'react';
 import { TrendingUp, Package, CheckCircle2, XCircle, RotateCcw } from 'lucide-react';
 
@@ -71,7 +72,7 @@ export default function RapportsPage() {
             { label: 'Livrées', value: stats.livre, icon: CheckCircle2, color: 'green' },
             { label: 'En cours', value: stats.en_cours, icon: TrendingUp, color: 'amber' },
             { label: 'Échecs', value: stats.echec, icon: XCircle, color: 'red' },
-            { label: 'Retours', value: stats.retourne, icon: RotateCcw, color: 'gray' },
+            { label: 'Retours', value: stats.retourne, icon: RotateCcw, color: 'stone' },
             {
               label: 'Taux livraison',
               value: `${stats.rate || 0}%`,
@@ -79,21 +80,20 @@ export default function RapportsPage() {
               color: 'indigo',
             },
           ].map((s) => (
-            <div
+            <StatCard
               key={s.label}
-              className="bg-white dark:bg-stone-900 rounded-xl p-4 shadow-sm border border-stone-100 dark:border-stone-800"
-            >
-              <p className="text-2xl font-bold text-stone-900 dark:text-stone-100">
-                {loading ? '—' : (s.value ?? 0)}
-              </p>
-              <p className="text-sm text-stone-500 dark:text-stone-400 mt-1">{s.label}</p>
-            </div>
+              icon={s.icon}
+              label={s.label}
+              value={s.value ?? 0}
+              tone={s.color as Tone}
+              loading={loading}
+            />
           ))}
         </div>
 
         {/* Top wilayas */}
         <div className="bg-white dark:bg-stone-900 card-soft p-6">
-          <h2 className="font-semibold text-stone-900 dark:text-stone-100 mb-4">Top Wilayas</h2>
+          <h2 className="font-bold text-indigo-950 dark:text-stone-100 mb-4">Top Wilayas</h2>
           {loading ? (
             <p className="text-stone-400 dark:text-stone-500">Chargement...</p>
           ) : byWilaya.length === 0 ? (
@@ -112,9 +112,9 @@ export default function RapportsPage() {
                         {w.count}
                       </span>
                     </div>
-                    <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
+                    <div className="h-2.5 bg-violet-100/70 dark:bg-white/[0.06] rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-indigo-500 rounded-full"
+                        className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"
                         style={{
                           width: `${Math.round((w.count / (byWilaya[0]?.count || 1)) * 100)}%`,
                         }}

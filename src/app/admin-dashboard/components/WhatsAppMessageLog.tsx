@@ -38,11 +38,11 @@ export default function WhatsAppMessageLog() {
   };
 
   return (
-    <div className="bg-white dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-100 dark:border-stone-800 h-full flex flex-col">
+    <div className="bg-white dark:bg-stone-900 card-soft h-full flex flex-col">
       <div className="p-4 border-b border-stone-100 dark:border-stone-800 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <MessageSquare size={18} className="text-green-500" />
-          <h2 className="font-semibold text-stone-900 dark:text-stone-100">Messages WhatsApp</h2>
+          <h2 className="font-bold text-indigo-950 dark:text-stone-100">Messages WhatsApp</h2>
         </div>
         <button
           onClick={fetchMessages}
@@ -76,7 +76,7 @@ export default function WhatsAppMessageLog() {
             const cfg = statusConfig[msg.status] || statusConfig.en_attente;
             const Icon = cfg.icon;
             return (
-              <div key={msg.id} className="p-4 hover:bg-stone-50 dark:hover:bg-stone-800">
+              <div key={msg.id} className="p-4 hover:bg-violet-50/50 dark:hover:bg-white/[0.04]">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">

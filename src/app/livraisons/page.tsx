@@ -1,6 +1,7 @@
 'use client';
 
 import AppLayout from '@/components/ui/AppLayout';
+import { StatCard, type Tone } from '@/components/ui/primitives';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Truck, CheckCircle2, XCircle, Clock } from 'lucide-react';
@@ -66,30 +67,27 @@ export default function LivraisonsPage() {
             { label: 'En livraison', value: stats.en_livraison, icon: Truck, color: 'amber' },
             { label: 'Livrées', value: stats.livre, icon: CheckCircle2, color: 'green' },
             { label: 'Échecs', value: stats.echec, icon: XCircle, color: 'red' },
-            { label: 'Retournées', value: stats.retourne, icon: Clock, color: 'gray' },
+            { label: 'Retournées', value: stats.retourne, icon: Clock, color: 'stone' },
           ].map((s) => (
-            <div
+            <StatCard
               key={s.label}
-              className="bg-white dark:bg-stone-900 rounded-xl p-4 shadow-sm border border-stone-100 dark:border-stone-800"
-            >
-              <p className="text-2xl font-bold text-stone-900 dark:text-stone-100">
-                {loading ? '—' : s.value}
-              </p>
-              <p className="text-sm text-stone-500 dark:text-stone-400 mt-1">{s.label}</p>
-            </div>
+              icon={s.icon}
+              label={s.label}
+              value={s.value}
+              tone={s.color as Tone}
+              loading={loading}
+            />
           ))}
         </div>
 
         {/* Table */}
         <div className="bg-white dark:bg-stone-900 card-soft overflow-hidden">
           <div className="px-6 py-4 border-b border-stone-100 dark:border-stone-800">
-            <h2 className="font-semibold text-stone-900 dark:text-stone-100">
-              Détail des livraisons
-            </h2>
+            <h2 className="font-bold text-indigo-950 dark:text-stone-100">Détail des livraisons</h2>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="text-[12.5px] text-stone-400">
+              <thead className="text-[12px] font-bold uppercase tracking-wide text-violet-500/80 dark:text-violet-300/70 bg-violet-50/60 dark:bg-white/[0.03]">
                 <tr>
                   <th className="px-4 py-3 text-left">Tracking</th>
                   <th className="px-4 py-3 text-left">Client</th>
@@ -121,7 +119,7 @@ export default function LivraisonsPage() {
                 ) : (
                   // 200 plus récentes : au-delà, le tableau gelait la page (≈7 000 lignes).
                   orders.slice(0, 200).map((o) => (
-                    <tr key={o.id} className="hover:bg-stone-50 dark:hover:bg-stone-800">
+                    <tr key={o.id} className="hover:bg-violet-50/50 dark:hover:bg-white/[0.04]">
                       <td className="px-4 py-3 font-mono text-xs font-medium">
                         {o.tracking_number}
                       </td>
@@ -151,7 +149,7 @@ export default function LivraisonsPage() {
               <span>200 plus récentes sur {orders.length.toLocaleString('fr-FR')}</span>
               <Link
                 href="/commandes"
-                className="text-stone-900 dark:text-stone-100 font-medium hover:underline"
+                className="text-violet-700 dark:text-violet-300 font-semibold hover:underline"
               >
                 Voir toutes les commandes
               </Link>

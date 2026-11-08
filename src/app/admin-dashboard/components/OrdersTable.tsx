@@ -201,9 +201,9 @@ export default function OrdersTable() {
   };
 
   const menuItem =
-    'w-full flex items-center gap-2.5 px-3 py-2 text-left text-stone-700 dark:text-stone-200 hover:bg-stone-50 dark:hover:bg-stone-800 disabled:opacity-50';
+    'w-full flex items-center gap-2.5 px-3 py-2 text-left text-stone-700 dark:text-stone-200 hover:bg-violet-50/50 dark:hover:bg-white/[0.04] disabled:opacity-50';
   const pagerButton =
-    'h-8 px-3 rounded-md border border-stone-200 dark:border-stone-800 text-stone-700 dark:text-stone-200 disabled:text-stone-300 dark:disabled:text-stone-600 hover:bg-stone-50 dark:hover:bg-stone-800 disabled:hover:bg-transparent';
+    'h-8 px-3 rounded-md border border-stone-200 dark:border-stone-800 text-stone-700 dark:text-stone-200 disabled:text-stone-300 dark:disabled:text-stone-600 hover:bg-violet-50/50 dark:hover:bg-white/[0.04] disabled:hover:bg-transparent';
 
   return (
     <>

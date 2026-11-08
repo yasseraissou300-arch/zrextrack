@@ -115,7 +115,7 @@ function ConnectModal({
               <platform.icon size={20} className="text-white" />
             </div>
             <div>
-              <h2 className="font-bold text-stone-900 dark:text-stone-100">
+              <h2 className="font-bold text-indigo-950 dark:text-stone-100">
                 Connecter {platform.name}
               </h2>
               <p className="text-xs text-stone-500 dark:text-stone-400">{platform.description}</p>
@@ -183,7 +183,7 @@ function ConnectModal({
           <div className="flex gap-2">
             <button
               onClick={onClose}
-              className="flex-1 border border-stone-200 dark:border-stone-700 rounded-xl py-2.5 text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800"
+              className="flex-1 border border-stone-200 dark:border-stone-700 rounded-xl py-2.5 text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-violet-50/50 dark:hover:bg-white/[0.04]"
             >
               Annuler
             </button>
@@ -191,7 +191,7 @@ function ConnectModal({
               <button
                 onClick={handleConnect}
                 disabled={saving}
-                className="flex-1 bg-green-600 text-white rounded-xl py-2.5 text-sm font-medium hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 btn-brand rounded-xl py-2.5 text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {saving ? (
                   <Loader2 size={14} className="animate-spin" />

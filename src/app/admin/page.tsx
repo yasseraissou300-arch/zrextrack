@@ -159,10 +159,7 @@ export default function AdminPage() {
               color: 'text-violet-600 bg-violet-50 dark:text-violet-300 dark:bg-violet-500/15',
             },
           ].map((stat) => (
-            <div
-              key={stat.label}
-              className="bg-white dark:bg-stone-900 rounded-xl p-4 shadow-sm border border-stone-100 dark:border-stone-800"
-            >
+            <div key={stat.label} className="bg-white dark:bg-stone-900 card-soft p-4">
               <div
                 className={`w-10 h-10 rounded-lg ${stat.color} flex items-center justify-center mb-3`}
               >
@@ -177,9 +174,9 @@ export default function AdminPage() {
         </div>
 
         {/* Users Table */}
-        <div className="bg-white dark:bg-stone-900 rounded-xl shadow-sm border border-stone-100 dark:border-stone-800 overflow-hidden">
+        <div className="bg-white dark:bg-stone-900 card-soft overflow-hidden">
           <div className="px-6 py-4 border-b border-stone-100 dark:border-stone-800">
-            <h2 className="font-semibold text-stone-900 dark:text-stone-100">
+            <h2 className="font-bold text-indigo-950 dark:text-stone-100">
               Tous les utilisateurs ({users.length})
             </h2>
           </div>
@@ -196,7 +193,7 @@ export default function AdminPage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-stone-50 dark:bg-stone-800/50">
+                <thead className="bg-violet-50/60 dark:bg-white/[0.03]">
                   <tr>
                     <th className="text-left text-xs font-medium text-stone-500 dark:text-stone-400 uppercase px-6 py-3">
                       Utilisateur
@@ -219,7 +216,7 @@ export default function AdminPage() {
                   {users.map((user) => (
                     <tr
                       key={user.id}
-                      className="hover:bg-stone-50 dark:hover:bg-stone-800/40 transition-colors"
+                      className="hover:bg-violet-50/50 dark:hover:bg-white/[0.04]/40 transition-colors"
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">

@@ -238,9 +238,7 @@ export default function SyncPage() {
             <div className="bg-white dark:bg-stone-900 card-soft p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Key size={18} className="text-stone-500 dark:text-stone-400" />
-                <h2 className="font-semibold text-stone-900 dark:text-stone-100">
-                  Clé API ZREXpress
-                </h2>
+                <h2 className="font-bold text-indigo-950 dark:text-stone-100">Clé API ZREXpress</h2>
                 {tokenSaved && (
                   <span className="ml-auto text-xs bg-green-100 text-green-700 font-medium px-2 py-0.5 rounded-full">
                     ✓ Enregistrée
@@ -319,9 +317,7 @@ export default function SyncPage() {
             <div className="bg-white dark:bg-stone-900 card-soft p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Package size={18} className="text-stone-500 dark:text-stone-400" />
-                <h2 className="font-semibold text-stone-900 dark:text-stone-100">
-                  Synchronisation
-                </h2>
+                <h2 className="font-bold text-indigo-950 dark:text-stone-100">Synchronisation</h2>
               </div>
               <p className="text-sm text-stone-500 dark:text-stone-400 mb-4">
                 Importe toutes vos commandes ZREXpress. Les statuts sont mis à jour et les messages
@@ -396,7 +392,7 @@ export default function SyncPage() {
           {/* Colonne droite */}
           <div className="space-y-4">
             <div className="bg-white dark:bg-stone-900 card-soft p-6">
-              <h2 className="font-semibold text-stone-900 dark:text-stone-100 mb-4">
+              <h2 className="font-bold text-indigo-950 dark:text-stone-100 mb-4">
                 Comment ça marche
               </h2>
               <div className="space-y-3">
@@ -422,7 +418,7 @@ export default function SyncPage() {
             <div className="bg-white dark:bg-stone-900 card-soft p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Clock size={16} className="text-stone-400 dark:text-stone-500" />
-                <h2 className="font-semibold text-stone-900 dark:text-stone-100">Historique</h2>
+                <h2 className="font-bold text-indigo-950 dark:text-stone-100">Historique</h2>
               </div>
               {history.length === 0 ? (
                 <div className="text-center py-6">
