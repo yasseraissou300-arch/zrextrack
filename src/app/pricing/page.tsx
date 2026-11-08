@@ -31,14 +31,14 @@ const plans = [
       'Support prioritaire',
     ],
     cta: 'Choisir Pro',
-    ctaStyle: 'bg-violet-600 hover:bg-violet-700 text-white',
+    ctaStyle: 'btn-brand',
   },
   {
     id: 'business',
     name: 'Business',
     price: 4900,
     description: 'Pour les grandes opérations',
-    color: 'border-fuchsia-200 dark:border-fuchsia-500/30',
+    color: 'border-purple-200 dark:border-purple-500/30',
     badge: null,
     features: [
       'Commandes illimitées',
@@ -50,7 +50,7 @@ const plans = [
       'Formation incluse',
     ],
     cta: 'Choisir Business',
-    ctaStyle: 'bg-fuchsia-600 hover:bg-fuchsia-700 text-white',
+    ctaStyle: 'bg-purple-600 hover:bg-purple-700 text-white',
   },
 ];
 
@@ -63,7 +63,7 @@ export default function PricingPage() {
           <div className="inline-flex items-center gap-2 bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300 text-sm font-medium px-4 py-1.5 rounded-full mb-4">
             <Zap size={14} /> Tarifs simples et transparents
           </div>
-          <h1 className="text-4xl font-bold text-stone-900 dark:text-stone-100 mb-4">
+          <h1 className="text-4xl font-extrabold text-indigo-950 dark:text-stone-50 mb-4">
             Choisissez votre plan
           </h1>
           <p className="text-lg text-stone-600 dark:text-stone-400 max-w-2xl mx-auto">
@@ -85,7 +85,7 @@ export default function PricingPage() {
               )}
 
               <div className="mb-6">
-                <h3 className="text-xl font-bold text-stone-900 dark:text-stone-100 mb-1">
+                <h3 className="text-xl font-extrabold text-indigo-950 dark:text-stone-50 mb-1">
                   {plan.name}
                 </h3>
                 <p className="text-stone-500 dark:text-stone-400 text-sm mb-4">
@@ -94,14 +94,14 @@ export default function PricingPage() {
                 <div className="flex items-baseline gap-1.5">
                   {plan.price === 0 ? (
                     <>
-                      <span className="text-4xl font-bold text-stone-900 dark:text-stone-100">
+                      <span className="text-4xl font-extrabold text-indigo-950 dark:text-stone-50">
                         Gratuit
                       </span>
                       <span className="text-stone-500 dark:text-stone-400">pour toujours</span>
                     </>
                   ) : (
                     <>
-                      <span className="text-4xl font-bold text-stone-900 dark:text-stone-100 tabular-nums">
+                      <span className="text-4xl font-extrabold text-indigo-950 dark:text-stone-50 tabular-nums">
                         {plan.price.toLocaleString('fr-FR')}
                       </span>
                       <span className="text-lg font-semibold text-stone-600 dark:text-stone-300">

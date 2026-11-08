@@ -25,11 +25,13 @@ export default function HomePage() {
       <nav className="sticky top-0 z-50 bg-white/80 dark:bg-stone-950/80 backdrop-blur-md border-b border-stone-100 dark:border-stone-800">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="w-9 h-9 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-xl flex items-center justify-center shadow-sm shadow-violet-500/25">
-              <span className="text-white font-bold">Z</span>
+            <div className="w-9 h-9 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-sm shadow-violet-500/25">
+              <span className="text-white font-extrabold">A</span>
             </div>
             <div className="leading-tight">
-              <div className="font-bold tracking-tight">Autotim</div>
+              <div className="font-extrabold tracking-tight text-indigo-950 dark:text-stone-50">
+                AutoTim
+              </div>
               <div className="text-[10px] text-stone-400 dark:text-stone-500 uppercase tracking-wide font-medium">
                 ZRExpress
               </div>
@@ -50,7 +52,7 @@ export default function HomePage() {
             </Link>
             <Link
               href="/login"
-              className="flex items-center gap-1.5 text-sm font-medium bg-violet-600 hover:bg-violet-700 text-white px-4 py-2 rounded-xl transition-colors shadow-sm"
+              className="flex items-center gap-1.5 text-sm font-medium btn-brand px-4 py-2 rounded-xl"
             >
               Se connecter
             </Link>
@@ -60,17 +62,17 @@ export default function HomePage() {
 
       {/* ── HERO ────────────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-violet-50 via-white to-fuchsia-50 dark:from-stone-950 dark:via-stone-950 dark:to-violet-950/30" />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-gradient-to-br from-violet-400/20 to-fuchsia-400/20 dark:from-violet-500/10 dark:to-fuchsia-500/10 rounded-full blur-3xl -z-0" />
+        <div className="absolute inset-0 bg-gradient-to-br from-violet-50 via-white to-purple-50 dark:from-stone-950 dark:via-stone-950 dark:to-violet-950/30" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-gradient-to-br from-violet-400/20 to-purple-400/20 dark:from-violet-500/10 dark:to-purple-500/10 rounded-full blur-3xl -z-0" />
 
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-24 text-center">
           <div className="inline-flex items-center gap-2 bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300 text-xs font-semibold px-3 py-1 rounded-full mb-6">
             <Sparkles size={12} /> Pensé pour les e-commerçants algériens
           </div>
-          <h1 className="text-4xl sm:text-6xl font-bold tracking-tight mb-6 leading-tight">
+          <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-indigo-950 dark:text-stone-50 mb-6 leading-tight">
             Vos clients suivent leur colis,
             <br />
-            <span className="bg-gradient-to-r from-violet-600 to-fuchsia-600 dark:from-violet-400 dark:to-fuchsia-400 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-300 dark:to-purple-300 bg-clip-text text-transparent">
               sans vous appeler.
             </span>
           </h1>
@@ -81,7 +83,7 @@ export default function HomePage() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
               href="/login"
-              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 text-white font-semibold px-6 py-3.5 rounded-xl shadow-lg shadow-violet-500/25 transition-all"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 btn-brand font-semibold px-6 py-3.5 rounded-xl"
             >
               Essayer gratuitement <ArrowRight size={18} />
             </Link>
@@ -102,7 +104,9 @@ export default function HomePage() {
       <section className="py-16 border-t border-stone-100 dark:border-stone-800">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-10">
-            <h2 className="text-3xl sm:text-4xl font-bold mb-3">Un tableau de bord clair</h2>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-indigo-950 dark:text-stone-50 mb-3">
+              Un tableau de bord clair
+            </h2>
             <p className="text-stone-500 dark:text-stone-400">
               Toutes vos livraisons en un coup d'œil.
             </p>
@@ -123,8 +127,8 @@ export default function HomePage() {
             {/* Contenu fake dashboard */}
             <div className="p-4 sm:p-6 space-y-4 text-left">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-[10px]">Z</span>
+                <div className="w-7 h-7 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center">
+                  <span className="text-white font-extrabold text-[10px]">A</span>
                 </div>
                 <div className="text-xs font-semibold">Dashboard</div>
               </div>
@@ -154,7 +158,7 @@ export default function HomePage() {
                     >
                       {k.label}
                     </div>
-                    <div className="text-lg font-bold text-stone-900 dark:text-stone-100 tabular-nums">
+                    <div className="text-lg font-extrabold text-indigo-950 dark:text-stone-50 tabular-nums">
                       {k.value}
                     </div>
                   </div>
@@ -229,7 +233,9 @@ export default function HomePage() {
       <section className="py-20 border-t border-stone-100 dark:border-stone-800">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl font-bold mb-3">Simple comme trois étapes</h2>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-indigo-950 dark:text-stone-50 mb-3">
+              Simple comme trois étapes
+            </h2>
             <p className="text-stone-500 dark:text-stone-400">
               Configurez une fois, laissez tourner.
             </p>
@@ -247,14 +253,14 @@ export default function HomePage() {
               {
                 n: 2,
                 icon: MessageCircle,
-                tone: 'from-fuchsia-500 to-fuchsia-600',
+                tone: 'from-purple-500 to-purple-600',
                 title: 'Connectez WhatsApp',
                 desc: 'Scannez le QR code depuis votre téléphone. Les messages partent depuis votre propre numéro, en Darija.',
               },
               {
                 n: 3,
                 icon: Bell,
-                tone: 'from-violet-500 to-fuchsia-500',
+                tone: 'from-violet-500 to-purple-500',
                 title: 'Vos clients sont informés',
                 desc: 'À chaque changement de statut ZRExpress, une notification WhatsApp part automatiquement — vous ne touchez à rien.',
               },
@@ -283,7 +289,9 @@ export default function HomePage() {
       <section className="py-20 bg-stone-50 dark:bg-stone-900/50 border-t border-stone-100 dark:border-stone-800">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl font-bold mb-3">Ce qui rend Autotim différent</h2>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-indigo-950 dark:text-stone-50 mb-3">
+              Ce qui rend Autotim différent
+            </h2>
             <p className="text-stone-500 dark:text-stone-400">
               Conçu pour l'e-commerce algérien, pas une adaptation d'un outil étranger.
             </p>
@@ -324,7 +332,7 @@ export default function HomePage() {
                   className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
                     tone === 'violet'
                       ? 'bg-violet-100 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300'
-                      : 'bg-fuchsia-100 text-fuchsia-600 dark:bg-fuchsia-500/15 dark:text-fuchsia-300'
+                      : 'bg-purple-100 text-purple-600 dark:bg-purple-500/15 dark:text-purple-300'
                   }`}
                 >
                   <Icon size={18} />
@@ -343,7 +351,9 @@ export default function HomePage() {
       <section className="py-20 border-t border-stone-100 dark:border-stone-800">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl font-bold mb-3">Un prix simple, en dinars</h2>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-indigo-950 dark:text-stone-50 mb-3">
+              Un prix simple, en dinars
+            </h2>
             <p className="text-stone-500 dark:text-stone-400">
               Commencez gratuitement. Pas de carte requise, pas d'engagement.
             </p>
@@ -421,7 +431,9 @@ export default function HomePage() {
       <section className="py-20 bg-stone-50 dark:bg-stone-900/50 border-t border-stone-100 dark:border-stone-800">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-10">
-            <h2 className="text-3xl sm:text-4xl font-bold mb-3">Questions fréquentes</h2>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-indigo-950 dark:text-stone-50 mb-3">
+              Questions fréquentes
+            </h2>
             <p className="text-stone-500 dark:text-stone-400">
               Les réponses avant que vous les posiez.
             </p>
@@ -478,7 +490,7 @@ export default function HomePage() {
       {/* ── CTA FINAL ───────────────────────────────────────────────────────── */}
       <section className="py-20 border-t border-stone-100 dark:border-stone-800">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
-          <div className="bg-gradient-to-br from-violet-600 to-fuchsia-600 rounded-3xl p-10 sm:p-14 shadow-xl shadow-violet-500/20">
+          <div className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-3xl p-10 sm:p-14 shadow-xl shadow-violet-500/20">
             <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Prêt à automatiser ?</h2>
             <p className="text-violet-100 mb-8 text-lg">
               Créez votre compte gratuit et commencez à envoyer des notifications aujourd'hui.
@@ -497,10 +509,12 @@ export default function HomePage() {
       <footer className="border-t border-stone-100 dark:border-stone-800 py-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-xs">Z</span>
+            <div className="w-7 h-7 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-extrabold text-xs">A</span>
             </div>
-            <span className="font-semibold text-sm">Autotim</span>
+            <span className="font-extrabold text-sm text-indigo-950 dark:text-stone-50">
+              AutoTim
+            </span>
             <span className="text-stone-400 dark:text-stone-500 text-xs">· ZRExpress</span>
           </div>
           <div className="flex items-center gap-5 text-sm text-stone-500 dark:text-stone-400">

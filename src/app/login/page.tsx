@@ -31,17 +31,17 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-stone-950 via-stone-900 to-violet-950 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-600 dark:from-indigo-950 dark:via-violet-950 dark:to-purple-950 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Logo — identique à la sidebar (dégradé violet→fuchsia + « Autotim ») */}
+        {/* Logo — identique à la sidebar (tuile blanche, « A » violet) */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-xl flex items-center justify-center shadow-lg shadow-violet-500/30">
-              <span className="text-white font-bold text-xl">Z</span>
+            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg shadow-indigo-900/30">
+              <span className="text-violet-700 font-extrabold text-xl">A</span>
             </div>
             <div className="text-left leading-tight">
-              <h1 className="text-2xl font-bold text-white tracking-tight">Autotim</h1>
-              <p className="text-violet-300/70 text-[11px] font-medium tracking-wide uppercase">
+              <h1 className="text-2xl font-extrabold text-white tracking-tight">AutoTim</h1>
+              <p className="text-violet-100/80 text-[11px] font-medium tracking-wide uppercase">
                 Suivi Commandes ZRExpress
               </p>
             </div>
@@ -49,14 +49,16 @@ export default function LoginPage() {
         </div>
 
         {/* Card */}
-        <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-8 shadow-2xl">
-          <h2 className="text-xl font-semibold text-white text-center mb-2">Bienvenue 👋</h2>
-          <p className="text-stone-400 text-center text-sm mb-8">
+        <div className="bg-white dark:bg-stone-900 rounded-3xl p-8 shadow-[0_30px_60px_-20px_rgba(30,0,80,.55)]">
+          <h2 className="text-xl font-extrabold text-indigo-950 dark:text-stone-50 text-center mb-2">
+            Bienvenue 👋
+          </h2>
+          <p className="text-stone-500 dark:text-stone-400 text-center text-sm mb-8">
             Connectez-vous avec votre compte Google pour accéder à votre espace
           </p>
 
           {error && (
-            <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 mb-4 text-red-300 text-sm text-center">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-red-700 text-sm text-center">
               {error}
             </div>
           )}
@@ -64,7 +66,7 @@ export default function LoginPage() {
           <button
             onClick={handleGoogleLogin}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-3 bg-white hover:bg-stone-50 text-stone-800 font-medium py-3 px-6 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full flex items-center justify-center gap-3 bg-white hover:bg-violet-50 text-stone-800 font-semibold py-3 px-6 rounded-xl border border-stone-200 transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
@@ -87,10 +89,11 @@ export default function LoginPage() {
             {loading ? 'Connexion...' : 'Continuer avec Google'}
           </button>
 
-          <div className="mt-6 pt-6 border-t border-white/10">
-            <p className="text-stone-500 text-xs text-center">
+          <div className="mt-6 pt-6 border-t border-stone-100 dark:border-stone-800">
+            <p className="text-stone-500 dark:text-stone-400 text-xs text-center">
               Pas encore de compte ? La connexion Google crée automatiquement votre compte avec le
-              plan <span className="text-violet-300 font-medium">Basic gratuit</span>.
+              plan{' '}
+              <span className="text-violet-700 dark:text-violet-300 font-bold">Basic gratuit</span>.
             </p>
           </div>
         </div>
@@ -98,16 +101,16 @@ export default function LoginPage() {
         {/* Aperçu des plans */}
         <div className="mt-6 grid grid-cols-3 gap-3">
           {[
-            { name: 'Basic', price: 'Gratuit', color: 'text-stone-300' },
-            { name: 'Pro', price: '1 900 DA/mois', color: 'text-violet-300' },
-            { name: 'Business', price: '4 900 DA/mois', color: 'text-fuchsia-300' },
+            { name: 'Basic', price: 'Gratuit', color: 'text-white' },
+            { name: 'Pro', price: '1 900 DA/mois', color: 'text-amber-300' },
+            { name: 'Business', price: '4 900 DA/mois', color: 'text-pink-200' },
           ].map((plan) => (
             <div
               key={plan.name}
-              className="bg-white/5 border border-white/10 rounded-xl p-3 text-center"
+              className="bg-white/10 border border-white/20 rounded-xl p-3 text-center"
             >
-              <p className={`font-semibold text-sm ${plan.color}`}>{plan.name}</p>
-              <p className="text-stone-500 text-xs mt-1">{plan.price}</p>
+              <p className={`font-bold text-sm ${plan.color}`}>{plan.name}</p>
+              <p className="text-violet-100/80 text-xs mt-1">{plan.price}</p>
             </div>
           ))}
         </div>
