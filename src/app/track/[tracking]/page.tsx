@@ -174,17 +174,17 @@ export default function TrackingPage() {
       <header className="bg-white dark:bg-stone-900 border-b border-stone-100 dark:border-stone-800 shadow-sm">
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/track" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-lg flex items-center justify-center shadow-sm shadow-violet-500/25">
-              <span className="text-white font-bold text-sm">Z</span>
+            <div className="w-8 h-8 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center shadow-sm shadow-violet-500/25">
+              <span className="text-white font-extrabold text-sm">A</span>
             </div>
-            <span className="font-bold text-stone-900 dark:text-stone-100">Autotim</span>
+            <span className="font-extrabold text-indigo-950 dark:text-stone-100">AutoTim</span>
           </Link>
           <span className="text-xs text-stone-400 dark:text-stone-500">Suivi de commande</span>
         </div>
       </header>
       <main className="max-w-2xl mx-auto px-4 py-10 space-y-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-100 mb-1">
+          <h1 className="text-2xl font-extrabold text-indigo-950 dark:text-stone-50 mb-1">
             Suivre ma commande
           </h1>
         </div>
@@ -195,12 +195,12 @@ export default function TrackingPage() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && fetch_(input)}
             placeholder="Ex : ZRX123456"
-            className="flex-1 border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-violet-400 shadow-sm placeholder:text-stone-400 dark:placeholder:text-stone-500"
+            className="flex-1 border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-violet-500 shadow-sm placeholder:text-stone-400 dark:placeholder:text-stone-500"
           />
           <button
             onClick={() => fetch_(input)}
             disabled={loading || !input.trim()}
-            className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white font-medium px-5 py-3 rounded-xl disabled:opacity-50 shadow-sm"
+            className="flex items-center gap-2 btn-brand font-medium px-5 py-3 rounded-xl disabled:opacity-50"
           >
             {loading ? <RefreshCw size={16} className="animate-spin" /> : <Search size={16} />}
             {loading ? '' : 'Rechercher'}
