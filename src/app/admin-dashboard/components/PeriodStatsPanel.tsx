@@ -106,7 +106,7 @@ export default function PeriodStatsPanel() {
   const subtitle = period === 'today' ? 'Activité du jour' : "Cumul de l'activité sur la semaine";
 
   return (
-    <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 shadow-sm p-6">
+    <div className="bg-white dark:bg-stone-900 card-soft p-6">
       <div className="flex items-start justify-between mb-5 flex-wrap gap-3">
         <div>
           <h2 className="text-lg font-bold text-stone-900 dark:text-stone-100">

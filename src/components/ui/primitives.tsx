@@ -112,16 +112,14 @@ export function StatCard({
   loading?: boolean;
 }) {
   return (
-    <div className="bg-white dark:bg-stone-900 rounded-2xl p-4 shadow-sm border border-stone-100 dark:border-stone-800">
-      <div
-        className={`w-9 h-9 rounded-lg flex items-center justify-center mb-2.5 ${TONE_CLS[tone]}`}
-      >
-        <Icon size={16} />
+    <div className="bg-white dark:bg-stone-900 card-soft p-4">
+      <div className={`w-10 h-10 rounded-xl grid place-items-center ${TONE_CLS[tone]}`}>
+        <Icon size={19} strokeWidth={2} />
       </div>
-      <p className="text-2xl font-bold text-stone-900 dark:text-stone-100 tabular-nums">
+      <p className="mt-3 text-[13px] font-semibold text-stone-500 dark:text-stone-400">{label}</p>
+      <p className="mt-0.5 text-[26px] leading-tight font-extrabold tracking-tight tabular-nums text-indigo-950 dark:text-stone-50">
         {loading ? <span className="text-stone-300 dark:text-stone-700">—</span> : value}
       </p>
-      <p className="text-sm text-stone-500 dark:text-stone-400 mt-0.5">{label}</p>
     </div>
   );
 }

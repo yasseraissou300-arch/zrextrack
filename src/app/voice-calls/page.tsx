@@ -75,7 +75,7 @@ export default function VoiceCallsPage() {
               onClick={() => setTab(t.id as Tab)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                 tab === t.id
-                  ? 'bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 shadow-sm'
+                  ? 'bg-white dark:bg-stone-900 text-violet-700 dark:text-violet-300 font-semibold shadow-sm'
                   : 'text-stone-500 dark:text-stone-400 hover:text-stone-700 dark:hover:text-stone-200'
               }`}
             >
@@ -232,7 +232,7 @@ function ConnexionTab() {
       <button
         onClick={save}
         disabled={saving}
-        className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg disabled:opacity-50"
+        className="flex items-center gap-2 px-5 py-2.5 btn-brand font-medium rounded-lg disabled:opacity-50"
       >
         {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
         Enregistrer
@@ -306,7 +306,7 @@ function TestTab() {
         <button
           onClick={start}
           disabled={calling || !phone}
-          className="w-full flex items-center justify-center gap-2 mt-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl disabled:opacity-50"
+          className="w-full flex items-center justify-center gap-2 mt-2 px-4 py-3 btn-brand font-semibold rounded-xl disabled:opacity-50"
         >
           {calling ? <Loader2 size={16} className="animate-spin" /> : <PhoneCall size={16} />}
           Lancer l'appel
@@ -381,7 +381,7 @@ function HistoriqueTab() {
           </div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-stone-50 dark:bg-stone-800 border-b border-stone-100 dark:border-stone-700">
+            <thead className="bg-violet-50/60 dark:bg-white/[0.03] border-b border-violet-100/70 dark:border-stone-700">
               <tr>
                 {['Date', 'Client', 'Téléphone', 'Montant', 'Résultat', 'Durée', 'Coût'].map(
                   (h) => (
@@ -397,7 +397,7 @@ function HistoriqueTab() {
             </thead>
             <tbody className="divide-y divide-stone-50 dark:divide-stone-800">
               {calls.map((c) => (
-                <tr key={c.id} className="hover:bg-stone-50 dark:hover:bg-stone-800">
+                <tr key={c.id} className="hover:bg-violet-50/50 dark:hover:bg-white/[0.04]">
                   <td className="px-4 py-3 text-[11px] text-stone-500">
                     {new Date(c.created_at).toLocaleString('fr-FR', {
                       day: '2-digit',

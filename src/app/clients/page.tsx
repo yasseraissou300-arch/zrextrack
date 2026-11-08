@@ -60,13 +60,13 @@ export default function ClientsPage() {
 
         <div className="bg-white dark:bg-stone-900 card-soft overflow-hidden">
           <div className="px-6 py-4 border-b border-stone-100 dark:border-stone-800">
-            <h2 className="font-semibold text-stone-900 dark:text-stone-100">
+            <h2 className="font-bold text-indigo-950 dark:text-stone-100">
               Liste clients ({clients.length})
             </h2>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="text-[12.5px] text-stone-400">
+              <thead className="text-[12px] font-bold uppercase tracking-wide text-violet-500/80 dark:text-violet-300/70 bg-violet-50/60 dark:bg-white/[0.03]">
                 <tr>
                   <th className="px-4 py-3 text-left">Client</th>
                   <th className="px-4 py-3 text-left">WhatsApp</th>
@@ -96,7 +96,7 @@ export default function ClientsPage() {
                   </tr>
                 ) : (
                   clients.map((c, i) => (
-                    <tr key={i} className="hover:bg-stone-50 dark:hover:bg-stone-800">
+                    <tr key={i} className="hover:bg-violet-50/50 dark:hover:bg-white/[0.04]">
                       <td className="px-4 py-3 font-medium text-stone-900 dark:text-stone-100">
                         {c.client}
                       </td>

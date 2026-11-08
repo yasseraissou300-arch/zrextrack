@@ -218,7 +218,7 @@ function CreateModal({
             <div className="w-8 h-8 bg-green-100 dark:bg-green-500/15 rounded-lg flex items-center justify-center">
               <Megaphone size={16} className="text-green-600" />
             </div>
-            <h2 className="font-bold text-stone-900 dark:text-stone-100">Nouvelle campagne</h2>
+            <h2 className="font-bold text-indigo-950 dark:text-stone-100">Nouvelle campagne</h2>
           </div>
           <button
             onClick={handleClose}
@@ -497,14 +497,14 @@ function CreateModal({
         <div className="flex gap-2 pt-2">
           <button
             onClick={handleClose}
-            className="flex-1 border border-stone-200 dark:border-stone-700 rounded-xl py-2.5 text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800"
+            className="flex-1 border border-stone-200 dark:border-stone-700 rounded-xl py-2.5 text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-violet-50/50 dark:hover:bg-white/[0.04]"
           >
             Annuler
           </button>
           <button
             onClick={handleCreate}
             disabled={saving}
-            className="flex-1 bg-green-600 text-white rounded-xl py-2.5 text-sm font-medium hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
+            className="flex-1 btn-brand rounded-xl py-2.5 text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
             Créer
@@ -593,14 +593,14 @@ function CampaignCard({
       <div className="flex gap-2 pt-1">
         <button
           onClick={() => onView(campaign.id)}
-          className="flex items-center gap-1.5 text-xs px-3 py-2 border border-stone-200 dark:border-stone-700 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800 text-stone-600 dark:text-stone-300"
+          className="flex items-center gap-1.5 text-xs px-3 py-2 border border-stone-200 dark:border-stone-700 rounded-lg hover:bg-violet-50/50 dark:hover:bg-white/[0.04] text-stone-600 dark:text-stone-300"
         >
           Détails <ChevronRight size={12} />
         </button>
         {campaign.status === 'brouillon' && (
           <button
             onClick={() => onSend(campaign.id)}
-            className="flex items-center gap-1.5 text-xs px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+            className="flex items-center gap-1.5 text-xs px-4 py-2 btn-brand rounded-lg font-medium"
           >
             <Send size={12} /> Envoyer maintenant
           </button>
@@ -658,7 +658,7 @@ function DetailModal({
     <Modal open={open} onClose={onClose}>
       <div className="p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="font-bold text-stone-900 dark:text-stone-100">Détails de la campagne</h2>
+          <h2 className="font-bold text-indigo-950 dark:text-stone-100">Détails de la campagne</h2>
           <button
             onClick={onClose}
             className="p-1.5 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-lg"
@@ -853,7 +853,7 @@ Quota du jour restant : ${json.remainingToday}/${json.dailyLimit} (le reste part
               setPreselectedPhones(null);
               setCreateOpen(true);
             }}
-            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-green-700 transition-colors"
+            className="flex items-center gap-2 btn-brand px-4 py-2.5 rounded-xl text-sm font-medium transition-colors"
           >
             <Plus size={16} />
             Nouvelle campagne
@@ -866,7 +866,7 @@ Quota du jour restant : ${json.remainingToday}/${json.dailyLimit} (le reste part
             onClick={() => setTab('campaigns')}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               tab === 'campaigns'
-                ? 'bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 shadow-sm'
+                ? 'bg-white dark:bg-stone-900 text-violet-700 dark:text-violet-300 font-semibold shadow-sm'
                 : 'text-stone-500 dark:text-stone-400 hover:text-stone-700'
             }`}
           >
@@ -877,7 +877,7 @@ Quota du jour restant : ${json.remainingToday}/${json.dailyLimit} (le reste part
             onClick={() => setTab('delivered')}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               tab === 'delivered'
-                ? 'bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 shadow-sm'
+                ? 'bg-white dark:bg-stone-900 text-violet-700 dark:text-violet-300 font-semibold shadow-sm'
                 : 'text-stone-500 dark:text-stone-400 hover:text-stone-700'
             }`}
           >
@@ -921,7 +921,7 @@ Quota du jour restant : ${json.remainingToday}/${json.dailyLimit} (le reste part
                 <p className="text-sm mt-1">Crée ta première campagne WhatsApp</p>
                 <button
                   onClick={() => setCreateOpen(true)}
-                  className="mt-4 flex items-center gap-2 bg-green-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-green-700"
+                  className="mt-4 flex items-center gap-2 btn-brand px-5 py-2.5 rounded-xl text-sm font-medium"
                 >
                   <Plus size={15} /> Créer une campagne
                 </button>
@@ -1203,7 +1203,7 @@ function DeliveredCustomersTab({
           <button
             onClick={fetchData}
             disabled={loading}
-            className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-xl disabled:opacity-50"
+            className="inline-flex items-center gap-2 btn-brand font-medium px-4 py-2 rounded-xl disabled:opacity-50"
           >
             <RefreshCw size={14} />
             Charger les clients livrés
@@ -1339,14 +1339,14 @@ function DeliveredCustomersTab({
               </button>
               <button
                 onClick={exportCSV}
-                className="text-xs px-3 py-2 border border-stone-200 dark:border-stone-700 rounded-xl hover:bg-stone-50 dark:hover:bg-stone-800 font-medium text-stone-700 dark:text-stone-200"
+                className="text-xs px-3 py-2 border border-stone-200 dark:border-stone-700 rounded-xl hover:bg-violet-50/50 dark:hover:bg-white/[0.04] font-medium text-stone-700 dark:text-stone-200"
               >
                 Exporter CSV
               </button>
               <button
                 onClick={launchCampaign}
                 disabled={selected.size === 0}
-                className="flex items-center gap-1.5 text-xs px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex items-center gap-1.5 text-xs px-4 py-2 btn-brand rounded-xl font-medium disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Send size={12} />
                 Créer campagne ({selected.size})
@@ -1423,7 +1423,7 @@ function DeliveredCustomersTab({
           <div className="bg-white dark:bg-stone-900 card-soft overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-stone-50 dark:bg-stone-800 border-b border-stone-100 dark:border-stone-700">
+                <thead className="bg-violet-50/60 dark:bg-white/[0.03] border-b border-violet-100/70 dark:border-stone-700">
                   <tr>
                     <th className="px-3 py-3 text-left w-8">
                       <input
@@ -1459,7 +1459,7 @@ function DeliveredCustomersTab({
                       <tr
                         key={c.phone}
                         onClick={() => toggleOne(c.phone)}
-                        className={`cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-800 ${isSelected ? 'bg-green-50/50 dark:bg-green-500/5' : ''}`}
+                        className={`cursor-pointer hover:bg-violet-50/50 dark:hover:bg-white/[0.04] ${isSelected ? 'bg-green-50/50 dark:bg-green-500/5' : ''}`}
                       >
                         <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                           <input
@@ -1703,7 +1703,7 @@ function ProductsMultiSelect({
                   <button
                     key={p}
                     onClick={() => toggleOne(p)}
-                    className={`w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-stone-50 dark:hover:bg-stone-800 ${isChecked ? 'bg-violet-50/50 dark:bg-violet-500/5' : ''}`}
+                    className={`w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-violet-50/50 dark:hover:bg-white/[0.04] ${isChecked ? 'bg-violet-50/50 dark:bg-violet-500/5' : ''}`}
                   >
                     <span
                       className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${isChecked ? 'bg-violet-600 border-violet-600' : 'border-stone-300 dark:border-stone-600'}`}

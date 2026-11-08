@@ -291,7 +291,7 @@ export default function AutoSwapPage() {
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-2">
               <BarChart3 size={16} className="text-stone-500 dark:text-stone-400" />
-              <h2 className="font-semibold text-stone-900 dark:text-stone-100">
+              <h2 className="font-bold text-indigo-950 dark:text-stone-100">
                 Statistiques des commandes swappées
               </h2>
             </div>
@@ -307,7 +307,7 @@ export default function AutoSwapPage() {
                     }}
                     className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
                       period === p.days
-                        ? 'bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 shadow-sm'
+                        ? 'bg-white dark:bg-stone-900 text-violet-700 dark:text-violet-300 font-semibold shadow-sm'
                         : 'text-stone-500 dark:text-stone-400'
                     }`}
                   >
@@ -441,7 +441,7 @@ export default function AutoSwapPage() {
         <div className="bg-white dark:bg-stone-900 card-soft p-6">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <h2 className="font-semibold text-stone-900 dark:text-stone-100">
+              <h2 className="font-bold text-indigo-950 dark:text-stone-100">
                 Scanner les opportunités de swap
               </h2>
               <p className="text-sm text-stone-500 dark:text-stone-400 mt-1">
@@ -461,7 +461,7 @@ export default function AutoSwapPage() {
               onClick={runDiagnostic}
               disabled={diagLoading || !credentialsReady}
               title="Affiche les vrais libellés d'états et situations renvoyés par ZRExpress"
-              className="flex items-center gap-2 border border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 disabled:opacity-50 disabled:cursor-not-allowed font-medium px-4 py-2.5 rounded-xl transition-colors"
+              className="flex items-center gap-2 border border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300 hover:bg-violet-50/50 dark:hover:bg-white/[0.04] disabled:opacity-50 disabled:cursor-not-allowed font-medium px-4 py-2.5 rounded-xl transition-colors"
             >
               {diagLoading ? <Loader2 size={16} className="animate-spin" /> : <Filter size={16} />}
               Diagnostic
@@ -712,7 +712,7 @@ export default function AutoSwapPage() {
             <div className="bg-white dark:bg-stone-900 card-soft overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-stone-50 border-b border-stone-100 dark:border-stone-800">
+                  <thead className="bg-violet-50/60 dark:bg-white/[0.03] border-b border-violet-100/70 dark:border-stone-800">
                     <tr className="text-left text-stone-600 dark:text-stone-300">
                       <th className="px-4 py-3">Colis à rediriger</th>
                       <th className="px-4 py-3">→ Nouveau client</th>
@@ -729,7 +729,7 @@ export default function AutoSwapPage() {
                       return (
                         <tr
                           key={key}
-                          className="hover:bg-stone-50 dark:hover:bg-stone-800 align-top"
+                          className="hover:bg-violet-50/50 dark:hover:bg-white/[0.04] align-top"
                         >
                           <td className="px-4 py-3">
                             <div className="font-mono text-xs text-stone-900 dark:text-stone-100">
@@ -950,7 +950,10 @@ function SwappedDetailList({
             </thead>
             <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
               {items.map((it, i) => (
-                <tr key={`${it.id}-${i}`} className="hover:bg-stone-50 dark:hover:bg-stone-800/50">
+                <tr
+                  key={`${it.id}-${i}`}
+                  className="hover:bg-violet-50/50 dark:hover:bg-white/[0.04]/50"
+                >
                   <td className="px-4 py-2 font-mono text-xs text-stone-900 dark:text-stone-100">
                     {it.tracking || '—'}
                   </td>
@@ -1091,13 +1094,13 @@ function SizeEquivalencesCard() {
     <div className="bg-white dark:bg-stone-900 card-soft overflow-hidden">
       <button
         onClick={() => setExpanded((e) => !e)}
-        className="w-full p-4 flex items-center gap-3 hover:bg-stone-50 dark:hover:bg-stone-800 transition-colors text-left"
+        className="w-full p-4 flex items-center gap-3 hover:bg-violet-50/50 dark:hover:bg-white/[0.04] transition-colors text-left"
       >
         <div className="w-9 h-9 rounded-lg bg-violet-50 dark:bg-violet-500/10 flex items-center justify-center">
           <SettingsIcon size={16} className="text-violet-600 dark:text-violet-400" />
         </div>
         <div className="flex-1">
-          <h2 className="font-semibold text-stone-900 dark:text-stone-100 text-sm">
+          <h2 className="font-bold text-indigo-950 dark:text-stone-100 text-sm">
             Mes équivalences de tailles
           </h2>
           <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">

@@ -71,7 +71,7 @@ export default function DailyDeliveryChart() {
   }, []);
 
   return (
-    <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 p-5 shadow-sm">
+    <div className="bg-white dark:bg-stone-900 card-soft p-5">
       <div className="flex items-center justify-between mb-5">
         <div>
           <h2 className="text-sm font-semibold text-stone-800 dark:text-stone-100">

@@ -603,7 +603,7 @@ function ConnexionTab() {
               <button
                 onClick={handleRefreshQr}
                 disabled={busy}
-                className="flex items-center gap-1.5 text-sm px-3 py-1.5 border border-stone-200 dark:border-stone-700 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800 disabled:opacity-50"
+                className="flex items-center gap-1.5 text-sm px-3 py-1.5 border border-stone-200 dark:border-stone-700 rounded-lg hover:bg-violet-50/50 dark:hover:bg-white/[0.04] disabled:opacity-50"
               >
                 <RefreshCw size={13} /> Nouveau QR
               </button>
@@ -625,7 +625,7 @@ function ConnexionTab() {
               <button
                 onClick={connect}
                 disabled={busy}
-                className="w-full bg-green-600 text-white rounded-xl py-3 text-sm font-medium hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                className="w-full btn-brand rounded-xl py-3 text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {busy ? (
                   <>
@@ -829,7 +829,7 @@ function EnvoyerTab() {
         <section className={`${card} p-6`}>
           <div className="flex items-center gap-3">
             {step(1)}
-            <h2 className="text-[15px] font-semibold text-stone-900 dark:text-stone-50">À qui ?</h2>
+            <h2 className="text-[15px] font-bold text-indigo-950 dark:text-stone-50">À qui ?</h2>
           </div>
 
           <div className="mt-4 flex flex-col sm:flex-row gap-3">
@@ -968,7 +968,7 @@ function EnvoyerTab() {
         <section className={`${card} p-6`}>
           <div className="flex items-center gap-3">
             {step(2)}
-            <h2 className="text-[15px] font-semibold text-stone-900 dark:text-stone-50">
+            <h2 className="text-[15px] font-bold text-indigo-950 dark:text-stone-50">
               Quel message ?
             </h2>
             <div className="flex-1" />
@@ -1037,7 +1037,7 @@ function EnvoyerTab() {
 
       {/* Envoi */}
       <aside className={`${card} p-6 lg:sticky lg:top-6`}>
-        <h2 className="text-[15px] font-semibold text-stone-900 dark:text-stone-50">Envoi</h2>
+        <h2 className="text-[15px] font-bold text-indigo-950 dark:text-stone-50">Envoi</h2>
 
         {connected === false && (
           <div className="mt-4 rounded-md border border-amber-200/70 bg-amber-50/70 dark:border-amber-500/20 dark:bg-amber-500/[0.06] px-3 py-2.5 text-[12.5px] text-amber-900 dark:text-amber-100">
@@ -1418,7 +1418,7 @@ function HistoriqueTab() {
               return (
                 <div
                   key={msg.id}
-                  className={`p-4 hover:bg-stone-50 dark:hover:bg-stone-800 ${msg.status === 'echec' ? 'border-l-2 border-red-300' : ''}`}
+                  className={`p-4 hover:bg-violet-50/50 dark:hover:bg-white/[0.04] ${msg.status === 'echec' ? 'border-l-2 border-red-300' : ''}`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
@@ -1544,7 +1544,7 @@ function TemplateEditCard({
       {!inline && (
         <button
           onClick={() => setOpen((o) => !o)}
-          className="w-full flex items-center justify-between px-5 py-4 hover:bg-stone-50 dark:hover:bg-stone-800 transition-colors"
+          className="w-full flex items-center justify-between px-5 py-4 hover:bg-violet-50/50 dark:hover:bg-white/[0.04] transition-colors"
         >
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-green-100 dark:bg-green-500/15 rounded-lg flex items-center justify-center">
@@ -1569,7 +1569,7 @@ function TemplateEditCard({
               <button
                 key={l.id}
                 onClick={() => setLang(l.id as LangKey)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${lang === l.id ? 'bg-white dark:bg-stone-900 text-stone-900 dark:text-stone-100 shadow-sm' : 'text-stone-500 dark:text-stone-400'}`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${lang === l.id ? 'bg-white dark:bg-stone-900 text-violet-700 dark:text-violet-300 font-semibold shadow-sm' : 'text-stone-500 dark:text-stone-400'}`}
               >
                 {l.label}
               </button>
@@ -1597,7 +1597,7 @@ function TemplateEditCard({
             {def && (
               <button
                 onClick={() => setForm((f) => ({ ...f, [lang]: def[lang] as string }))}
-                className="flex items-center gap-1.5 text-xs px-3 py-2 border border-stone-200 dark:border-stone-700 rounded-lg hover:bg-stone-50 dark:hover:bg-stone-800 text-stone-500 dark:text-stone-400"
+                className="flex items-center gap-1.5 text-xs px-3 py-2 border border-stone-200 dark:border-stone-700 rounded-lg hover:bg-violet-50/50 dark:hover:bg-white/[0.04] text-stone-500 dark:text-stone-400"
               >
                 <RotateCcw size={12} /> Réinitialiser
               </button>
@@ -1605,7 +1605,7 @@ function TemplateEditCard({
             <button
               onClick={save}
               disabled={saving}
-              className="flex items-center gap-1.5 text-sm px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium ml-auto"
+              className="flex items-center gap-1.5 text-sm px-5 py-2 btn-brand rounded-lg disabled:opacity-50 font-medium ml-auto"
             >
               {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}{' '}
               Sauvegarder

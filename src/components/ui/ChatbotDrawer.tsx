@@ -155,7 +155,7 @@ export default function ChatbotDrawer() {
             <div
               className={`max-w-[82%] px-3.5 py-2.5 rounded-2xl text-sm whitespace-pre-wrap leading-relaxed ${
                 msg.role === 'user'
-                  ? 'bg-green-600 text-white rounded-br-sm'
+                  ? 'btn-brand rounded-br-sm'
                   : 'bg-stone-100 text-stone-800 dark:text-stone-100 rounded-bl-sm'
               }`}
             >
@@ -218,7 +218,7 @@ export default function ChatbotDrawer() {
         <button
           onClick={() => sendMessage()}
           disabled={!input.trim() || loading}
-          className="w-9 h-9 bg-green-600 text-white rounded-xl flex items-center justify-center hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+          className="w-9 h-9 btn-brand rounded-xl flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
         >
           <Send size={15} />
         </button>

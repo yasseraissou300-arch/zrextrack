@@ -87,7 +87,7 @@ export default function StatusDistributionChart() {
   const total = data.reduce((s, d) => s + d.value, 0);
 
   return (
-    <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-100 dark:border-stone-800 p-5 h-full shadow-sm">
+    <div className="bg-white dark:bg-stone-900 card-soft p-5 h-full">
       <div className="mb-4">
         <h2 className="text-sm font-semibold text-stone-800 dark:text-stone-100">
           Répartition des statuts

@@ -38,7 +38,7 @@ export default function AlertesPage() {
         <div className="bg-white dark:bg-stone-900 card-soft overflow-hidden">
           <div className="px-6 py-4 border-b border-stone-100 dark:border-stone-800 flex items-center gap-2">
             <AlertTriangle size={16} className="text-red-500" />
-            <h2 className="font-semibold text-stone-900 dark:text-stone-100">
+            <h2 className="font-bold text-indigo-950 dark:text-stone-100">
               Commandes problématiques ({alerts.length})
             </h2>
           </div>
@@ -56,7 +56,7 @@ export default function AlertesPage() {
               alerts.map((o) => (
                 <div
                   key={o.id}
-                  className="px-6 py-4 flex items-center justify-between hover:bg-stone-50 dark:hover:bg-stone-800"
+                  className="px-6 py-4 flex items-center justify-between hover:bg-violet-50/50 dark:hover:bg-white/[0.04]"
                 >
                   <div>
                     <div className="flex items-center gap-2">

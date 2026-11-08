@@ -292,7 +292,7 @@ export default function DashboardHeader() {
                         setMenuOpen(false);
                         toggleAutoSync();
                       }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-stone-700 dark:text-stone-200 hover:bg-stone-50 dark:hover:bg-stone-800"
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-stone-700 dark:text-stone-200 hover:bg-violet-50/50 dark:hover:bg-white/[0.04]"
                     >
                       {autoSyncEnabled ? <PauseCircle size={15} /> : <PlayCircle size={15} />}
                       {autoSyncEnabled ? 'Mettre en pause la sync auto' : 'Activer la sync auto'}

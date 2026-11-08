@@ -204,7 +204,7 @@ export default function KPIBentoGrid() {
       {secondaryCards.map((card, idx) => (
         <div
           key={card.label}
-          className="group bg-white dark:bg-stone-900 rounded-xl border border-stone-100 dark:border-stone-800 p-3.5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 animate-slide-up"
+          className="group bg-white dark:bg-stone-900 card-soft p-3.5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 animate-slide-up"
           style={{ animationDelay: `${50 + idx * 40}ms`, animationFillMode: 'backwards' }}
         >
           <div

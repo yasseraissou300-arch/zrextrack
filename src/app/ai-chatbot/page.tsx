@@ -273,7 +273,7 @@ function TemplatesTab() {
                 </button>
                 <button
                   onClick={() => setExpanded(isExpanded ? null : config.template_type)}
-                  className="p-2 hover:bg-stone-50 dark:hover:bg-stone-800 rounded-lg transition-colors"
+                  className="p-2 hover:bg-violet-50/50 dark:hover:bg-white/[0.04] rounded-lg transition-colors"
                 >
                   {isExpanded ? (
                     <ChevronUp size={16} className="text-stone-400 dark:text-stone-500" />
@@ -487,7 +487,7 @@ function TemplatesTab() {
                 <button
                   onClick={() => saveConfig(config)}
                   disabled={isSaving}
-                  className="w-full bg-green-600 text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
+                  className="w-full btn-brand rounded-xl py-2.5 text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
                 >
                   {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                   Sauvegarder
@@ -1305,7 +1305,7 @@ function WhatsAppTab() {
         <button
           onClick={runDiagnostic}
           disabled={diagLoading}
-          className="shrink-0 flex items-center gap-1.5 text-xs font-medium border border-stone-200 dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-800 rounded-lg px-3 py-1.5 text-stone-700 dark:text-stone-200 disabled:opacity-50"
+          className="shrink-0 flex items-center gap-1.5 text-xs font-medium border border-stone-200 dark:border-stone-700 hover:bg-violet-50/50 dark:hover:bg-white/[0.04] rounded-lg px-3 py-1.5 text-stone-700 dark:text-stone-200 disabled:opacity-50"
           title="Vérifier l'état complet : Evolution API, webhook, instances, configs"
         >
           {diagLoading ? <Loader2 size={12} className="animate-spin" /> : <Stethoscope size={12} />}
@@ -1583,7 +1583,7 @@ function WhatsAppTab() {
               navigator.clipboard.writeText(webhookUrl);
               toast.success('Copié !');
             }}
-            className="p-2 border border-stone-200 dark:border-stone-700 rounded-xl hover:bg-stone-50 dark:hover:bg-stone-800 shrink-0"
+            className="p-2 border border-stone-200 dark:border-stone-700 rounded-xl hover:bg-violet-50/50 dark:hover:bg-white/[0.04] shrink-0"
           >
             <Copy size={13} className="text-stone-500 dark:text-stone-400" />
           </button>
@@ -1792,7 +1792,7 @@ function FacebookTab() {
                     navigator.clipboard.writeText(item.value);
                     toast.success('Copié !');
                   }}
-                  className="p-2 border border-stone-200 dark:border-stone-700 rounded-xl hover:bg-stone-50 dark:hover:bg-stone-800"
+                  className="p-2 border border-stone-200 dark:border-stone-700 rounded-xl hover:bg-violet-50/50 dark:hover:bg-white/[0.04]"
                 >
                   <Copy size={12} className="text-stone-500 dark:text-stone-400" />
                 </button>
@@ -1978,7 +1978,7 @@ function GoogleSheetsTab() {
                   onClick={() => testConnection(type)}
                   disabled={testing === type || !sheetUrls[type]}
                   title="Tester la connexion"
-                  className="px-3 py-2.5 border border-stone-200 dark:border-stone-700 rounded-xl text-xs font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 disabled:opacity-50 transition-colors shrink-0 flex items-center gap-1.5"
+                  className="px-3 py-2.5 border border-stone-200 dark:border-stone-700 rounded-xl text-xs font-medium text-stone-600 dark:text-stone-300 hover:bg-violet-50/50 dark:hover:bg-white/[0.04] disabled:opacity-50 transition-colors shrink-0 flex items-center gap-1.5"
                 >
                   {testing === type ? (
                     <Loader2 size={12} className="animate-spin" />
@@ -2162,7 +2162,7 @@ function DonneesTab() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-stone-50 border-b border-stone-100 dark:border-stone-800">
+              <thead className="bg-violet-50/60 dark:bg-white/[0.03] border-b border-violet-100/70 dark:border-stone-800">
                 <tr>
                   {['Canal', 'Contact', 'Template', 'Données extraites', 'Statut', 'Date', ''].map(
                     (h) => (
@@ -2180,7 +2180,10 @@ function DonneesTab() {
                 {sessions.map((session) => {
                   const d = session.extracted_data;
                   return (
-                    <tr key={session.id} className="hover:bg-stone-50 dark:hover:bg-stone-800">
+                    <tr
+                      key={session.id}
+                      className="hover:bg-violet-50/50 dark:hover:bg-white/[0.04]"
+                    >
                       <td className="px-4 py-3">
                         <span className="flex items-center gap-1.5">
                           {CHANNEL_ICONS[session.channel] ?? null}
@@ -2443,7 +2446,7 @@ function AnalyticsTab() {
                         {stats.complete}/{stats.total} · {rate}%
                       </span>
                     </div>
-                    <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
+                    <div className="h-2.5 bg-violet-100/70 dark:bg-white/[0.06] rounded-full overflow-hidden">
                       <div
                         className="h-full bg-purple-500 rounded-full"
                         style={{ width: `${rate}%` }}
@@ -2910,7 +2913,7 @@ function ReclamationsTab() {
               </div>
             )}
             <table className="w-full text-sm">
-              <thead className="bg-stone-50 dark:bg-stone-800 border-b border-stone-100 dark:border-stone-700">
+              <thead className="bg-violet-50/60 dark:bg-white/[0.03] border-b border-violet-100/70 dark:border-stone-700">
                 <tr>
                   {[
                     'Date',
@@ -2940,7 +2943,7 @@ function ReclamationsTab() {
                   return (
                     <tr
                       key={session.id}
-                      className="hover:bg-stone-50 dark:hover:bg-stone-800 align-top"
+                      className="hover:bg-violet-50/50 dark:hover:bg-white/[0.04] align-top"
                     >
                       <td className="px-4 py-3 text-[11px] text-stone-500 dark:text-stone-400 whitespace-nowrap">
                         {new Date(session.updated_at).toLocaleString('fr-FR', {

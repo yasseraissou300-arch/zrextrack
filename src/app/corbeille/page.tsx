@@ -154,7 +154,7 @@ export default function CorbeillePage() {
           </div>
           <button
             onClick={fetchDeleted}
-            className="ml-auto p-2 rounded-lg border border-stone-200 dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-800 transition-colors"
+            className="ml-auto p-2 rounded-lg border border-stone-200 dark:border-stone-700 hover:bg-violet-50/50 dark:hover:bg-white/[0.04] transition-colors"
           >
             <RefreshCw
               size={15}
@@ -164,7 +164,7 @@ export default function CorbeillePage() {
         </div>
 
         {/* Toolbar */}
-        <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-100 dark:border-stone-800 shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-stone-900 card-soft overflow-hidden">
           <div className="px-4 py-3 border-b border-stone-100 dark:border-stone-800 flex flex-wrap gap-3 items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="relative">
@@ -212,7 +212,7 @@ export default function CorbeillePage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-stone-100 dark:border-stone-800 bg-stone-50/60">
+                <tr className="border-b border-violet-100/70 dark:border-stone-800 bg-violet-50/60 dark:bg-white/[0.03]">
                   <th className="px-4 py-2.5 w-10">
                     <input
                       type="checkbox"
@@ -267,7 +267,7 @@ export default function CorbeillePage() {
                   filtered.map((order) => (
                     <tr
                       key={order.id}
-                      className="hover:bg-stone-50 dark:hover:bg-stone-800/60 transition-colors"
+                      className="hover:bg-violet-50/50 dark:hover:bg-white/[0.04]/60 transition-colors"
                     >
                       <td className="px-4 py-3">
                         <input
