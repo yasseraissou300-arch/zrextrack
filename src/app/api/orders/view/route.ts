@@ -12,7 +12,7 @@
 // Vues FIXES (pas de colonnes ni de filtres libres venant du client) :
 //   alertes     → échecs / retours, 50 plus récents
 //   livraisons  → en_livraison, livre, echec, retourne
-//   clients     → colonnes client pour le regroupement par client
+//   clients     → colonnes client pour le regroupement et le score de fiabilité
 //   rapports    → colonnes de statistiques
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -34,10 +34,11 @@ const ORDER_VIEWS: Record<string, View> = {
     orderBy: 'last_update',
   },
   clients: {
-    columns: 'customer_name, customer_whatsapp, wilaya, delivery_status',
+    columns:
+      'customer_name, customer_whatsapp, wilaya, delivery_status, cod, tracking_number, product_name',
     orderBy: 'created_at',
   },
-  rapports: { columns: 'delivery_status, wilaya, cod', orderBy: 'created_at' },
+  rapports: { columns: 'delivery_status, wilaya, cod, product_name', orderBy: 'created_at' },
 };
 
 // PostgREST plafonne chaque réponse à 1 000 lignes : on pagine, sinon les
