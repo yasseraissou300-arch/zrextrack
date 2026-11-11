@@ -1,13 +1,119 @@
 'use client';
 
 import AppLayout from '@/components/ui/AppLayout';
-import { StatCard, type Tone } from '@/components/ui/primitives';
+import { StatCard } from '@/components/ui/primitives';
 import { useEffect, useState } from 'react';
-import { TrendingUp, Package, CheckCircle2, XCircle, RotateCcw } from 'lucide-react';
+import {
+  Banknote,
+  CheckCircle2,
+  Package,
+  Percent,
+  RotateCcw,
+  ShoppingBag,
+  TrendingDown,
+  TrendingUp,
+  XCircle,
+} from 'lucide-react';
+import { buildReport, type GroupStat, type Report } from '@/lib/reports/aggregate';
+
+const da = (n: number) => `${Math.round(n).toLocaleString('fr-FR')} DA`;
+const num = (n: number) => n.toLocaleString('fr-FR');
+
+// Couleur du taux de livraison : vert au-dessus de 60 %, rouge sous 40 %.
+function tauxCls(taux: number | null): string {
+  if (taux === null) return 'bg-stone-100 text-stone-500 dark:bg-white/[0.06] dark:text-stone-400';
+  if (taux >= 60)
+    return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300';
+  if (taux >= 40) return 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300';
+  return 'bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300';
+}
+
+function GroupTable({
+  title,
+  subtitle,
+  firstCol,
+  rows,
+  loading,
+}: {
+  title: string;
+  subtitle: string;
+  firstCol: string;
+  rows: GroupStat[];
+  loading: boolean;
+}) {
+  const max = rows[0]?.total || 1;
+  return (
+    <div className="bg-white dark:bg-stone-900 card-soft overflow-hidden">
+      <div className="px-6 py-4 border-b border-stone-100 dark:border-stone-800">
+        <h2 className="font-bold text-indigo-950 dark:text-stone-100">{title}</h2>
+        <p className="text-[13px] text-stone-500 dark:text-stone-400">{subtitle}</p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="text-[12px] font-bold uppercase tracking-wide text-violet-500/80 dark:text-violet-300/70 bg-violet-50/60 dark:bg-white/[0.03]">
+            <tr>
+              <th className="px-4 py-3 text-left">{firstCol}</th>
+              <th className="px-4 py-3 text-right">Commandes</th>
+              <th className="px-4 py-3 text-right">Livrées</th>
+              <th className="px-4 py-3 text-right">Refus</th>
+              <th className="px-4 py-3 text-center">Taux livraison</th>
+              <th className="px-4 py-3 text-right">Encaissé</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-stone-50 dark:divide-stone-800">
+            {loading ? (
+              <tr>
+                <td colSpan={6} className="px-4 py-8 text-center text-stone-400">
+                  Chargement...
+                </td>
+              </tr>
+            ) : rows.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-4 py-8 text-center text-stone-400">
+                  Aucune donnée disponible
+                </td>
+              </tr>
+            ) : (
+              rows.map((g) => (
+                <tr key={g.name} className="hover:bg-violet-50/50 dark:hover:bg-white/[0.04]">
+                  <td className="px-4 py-3 min-w-[180px]">
+                    <div className="font-bold text-indigo-950 dark:text-stone-100">{g.name}</div>
+                    <div className="mt-1.5 h-1.5 bg-violet-100/70 dark:bg-white/[0.06] rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"
+                        style={{ width: `${Math.round((g.total / max) * 100)}%` }}
+                      />
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-right font-bold tabular-nums">{num(g.total)}</td>
+                  <td className="px-4 py-3 text-right font-bold tabular-nums text-emerald-600 dark:text-emerald-300">
+                    {num(g.livre)}
+                  </td>
+                  <td className="px-4 py-3 text-right font-bold tabular-nums text-rose-600 dark:text-rose-300">
+                    {num(g.refus)}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <span
+                      className={`text-[12px] font-bold px-2.5 py-1 rounded-full ${tauxCls(g.taux)}`}
+                    >
+                      {g.taux === null ? '—' : `${g.taux} %`}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right font-extrabold tabular-nums text-indigo-950 dark:text-stone-50 whitespace-nowrap">
+                    {da(g.ca)}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 
 export default function RapportsPage() {
-  const [stats, setStats] = useState<any>({});
-  const [byWilaya, setByWilaya] = useState<any[]>([]);
+  const [report, setReport] = useState<Report>(() => buildReport([]));
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -17,35 +123,7 @@ export default function RapportsPage() {
       // `orders` depuis le navigateur échoue (RLS 42P17).
       const res = await fetch('/api/orders/view?view=rapports');
       const { data } = (res.ok ? await res.json() : { data: null }) as { data: any[] | null };
-      if (data) {
-        const total = data.length;
-        const livre = data.filter((o) => o.delivery_status === 'livre').length;
-        const echec = data.filter((o) => o.delivery_status === 'echec').length;
-        const retourne = data.filter((o) => o.delivery_status === 'retourne').length;
-        const en_cours = data.filter((o) =>
-          ['en_preparation', 'en_transit', 'en_livraison'].includes(o.delivery_status)
-        ).length;
-        setStats({
-          total,
-          livre,
-          echec,
-          retourne,
-          en_cours,
-          rate: total > 0 ? Math.round((livre / total) * 100) : 0,
-        });
-
-        // By wilaya
-        const map = new Map<string, number>();
-        data.forEach((o) => {
-          if (o.wilaya) map.set(o.wilaya, (map.get(o.wilaya) || 0) + 1);
-        });
-        setByWilaya(
-          Array.from(map.entries())
-            .map(([w, n]) => ({ wilaya: w, count: n }))
-            .sort((a, b) => b.count - a.count)
-            .slice(0, 10)
-        );
-      }
+      if (data) setReport(buildReport(data));
       setLoading(false);
     };
     load();
@@ -54,78 +132,112 @@ export default function RapportsPage() {
   return (
     <AppLayout>
       <div className="max-w-[1120px] mx-auto px-5 sm:px-8 lg:px-10 py-8 lg:py-10 space-y-6">
-        <div className="flex items-center gap-3">
-          <div>
-            <h1 className="text-[28px] font-extrabold tracking-tight text-indigo-950 dark:text-stone-50">
-              Rapports
-            </h1>
-            <p className="text-sm text-stone-500 dark:text-stone-400">
-              Statistiques et analyses de vos commandes
-            </p>
-          </div>
+        <div>
+          <h1 className="text-[28px] font-extrabold tracking-tight text-indigo-950 dark:text-stone-50">
+            Rapports
+          </h1>
+          <p className="text-sm text-stone-500 dark:text-stone-400">
+            Votre argent, vos retours, et d&apos;où ils viennent
+          </p>
         </div>
 
-        {/* KPIs */}
+        {/* Argent */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            icon={Banknote}
+            label="Encaissé (colis livrés)"
+            value={da(report.caEncaisse)}
+            tone="green"
+            loading={loading}
+          />
+          <StatCard
+            icon={TrendingDown}
+            label="Perdu (échecs + retours)"
+            value={da(report.caPerdu)}
+            tone="red"
+            loading={loading}
+          />
+          <StatCard
+            icon={TrendingUp}
+            label="En cours de livraison"
+            value={da(report.caEnCours)}
+            tone="amber"
+            loading={loading}
+          />
+          <StatCard
+            icon={ShoppingBag}
+            label="Panier moyen livré"
+            value={da(report.panierMoyen)}
+            tone="violet"
+            loading={loading}
+          />
+        </div>
+
+        {/* Volumes */}
         <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          {[
-            { label: 'Total', value: stats.total, icon: Package, color: 'blue' },
-            { label: 'Livrées', value: stats.livre, icon: CheckCircle2, color: 'green' },
-            { label: 'En cours', value: stats.en_cours, icon: TrendingUp, color: 'amber' },
-            { label: 'Échecs', value: stats.echec, icon: XCircle, color: 'red' },
-            { label: 'Retours', value: stats.retourne, icon: RotateCcw, color: 'stone' },
-            {
-              label: 'Taux livraison',
-              value: `${stats.rate || 0}%`,
-              icon: TrendingUp,
-              color: 'indigo',
-            },
-          ].map((s) => (
-            <StatCard
-              key={s.label}
-              icon={s.icon}
-              label={s.label}
-              value={s.value ?? 0}
-              tone={s.color as Tone}
-              loading={loading}
-            />
-          ))}
+          <StatCard
+            icon={Package}
+            label="Total"
+            value={num(report.total)}
+            tone="blue"
+            loading={loading}
+          />
+          <StatCard
+            icon={CheckCircle2}
+            label="Livrées"
+            value={num(report.livre)}
+            tone="green"
+            loading={loading}
+          />
+          <StatCard
+            icon={TrendingUp}
+            label="En cours"
+            value={num(report.enCours)}
+            tone="amber"
+            loading={loading}
+          />
+          <StatCard
+            icon={XCircle}
+            label="Échecs"
+            value={num(report.echec)}
+            tone="red"
+            loading={loading}
+          />
+          <StatCard
+            icon={RotateCcw}
+            label="Retours"
+            value={num(report.retourne)}
+            tone="stone"
+            loading={loading}
+          />
+          <StatCard
+            icon={Percent}
+            label="Taux de livraison"
+            value={`${report.tauxLivraison} %`}
+            tone="indigo"
+            loading={loading}
+          />
         </div>
+        <p className="-mt-3 text-[12.5px] text-stone-400 dark:text-stone-500">
+          Taux de livraison = colis livrés ÷ colis terminés (livrés + échecs + retours). Les colis
+          encore en route ne comptent pas.
+        </p>
 
-        {/* Top wilayas */}
-        <div className="bg-white dark:bg-stone-900 card-soft p-6">
-          <h2 className="font-bold text-indigo-950 dark:text-stone-100 mb-4">Top Wilayas</h2>
-          {loading ? (
-            <p className="text-stone-400 dark:text-stone-500">Chargement...</p>
-          ) : byWilaya.length === 0 ? (
-            <p className="text-stone-400 dark:text-stone-500">Aucune donnée disponible</p>
-          ) : (
-            <div className="space-y-3">
-              {byWilaya.map((w, i) => (
-                <div key={w.wilaya} className="flex items-center gap-3">
-                  <span className="text-xs text-stone-400 dark:text-stone-500 w-4">{i + 1}</span>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium text-stone-700 dark:text-stone-200">
-                        {w.wilaya}
-                      </span>
-                      <span className="text-sm font-bold text-stone-900 dark:text-stone-100">
-                        {w.count}
-                      </span>
-                    </div>
-                    <div className="h-2.5 bg-violet-100/70 dark:bg-white/[0.06] rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"
-                        style={{
-                          width: `${Math.round((w.count / (byWilaya[0]?.count || 1)) * 100)}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <GroupTable
+          title="Par produit"
+          subtitle="Les 10 produits les plus commandés — tailles et couleurs regroupées"
+          firstCol="Produit"
+          rows={report.produits}
+          loading={loading}
+        />
+
+        <GroupTable
+          title="Par wilaya"
+          subtitle="Les 15 wilayas les plus commandées — repérez celles qui refusent le plus"
+          firstCol="Wilaya"
+          rows={report.wilayas}
+          loading={loading}
+        />
       </div>
     </AppLayout>
   );
