@@ -6,14 +6,21 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
+  themeColor: '#6d28d9',
 };
 
 export const metadata: Metadata = {
   title: 'Autotim — Suivi Commandes ZREXpress',
   description:
     'Plateforme de suivi des commandes ZREXpress avec automatisation WhatsApp pour les e-commerçants algériens.',
+  applicationName: 'AutoTim',
+  appleWebApp: { capable: true, title: 'AutoTim', statusBarStyle: 'default' },
   icons: {
-    icon: [{ url: '/favicon.ico', type: 'image/x-icon' }],
+    icon: [
+      { url: '/favicon.ico', type: 'image/x-icon' },
+      { url: '/icons/icon-192.png', type: 'image/png', sizes: '192x192' },
+    ],
+    apple: [{ url: '/icons/apple-touch-icon.png', sizes: '180x180' }],
   },
 };
 

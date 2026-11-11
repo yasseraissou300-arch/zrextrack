@@ -44,6 +44,14 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Fichiers statiques de l'application installable (PWA). Le navigateur les
+  // télécharge SANS cookie : redirigés vers /login, l'installation sur le
+  // téléphone échouait et l'icône ne s'affichait pas. Ce sont des fichiers de
+  // public/ — aucune donnée.
+  if (pathname === '/manifest.webmanifest' || pathname.startsWith('/icons/')) {
+    return NextResponse.next();
+  }
+
   // Vérif locale : un cookie de session Supabase existe-t-il ?
   // @supabase/ssr stocke le token dans `sb-<ref>-auth-token` (parfois découpé
   // en `.0`, `.1`...). On cherche n'importe quel cookie qui matche.
