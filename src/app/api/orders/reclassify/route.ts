@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { mapStatus } from '@/lib/zrexpress/status';
+import { resolveTenant } from '@/lib/auth/tenant';
 
 // Re-classification des commandes à partir de la SITUATION stockée.
 //
@@ -22,6 +23,9 @@ export async function POST() {
     data: { user },
   } = await supabaseAuth.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  // Suppression / corbeille / reclassement : réservés au propriétaire.
+  if ((await resolveTenant(user)).role !== 'owner')
+    return NextResponse.json({ error: 'Réservé au propriétaire du compte' }, { status: 403 });
 
   const supabase = createServiceClient();
 

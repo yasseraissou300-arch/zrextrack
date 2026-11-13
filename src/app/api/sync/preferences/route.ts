@@ -18,6 +18,7 @@ import { isPlatformAdmin } from '@/lib/auth/platform-admin';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { getTenantSettings, upsertTenantSettings } from '@/lib/queue/repository';
 import type { SyncSource } from '@/lib/queue/types';
+import { resolveTenant } from '@/lib/auth/tenant';
 
 const SOURCES: SyncSource[] = ['client', 'server', 'both'];
 
@@ -27,12 +28,13 @@ export async function GET() {
     data: { user },
   } = await supabaseAuth.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  const tenantId = (await resolveTenant(user)).tenantId;
 
   const service = createServiceClient();
-  const settings = await getTenantSettings(service, user.id);
+  const settings = await getTenantSettings(service, tenantId);
 
   return NextResponse.json({
-    tenant_id: user.id,
+    tenant_id: tenantId,
     auto_sync_enabled: settings?.auto_sync_enabled ?? false,
     // Défaut 'client' : aucun tenant n'est basculé automatiquement.
     sync_source: settings?.sync_source ?? 'client',
@@ -48,6 +50,9 @@ export async function PUT(request: NextRequest) {
     data: { user },
   } = await supabaseAuth.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  // Un employé lit les préférences du marchand mais ne les change pas.
+  if ((await resolveTenant(user)).role !== 'owner')
+    return NextResponse.json({ error: 'Réservé au propriétaire du compte' }, { status: 403 });
 
   let body: { auto_sync_enabled?: boolean; sync_source?: string };
   try {

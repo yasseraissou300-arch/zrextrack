@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { countOrdersThisMonth, quotaStateFor } from '@/lib/plan-quotas';
 import { isPlatformAdmin } from '@/lib/auth/platform-admin';
+import { resolveTenant } from '@/lib/auth/tenant';
 
 // Renvoie l'usage du user courant pour le mois calendaire en cours + son quota.
 // Utilisé par QuotaBanner et par les écrans qui veulent afficher la progression.
@@ -12,11 +13,12 @@ export async function GET() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  const tenantId = (await resolveTenant(user)).tenantId;
 
   const service = createServiceClient();
   const [{ data: prof }, used] = await Promise.all([
-    service.from('profiles').select('plan_id').eq('id', user.id).maybeSingle(),
-    countOrdersThisMonth(service, user.id),
+    service.from('profiles').select('plan_id').eq('id', tenantId).maybeSingle(),
+    countOrdersThisMonth(service, tenantId),
   ]);
 
   // Quota illimité = Super Admin du JETON (app_metadata), jamais profiles.role

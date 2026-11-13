@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { internalErrorResponse } from '@/lib/security/public-error';
+import { resolveTenant } from '@/lib/auth/tenant';
 
 interface EquivalenceRow {
   id: string;
@@ -28,12 +29,13 @@ export async function GET() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const tenantId = (await resolveTenant(user)).tenantId;
 
   const service = createServiceClient();
   const { data, error } = await service
     .from('autoswap_size_equivalences')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('user_id', tenantId)
     .order('product_label', { ascending: true });
 
   if (error) return internalErrorResponse('api.autoswap.equivalences', error);
@@ -47,6 +49,7 @@ export async function POST(req: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const tenantId = (await resolveTenant(user)).tenantId;
 
   const service = createServiceClient();
 
@@ -86,7 +89,7 @@ export async function POST(req: NextRequest) {
     .from('autoswap_size_equivalences')
     .upsert(
       {
-        user_id: user.id,
+        user_id: tenantId,
         product_key: product_key.trim().toLowerCase(),
         product_label: product_label?.trim() || null,
         groups: normalizedGroups,
@@ -107,6 +110,7 @@ export async function DELETE(req: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const tenantId = (await resolveTenant(user)).tenantId;
 
   const url = new URL(req.url);
   const key = url.searchParams.get('key');
@@ -116,7 +120,7 @@ export async function DELETE(req: NextRequest) {
   const { error } = await service
     .from('autoswap_size_equivalences')
     .delete()
-    .eq('user_id', user.id)
+    .eq('user_id', tenantId)
     .eq('product_key', key.toLowerCase());
 
   if (error) return internalErrorResponse('api.autoswap.equivalences', error);

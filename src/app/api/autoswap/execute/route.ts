@@ -8,6 +8,8 @@ import type {
   ExecutionResult,
   SwapRequestPayload,
 } from '@/lib/autoswap/types';
+import { resolveTenant } from '@/lib/auth/tenant';
+import { logActivity } from '@/lib/team/activity';
 
 // Endpoint découvert via le spec Swagger interne ZRExpress :
 //   https://api.zrexpress.app/swagger/internal-v1/swagger.json
@@ -70,7 +72,8 @@ export async function POST(request: NextRequest) {
       data: { user },
     } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
-    const userId = user.id;
+    const tenant = await resolveTenant(user);
+    const userId = tenant.tenantId;
     const supabase = createServiceClient();
     const zr = await getZrCredentials(supabase, userId);
     if (!zr) return NextResponse.json(ZR_NOT_CONFIGURED, { status: 400 });
@@ -142,6 +145,15 @@ export async function POST(request: NextRequest) {
         .select();
 
       results.push(result);
+    }
+
+    if (executed + failed > 0) {
+      await logActivity(
+        supabase,
+        tenant,
+        'autoswap.execute',
+        `${executed} swap(s) exécuté(s), ${failed} échec(s)`
+      );
     }
 
     return NextResponse.json({ executed, failed, results } as ExecuteResponse);

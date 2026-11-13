@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { openZrToken } from '@/lib/zrexpress/credentials';
+import { resolveTenant } from '@/lib/auth/tenant';
 
 // État d'onboarding du user courant, dérivé des données existantes (aucune
 // nouvelle colonne). L'UI cache le checklist quand tout est true.
@@ -14,6 +15,7 @@ export async function GET() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  const tenantId = (await resolveTenant(user)).tenantId;
 
   const service = createServiceClient();
 
@@ -21,25 +23,25 @@ export async function GET() {
     service
       .from('user_sync_settings')
       .select('zrexpress_token, zrexpress_tenant_id')
-      .eq('user_id', user.id)
+      .eq('user_id', tenantId)
       .maybeSingle(),
     service
       .from('whatsapp_instances')
       .select('connected')
-      .eq('user_id', user.id)
+      .eq('user_id', tenantId)
       .eq('service_type', 'auto_confirmation')
       .maybeSingle(),
     service
       .from('orders')
       .select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id)
+      .eq('user_id', tenantId)
       .limit(1),
   ]);
 
   const settings = settingsRes.data;
   // Clé LISIBLE (déchiffrable) et tenant présents — jamais renvoyée (P2-9).
   const hasZrexpressToken = !!(
-    openZrToken(user.id, settings?.zrexpress_token) && settings?.zrexpress_tenant_id
+    openZrToken(tenantId, settings?.zrexpress_token) && settings?.zrexpress_tenant_id
   );
   const hasWhatsappConnected = !!waRes.data?.connected;
   const hasFirstSync = (ordersRes.count ?? 0) > 0;

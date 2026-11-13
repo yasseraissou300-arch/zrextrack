@@ -223,7 +223,12 @@ describe('Routes en service-role (contournement RLS)', () => {
       const rel = path.relative(API_DIR, fichier).replace(/\\/g, '/');
       const src = fs.readFileSync(fichier, 'utf8');
       if (!src.includes('createServiceClient')) continue;
-      const verifie = /auth\.getUser\(\)/.test(src) || /requireAdmin/.test(src);
+      // getTenantContext() (src/lib/auth/tenant.ts) appelle auth.getUser() et
+      // renvoie null sans session : les routes qui l'utilisent sont vérifiées.
+      const verifie =
+        /auth\.getUser\(\)/.test(src) ||
+        /requireAdmin/.test(src) ||
+        /getTenantContext\(\)/.test(src);
       if (!verifie && !AUTORISEES_SANS_GETUSER.includes(rel)) manquantes.push(rel);
     }
     expect(manquantes).toEqual([]);

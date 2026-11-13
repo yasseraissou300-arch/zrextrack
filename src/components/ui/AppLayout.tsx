@@ -5,6 +5,9 @@ import Sidebar from './Sidebar';
 import { ChatbotProvider } from '@/contexts/ChatbotContext';
 import ChatbotDrawer from './ChatbotDrawer';
 import { Menu, X } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { employeeCanOpen, useMe } from '@/lib/ui/use-me';
+import { InvitationBanner, OwnerOnlyNotice } from '@/components/team/TeamNotices';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -12,6 +15,11 @@ interface AppLayoutProps {
 
 export default function AppLayout({ children }: AppLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const me = useMe();
+  const pathname = usePathname() ?? '';
+  // Employé sur une page du propriétaire : on n'affiche pas la page (ses
+  // appels API viseraient l'espace personnel vide de l'employé).
+  const blocked = me?.workspace_role === 'employe' && !employeeCanOpen(pathname);
 
   return (
     <ChatbotProvider>
@@ -66,7 +74,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
           <Sidebar />
         </div>
 
-        <main className="flex-1 overflow-y-auto scrollbar-thin pt-14 md:pt-0">{children}</main>
+        <main className="flex-1 overflow-y-auto scrollbar-thin pt-14 md:pt-0">
+          {me?.workspace_role === 'owner' && <InvitationBanner />}
+          {blocked ? <OwnerOnlyNotice /> : children}
+        </main>
       </div>
       <ChatbotDrawer />
     </ChatbotProvider>

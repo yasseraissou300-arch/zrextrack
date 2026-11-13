@@ -2,6 +2,7 @@ import { internalErrorResponse } from '@/lib/security/public-error';
 import { fetchAllPaged } from '@/lib/supabase/paged';
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { resolveTenant } from '@/lib/auth/tenant';
 
 const STATS_PAGE = 1000;
 const STATS_MAX_ROWS = 50_000;
@@ -13,6 +14,7 @@ export async function GET() {
       data: { user },
     } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    const tenantId = (await resolveTenant(user)).tenantId;
 
     const supabase = createServiceClient();
 
@@ -29,7 +31,7 @@ export async function GET() {
         supabase
           .from('orders')
           .select('delivery_status, last_update', withCount ? { count: 'exact' } : undefined)
-          .eq('user_id', user.id)
+          .eq('user_id', tenantId)
           .order('id', { ascending: true })
           .range(from, to),
       { pageSize: STATS_PAGE, maxRows: STATS_MAX_ROWS }
