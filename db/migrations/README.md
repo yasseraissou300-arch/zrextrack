@@ -30,7 +30,7 @@ Toute structure nouvelle va dans le schéma dédié `autotim`.
 | `../proposed/004_rls_fix_42P17.sql`          | ⏸️ **NON EXÉCUTÉ** — D1 = plus tard                                                                          | `public`             |
 | `../proposed/005_messages_cleanup.sql`       | ⏸️ **NON EXÉCUTÉ** — E2/E3 = plus tard                                                                       | `public`             |
 | `../proposed/006_autotim_webhook_events.sql` | ⏸️ **NON EXÉCUTÉ** — anti-rejeu durable ; code tolérant à l'absence de la table. GO après le rapport 72 h v2 | `autotim` uniquement |
-| `010_autotim_team.sql`                       | ⏳ **GO donné le 2026-11-13** — comptes employés + journal ; sauvegarde run #24 vérifiée ; code tolérant à l'absence des tables | `autotim` uniquement |
+| `010_autotim_team.sql`                       | ✅ **EXÉCUTÉE** le 2026-11-13 (GO explicite) — comptes employés + journal ; `service_role` = SELECT/INSERT/UPDATE (journal : SELECT/INSERT), **sans DELETE** | `autotim` uniquement |
 
 > `001_introspection.sql` (dans `../baseline/`) est en lecture seule et peut être
 > rejoué à tout moment.
@@ -105,6 +105,7 @@ Ces trois niveaux couvrent tous les cas de retour arrière prévus.
 | 2026-09-11 | `002b_autotim_grants.sql`                                     | Claude (Chrome → SQL Editor), hash exécutable `b8bbb83e9d844a15`                               | ✅ ACL `jobs`/`tenant_settings` = `service_role=arw` (pas de `d`/`D`). Test réel `SET ROLE service_role` : INSERT → UPDATE (pending→running→done) → SELECT OK ; DELETE → `42501` (voulu, le code n'en a pas besoin). Job de test supprimé par `postgres`. anon/authenticated : tout `false`, PostgREST anon → `42501 permission denied for schema autotim`. `public` : signatures identiques (3880/2495/1913), 48 policies, 42 tables, 86 index, 90 contraintes, 417 colonnes, messages 532 516, orders 7 155. |
 | 2026-09-11 | Test applicatif réel `tests/integration/autotim-real.test.ts` | Claude (`npm run test:integration`, `createServiceClient().schema('autotim')`, run `f2b2cb19`) | ✅ 12/12 : accès schéma, INSERT, SELECT, idempotence, claim CAS (2e worker refusé), reschedule, contrainte `jobs_locked_coherence_chk` (23514), markDone, stale lock > 5 min repris, DLQ, tenant_settings, DELETE refusé (42501). Nettoyage ciblé par `postgres` (2 jobs + 1 tenant_settings du tenant de test). État final : `jobs` 0, `tenant_settings` 0, `public` identique (3880/2495/1913, messages 532 516, orders 7 155).                                                                              |
 
+| 2026-11-13 | `010_autotim_team.sql` | Propriétaire (clic Run dans SQL Editor, texte collé par Claude, 3 250 caractères = fichier sans commentaires), après sauvegarde run #24 vérifiée | ✅ `autotim` = activity_log, jobs, team_members, tenant_settings ; 6 index sur les 2 nouvelles tables ; anon/authenticated : tout `false` ; service_role : select/update/insert `true`, delete `false`. `public` inchangé : 42 tables, 48 policies, orders 9 858. |
 ---
 
 ## Dette documentaire (hors périmètre, à corriger plus tard)
