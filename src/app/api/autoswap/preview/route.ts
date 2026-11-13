@@ -5,6 +5,7 @@ import { fetchAllParcels } from '@/lib/zrexpress/parcels';
 import { getZrCredentials, ZR_NOT_CONFIGURED } from '@/lib/zrexpress/credentials';
 import { matchSwappables, splitSourcesAndTargets } from '@/lib/autoswap/matcher';
 import type { PreviewResponse, ZRParcel } from '@/lib/autoswap/types';
+import { resolveTenant } from '@/lib/auth/tenant';
 
 // Route read-only : récupère TOUS les colis ZRExpress, identifie les swappables
 // et les commandes confirmées en attente, puis applique l'algorithme de matching
@@ -19,9 +20,10 @@ export async function POST(request: NextRequest) {
       data: { user },
     } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    const workspaceId = (await resolveTenant(user)).tenantId;
 
     const service = createServiceClient();
-    const zr = await getZrCredentials(service, user.id);
+    const zr = await getZrCredentials(service, workspaceId);
     if (!zr) return NextResponse.json(ZR_NOT_CONFIGURED, { status: 400 });
     const { token, tenantId } = zr;
 
@@ -32,7 +34,7 @@ export async function POST(request: NextRequest) {
       const { data: rows } = await service
         .from('autoswap_size_equivalences')
         .select('product_key, groups')
-        .eq('user_id', user.id);
+        .eq('user_id', workspaceId);
       if (rows) {
         for (const r of rows) {
           sizeEquivalences[r.product_key as string] = r.groups as string[][];

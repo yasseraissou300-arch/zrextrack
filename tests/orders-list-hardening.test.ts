@@ -21,7 +21,9 @@ let failWith: { status: number; body: unknown } | null = null;
 
 const transport = vi.fn(async (input: RequestInfo | URL) => {
   const url = new URL(String(input));
-  requests.push(url.searchParams);
+  // Seules les requêtes sur `orders` intéressent ces tests (la résolution de
+  // l'espace de travail lit aussi autotim.team_members).
+  if (url.pathname.endsWith('/orders')) requests.push(url.searchParams);
   const headers = new Headers({ 'content-type': 'application/json', 'content-range': '0-0/0' });
   if (failWith)
     return new Response(JSON.stringify(failWith.body), { status: failWith.status, headers });

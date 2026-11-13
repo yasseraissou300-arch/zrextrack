@@ -94,6 +94,15 @@ function applyDefaults(fullTable: string, row: Row): Row {
     base.last_error ??= null;
     base.idempotency_key ??= null;
   }
+  if (fullTable === 'autotim.team_members') {
+    // Défauts de db/migrations/010_autotim_team.sql
+    base.role ??= 'employe';
+    base.status ??= 'invited';
+    base.invited_at ??= now;
+    base.member_user_id ??= null;
+    base.accepted_at ??= null;
+    base.ended_at ??= null;
+  }
   if (fullTable === 'public.ai_chat_sessions') {
     // Défauts de supabase_aichatbot_full.sql
     base.conversation ??= [];

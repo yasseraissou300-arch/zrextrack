@@ -13,6 +13,7 @@ import { fetchAllParcels } from '@/lib/zrexpress/parcels';
 import { drainNotifications } from '@/lib/whatsapp/drain-notifications';
 import { countOrdersThisMonth, quotaStateFor } from '@/lib/plan-quotas';
 import { silentTrackingNumbers, stateUpdatedAt } from '@/lib/zrexpress/map-parcel';
+import { resolveTenant } from '@/lib/auth/tenant';
 
 // Statuts qui déclenchent une notification WhatsApp
 const NOTIFY_STATUSES = new Set(['en_transit', 'en_livraison', 'livre', 'echec', 'retourne']);
@@ -145,7 +146,7 @@ export async function POST(request: NextRequest) {
     // anonyme insérait des lignes orphelines dans `orders` (colonne nullable
     // d'après supabase_orders.sql). Le middleware laisse /api/* passer.
     if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
-    const userId = user.id;
+    const userId = (await resolveTenant(user)).tenantId;
 
     const supabase = createServiceClient();
 

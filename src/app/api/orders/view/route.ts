@@ -18,6 +18,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { fetchAllPaged } from '@/lib/supabase/paged';
+import { resolveTenant } from '@/lib/auth/tenant';
 
 type View = {
   columns: string;
@@ -53,6 +54,7 @@ export async function GET(request: NextRequest) {
     data: { user },
   } = await auth.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  const tenantId = (await resolveTenant(user)).tenantId;
 
   const viewName = new URL(request.url).searchParams.get('view') || '';
   // Clé PROPRE uniquement : `constructor`, `__proto__`… (hérités d'Object)
@@ -69,7 +71,7 @@ export async function GET(request: NextRequest) {
       let q = supabase
         .from('orders')
         .select(view.columns, withCount ? { count: 'exact' } : undefined)
-        .eq('user_id', user.id)
+        .eq('user_id', tenantId)
         .is('deleted_at', null);
       if (view.statuses) q = q.in('delivery_status', view.statuses);
       return q

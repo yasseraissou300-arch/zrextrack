@@ -6,6 +6,7 @@
 
 import React, { useEffect, useState } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
+import TeamSection from '@/components/team/TeamSection';
 import { createClient } from '@/lib/supabase/client';
 import { Mail, Shield, LogOut, Loader2, Crown, Building2, CalendarDays } from 'lucide-react';
 
@@ -73,7 +74,7 @@ export default function MonComptePage() {
 
   return (
     <AppLayout>
-      <div className="min-h-screen bg-stone-50 dark:bg-stone-950">
+      <div className="min-h-screen">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
           <div className="flex items-center gap-3">
             <div>
@@ -92,7 +93,7 @@ export default function MonComptePage() {
             </div>
           ) : (
             <>
-              <div className="bg-white dark:bg-stone-900 rounded-xl border border-stone-200 dark:border-stone-800 shadow-sm p-6">
+              <div className="card-soft bg-white dark:bg-stone-900 p-6">
                 <div className="flex items-center gap-4 mb-6">
                   {profile?.avatar_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -133,6 +134,8 @@ export default function MonComptePage() {
                   )}
                 </div>
               </div>
+
+              <TeamSection />
 
               <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/40 rounded-xl p-4 text-sm text-blue-700 dark:text-blue-300">
                 🔐 Vous êtes connecté <strong>via Google</strong>. Il n'y a donc pas de mot de passe

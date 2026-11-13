@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { logEvent } from '@/lib/security/safe-log';
+import { resolveTenant } from '@/lib/auth/tenant';
 
 const MAX_PAGE_SIZE = 100; // plus grande valeur proposée par l'interface
 const MAX_PAGE = 10_000;
@@ -41,6 +42,7 @@ export async function GET(request: NextRequest) {
       data: { user },
     } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
+    const tenantId = (await resolveTenant(user)).tenantId;
 
     const { searchParams } = new URL(request.url);
     // page / pageSize bornés : `page=0`, `abc` ou un pageSize énorme
@@ -57,7 +59,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('orders')
       .select('*', { count: 'exact' })
-      .eq('user_id', user.id)
+      .eq('user_id', tenantId)
       .is('deleted_at', null);
 
     // « en_cours » = tout ce qui n'est pas encore finalisé (onglet En cours).

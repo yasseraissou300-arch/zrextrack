@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useChatbot } from '@/contexts/ChatbotContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { employeeCanOpen, useMe, type Me } from '@/lib/ui/use-me';
 
 // Navigation volontairement courte : 6 sections. Les pages secondaires restent
 // accessibles comme sous-liens, affichés seulement quand leur section est
@@ -84,13 +85,6 @@ interface SidebarProps {
   onMobileClose?: () => void;
 }
 
-interface Me {
-  role?: string | null;
-  full_name?: string | null;
-  email?: string | null;
-  plan_id?: string | null;
-}
-
 const PLAN_LABEL: Record<string, string> = {
   basic: 'Basic',
   pro: 'Pro',
@@ -106,19 +100,26 @@ function initialsOf(me: Me | null): string {
 
 export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
-  const [me, setMe] = useState<Me | null>(null);
+  const me = useMe();
   const pathname = usePathname() ?? '';
   const { toggle, isOpen } = useChatbot();
   const { theme, toggle: toggleTheme } = useTheme();
 
   // Rôle lu côté serveur (/api/auth/me) : le lien « Super Admin » n'apparaît
-  // que pour le claim admin du jeton.
-  useEffect(() => {
-    fetch('/api/auth/me')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => setMe(j))
-      .catch(() => {});
-  }, []);
+  // que pour le claim admin du jeton ; un employé ne voit que ses pages.
+  const isEmployee = me?.workspace_role === 'employe';
+  const visible = (item: NavItem): NavItem | null => {
+    if (!isEmployee) return item;
+    const children = item.children?.filter((c) => employeeCanOpen(c.href));
+    if (!employeeCanOpen(item.href) && !children?.length) return null;
+    return {
+      ...item,
+      href: employeeCanOpen(item.href) ? item.href : children![0].href,
+      children: children?.length ? children : undefined,
+    };
+  };
+  const nav = mainNav.map(visible).filter((i): i is NavItem => i !== null);
+  const settings = visible(settingsNav);
 
   const isMobile = mobileOpen !== undefined && onMobileClose !== undefined;
   const narrow = isMobile ? false : collapsed;
@@ -193,11 +194,11 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
       </div>
 
       <nav className="flex-1 min-h-0 overflow-y-auto scrollbar-thin px-3 pt-2">
-        <ul className="space-y-0.5">{mainNav.map(renderItem)}</ul>
+        <ul className="space-y-0.5">{nav.map(renderItem)}</ul>
       </nav>
 
       <div className="px-3 pb-3 pt-2 space-y-0.5">
-        <ul>{renderItem(settingsNav)}</ul>
+        <ul>{settings && renderItem(settings)}</ul>
         {isAdmin && <ul>{renderItem({ href: '/admin', icon: Shield, label: 'Super Admin' })}</ul>}
 
         <div
@@ -220,7 +221,9 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
                   {me?.full_name || me?.email || 'Mon compte'}
                 </div>
                 <div className="text-[12px] text-violet-200 truncate">
-                  {PLAN_LABEL[me?.plan_id ?? ''] ?? 'Basic'}
+                  {isEmployee
+                    ? `Employé · ${me?.workspace_name ?? ''}`
+                    : (PLAN_LABEL[me?.plan_id ?? ''] ?? 'Basic')}
                 </div>
               </div>
             )}

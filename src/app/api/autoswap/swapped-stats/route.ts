@@ -15,6 +15,7 @@ import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { getZrCredentials, ZR_NOT_CONFIGURED } from '@/lib/zrexpress/credentials';
 import { fetchAllParcels } from '@/lib/zrexpress/parcels';
 import { classifySwappedDelivery, type DeliveryBucket } from '@/lib/zrexpress/status';
+import { resolveTenant } from '@/lib/auth/tenant';
 
 type Bucket = DeliveryBucket;
 
@@ -37,9 +38,10 @@ export async function POST(request: NextRequest) {
       data: { user },
     } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    const workspaceId = (await resolveTenant(user)).tenantId;
 
     // Clé ZR lue en base pour le tenant de la session (P2-9).
-    const zr = await getZrCredentials(createServiceClient(), user.id);
+    const zr = await getZrCredentials(createServiceClient(), workspaceId);
     if (!zr) return NextResponse.json(ZR_NOT_CONFIGURED, { status: 400 });
     const { token, tenantId } = zr;
 

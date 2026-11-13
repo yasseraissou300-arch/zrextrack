@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { internalErrorResponse } from '@/lib/security/public-error';
+import { resolveTenant } from '@/lib/auth/tenant';
 
 export async function GET() {
   try {
@@ -9,10 +10,11 @@ export async function GET() {
       data: { user },
     } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    const tenantId = (await resolveTenant(user)).tenantId;
 
     const supabase = createServiceClient();
     const today = new Date().toISOString().split('T')[0];
-    const uid = user.id;
+    const uid = tenantId;
 
     const [
       totalRes,

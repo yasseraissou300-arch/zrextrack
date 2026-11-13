@@ -1,6 +1,7 @@
 import { logEvent } from '@/lib/security/safe-log';
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { resolveTenant } from '@/lib/auth/tenant';
 
 export async function GET() {
   try {
@@ -9,6 +10,9 @@ export async function GET() {
       data: { user },
     } = await supabaseAuth.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    // Suppression / corbeille / reclassement : réservés au propriétaire.
+    if ((await resolveTenant(user)).role !== 'owner')
+      return NextResponse.json({ error: 'Réservé au propriétaire du compte' }, { status: 403 });
 
     const supabase = createServiceClient();
     // Paginé : PostgREST plafonne à 1 000 lignes, la corbeille était tronquée

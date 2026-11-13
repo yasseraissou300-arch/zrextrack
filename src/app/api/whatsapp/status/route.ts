@@ -2,6 +2,7 @@ import { ownedInstance } from '@/lib/whatsapp/instance-ownership';
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { resolveEvolutionCreds } from '@/lib/user-creds';
+import { resolveTenant } from '@/lib/auth/tenant';
 
 // Route legacy utilisée par la page /messages (onglet Historique).
 //
@@ -23,9 +24,10 @@ export async function GET() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+  const tenantId = (await resolveTenant(user)).tenantId;
 
   // BYOK : serveur Evolution de l'utilisateur (ou fallback plateforme)
-  const { url: EVOLUTION_URL, key: EVOLUTION_KEY } = await resolveEvolutionCreds(user.id);
+  const { url: EVOLUTION_URL, key: EVOLUTION_KEY } = await resolveEvolutionCreds(tenantId);
 
   if (!EVOLUTION_URL || !EVOLUTION_KEY) {
     return NextResponse.json({ connected: false, status: 'evolution_not_configured' });
@@ -34,11 +36,11 @@ export async function GET() {
   const { data: instanceRow } = await supabase
     .from('whatsapp_instances')
     .select('instance_name, connected, phone_number')
-    .eq('user_id', user.id)
+    .eq('user_id', tenantId)
     .eq('service_type', DEFAULT_SERVICE)
     .single();
   // RLS-TENANT-001 : jamais d'action Evolution sur un nom hors de l'espace du tenant.
-  const instance = ownedInstance(user.id, instanceRow, 'whatsapp.status');
+  const instance = ownedInstance(tenantId, instanceRow, 'whatsapp.status');
 
   if (!instance) {
     return NextResponse.json({ connected: false, status: 'no_instance' });
