@@ -21,6 +21,8 @@ import {
   type InboxStatus,
 } from '@/lib/inbox/store';
 import { logActivity } from '@/lib/team/activity';
+import { DEFAULT_CONFIRM_TEMPLATE, sendConfirmation } from '@/lib/inbox/confirm';
+import { getWaSender } from '@/lib/inbox/wa-sender';
 
 const IMPORT_MESSAGES: Record<string, string> = {
   no_sheet: 'Ajoutez d’abord le lien de votre Google Sheet',
@@ -35,14 +37,20 @@ export async function GET() {
   if (!ctx) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
 
   const service = createServiceClient();
-  const [source, board] = await Promise.all([
+  const [source, board, sender] = await Promise.all([
     getSource(service, ctx.tenantId),
     listInbox(service, ctx.tenantId),
+    getWaSender(service, ctx.tenantId).catch(() => 'not_connected' as const),
   ]);
   return NextResponse.json({
     available: source !== null && board !== null,
     role: ctx.role,
     source,
+    default_template: DEFAULT_CONFIRM_TEMPLATE,
+    whatsapp:
+      typeof sender === 'string'
+        ? { connected: false, reason: sender, remaining: 0 }
+        : { connected: true, remaining: sender.remaining },
     service_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ?? '',
     counts: board?.counts ?? {},
     orders: board?.orders ?? [],
@@ -67,6 +75,41 @@ export async function POST(request: NextRequest) {
       );
     }
     return NextResponse.json({ imported: r.imported, skipped: r.skipped, reason: r.reason });
+  }
+
+  if (body?.action === 'send_confirm') {
+    const id = typeof body.id === 'string' ? body.id : '';
+    if (!id) return NextResponse.json({ error: 'id requis' }, { status: 400 });
+    const sender = await getWaSender(service, ctx.tenantId);
+    if (sender === 'not_connected')
+      return NextResponse.json({ error: 'WhatsApp non connecté' }, { status: 409 });
+    if (sender === 'circuit_open')
+      return NextResponse.json(
+        { error: 'Envois WhatsApp en pause après plusieurs échecs — réessayez plus tard' },
+        { status: 409 }
+      );
+    if (sender.remaining <= 0)
+      return NextResponse.json(
+        { error: 'Plafond WhatsApp du jour atteint — protection contre le blocage du numéro' },
+        { status: 429 }
+      );
+    const source = await getSource(service, ctx.tenantId);
+    const r = await sendConfirmation(
+      { service, tenantId: ctx.tenantId, send: sender.send, logSent: sender.logSent },
+      id,
+      source?.confirm_template
+    );
+    if (r === 'not_found')
+      return NextResponse.json({ error: 'Commande déjà envoyée ou introuvable' }, { status: 404 });
+    if (r === 'failed')
+      return NextResponse.json({ error: 'Envoi WhatsApp échoué' }, { status: 502 });
+    await logActivity(
+      service,
+      ctx,
+      'inbox.confirm_sent',
+      'Demande de confirmation WhatsApp envoyée'
+    );
+    return NextResponse.json({ ok: true, remaining: sender.remaining - 1 });
   }
 
   if (body?.action === 'settings') {

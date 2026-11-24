@@ -49,10 +49,14 @@ interface Board {
   role: 'owner' | 'employe';
   source: {
     sheet_id: string | null;
+    auto_confirm: boolean;
+    confirm_template: string | null;
     last_import_at: string | null;
     last_import_status: string | null;
   } | null;
   service_email: string;
+  default_template: string;
+  whatsapp: { connected: boolean; reason?: string; remaining: number };
   counts: Partial<Record<Status, number>>;
   orders: Order[];
 }
@@ -89,10 +93,12 @@ function OrderCard({
   o,
   busy,
   onMove,
+  onSend,
 }: {
   o: Order;
   busy: boolean;
   onMove: (id: string, status: Status) => void;
+  onSend: (id: string) => void;
 }) {
   const canConfirm = ['new', 'confirming', 'no_answer', 'cancelled'].includes(o.status);
   const canCancel = ['new', 'confirming', 'no_answer', 'confirmed'].includes(o.status);
@@ -146,8 +152,17 @@ function OrderCard({
       >
         <Phone size={12} /> {localPhone(o.phone)}
       </a>
+      {o.status === 'new' && (
+        <button
+          disabled={busy}
+          onClick={() => onSend(o.id)}
+          className="mt-3 w-full inline-flex items-center justify-center gap-1.5 rounded-lg btn-brand py-1.5 text-[12.5px] font-bold disabled:opacity-50"
+        >
+          <MessageCircle size={13} /> Demander la confirmation
+        </button>
+      )}
       {o.status !== 'sent' && (
-        <div className="mt-3 flex gap-1.5">
+        <div className="mt-1.5 flex gap-1.5">
           {canConfirm && o.status !== 'confirmed' && (
             <button
               disabled={busy}
@@ -166,6 +181,154 @@ function OrderCard({
               <X size={13} /> Annuler
             </button>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const SAMPLE: Record<string, string> = {
+  client: 'أمين',
+  produit: 'Veste EMY',
+  quantite: '1',
+  prix: '3 200',
+  wilaya: 'Oran',
+  livraison: 'للدار',
+};
+
+function WhatsAppPanel({ board, onSaved }: { board: Board; onSaved: () => void }) {
+  const [editing, setEditing] = useState(false);
+  const [tpl, setTpl] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const owner = board.role === 'owner';
+  const auto = !!board.source?.auto_confirm;
+  const wa = board.whatsapp;
+
+  const save = async (patch: Record<string, unknown>) => {
+    setBusy(true);
+    setError('');
+    const res = await fetch('/api/inbox', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'settings', ...patch }),
+    });
+    const j = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) return setError(j.error || 'Erreur');
+    setEditing(false);
+    onSaved();
+  };
+
+  const preview = Object.entries(SAMPLE).reduce(
+    (t, [k, v]) => t.split(`{{${k}}}`).join(v),
+    tpl || board.default_template
+  );
+
+  return (
+    <div className="card-soft bg-white dark:bg-stone-900 p-5 space-y-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="w-10 h-10 rounded-xl grid place-items-center bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300">
+          <MessageCircle size={19} />
+        </div>
+        <div className="flex-1 min-w-[220px]">
+          <h2 className="font-extrabold text-indigo-950 dark:text-stone-50">
+            Confirmation par WhatsApp
+          </h2>
+          <p className="text-[13px] text-stone-500 dark:text-stone-400">
+            Le client répond <strong>1</strong> pour confirmer ou <strong>2</strong> pour annuler —
+            la commande change de colonne toute seule.
+          </p>
+        </div>
+        <span
+          className={`rounded-full px-3 py-1 text-[12.5px] font-bold ${
+            wa.connected
+              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
+              : 'bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300'
+          }`}
+        >
+          {wa.connected
+            ? `${wa.remaining} message(s) restant(s) aujourd’hui`
+            : 'WhatsApp non connecté'}
+        </span>
+      </div>
+
+      {owner && (
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="inline-flex items-center gap-2 text-[13.5px] font-semibold text-stone-700 dark:text-stone-200 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={auto}
+              disabled={busy}
+              onChange={(e) => save({ auto_confirm: e.target.checked })}
+              className="w-4 h-4 accent-violet-600"
+            />
+            Envoyer automatiquement aux nouvelles commandes
+          </label>
+          <button
+            onClick={() => {
+              setTpl(board.source?.confirm_template || board.default_template);
+              setEditing((v) => !v);
+            }}
+            className="text-[13px] font-semibold text-violet-700 dark:text-violet-300 hover:underline"
+          >
+            {editing ? 'Fermer' : 'Modifier le message'}
+          </button>
+        </div>
+      )}
+      <p className="text-[12.5px] text-stone-500 dark:text-stone-400">
+        Plafond partagé avec les notifications de livraison (protection contre le blocage du numéro)
+        : au-delà, les demandes attendent le lendemain.
+      </p>
+
+      {editing && (
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <textarea
+              value={tpl}
+              onChange={(e) => setTpl(e.target.value)}
+              rows={10}
+              dir="auto"
+              className="w-full rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 p-3 text-[13.5px] text-stone-900 dark:text-stone-100 focus:outline-none focus:ring-2 focus:ring-violet-500"
+            />
+            <div className="flex flex-wrap gap-1.5">
+              {Object.keys(SAMPLE).map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setTpl((t) => `${t}{{${v}}}`)}
+                  className="rounded-full bg-violet-50 dark:bg-white/[0.06] px-2.5 py-1 text-[12px] font-bold text-violet-700 dark:text-violet-200"
+                >
+                  {`{{${v}}}`}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button
+                disabled={busy}
+                onClick={() => save({ confirm_template: tpl })}
+                className="btn-brand px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50"
+              >
+                Enregistrer
+              </button>
+              <button
+                disabled={busy}
+                onClick={() => save({ confirm_template: '' })}
+                className="px-4 py-2 rounded-xl text-sm font-semibold text-stone-600 bg-stone-100 dark:bg-white/[0.06] dark:text-stone-300 disabled:opacity-50"
+              >
+                Message par défaut
+              </button>
+            </div>
+            {error && <p className="text-[13px] text-rose-600">{error}</p>}
+          </div>
+          <div className="rounded-2xl bg-[#efeae2] dark:bg-stone-800 p-4">
+            <div
+              dir="auto"
+              className="max-w-[320px] rounded-2xl rounded-tl-sm bg-white dark:bg-stone-700 px-3.5 py-2.5 text-[13.5px] leading-6 text-stone-800 dark:text-stone-100 whitespace-pre-line shadow-sm"
+            >
+              {preview}
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -309,6 +472,23 @@ export default function AConfirmerPage() {
     return () => clearInterval(t);
   }, [load, importNow]);
 
+  const sendConfirm = async (id: string) => {
+    setBusy(true);
+    const res = await fetch('/api/inbox', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'send_confirm', id }),
+    });
+    const j = await res.json().catch(() => ({}));
+    setBusy(false);
+    setNotice(
+      res.ok
+        ? { ok: true, text: `Message WhatsApp envoyé · ${j.remaining} restant(s) aujourd’hui` }
+        : { ok: false, text: j.error || 'Envoi impossible' }
+    );
+    await load();
+  };
+
   const move = async (id: string, status: Status) => {
     setBusy(true);
     const res = await fetch('/api/inbox', {
@@ -379,6 +559,7 @@ export default function AConfirmerPage() {
           <SheetSetup board={board} onSaved={() => importNow(false)} />
         ) : (
           <>
+            <WhatsAppPanel board={board} onSaved={load} />
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 items-start">
               {COLUMNS.map((c) => {
                 const list = byColumn.get(c.id) ?? [];
@@ -402,7 +583,15 @@ export default function AConfirmerPage() {
                           Aucune commande
                         </p>
                       ) : (
-                        list.map((o) => <OrderCard key={o.id} o={o} busy={busy} onMove={move} />)
+                        list.map((o) => (
+                          <OrderCard
+                            key={o.id}
+                            o={o}
+                            busy={busy}
+                            onMove={move}
+                            onSend={sendConfirm}
+                          />
+                        ))
                       )}
                     </div>
                   </section>
@@ -422,7 +611,7 @@ export default function AConfirmerPage() {
                 {showCancelled && (
                   <div className="mt-3 grid gap-2.5 md:grid-cols-2 xl:grid-cols-4">
                     {cancelled.map((o) => (
-                      <OrderCard key={o.id} o={o} busy={busy} onMove={move} />
+                      <OrderCard key={o.id} o={o} busy={busy} onMove={move} onSend={sendConfirm} />
                     ))}
                   </div>
                 )}

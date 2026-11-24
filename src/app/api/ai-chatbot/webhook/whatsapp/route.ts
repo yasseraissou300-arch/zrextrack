@@ -16,6 +16,8 @@ import {
   sanitizeExtracted,
   toSheetRow,
 } from '@/lib/ai-chatbot/extraction';
+import { handlePromptReply, type ReplyOutcome } from '@/lib/inbox/confirm';
+import { logWaMessage } from '@/lib/inbox/wa-sender';
 
 // Credentials résolus au début de chaque requête.
 //   - Evolution = serveur PARTAGÉ de la plateforme (connexion du numéro).
@@ -415,6 +417,36 @@ export async function POST(req: NextRequest) {
     };
     const evUrl = creds.evolutionUrl;
     const evKey = creds.evolutionKey;
+
+    // ─── Réponse à une question AutoTim (confirmation de commande…) ─────────
+    // Traitée AVANT le chatbot : « 1 » / « 2 » après une demande de
+    // confirmation ne part pas vers l'IA. Un message libre continue normalement.
+    if (!fromMe && remoteJid.endsWith('@s.whatsapp.net')) {
+      const phone = remoteJid.replace('@s.whatsapp.net', '');
+      const outcome: ReplyOutcome = await handlePromptReply(supabase, userId, phone, text).catch(
+        () => ({ handled: false })
+      );
+      if (outcome.handled) {
+        if (outcome.reply) {
+          await sendWhatsApp(evUrl, evKey, instanceName, remoteJid, outcome.reply);
+          await logWaMessage(
+            supabase,
+            userId,
+            `REPONSE-${outcome.kind}`,
+            contactName,
+            phone,
+            outcome.reply
+          ).catch(() => {});
+        }
+        logEvent('info', 'webhook.whatsapp', {
+          tenant_id: userId,
+          contact: maskPhone(remoteJid),
+          status: 'prompt_answered',
+          reason: `${outcome.kind}:${outcome.answer}`,
+        });
+        return NextResponse.json({ ok: true });
+      }
+    }
 
     // Load config for the specific service that received the message
     const { data: config, error: cfgErr } = await supabase
