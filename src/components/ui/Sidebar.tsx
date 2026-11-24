@@ -41,6 +41,7 @@ const mainNav: NavItem[] = [
     label: 'Commandes',
     children: [
       { href: '/commandes', label: 'Toutes les commandes' },
+      { href: '/commandes/a-confirmer', label: 'À confirmer' },
       { href: '/livraisons', label: 'Livraisons' },
       { href: '/alertes', label: 'Alertes' },
       { href: '/corbeille', label: 'Corbeille' },
