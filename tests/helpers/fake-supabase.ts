@@ -103,6 +103,19 @@ function applyDefaults(fullTable: string, row: Row): Row {
     base.accepted_at ??= null;
     base.ended_at ??= null;
   }
+  if (fullTable === 'autotim.wa_prompts') {
+    // Défauts de db/migrations/011_autotim_inbox.sql
+    base.sent_at ??= now;
+    base.answered_at ??= null;
+    base.answer ??= null;
+    base.handled_at ??= null;
+  }
+  if (fullTable === 'autotim.inbox_orders') {
+    base.status ??= 'new';
+    base.confirm_sent_at ??= null;
+    base.answered_at ??= null;
+    base.zr_tracking ??= null;
+  }
   if (fullTable === 'public.ai_chat_sessions') {
     // Défauts de supabase_aichatbot_full.sql
     base.conversation ??= [];

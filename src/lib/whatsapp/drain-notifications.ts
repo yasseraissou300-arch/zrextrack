@@ -27,6 +27,7 @@ import { buildMessage, normalizePhone } from '@/lib/whatsapp/message-builder';
 import { afterFailure, afterSuccess, circuitState } from '@/lib/queue/circuit-breaker';
 import { getTenantSettings, upsertTenantSettings } from '@/lib/queue/repository';
 import { logEvent } from '@/lib/security/safe-log';
+import { autoConfirmations } from '@/lib/inbox/auto-confirm';
 
 type Client = ReturnType<typeof createServiceClient>;
 
@@ -97,7 +98,7 @@ export async function drainNotifications(
   if (circuitState(settings).open) return 0;
   let failures = settings?.consecutive_send_failures ?? 0;
 
-  const budget = Math.min(remainingDailyQuota(sentToday ?? 0, warmupStartedAt), DRAIN_PER_SYNC);
+  let budget = Math.min(remainingDailyQuota(sentToday ?? 0, warmupStartedAt), DRAIN_PER_SYNC);
   if (budget <= 0) return 0;
 
   // Numéro Evolution connecté de l'utilisateur (instance auto_confirmation)
@@ -112,6 +113,20 @@ export async function drainNotifications(
   // RLS-TENANT-001 : jamais d'action Evolution sur un nom hors de l'espace du tenant.
   const inst = ownedInstance(userId, instRow, 'sync.drain');
   if (!inst?.instance_name) return 0;
+
+  // Commandes du Google Sheet à confirmer (si le marchand l'a activé) : elles
+  // passent AVANT les notifications de suivi, dans le MÊME budget.
+  const confirmations = await autoConfirmations(supabase, userId, budget, (phone, text) =>
+    fetch(`${ev.url}/message/sendText/${inst.instance_name}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: ev.key },
+      body: JSON.stringify({ number: phone, text }),
+    })
+      .then((r) => r.ok)
+      .catch(() => false)
+  );
+  budget -= confirmations;
+  if (budget <= 0) return confirmations;
 
   const { data: pendings } = await supabase
     .from('pending_notifications')
@@ -204,5 +219,5 @@ export async function drainNotifications(
       break;
     }
   }
-  return sent;
+  return sent + confirmations;
 }
