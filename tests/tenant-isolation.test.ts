@@ -216,6 +216,10 @@ describe('Routes en service-role (contournement RLS)', () => {
       // tenants éligibles ; chaque job porte ensuite son tenant_id et les
       // handlers scopent toutes leurs requêtes (voir bloc « Handlers » plus bas).
       'cron/tick/route.ts',
+      // Webhook « nouvelle commande » du site : authentifié par un jeton qui est
+      // l'identifiant du marchand CHIFFRÉ (lib/inbox/webhook) ; écrit
+      // uniquement dans autotim.inbox_orders de ce marchand.
+      'inbox/webhook/route.ts',
     ];
 
     const manquantes: string[] = [];

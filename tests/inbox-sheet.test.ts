@@ -214,3 +214,11 @@ describe('statuts et isolation', () => {
     expect(await setInboxStatus(svc, 'T1', 'x', 'sent')).toBe('forbidden');
   });
 });
+
+describe('detectColumns — « livraison »', () => {
+  it('« Livraison » seul = type de livraison ; « Adresse de livraison » = adresse', () => {
+    const m = detectColumns(['Nom', 'Téléphone', 'Adresse de livraison', 'Livraison']);
+    expect(m.address).toBe(2);
+    expect(m.delivery_type).toBe(3);
+  });
+});

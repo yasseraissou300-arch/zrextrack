@@ -7,6 +7,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
 import ShipDialog from '@/components/inbox/ShipDialog';
+import WebhookCard from '@/components/inbox/WebhookCard';
+import { Globe } from 'lucide-react';
 import {
   Check,
   CheckCircle2,
@@ -29,6 +31,7 @@ type Status = 'new' | 'confirming' | 'confirmed' | 'cancelled' | 'no_answer' | '
 interface Order {
   id: string;
   status: Status;
+  source: string;
   customer_name: string;
   phone: string;
   wilaya: string;
@@ -56,6 +59,7 @@ interface Board {
     last_import_status: string | null;
   } | null;
   service_email: string;
+  webhook_url: string | null;
   default_template: string;
   whatsapp: { connected: boolean; reason?: string; remaining: number };
   counts: Partial<Record<Status, number>>;
@@ -126,7 +130,8 @@ function OrderCard({
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11.5px] font-bold">
         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300 px-2 py-0.5">
-          <FileSpreadsheet size={11} /> Sheets
+          {o.source === 'manual' ? <Globe size={11} /> : <FileSpreadsheet size={11} />}
+          {o.source === 'manual' ? 'Site web' : 'Sheets'}
         </span>
         <span
           className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 ${
@@ -572,10 +577,22 @@ export default function AConfirmerPage() {
           <div className="card-soft bg-white dark:bg-stone-900 p-6 text-sm text-stone-600 dark:text-stone-300 max-w-2xl">
             Cette fonction sera disponible dans quelques instants (mise à jour de la base en cours).
           </div>
-        ) : !board.source?.sheet_id ? (
-          <SheetSetup board={board} onSaved={() => importNow(false)} />
         ) : (
           <>
+            {board.role === 'owner' && (
+              <div className="grid gap-4 lg:grid-cols-2 items-start">
+                {!board.source?.sheet_id && (
+                  <SheetSetup board={board} onSaved={() => importNow(false)} />
+                )}
+                <WebhookCard
+                  url={board.webhook_url}
+                  defaultOpen={!board.source?.sheet_id && board.orders.length === 0}
+                />
+              </div>
+            )}
+            {board.role !== 'owner' && !board.source?.sheet_id && board.orders.length === 0 && (
+              <SheetSetup board={board} onSaved={() => importNow(false)} />
+            )}
             <WhatsAppPanel board={board} onSaved={load} />
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 items-start">
               {COLUMNS.map((c) => {
@@ -643,12 +660,14 @@ export default function AConfirmerPage() {
               </div>
             )}
 
-            <p className="flex items-center gap-2 text-[12.5px] text-stone-400">
-              <Send size={13} /> Dernier import :{' '}
-              {board.source.last_import_at
-                ? new Date(board.source.last_import_at).toLocaleString('fr-FR')
-                : 'jamais'}
-            </p>
+            {board.source?.sheet_id && (
+              <p className="flex items-center gap-2 text-[12.5px] text-stone-400">
+                <Send size={13} /> Dernier import du Sheet :{' '}
+                {board.source.last_import_at
+                  ? new Date(board.source.last_import_at).toLocaleString('fr-FR')
+                  : 'jamais'}
+              </p>
+            )}
           </>
         )}
       </div>

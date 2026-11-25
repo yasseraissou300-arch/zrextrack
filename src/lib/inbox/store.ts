@@ -227,3 +227,24 @@ export async function setInboxStatus(
   if (error) return 'unavailable';
   return data?.length ? 'ok' : 'not_found';
 }
+
+/**
+ * Commandes reçues par le webhook du site. Source « manual » (contrainte de la
+ * migration 011) et référence préfixée « wh: ». Une commande déjà reçue (même
+ * identifiant) n'est jamais réécrite.
+ */
+export async function insertWebhookOrders(
+  service: Service,
+  tenantId: string,
+  drafts: InboxDraft[]
+): Promise<{ ok: boolean; created: number }> {
+  if (!drafts.length) return { ok: true, created: 0 };
+  const { data, error } = await inbox(service)
+    .upsert(
+      drafts.map((d) => ({ ...d, tenant_id: tenantId, source: 'manual', status: 'new' })),
+      { onConflict: 'tenant_id,external_ref', ignoreDuplicates: true }
+    )
+    .select('id');
+  if (error) return { ok: false, created: 0 };
+  return { ok: true, created: data?.length ?? 0 };
+}
