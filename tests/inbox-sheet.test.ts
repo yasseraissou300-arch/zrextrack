@@ -222,3 +222,19 @@ describe('detectColumns — « livraison »', () => {
     expect(m.delivery_type).toBe(3);
   });
 });
+
+describe('importFromSheet — nouvel essai après une erreur', () => {
+  beforeEach(() => fake.reset());
+
+  it('Sheet non partagé puis partagé : nouvel essai possible après 10 s (au lieu d’une minute)', async () => {
+    await saveSource(svc, 'T1', { sheet_id: SHEET });
+    await importFromSheet(svc, 'T1', async () => ({ ok: false, reason: 'no_access' }), 1_000_000);
+    expect((await importFromSheet(svc, 'T1', okFetch, 1_005_000)).reason).toBe('too_soon');
+    expect(await importFromSheet(svc, 'T1', okFetch, 1_011_000)).toMatchObject({
+      ok: true,
+      imported: 2,
+    });
+    // Après un import réussi : de nouveau 1 minute
+    expect((await importFromSheet(svc, 'T1', okFetch, 1_030_000)).reason).toBe('too_soon');
+  });
+});

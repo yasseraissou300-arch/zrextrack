@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
 import ShipDialog from '@/components/inbox/ShipDialog';
 import WebhookCard from '@/components/inbox/WebhookCard';
+import SheetStatus from '@/components/inbox/SheetStatus';
 import { Globe } from 'lucide-react';
 import {
   Check,
@@ -592,6 +593,13 @@ export default function AConfirmerPage() {
             )}
             {board.role !== 'owner' && !board.source?.sheet_id && board.orders.length === 0 && (
               <SheetSetup board={board} onSaved={() => importNow(false)} />
+            )}
+            {board.source?.sheet_id && (
+              <SheetStatus
+                status={board.source.last_import_status}
+                owner={board.role === 'owner'}
+                onSaved={() => importNow(false)}
+              />
             )}
             <WhatsAppPanel board={board} onSaved={load} />
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 items-start">

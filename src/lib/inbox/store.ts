@@ -67,7 +67,12 @@ export async function getSource(service: Service, tenantId: string): Promise<Ord
 export async function saveSource(
   service: Service,
   tenantId: string,
-  patch: Partial<Pick<OrderSource, 'sheet_id' | 'auto_confirm' | 'confirm_template'>>
+  patch: Partial<
+    Pick<
+      OrderSource,
+      'sheet_id' | 'auto_confirm' | 'confirm_template' | 'last_import_at' | 'last_import_status'
+    >
+  >
 ): Promise<boolean> {
   const { error } = await sources(service).upsert(
     { tenant_id: tenantId, ...patch, updated_at: new Date().toISOString() },
@@ -119,6 +124,7 @@ export interface ImportResult {
 }
 
 const MIN_IMPORT_INTERVAL_MS = 60_000;
+const RETRY_AFTER_ERROR_MS = 10_000;
 const CHUNK = 500;
 
 /** Importe les nouvelles lignes du Sheet. Les commandes déjà connues ne sont jamais réécrites. */
@@ -133,7 +139,11 @@ export async function importFromSheet(
   if (!source) return { ok: false, reason: 'unavailable', ...empty };
   if (!source.sheet_id) return { ok: false, reason: 'no_sheet', ...empty };
   const last = source.last_import_at ? Date.parse(source.last_import_at) : 0;
-  if (now - last < MIN_IMPORT_INTERVAL_MS) return { ok: true, reason: 'too_soon', ...empty };
+  // Après une erreur (Sheet pas encore partagé…), on peut réessayer vite.
+  const interval = source.last_import_status?.startsWith('ok')
+    ? MIN_IMPORT_INTERVAL_MS
+    : RETRY_AFTER_ERROR_MS;
+  if (now - last < interval) return { ok: true, reason: 'too_soon', ...empty };
 
   const fetched = await fetchValues(source.sheet_id);
   const stamp = async (status: string) =>
