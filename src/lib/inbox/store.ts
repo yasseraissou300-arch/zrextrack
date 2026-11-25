@@ -4,6 +4,7 @@
 
 import type { createServiceClient } from '@/lib/supabase/server';
 import { getGoogleAccessToken } from '@/lib/google/service-account';
+import { fetchPublicSheetCsv } from '@/lib/inbox/sheet-csv';
 import { parseSheet, type InboxDraft, type InboxField } from '@/lib/inbox/sheet-parse';
 
 type Service = ReturnType<typeof createServiceClient>;
@@ -82,23 +83,31 @@ export type FetchValues = (
   | { ok: false; reason: 'no_access' | 'not_found' | 'unavailable' }
 >;
 
-/** Lit l'onglet principal du Sheet avec le compte de service de la plateforme. */
+/**
+ * Lit l'onglet principal du Sheet :
+ *   1. avec le compte de service de la plateforme (Sheet partagé avec lui) ;
+ *   2. sinon, export CSV public (Sheet partagé « Toute personne disposant du lien »).
+ */
 export const fetchSheetValues: FetchValues = async (sheetId) => {
   const token = await getGoogleAccessToken();
-  if (!token) return { ok: false, reason: 'unavailable' };
-  try {
-    const res = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheetId)}/values/A1:Z2001?majorDimension=ROWS`,
-      { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' }
-    );
-    if (res.status === 403) return { ok: false, reason: 'no_access' };
-    if (res.status === 404 || res.status === 400) return { ok: false, reason: 'not_found' };
-    if (!res.ok) return { ok: false, reason: 'unavailable' };
-    const json = (await res.json()) as { values?: unknown[][] };
-    return { ok: true, values: Array.isArray(json.values) ? json.values : [] };
-  } catch {
-    return { ok: false, reason: 'unavailable' };
+  if (token) {
+    try {
+      const res = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(sheetId)}/values/A1:Z2001?majorDimension=ROWS`,
+        { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' }
+      );
+      if (res.ok) {
+        const json = (await res.json()) as { values?: unknown[][] };
+        return { ok: true, values: Array.isArray(json.values) ? json.values : [] };
+      }
+      if (res.status === 404 || res.status === 400) return { ok: false, reason: 'not_found' };
+      // 403 (non partagé avec le compte de service) → on tente le lien public.
+    } catch {
+      /* repli CSV */
+    }
   }
+  const csv = await fetchPublicSheetCsv(sheetId);
+  return csv.ok ? { ok: true, values: csv.values.slice(0, 2001) } : csv;
 };
 
 export interface ImportResult {

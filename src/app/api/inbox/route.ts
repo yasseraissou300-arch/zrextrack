@@ -26,7 +26,8 @@ import { getWaSender } from '@/lib/inbox/wa-sender';
 
 const IMPORT_MESSAGES: Record<string, string> = {
   no_sheet: 'Ajoutez d’abord le lien de votre Google Sheet',
-  no_access: 'Le Sheet n’est pas partagé avec AutoTim (voir l’adresse ci-dessous)',
+  no_access:
+    'Sheet inaccessible : Partager → Accès général → « Toute personne disposant du lien » (Lecteur)',
   not_found: 'Google Sheet introuvable — vérifiez le lien',
   unavailable: 'Google Sheets indisponible pour le moment',
   bad_header: 'Colonnes « nom » et « téléphone » introuvables dans la 1re ligne du Sheet',
