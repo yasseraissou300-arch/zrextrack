@@ -36,6 +36,7 @@ import { circuitState, afterFailure, afterSuccess } from '../circuit-breaker';
 import { getTenantSettings, upsertTenantSettings } from '../repository';
 import type { Job, HandlerResult, WhatsAppSendPayload } from '../types';
 import { evolutionErrorMessage } from '@/lib/whatsapp/evolution-error';
+import { openStatusPrompt } from '@/lib/inbox/status-prompts';
 
 /** Report quand le quota est épuisé : on retente à la prochaine fenêtre utile. */
 const QUOTA_RETRY_MS = 30 * 60_000;
@@ -218,6 +219,16 @@ export async function handleWhatsAppSend(job: Job): Promise<HandlerResult> {
       status: 'envoye',
       sent_at: new Date().toISOString(),
     });
+
+    if (payload.delivery_status && payload.tracking_number) {
+      await openStatusPrompt(
+        supabase,
+        tenantId,
+        payload.phone,
+        payload.delivery_status,
+        payload.tracking_number
+      );
+    }
 
     if (payload.notification_id) {
       await supabase

@@ -1,6 +1,7 @@
 'use client';
 
 import AppLayout from '@/components/ui/AppLayout';
+import ClientRequests from '@/components/inbox/ClientRequests';
 import { useEffect, useState } from 'react';
 import { Bell, AlertTriangle, XCircle } from 'lucide-react';
 
@@ -34,6 +35,8 @@ export default function AlertesPage() {
             </p>
           </div>
         </div>
+
+        <ClientRequests />
 
         <div className="bg-white dark:bg-stone-900 card-soft overflow-hidden">
           <div className="px-6 py-4 border-b border-stone-100 dark:border-stone-800 flex items-center gap-2">
