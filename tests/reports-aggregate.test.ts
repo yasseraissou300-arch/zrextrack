@@ -83,3 +83,30 @@ describe('buildReport', () => {
     expect(x.caEncaisse).toBe(2500);
   });
 });
+
+import { retourRows } from '@/components/reports/RetourByWilayaChart';
+
+describe('retourRows (graphique des retours par wilaya)', () => {
+  const g = (name: string, livre: number, refus: number) => ({
+    name,
+    total: livre + refus,
+    livre,
+    refus,
+    taux: null,
+    ca: 0,
+  });
+
+  it('taux de retour sur colis terminés, trié du plus risqué au moins risqué', () => {
+    expect(retourRows([g('Alger', 80, 20), g('Oran', 10, 30), g('Blida', 50, 50)])).toEqual([
+      { name: 'Oran', retour: 75, refus: 30, termine: 40 },
+      { name: 'Blida', retour: 50, refus: 50, termine: 100 },
+      { name: 'Alger', retour: 20, refus: 20, termine: 100 },
+    ]);
+  });
+
+  it('wilayas avec moins de 10 colis terminés écartées, 12 au maximum', () => {
+    expect(retourRows([g('Illizi', 2, 5)])).toEqual([]);
+    const many = Array.from({ length: 20 }, (_, i) => g(`W${i}`, 10, i));
+    expect(retourRows(many)).toHaveLength(12);
+  });
+});
