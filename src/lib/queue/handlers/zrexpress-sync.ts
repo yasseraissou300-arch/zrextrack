@@ -19,6 +19,7 @@ import { fetchAllParcels } from '@/lib/zrexpress/parcels';
 import { mapParcel, dedupeByTracking, silentTrackingNumbers } from '@/lib/zrexpress/map-parcel';
 import { openZrToken } from '@/lib/zrexpress/credentials';
 import { buildMessage, loadUserTemplates, NOTIFY_STATUSES } from '@/lib/whatsapp/message-builder';
+import { withPromptFooter } from '@/lib/inbox/status-prompts';
 import { randomThrottle } from '@/lib/whatsapp/anti-spam';
 import { countOrdersThisMonth, quotaStateFor } from '@/lib/plan-quotas';
 import { logEvent } from '@/lib/security/safe-log';
@@ -187,16 +188,19 @@ async function enqueuePendingNotifications(
   let count = 0;
 
   for (const p of pendings as Array<Record<string, any>>) {
-    const message = buildMessage(
+    const message = withPromptFooter(
       p.delivery_status,
-      {
-        customer_name: p.customer_name || '',
-        tracking_number: p.tracking_number,
-        wilaya: p.wilaya || '',
-        product_name: p.product_name || '',
-        cod: p.cod ?? 0,
-      },
-      templates
+      buildMessage(
+        p.delivery_status,
+        {
+          customer_name: p.customer_name || '',
+          tracking_number: p.tracking_number,
+          wilaya: p.wilaya || '',
+          product_name: p.product_name || '',
+          cod: p.cod ?? 0,
+        },
+        templates
+      )
     );
 
     const payload: WhatsAppSendPayload = {
@@ -205,6 +209,7 @@ async function enqueuePendingNotifications(
       message,
       tracking_number: p.tracking_number,
       customer_name: p.customer_name || '',
+      delivery_status: p.delivery_status,
     };
 
     const created = await enqueue(supabase, {

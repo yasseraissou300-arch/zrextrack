@@ -57,6 +57,8 @@ export interface WhatsAppSendPayload {
   tracking_number?: string;
   customer_name?: string;
   media_url?: string;
+  /** Statut de livraison notifié (question jour de livraison / avis). */
+  delivery_status?: string;
 }
 
 export interface CampaignDispatchPayload {

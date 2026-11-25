@@ -10,6 +10,7 @@
 // contournement : au-delà du plafond, rien ne part.
 
 import type { createServiceClient } from '@/lib/supabase/server';
+import { STATUS_REPLIES } from '@/lib/inbox/status-prompts';
 
 type Service = ReturnType<typeof createServiceClient>;
 
@@ -157,7 +158,7 @@ export async function handlePromptReply(
 
   const answer = parseAnswer(text, prompt.kind);
   if (!answer) return { handled: false };
-  if (prompt.kind !== 'confirm' || answer === '3') return { handled: false };
+  if (prompt.kind === 'confirm' && answer === '3') return { handled: false };
 
   // La question n'est close qu'UNE fois (deux messages « 1 » rapprochés).
   const at = new Date(now).toISOString();
@@ -166,7 +167,17 @@ export async function handlePromptReply(
     .eq('id', prompt.id)
     .is('answered_at', null)
     .select('id');
-  if (!closed?.length) return { handled: true, kind: 'confirm', answer };
+  if (!closed?.length) return { handled: true, kind: prompt.kind, answer };
+
+  if (prompt.kind !== 'confirm') {
+    // Jour de livraison / avis : la réponse est enregistrée, le marchand la voit.
+    return {
+      handled: true,
+      kind: prompt.kind,
+      answer,
+      reply: STATUS_REPLIES[prompt.kind][answer],
+    };
+  }
 
   await inbox(service)
     .update({ status: answer === '1' ? 'confirmed' : 'cancelled', answered_at: at, updated_at: at })
@@ -174,7 +185,7 @@ export async function handlePromptReply(
     .eq('tenant_id', tenantId)
     .in('status', ['confirming', 'no_answer']);
 
-  return { handled: true, kind: 'confirm', answer, reply: CONFIRM_REPLIES[answer] };
+  return { handled: true, kind: 'confirm', answer, reply: CONFIRM_REPLIES[answer as '1' | '2'] };
 }
 
 // ── Envoi des demandes de confirmation ───────────────────────────────────────

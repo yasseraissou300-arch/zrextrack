@@ -28,6 +28,7 @@ import { afterFailure, afterSuccess, circuitState } from '@/lib/queue/circuit-br
 import { getTenantSettings, upsertTenantSettings } from '@/lib/queue/repository';
 import { logEvent } from '@/lib/security/safe-log';
 import { autoConfirmations } from '@/lib/inbox/auto-confirm';
+import { openStatusPrompt, withPromptFooter } from '@/lib/inbox/status-prompts';
 
 type Client = ReturnType<typeof createServiceClient>;
 
@@ -146,16 +147,19 @@ export async function drainNotifications(
     if (attempted > 0) await sleep(DRAIN_SPACING_MS);
     attempted++;
 
-    const message = buildMessage(
+    const message = withPromptFooter(
       p.delivery_status,
-      {
-        customer_name: p.customer_name || '',
-        tracking_number: p.tracking_number,
-        wilaya: p.wilaya || '',
-        product_name: p.product_name || '',
-        cod: p.cod ?? 0,
-      },
-      userTpl
+      buildMessage(
+        p.delivery_status,
+        {
+          customer_name: p.customer_name || '',
+          tracking_number: p.tracking_number,
+          wilaya: p.wilaya || '',
+          product_name: p.product_name || '',
+          cod: p.cod ?? 0,
+        },
+        userTpl
+      )
     );
 
     const phone = normalizePhone(p.customer_whatsapp || '');
@@ -196,6 +200,7 @@ export async function drainNotifications(
 
     if (ok) {
       sent++;
+      await openStatusPrompt(supabase, userId, phone, p.delivery_status, p.tracking_number);
       if (failures > 0) {
         failures = 0;
         const r = afterSuccess();

@@ -1,6 +1,7 @@
 'use client';
 
 import AppLayout from '@/components/ui/AppLayout';
+import RatingsCard from '@/components/inbox/RatingsCard';
 import { StatCard } from '@/components/ui/primitives';
 import { useEffect, useState } from 'react';
 import {
@@ -222,6 +223,8 @@ export default function RapportsPage() {
           Taux de livraison = colis livrés ÷ colis terminés (livrés + échecs + retours). Les colis
           encore en route ne comptent pas.
         </p>
+
+        <RatingsCard />
 
         <GroupTable
           title="Par produit"
