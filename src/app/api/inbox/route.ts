@@ -133,6 +133,9 @@ export async function POST(request: NextRequest) {
       if (raw && !id)
         return NextResponse.json({ error: 'Lien Google Sheet invalide' }, { status: 400 });
       patch.sheet_id = id;
+      // Nouveau Sheet : import possible tout de suite, ancien état effacé.
+      patch.last_import_at = null;
+      patch.last_import_status = null;
     }
     if (typeof body.auto_confirm === 'boolean') patch.auto_confirm = body.auto_confirm;
     if (body.confirm_template !== undefined) {
