@@ -63,6 +63,10 @@ const ALIASES: [InboxField, string[]][] = [
       'طريقة التوصيل',
       'stop desk',
       'stopdesk',
+      'livraison',
+      'delivery',
+      'shipping',
+      'التوصيل',
     ],
   ],
   [
@@ -171,6 +175,10 @@ const ALIASES: [InboxField, string[]][] = [
 
 const SHIPPING_WORDS = ['livraison', 'shipping', 'delivery', 'توصيل', 'التوصيل'];
 
+// Mots trop génériques : seulement si l'en-tête est EXACTEMENT ce mot
+// (« adresse de livraison » est une adresse, pas un type de livraison).
+const EXACT_ONLY = new Set(['livraison', 'delivery', 'shipping', 'التوصيل']);
+
 /** Colonne → champ, à partir de la ligne d'en-tête. */
 export function detectColumns(header: unknown[]): Partial<Record<InboxField, number>> {
   const cols = header.map(normHeader);
@@ -184,6 +192,7 @@ export function detectColumns(header: unknown[]): Partial<Record<InboxField, num
         found = cols.findIndex((c, i) => {
           if (used.has(i) || !c) return false;
           if (field === 'price' && SHIPPING_WORDS.some((w) => c.includes(w))) return false;
+          if (pass === 1 && EXACT_ONLY.has(alias)) return false;
           return pass === 0 ? c === alias : alias.length >= 4 && c.includes(alias);
         });
         if (found >= 0) break;

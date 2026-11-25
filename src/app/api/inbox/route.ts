@@ -23,6 +23,8 @@ import {
 import { logActivity } from '@/lib/team/activity';
 import { DEFAULT_CONFIRM_TEMPLATE, sendConfirmation } from '@/lib/inbox/confirm';
 import { getWaSender } from '@/lib/inbox/wa-sender';
+import { webhookToken } from '@/lib/inbox/webhook';
+import { resolvePublicBaseUrl } from '@/lib/public-url';
 
 const IMPORT_MESSAGES: Record<string, string> = {
   no_sheet: 'Ajoutez d’abord le lien de votre Google Sheet',
@@ -53,6 +55,14 @@ export async function GET() {
         ? { connected: false, reason: sender, remaining: 0 }
         : { connected: true, remaining: sender.remaining },
     service_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ?? '',
+    // Adresse webhook : propriétaire seulement (c'est un secret).
+    webhook_url: (() => {
+      if (ctx.role !== 'owner') return null;
+      const token = webhookToken(ctx.tenantId);
+      return token
+        ? `${resolvePublicBaseUrl().url}/api/inbox/webhook?token=${encodeURIComponent(token)}`
+        : null;
+    })(),
     counts: board?.counts ?? {},
     orders: board?.orders ?? [],
   });
