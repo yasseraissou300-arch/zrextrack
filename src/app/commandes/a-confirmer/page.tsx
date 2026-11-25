@@ -6,6 +6,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import AppLayout from '@/components/ui/AppLayout';
+import ShipDialog from '@/components/inbox/ShipDialog';
 import {
   Check,
   CheckCircle2,
@@ -94,11 +95,13 @@ function OrderCard({
   busy,
   onMove,
   onSend,
+  onShip,
 }: {
   o: Order;
   busy: boolean;
   onMove: (id: string, status: Status) => void;
   onSend: (id: string) => void;
+  onShip: (o: Order) => void;
 }) {
   const canConfirm = ['new', 'confirming', 'no_answer', 'cancelled'].includes(o.status);
   const canCancel = ['new', 'confirming', 'no_answer', 'confirmed'].includes(o.status);
@@ -152,6 +155,20 @@ function OrderCard({
       >
         <Phone size={12} /> {localPhone(o.phone)}
       </a>
+      {o.status === 'confirmed' && (
+        <button
+          disabled={busy}
+          onClick={() => onShip(o)}
+          className="mt-3 w-full inline-flex items-center justify-center gap-1.5 rounded-lg btn-brand py-1.5 text-[12.5px] font-bold disabled:opacity-50"
+        >
+          <Truck size={13} /> Envoyer à ZRExpress
+        </button>
+      )}
+      {o.status === 'confirmed' && o.zr_error && o.zr_error !== '__envoi_en_cours__' && (
+        <p className="mt-1.5 text-[11.5px] font-semibold text-rose-600 line-clamp-2">
+          ZR : {o.zr_error}
+        </p>
+      )}
       {o.status === 'new' && (
         <button
           disabled={busy}
@@ -433,6 +450,7 @@ export default function AConfirmerPage() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
   const [showCancelled, setShowCancelled] = useState(false);
+  const [shipping, setShipping] = useState<Order | null>(null);
 
   const load = useCallback(async () => {
     const res = await fetch('/api/inbox');
@@ -589,6 +607,7 @@ export default function AConfirmerPage() {
                             busy={busy}
                             onMove={move}
                             onSend={sendConfirm}
+                            onShip={setShipping}
                           />
                         ))
                       )}
@@ -610,7 +629,14 @@ export default function AConfirmerPage() {
                 {showCancelled && (
                   <div className="mt-3 grid gap-2.5 md:grid-cols-2 xl:grid-cols-4">
                     {cancelled.map((o) => (
-                      <OrderCard key={o.id} o={o} busy={busy} onMove={move} onSend={sendConfirm} />
+                      <OrderCard
+                        key={o.id}
+                        o={o}
+                        busy={busy}
+                        onMove={move}
+                        onSend={sendConfirm}
+                        onShip={setShipping}
+                      />
                     ))}
                   </div>
                 )}
@@ -626,6 +652,17 @@ export default function AConfirmerPage() {
           </>
         )}
       </div>
+      {shipping && (
+        <ShipDialog
+          order={shipping}
+          onClose={() => setShipping(null)}
+          onDone={async (tracking) => {
+            setShipping(null);
+            setNotice({ ok: true, text: `Colis créé chez ZRExpress : ${tracking}` });
+            await load();
+          }}
+        />
+      )}
     </AppLayout>
   );
 }
