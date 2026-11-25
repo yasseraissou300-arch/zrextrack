@@ -20,6 +20,8 @@ import { mapParcel, dedupeByTracking, silentTrackingNumbers } from '@/lib/zrexpr
 import { openZrToken } from '@/lib/zrexpress/credentials';
 import { buildMessage, loadUserTemplates, NOTIFY_STATUSES } from '@/lib/whatsapp/message-builder';
 import { withPromptFooter } from '@/lib/inbox/status-prompts';
+import { withStopDesk } from '@/lib/zrexpress/stopdesk';
+import type { ZrAuth } from '@/lib/zrexpress/territories';
 import { randomThrottle } from '@/lib/whatsapp/anti-spam';
 import { countOrdersThisMonth, quotaStateFor } from '@/lib/plan-quotas';
 import { logEvent } from '@/lib/security/safe-log';
@@ -147,7 +149,10 @@ export async function handleZrexpressSync(job: Job): Promise<HandlerResult> {
   }
 
   // ── 7. Enfilement des envois ──────────────────────────────────────────────
-  const enqueued = await enqueuePendingNotifications(supabase, tenantId);
+  const enqueued = await enqueuePendingNotifications(supabase, tenantId, {
+    token,
+    tenantId: zrTenant,
+  });
 
   await upsertTenantSettings(supabase, tenantId, { last_synced_at: syncedAt });
 
@@ -171,7 +176,8 @@ export async function handleZrexpressSync(job: Job): Promise<HandlerResult> {
  */
 async function enqueuePendingNotifications(
   supabase: ReturnType<typeof createServiceClient>,
-  tenantId: string
+  tenantId: string,
+  zr: ZrAuth | null = null
 ): Promise<number> {
   const { data: pendings } = await supabase
     .from('pending_notifications')
@@ -188,19 +194,21 @@ async function enqueuePendingNotifications(
   let count = 0;
 
   for (const p of pendings as Array<Record<string, any>>) {
+    const base = buildMessage(
+      p.delivery_status,
+      {
+        customer_name: p.customer_name || '',
+        tracking_number: p.tracking_number,
+        wilaya: p.wilaya || '',
+        product_name: p.product_name || '',
+        cod: p.cod ?? 0,
+      },
+      templates
+    );
+    // Stop desk : adresse du bureau ; puis la question (jour de livraison / avis).
     const message = withPromptFooter(
       p.delivery_status,
-      buildMessage(
-        p.delivery_status,
-        {
-          customer_name: p.customer_name || '',
-          tracking_number: p.tracking_number,
-          wilaya: p.wilaya || '',
-          product_name: p.product_name || '',
-          cod: p.cod ?? 0,
-        },
-        templates
-      )
+      await withStopDesk(zr, p.delivery_status, p.tracking_number, base)
     );
 
     const payload: WhatsAppSendPayload = {

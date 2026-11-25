@@ -2,6 +2,7 @@
 
 import AppLayout from '@/components/ui/AppLayout';
 import RatingsCard from '@/components/inbox/RatingsCard';
+import RetourByWilayaChart from '@/components/reports/RetourByWilayaChart';
 import { StatCard } from '@/components/ui/primitives';
 import { useEffect, useState } from 'react';
 import {
@@ -124,7 +125,8 @@ export default function RapportsPage() {
       // `orders` depuis le navigateur échoue (RLS 42P17).
       const res = await fetch('/api/orders/view?view=rapports');
       const { data } = (res.ok ? await res.json() : { data: null }) as { data: any[] | null };
-      if (data) setReport(buildReport(data));
+      // Toutes les wilayas (graphique des retours) ; le tableau garde les 15 premières.
+      if (data) setReport(buildReport(data, { wilayas: 100, produits: 10 }));
       setLoading(false);
     };
     load();
@@ -234,11 +236,13 @@ export default function RapportsPage() {
           loading={loading}
         />
 
+        <RetourByWilayaChart wilayas={report.wilayas} loading={loading} />
+
         <GroupTable
           title="Par wilaya"
           subtitle="Les 15 wilayas les plus commandées — repérez celles qui refusent le plus"
           firstCol="Wilaya"
-          rows={report.wilayas}
+          rows={report.wilayas.slice(0, 15)}
           loading={loading}
         />
       </div>

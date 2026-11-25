@@ -29,6 +29,8 @@ import { getTenantSettings, upsertTenantSettings } from '@/lib/queue/repository'
 import { logEvent } from '@/lib/security/safe-log';
 import { autoConfirmations } from '@/lib/inbox/auto-confirm';
 import { openStatusPrompt, withPromptFooter } from '@/lib/inbox/status-prompts';
+import { withStopDesk } from '@/lib/zrexpress/stopdesk';
+import { getZrCredentials } from '@/lib/zrexpress/credentials';
 
 type Client = ReturnType<typeof createServiceClient>;
 
@@ -140,6 +142,7 @@ export async function drainNotifications(
 
   let sent = 0;
   let attempted = 0;
+  let zr: Awaited<ReturnType<typeof getZrCredentials>> | undefined;
   for (const p of pendings as Pending[]) {
     // Prise AVANT tout envoi : un autre sync l'a peut-être déjà prise.
     if (!(await claimNotification(supabase, userId, p.id))) continue;
@@ -147,19 +150,22 @@ export async function drainNotifications(
     if (attempted > 0) await sleep(DRAIN_SPACING_MS);
     attempted++;
 
+    const base = buildMessage(
+      p.delivery_status,
+      {
+        customer_name: p.customer_name || '',
+        tracking_number: p.tracking_number,
+        wilaya: p.wilaya || '',
+        product_name: p.product_name || '',
+        cod: p.cod ?? 0,
+      },
+      userTpl
+    );
+    // Stop desk : adresse du bureau ; puis la question (jour de livraison / avis).
+    zr ??= await getZrCredentials(supabase, userId).catch(() => null);
     const message = withPromptFooter(
       p.delivery_status,
-      buildMessage(
-        p.delivery_status,
-        {
-          customer_name: p.customer_name || '',
-          tracking_number: p.tracking_number,
-          wilaya: p.wilaya || '',
-          product_name: p.product_name || '',
-          cod: p.cod ?? 0,
-        },
-        userTpl
-      )
+      await withStopDesk(zr, p.delivery_status, p.tracking_number, base)
     );
 
     const phone = normalizePhone(p.customer_whatsapp || '');
