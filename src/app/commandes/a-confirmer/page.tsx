@@ -366,22 +366,21 @@ function SheetSetup({ board, onSaved }: { board: Board; onSaved: () => void }) {
       </div>
       <ol className="space-y-3 text-[13.5px] text-stone-700 dark:text-stone-200">
         <li>
-          <strong>1.</strong> Dans Google Sheets → <em>Partager</em>, ajoutez cette adresse en{' '}
-          <em>Lecteur</em> :
-          {board.service_email ? (
-            <button
-              onClick={() => {
-                navigator.clipboard?.writeText(board.service_email);
-                setCopied(true);
-              }}
-              className="mt-1.5 flex items-center gap-2 rounded-lg bg-violet-50 dark:bg-white/[0.06] px-3 py-2 font-mono text-[12.5px] text-violet-800 dark:text-violet-200 break-all text-left"
-            >
-              <Copy size={13} className="shrink-0" /> {board.service_email}
-              {copied && <span className="font-sans font-bold text-emerald-600">copié</span>}
-            </button>
-          ) : (
-            <span className="block mt-1 text-rose-600">
-              Compte Google de la plateforme non configuré.
+          <strong>1.</strong> Dans Google Sheets → <em>Partager</em> → <em>Accès général</em> :
+          choisissez <strong>« Toute personne disposant du lien »</strong> en <em>Lecteur</em>.
+          {board.service_email && (
+            <span className="block mt-1.5 text-[12.5px] text-stone-500 dark:text-stone-400">
+              Ou, pour garder le Sheet privé, partagez-le en Lecteur avec :
+              <button
+                onClick={() => {
+                  navigator.clipboard?.writeText(board.service_email);
+                  setCopied(true);
+                }}
+                className="mt-1 flex items-center gap-2 rounded-lg bg-violet-50 dark:bg-white/[0.06] px-3 py-2 font-mono text-[12.5px] text-violet-800 dark:text-violet-200 break-all text-left"
+              >
+                <Copy size={13} className="shrink-0" /> {board.service_email}
+                {copied && <span className="font-sans font-bold text-emerald-600">copié</span>}
+              </button>
             </span>
           )}
         </li>
