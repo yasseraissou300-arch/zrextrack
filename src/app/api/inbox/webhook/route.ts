@@ -33,7 +33,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'JSON invalide' }, { status: 400 });
   }
 
-  const { drafts, received, missing } = parseWebhookBody(body);
+  const { drafts, received, missing, ignored } = parseWebhookBody(body);
+  // Événement sans nouvelle commande (changement de statut, « Tester ») : 200
+  // pour que l'expéditeur ne le renvoie pas en boucle.
+  if (ignored) return NextResponse.json({ ok: true, ignored: true, received: 0, created: 0 });
   if (!drafts.length) {
     return NextResponse.json(
       {
