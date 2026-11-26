@@ -56,14 +56,27 @@ export default function SheetStatus({
     onSaved();
   };
 
+  const unlink = () => {
+    if (window.confirm('Délier le Google Sheet ? Les commandes déjà importées restent.')) save('');
+  };
+
   if (!problem && !editing) {
     return owner ? (
-      <button
-        onClick={() => setEditing(true)}
-        className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-violet-700 dark:text-violet-300 hover:underline"
-      >
-        <FileSpreadsheet size={13} /> Changer de Google Sheet
-      </button>
+      <div className="flex flex-wrap gap-4">
+        <button
+          onClick={() => setEditing(true)}
+          className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-violet-700 dark:text-violet-300 hover:underline"
+        >
+          <FileSpreadsheet size={13} /> Changer de Google Sheet
+        </button>
+        <button
+          disabled={busy}
+          onClick={unlink}
+          className="text-[12.5px] font-semibold text-stone-500 hover:text-rose-600 hover:underline"
+        >
+          Délier le Sheet
+        </button>
+      </div>
     ) : null;
   }
 
@@ -79,12 +92,21 @@ export default function SheetStatus({
             <p className="text-[13px] text-amber-800/90 dark:text-amber-200/80">{problem.help}</p>
           </div>
           {owner && !editing && (
-            <button
-              onClick={() => setEditing(true)}
-              className="text-[12.5px] font-semibold text-violet-700 dark:text-violet-300 hover:underline whitespace-nowrap"
-            >
-              Changer le lien
-            </button>
+            <div className="flex flex-col items-end gap-1">
+              <button
+                onClick={() => setEditing(true)}
+                className="text-[12.5px] font-semibold text-violet-700 dark:text-violet-300 hover:underline whitespace-nowrap"
+              >
+                Changer le lien
+              </button>
+              <button
+                disabled={busy}
+                onClick={unlink}
+                className="text-[12.5px] font-semibold text-stone-500 hover:text-rose-600 hover:underline whitespace-nowrap"
+              >
+                Délier le Sheet
+              </button>
+            </div>
           )}
         </div>
       )}

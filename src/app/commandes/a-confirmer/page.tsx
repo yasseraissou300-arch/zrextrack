@@ -547,7 +547,8 @@ export default function AConfirmerPage() {
               À confirmer
             </h1>
             <p className="text-sm text-stone-500 dark:text-stone-400">
-              Commandes de votre Google Sheet, à confirmer avant l’envoi à ZRExpress
+              Commandes de votre boutique ou de votre Google Sheet, à confirmer avant l’envoi à
+              ZRExpress
             </p>
           </div>
           {board?.available && board.source?.sheet_id && (
@@ -582,7 +583,8 @@ export default function AConfirmerPage() {
           <>
             {board.role === 'owner' && (
               <div className="grid gap-4 lg:grid-cols-2 items-start">
-                {!board.source?.sheet_id && (
+                {/* Boutique déjà reliée (commandes reçues) : le Sheet devient facultatif. */}
+                {!board.source?.sheet_id && board.orders.length === 0 && (
                   <SheetSetup board={board} onSaved={() => importNow(false)} />
                 )}
                 <WebhookCard
