@@ -77,12 +77,61 @@ export function flattenOrder(
 const ID_KEYS =
   /^(id|order id|order_id|orderid|reference|ref|numero|numero commande|order number|رقم الطلب)$/i;
 
+// ── TimStore (timstore.site) ────────────────────────────────────────────────
+// Webhooks sortants de TimStore : { event, shop, order: { id, reference,
+// total, customer{name,phone}, shipping{wilaya,commune,address,delivery_type
+// HOME|DESK}, items[{name,variant,quantity}], note } }. Lecture EXPLICITE :
+// la lecture générique prendrait « shop.name » pour le nom du client et
+// « subtotal » (sans livraison) pour le montant.
+
+export function isTimStorePayload(body: unknown): boolean {
+  const b = body as Record<string, any> | null;
+  return !!b && typeof b === 'object' && typeof b.event === 'string' && 'order' in b && !!b.shop;
+}
+
+/** Commande TimStore → objet plat lisible par parseSheet (null si rien à créer). */
+export function fromTimStore(body: Record<string, any>): Record<string, string> | null {
+  if (body.event !== 'order.created') return null; // changements de statut, etc.
+  const o = body.order;
+  if (!o || typeof o !== 'object') return null; // « Tester » sans commande
+  const items: any[] = Array.isArray(o.items) ? o.items : [];
+  const product = items
+    .map((i) => {
+      const name = [i?.name, i?.variant ? `(${i.variant})` : ''].filter(Boolean).join(' ');
+      return Number(i?.quantity) > 1 ? `${name} × ${i.quantity}` : name;
+    })
+    .filter(Boolean)
+    .join(' + ');
+  const qty = items.reduce((n, i) => n + (Number(i?.quantity) || 0), 0);
+  const ship = o.shipping ?? {};
+  return {
+    id: `ts:${body.shop?.id ?? ''}:${o.id ?? o.reference ?? ''}`,
+    nom: String(o.customer?.name ?? ''),
+    telephone: String(o.customer?.phone || o.customer?.phone2 || ''),
+    wilaya: String(ship.wilaya ?? ship.wilaya_id ?? ''),
+    commune: String(ship.commune ?? ''),
+    adresse: String(ship.address ?? ''),
+    produit: product,
+    quantite: String(qty > 0 ? qty : 1),
+    prix: String(o.total ?? 0),
+    livraison: String(ship.delivery_type ?? '').toUpperCase() === 'DESK' ? 'stop desk' : 'domicile',
+    note: [o.reference ? `Réf. ${o.reference}` : '', o.note ?? ''].filter(Boolean).join(' — '),
+  };
+}
+
 /** Corps JSON → commandes : objet, tableau, ou { orders: [...] } / { data: ... }. */
 export function parseWebhookBody(body: unknown): {
   drafts: InboxDraft[];
   received: number;
   missing: string[];
+  /** Événement reçu mais volontairement ignoré (ex. TimStore order.status_changed). */
+  ignored?: boolean;
 } {
+  if (isTimStorePayload(body)) {
+    const flat = fromTimStore(body as Record<string, any>);
+    if (!flat) return { drafts: [], received: 0, missing: [], ignored: true };
+    body = flat;
+  }
   const list: unknown[] = Array.isArray(body)
     ? body
     : body && typeof body === 'object'

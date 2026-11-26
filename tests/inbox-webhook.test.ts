@@ -175,3 +175,94 @@ describe('POST /api/inbox/webhook', () => {
     expect((await post(token, { nom: 'Amine' })).status).toBe(422);
   });
 });
+
+describe('TimStore (webhooks sortants de timstore.site)', () => {
+  const timstore = (over: Record<string, unknown> = {}) => ({
+    event: 'order.created',
+    created_at: '2026-11-26T10:00:00+01:00',
+    shop: { id: 12, name: 'Boutique Yasser', slug: 'yasser' },
+    order: {
+      id: 345,
+      reference: 'TS-000345',
+      status: 'NEW',
+      previous_status: null,
+      currency: 'DZD',
+      subtotal: 5800,
+      shipping_price: 600,
+      discount_total: 0,
+      total: 6400,
+      customer: { name: 'Amine Benali', phone: '0550123456', phone2: null },
+      shipping: {
+        wilaya_id: 31,
+        wilaya: 'Oran',
+        commune: 'Bir El Djir',
+        address: 'Cité 200',
+        delivery_type: 'DESK',
+      },
+      note: 'Appeler après 17h',
+      source: 'storefront',
+      utm: { utm_source: 'facebook' },
+      items: [
+        {
+          product_id: 1,
+          variant_id: 4,
+          name: 'Veste EMY',
+          variant: '50 / Grenat',
+          quantity: 2,
+          unit_price: 2900,
+          total: 5800,
+        },
+      ],
+      created_at: '2026-11-26T10:00:00+01:00',
+      ...over,
+    },
+  });
+
+  it('nom du CLIENT (pas de la boutique), TOTAL avec livraison, stop desk, produit + variante', () => {
+    const r = parseWebhookBody(timstore());
+    expect(r.drafts).toHaveLength(1);
+    expect(r.drafts[0]).toMatchObject({
+      external_ref: 'wh:id:ts:12:345',
+      customer_name: 'Amine Benali',
+      phone: '213550123456',
+      wilaya: 'Oran',
+      commune: 'Bir El Djir',
+      address: 'Cité 200',
+      product: 'Veste EMY (50 / Grenat) × 2',
+      quantity: 2,
+      price: 6400,
+      delivery_type: 'stopdesk',
+    });
+    expect(r.drafts[0].note).toContain('TS-000345');
+  });
+
+  it('changement de statut et « Tester » sans commande → ignorés (pas d’erreur)', () => {
+    expect(parseWebhookBody({ ...timstore(), event: 'order.status_changed' })).toMatchObject({
+      drafts: [],
+      ignored: true,
+    });
+    expect(
+      parseWebhookBody({ event: 'order.created', shop: { id: 1 }, order: null })
+    ).toMatchObject({
+      ignored: true,
+    });
+  });
+
+  it('route : commande TimStore créée une fois ; statut changé → 200 ignoré', async () => {
+    const token = webhookToken(T1)!;
+    expect(await (await post(token, timstore())).json()).toEqual({
+      ok: true,
+      received: 1,
+      created: 1,
+    });
+    expect(await (await post(token, timstore())).json()).toEqual({
+      ok: true,
+      received: 1,
+      created: 0,
+    });
+    const changed = await post(token, { ...timstore(), event: 'order.status_changed' });
+    expect(changed.status).toBe(200);
+    expect(await changed.json()).toMatchObject({ ok: true, ignored: true });
+    expect(fake.all('autotim', 'inbox_orders')).toHaveLength(1);
+  });
+});

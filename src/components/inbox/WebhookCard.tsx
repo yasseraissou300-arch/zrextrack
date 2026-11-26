@@ -80,10 +80,20 @@ export default function WebhookCard({
                 <CopyButton text={url} label="Copier l’adresse" />
               </div>
             </div>
+            <div className="rounded-xl bg-emerald-50 dark:bg-emerald-500/10 p-3">
+              <p className="font-bold text-emerald-800 dark:text-emerald-200">
+                Boutique TimStore (timstore.site) :
+              </p>
+              <p className="text-[13px] text-emerald-900/90 dark:text-emerald-100/90">
+                Tableau de bord TimStore → <strong>Webhooks</strong> → Ajouter → collez l’adresse
+                ci-dessus → événement <strong>Commande créée</strong> → Enregistrer. Chaque commande
+                de la boutique arrive ici, prête à confirmer.
+              </p>
+            </div>
             <div>
               <p className="font-bold">
-                2. Sur votre site, envoyez chaque nouvelle commande en <code>POST</code> (JSON) à
-                cette adresse :
+                2. Autre site : envoyez chaque nouvelle commande en <code>POST</code> (JSON) à cette
+                adresse :
               </p>
               <pre className="mt-1.5 rounded-lg bg-stone-900 text-stone-100 p-3 text-[12px] overflow-x-auto">
                 {EXAMPLE}
