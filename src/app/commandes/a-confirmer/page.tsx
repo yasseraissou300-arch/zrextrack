@@ -20,6 +20,7 @@ import {
   MapPin,
   MessageCircle,
   Phone,
+  PhoneOff,
   RefreshCw,
   Send,
   Store,
@@ -237,10 +238,11 @@ function OrderCard({
             <button
               disabled={busy}
               onClick={() => onMove(o.id, 'no_answer')}
-              title="Appelé sans réponse"
-              className="flex-1 inline-flex items-center justify-center gap-1 rounded-lg bg-stone-100 text-stone-600 hover:bg-stone-200 dark:bg-white/[0.06] dark:text-stone-300 py-1.5 text-[12.5px] font-bold disabled:opacity-50"
+              title="Appelé, pas de réponse"
+              aria-label="Pas de réponse"
+              className="w-9 shrink-0 inline-flex items-center justify-center rounded-lg bg-stone-100 text-stone-600 hover:bg-stone-200 dark:bg-white/[0.06] dark:text-stone-300 py-1.5 disabled:opacity-50"
             >
-              <Phone size={13} /> Pas de rép.
+              <PhoneOff size={14} />
             </button>
           )}
           {canCancel && (
