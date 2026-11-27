@@ -211,7 +211,8 @@ export async function listInbox(service: Service, tenantId: string): Promise<Inb
 const MANUAL: Record<string, InboxStatus[]> = {
   confirmed: ['new', 'confirming', 'no_answer', 'cancelled'],
   cancelled: ['new', 'confirming', 'no_answer', 'confirmed'],
-  no_answer: ['confirming'],
+  // « Pas de réponse » : après un appel (new) ou une demande WhatsApp (confirming).
+  no_answer: ['new', 'confirming'],
   new: ['cancelled', 'no_answer'],
 };
 
