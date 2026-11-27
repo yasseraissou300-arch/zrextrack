@@ -21,6 +21,8 @@ import {
   type InboxStatus,
 } from '@/lib/inbox/store';
 import { logActivity } from '@/lib/team/activity';
+import { customerHistories, pendingCountByPhone } from '@/lib/inbox/history';
+import { normalizePhone } from '@/lib/whatsapp/message-builder';
 import { DEFAULT_CONFIRM_TEMPLATE, sendConfirmation } from '@/lib/inbox/confirm';
 import { getWaSender } from '@/lib/inbox/wa-sender';
 import { webhookToken } from '@/lib/inbox/webhook';
@@ -45,6 +47,16 @@ export async function GET() {
     listInbox(service, ctx.tenantId),
     getWaSender(service, ctx.tenantId).catch(() => 'not_connected' as const),
   ]);
+  // Historique ZR du client (refus / livrés) et doublons en attente.
+  const pendingOrders = (board?.orders ?? []).filter((o) => o.status !== 'sent');
+  const [histories, dupes] = await Promise.all([
+    customerHistories(
+      service,
+      ctx.tenantId,
+      pendingOrders.map((o) => o.phone)
+    ).catch(() => new Map()),
+    Promise.resolve(pendingCountByPhone(board?.orders ?? [])),
+  ]);
   return NextResponse.json({
     available: source !== null && board !== null,
     role: ctx.role,
@@ -64,7 +76,14 @@ export async function GET() {
         : null;
     })(),
     counts: board?.counts ?? {},
-    orders: board?.orders ?? [],
+    orders: (board?.orders ?? []).map((o) => {
+      const key = normalizePhone(o.phone);
+      return {
+        ...o,
+        history: o.status === 'sent' ? null : (histories.get(key) ?? null),
+        duplicates: dupes.get(key) ?? 0,
+      };
+    }),
   });
 }
 

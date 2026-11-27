@@ -47,6 +47,35 @@ interface Order {
   zr_error: string | null;
   created_at: string;
   ordered_at: string | null;
+  /** Colis passés de ce client chez ZRExpress. */
+  history: { livre: number; refus: number; level: string } | null;
+  /** Commandes en attente avec le même numéro (doublon possible si > 1). */
+  duplicates: number;
+}
+
+const HISTORY_BADGE: Record<string, string> = {
+  risque: 'bg-rose-600 text-white',
+  surveiller: 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200',
+  fidele: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300',
+  bon: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300',
+};
+
+function HistoryBadge({ h }: { h: Order['history'] }) {
+  if (!h || h.livre + h.refus === 0) return null;
+  const label =
+    h.level === 'risque'
+      ? `⚠ ${h.refus} refus · ${h.livre} livré${h.livre > 1 ? 's' : ''}`
+      : h.level === 'fidele' || h.level === 'bon'
+        ? `Client fidèle · ${h.livre} livré${h.livre > 1 ? 's' : ''}`
+        : `${h.refus} refus · ${h.livre} livré${h.livre > 1 ? 's' : ''}`;
+  return (
+    <span
+      title="Colis passés de ce client chez ZRExpress"
+      className={`rounded-full px-2 py-0.5 ${HISTORY_BADGE[h.level] ?? HISTORY_BADGE.surveiller}`}
+    >
+      {label}
+    </span>
+  );
 }
 
 interface Board {
@@ -149,6 +178,15 @@ function OrderCard({
             Sans réponse
           </span>
         )}
+        <HistoryBadge h={o.history} />
+        {o.duplicates > 1 && o.status !== 'sent' && (
+          <span
+            title="Le même numéro a d’autres commandes en attente"
+            className="rounded-full bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-200 px-2 py-0.5"
+          >
+            Doublon ? ({o.duplicates})
+          </span>
+        )}
         {o.zr_tracking && (
           <span className="rounded-full bg-violet-50 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300 px-2 py-0.5 font-mono">
             {o.zr_tracking}
@@ -193,6 +231,16 @@ function OrderCard({
               className="flex-1 inline-flex items-center justify-center gap-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-300 py-1.5 text-[12.5px] font-bold disabled:opacity-50"
             >
               <Check size={13} /> Confirmer
+            </button>
+          )}
+          {(o.status === 'new' || o.status === 'confirming') && (
+            <button
+              disabled={busy}
+              onClick={() => onMove(o.id, 'no_answer')}
+              title="Appelé sans réponse"
+              className="flex-1 inline-flex items-center justify-center gap-1 rounded-lg bg-stone-100 text-stone-600 hover:bg-stone-200 dark:bg-white/[0.06] dark:text-stone-300 py-1.5 text-[12.5px] font-bold disabled:opacity-50"
+            >
+              <Phone size={13} /> Pas de rép.
             </button>
           )}
           {canCancel && (
