@@ -10,7 +10,13 @@
 import { ZREXPRESS_API } from '@/lib/zrexpress/parcels';
 import { loadZrGeo, type PickupHub, type ZrAuth } from '@/lib/zrexpress/territories';
 
-const STOPDESK_STATUSES = new Set(['en_transit', 'en_livraison']);
+export const STOPDESK_STATUSES = new Set(['en_transit', 'en_livraison']);
+
+/** Bureau en une ligne (paramètre de modèle WhatsApp : pas de retour à la ligne). */
+export function officeText(hub: Pick<PickupHub, 'name' | 'street' | 'phone'>): string {
+  const where = [hub.name, hub.street].filter(Boolean).join(' — ');
+  return `المكتب : ${where}${hub.phone ? ` ☎ ${hub.phone}` : ''}`;
+}
 
 export function stopDeskLine(hub: Pick<PickupHub, 'name' | 'street' | 'phone'>): string {
   const where = [hub.name, hub.street].filter(Boolean).join(' — ');

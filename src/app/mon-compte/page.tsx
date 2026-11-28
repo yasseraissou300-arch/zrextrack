@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Mail, Shield, LogOut, Loader2, Crown, Building2, CalendarDays } from 'lucide-react';
 
 interface Profile {
+  userId: string;
   email: string;
   full_name: string;
   avatar_url: string;
@@ -55,6 +56,7 @@ export default function MonComptePage() {
       const j = await res.json();
       setEmail(j.email || '');
       setProfile({
+        userId: j.userId || '',
         email: j.email || '',
         full_name: j.full_name || '',
         avatar_url: j.avatar_url || '',
@@ -124,6 +126,9 @@ export default function MonComptePage() {
                   />
                   {profile?.company_name && (
                     <Row icon={Building2} label="Entreprise" value={profile.company_name} />
+                  )}
+                  {profile?.userId && (
+                    <Row icon={Shield} label="Identifiant" value={profile.userId} />
                   )}
                   {profile?.created_at && (
                     <Row

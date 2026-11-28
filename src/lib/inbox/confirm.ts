@@ -190,7 +190,8 @@ export async function handlePromptReply(
 
 // ── Envoi des demandes de confirmation ───────────────────────────────────────
 
-export type SendText = (phone: string, text: string) => Promise<boolean>;
+/** `order` : pour l'API officielle, qui envoie un modèle avec ses variables. */
+export type SendText = (phone: string, text: string, order?: ConfirmOrder) => Promise<boolean>;
 
 export interface ConfirmSendDeps {
   service: Service;
@@ -232,7 +233,7 @@ export async function sendConfirmation(
   const order = data[0] as ConfirmOrder;
 
   const text = buildConfirmMessage(order, template);
-  const ok = await deps.send(order.phone, text);
+  const ok = await deps.send(order.phone, text, order);
   if (!ok) {
     // Rendue à « nouvelle » : rien n'est parti, on pourra réessayer.
     await inbox(service)

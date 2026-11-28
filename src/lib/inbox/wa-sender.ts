@@ -9,10 +9,14 @@ import { remainingDailyQuota } from '@/lib/whatsapp/anti-spam';
 import { circuitState } from '@/lib/queue/circuit-breaker';
 import { getTenantSettings } from '@/lib/queue/repository';
 import type { ConfirmOrder, SendText } from '@/lib/inbox/confirm';
+import { cloudConfig, isCloudTenant, sendCloudTemplate } from '@/lib/whatsapp/cloud';
+import { logEvent } from '@/lib/security/safe-log';
 
 type Service = ReturnType<typeof createServiceClient>;
 
 export interface WaSender {
+  /** API officielle Meta (sinon numéro Evolution). */
+  official?: boolean;
   send: SendText;
   /** Messages encore autorisés aujourd'hui. */
   remaining: number;
@@ -65,6 +69,41 @@ export async function getWaSender(
   service: Service,
   tenantId: string
 ): Promise<WaSender | SenderUnavailable> {
+  // WhatsApp OFFICIEL (Meta Cloud API) pour les comptes configurés : modèle
+  // « autotim_confirmation » avec boutons, plafond Meta, pas de warm-up.
+  const cloud = isCloudTenant(tenantId) ? cloudConfig() : null;
+  if (cloud) {
+    const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    const { count } = await service
+      .from('messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', tenantId)
+      .eq('status', 'envoye')
+      .gte('sent_at', since);
+    return {
+      official: true,
+      remaining: Math.max(0, cloud.dailyLimit - (count ?? 0)),
+      send: async (phone, _text, order) => {
+        const r = await sendCloudTemplate(cloud, phone, 'confirm', {
+          client: order?.customer_name ?? '',
+          produit: order?.product ?? '',
+          prix: order?.price ?? 0,
+          livraison: order?.delivery_type === 'stopdesk' ? 'للمكتب (stop desk)' : 'للدار',
+          wilaya: [order?.wilaya, order?.commune].filter(Boolean).join(' · '),
+        });
+        if (!r.ok)
+          logEvent('warn', 'whatsapp.cloud', {
+            tenant_id: tenantId,
+            status: 'send_failed',
+            error_code: String(r.status),
+          });
+        return r.ok;
+      },
+      logSent: (o, text) =>
+        logWaMessage(service, tenantId, `CONF-${o.id.slice(0, 8)}`, o.customer_name, o.phone, text),
+    };
+  }
+
   const settings = await getTenantSettings(service, tenantId).catch(() => null);
   if (circuitState(settings).open) return 'circuit_open';
 

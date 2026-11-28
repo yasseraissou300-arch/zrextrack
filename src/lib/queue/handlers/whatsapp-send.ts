@@ -37,6 +37,8 @@ import { getTenantSettings, upsertTenantSettings } from '../repository';
 import type { Job, HandlerResult, WhatsAppSendPayload } from '../types';
 import { evolutionErrorMessage } from '@/lib/whatsapp/evolution-error';
 import { openStatusPrompt } from '@/lib/inbox/status-prompts';
+import { cloudConfig, isCloudTenant, isQuietHours, nextMorning } from '@/lib/whatsapp/cloud';
+import { sendCloudNotification } from '@/lib/whatsapp/cloud-notify';
 
 /** Report quand le quota est épuisé : on retente à la prochaine fenêtre utile. */
 const QUOTA_RETRY_MS = 30 * 60_000;
@@ -60,6 +62,22 @@ export async function handleWhatsAppSend(job: Job): Promise<HandlerResult> {
       reason: `circuit ouvert (${circuit.failures} échecs consécutifs)`,
     };
   }
+
+  // ── 1b. Heures calmes (21:00 -> 08:00, Alger) : report au matin ──────────
+  if (isQuietHours()) {
+    return {
+      outcome: 'reschedule',
+      runAfter: nextMorning(),
+      reason: 'heures calmes (21:00-08:00)',
+    };
+  }
+
+  // WhatsApp OFFICIEL pour les notifications de livraison des comptes
+  // configurés (les campagnes restent sur Evolution : modèles marketing non gérés).
+  const cloud =
+    payload.delivery_status && !payload.campaign_id && isCloudTenant(tenantId)
+      ? cloudConfig()
+      : null;
 
   // ── 2. Plafond journalier + espacement — AU MOMENT DE L'ENVOI ─────────────
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
@@ -99,7 +117,9 @@ export async function handleWhatsAppSend(job: Job): Promise<HandlerResult> {
   }
 
   const warmupStartedAt = prof?.whatsapp_warmup_started_at ?? null;
-  const remaining = remainingDailyQuota(sentToday ?? 0, warmupStartedAt);
+  const remaining = cloud
+    ? Math.max(0, cloud.dailyLimit - (sentToday ?? 0))
+    : remainingDailyQuota(sentToday ?? 0, warmupStartedAt);
 
   if (remaining <= 0) {
     // Ce n'est PAS un échec : c'est une attente légitime.
@@ -134,23 +154,26 @@ export async function handleWhatsAppSend(job: Job): Promise<HandlerResult> {
     }
   }
 
-  // ── 4. Instance Evolution ─────────────────────────────────────────────────
+  // ── 4. Instance Evolution (sauf API officielle) ──────────────────────────
   const ev = await resolveEvolutionCreds(tenantId);
-  if (!ev.url || !ev.key) {
-    return { outcome: 'failed', error: 'Evolution API non configurée' };
-  }
+  let inst: { instance_name?: string | null } | null = null;
+  if (!cloud) {
+    if (!ev.url || !ev.key) {
+      return { outcome: 'failed', error: 'Evolution API non configurée' };
+    }
 
-  const { data: instRow } = await supabase
-    .from('whatsapp_instances')
-    .select('instance_name')
-    .eq('user_id', tenantId)
-    .eq('service_type', 'auto_confirmation')
-    .maybeSingle();
-  // RLS-TENANT-001 : jamais d'action Evolution sur un nom hors de l'espace du tenant.
-  const inst = ownedInstance(tenantId, instRow, 'queue.whatsapp_send');
+    const { data: instRow } = await supabase
+      .from('whatsapp_instances')
+      .select('instance_name')
+      .eq('user_id', tenantId)
+      .eq('service_type', 'auto_confirmation')
+      .maybeSingle();
+    // RLS-TENANT-001 : jamais d'action Evolution sur un nom hors de l'espace du tenant.
+    inst = ownedInstance(tenantId, instRow, 'queue.whatsapp_send');
 
-  if (!inst?.instance_name) {
-    return { outcome: 'failed', error: 'aucune instance WhatsApp connectée' };
+    if (!inst?.instance_name) {
+      return { outcome: 'failed', error: 'aucune instance WhatsApp connectée' };
+    }
   }
 
   // ── 4b. Prise atomique de la notification ─────────────────────────────────
@@ -178,34 +201,39 @@ export async function handleWhatsAppSend(job: Job): Promise<HandlerResult> {
   let ok = false;
   let error = '';
 
-  try {
-    const endpoint = payload.media_url ? 'sendMedia' : 'sendText';
-    const body =
-      payload.media_url && media?.ok
-        ? {
-            number: phone,
-            mediatype: guessMediaType(payload.media_url),
-            media: media.media,
-            ...(media.mimetype ? { mimetype: media.mimetype } : {}),
-            fileName: guessFileName(payload.media_url),
-            caption: varied,
-          }
-        : { number: phone, text: varied };
+  if (cloud) {
+    const r = await sendCloudNotification(supabase, cloud, tenantId, phone, payload);
+    ok = r.ok;
+    if (!r.ok) error = `Meta ${r.status} : ${r.error}`;
+  } else
+    try {
+      const endpoint = payload.media_url ? 'sendMedia' : 'sendText';
+      const body =
+        payload.media_url && media?.ok
+          ? {
+              number: phone,
+              mediatype: guessMediaType(payload.media_url),
+              media: media.media,
+              ...(media.mimetype ? { mimetype: media.mimetype } : {}),
+              fileName: guessFileName(payload.media_url),
+              caption: varied,
+            }
+          : { number: phone, text: varied };
 
-    const res = await fetch(`${ev.url}/message/${endpoint}/${inst.instance_name}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', apikey: ev.key },
-      body: JSON.stringify(body),
-    });
+      const res = await fetch(`${ev.url}/message/${endpoint}/${inst!.instance_name}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: ev.key },
+        body: JSON.stringify(body),
+      });
 
-    ok = res.ok;
-    if (!ok) {
-      const text = await res.text().catch(() => '');
-      error = evolutionErrorMessage('queue.whatsapp', res.status, text);
+      ok = res.ok;
+      if (!ok) {
+        const text = await res.text().catch(() => '');
+        error = evolutionErrorMessage('queue.whatsapp', res.status, text);
+      }
+    } catch (e) {
+      error = e instanceof Error ? e.message : 'erreur réseau Evolution';
     }
-  } catch (e) {
-    error = e instanceof Error ? e.message : 'erreur réseau Evolution';
-  }
 
   // ── 6. Comptabilisation ───────────────────────────────────────────────────
   if (ok) {

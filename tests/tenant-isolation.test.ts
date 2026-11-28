@@ -220,6 +220,8 @@ describe('Routes en service-role (contournement RLS)', () => {
       // l'identifiant du marchand CHIFFRÉ (lib/inbox/webhook) ; écrit
       // uniquement dans autotim.inbox_orders de ce marchand.
       'inbox/webhook/route.ts',
+      // WhatsApp officiel : signature Meta (X-Hub-Signature-256, secret de l'app).
+      'whatsapp/cloud/webhook/route.ts',
     ];
 
     const manquantes: string[] = [];
