@@ -65,7 +65,7 @@ export async function GET() {
     whatsapp:
       typeof sender === 'string'
         ? { connected: false, reason: sender, remaining: 0 }
-        : { connected: true, remaining: sender.remaining },
+        : { connected: true, remaining: sender.remaining, official: !!sender.official },
     service_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ?? '',
     // Adresse webhook : propriétaire seulement (c'est un secret).
     webhook_url: (() => {

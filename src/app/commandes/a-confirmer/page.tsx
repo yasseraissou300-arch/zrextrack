@@ -92,7 +92,7 @@ interface Board {
   service_email: string;
   webhook_url: string | null;
   default_template: string;
-  whatsapp: { connected: boolean; reason?: string; remaining: number };
+  whatsapp: { connected: boolean; reason?: string; remaining: number; official?: boolean };
   counts: Partial<Record<Status, number>>;
   orders: Order[];
 }
@@ -321,7 +321,7 @@ function WhatsAppPanel({ board, onSaved }: { board: Board; onSaved: () => void }
           }`}
         >
           {wa.connected
-            ? `${wa.remaining} message(s) restant(s) aujourd’hui`
+            ? `${wa.official ? 'WhatsApp officiel · ' : ''}${wa.remaining} message(s) restant(s) aujourd’hui`
             : 'WhatsApp non connecté'}
         </span>
       </div>

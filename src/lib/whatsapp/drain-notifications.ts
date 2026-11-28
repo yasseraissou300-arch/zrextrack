@@ -29,13 +29,27 @@ import { getTenantSettings, upsertTenantSettings } from '@/lib/queue/repository'
 import { logEvent } from '@/lib/security/safe-log';
 import { autoConfirmations } from '@/lib/inbox/auto-confirm';
 import { openStatusPrompt, withPromptFooter } from '@/lib/inbox/status-prompts';
-import { withStopDesk } from '@/lib/zrexpress/stopdesk';
+import {
+  findParcelHub,
+  officeText,
+  stopDeskLine,
+  STOPDESK_STATUSES,
+} from '@/lib/zrexpress/stopdesk';
+import {
+  cloudConfig,
+  isCloudTenant,
+  isQuietHours,
+  sendCloudTemplate,
+  type CloudTemplateKind,
+} from '@/lib/whatsapp/cloud';
 import { getZrCredentials } from '@/lib/zrexpress/credentials';
 
 type Client = ReturnType<typeof createServiceClient>;
 
 export const DRAIN_PER_SYNC = 2; // max notifs envoyées par sync (anti-burst)
 export const DRAIN_SPACING_MS = 8000; // espacement entre 2 envois d'un même drain
+/** API officielle : pas de risque de bannissement, débit plus élevé. */
+export const CLOUD_DRAIN_PER_SYNC = 5;
 
 /** Statut transitoire : la ligne est prise par un drain, envoi en cours. */
 export const NOTIF_CLAIMED_STATUS = 'sending';
@@ -81,6 +95,12 @@ export async function drainNotifications(
   userId: string,
   userTpl: Map<string, string>
 ): Promise<number> {
+  // Aucun envoi automatique la nuit (21:00 -> 08:00, Alger) : les
+  // notifications restent en file et partent le matin.
+  if (isQuietHours()) return 0;
+  // WhatsApp OFFICIEL (Meta Cloud API) pour les comptes configurés.
+  const cloud = isCloudTenant(userId) ? cloudConfig() : null;
+
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const [{ count: sentToday }, { data: prof }] = await Promise.all([
     supabase
@@ -101,32 +121,52 @@ export async function drainNotifications(
   if (circuitState(settings).open) return 0;
   let failures = settings?.consecutive_send_failures ?? 0;
 
-  let budget = Math.min(remainingDailyQuota(sentToday ?? 0, warmupStartedAt), DRAIN_PER_SYNC);
+  let budget = cloud
+    ? Math.min(Math.max(0, cloud.dailyLimit - (sentToday ?? 0)), CLOUD_DRAIN_PER_SYNC)
+    : Math.min(remainingDailyQuota(sentToday ?? 0, warmupStartedAt), DRAIN_PER_SYNC);
   if (budget <= 0) return 0;
 
-  // Numéro Evolution connecté de l'utilisateur (instance auto_confirmation)
-  const ev = await resolveEvolutionCreds(userId);
-  if (!ev.url || !ev.key) return 0;
-  const { data: instRow } = await supabase
-    .from('whatsapp_instances')
-    .select('instance_name')
-    .eq('user_id', userId)
-    .eq('service_type', 'auto_confirmation')
-    .single();
-  // RLS-TENANT-001 : jamais d'action Evolution sur un nom hors de l'espace du tenant.
-  const inst = ownedInstance(userId, instRow, 'sync.drain');
-  if (!inst?.instance_name) return 0;
+  // Canal d'envoi : API officielle, ou numéro Evolution connecté (instance auto_confirmation)
+  let evolutionSend: ((phone: string, text: string) => Promise<Response>) | null = null;
+  if (!cloud) {
+    const ev = await resolveEvolutionCreds(userId);
+    if (!ev.url || !ev.key) return 0;
+    const { data: instRow } = await supabase
+      .from('whatsapp_instances')
+      .select('instance_name')
+      .eq('user_id', userId)
+      .eq('service_type', 'auto_confirmation')
+      .single();
+    // RLS-TENANT-001 : jamais d'action Evolution sur un nom hors de l'espace du tenant.
+    const inst = ownedInstance(userId, instRow, 'sync.drain');
+    if (!inst?.instance_name) return 0;
+    evolutionSend = (phone, text) =>
+      fetch(`${ev.url}/message/sendText/${inst.instance_name}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: ev.key },
+        body: JSON.stringify({ number: phone, text }),
+      });
+  }
 
-  // Commandes du Google Sheet à confirmer (si le marchand l'a activé) : elles
-  // passent AVANT les notifications de suivi, dans le MÊME budget.
-  const confirmations = await autoConfirmations(supabase, userId, budget, (phone, text) =>
-    fetch(`${ev.url}/message/sendText/${inst.instance_name}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', apikey: ev.key },
-      body: JSON.stringify({ number: phone, text }),
-    })
-      .then((r) => r.ok)
-      .catch(() => false)
+  // Commandes à confirmer (si le marchand l'a activé) : elles passent AVANT
+  // les notifications de suivi, dans le MÊME budget.
+  const confirmations = await autoConfirmations(
+    supabase,
+    userId,
+    budget,
+    cloud
+      ? (phone, _text, order) =>
+          sendCloudTemplate(cloud, phone, 'confirm', {
+            client: order?.customer_name ?? '',
+            produit: order?.product ?? '',
+            prix: order?.price ?? 0,
+            livraison: order?.delivery_type === 'stopdesk' ? 'للمكتب (stop desk)' : 'للدار',
+            wilaya: [order?.wilaya, order?.commune].filter(Boolean).join(' · '),
+          }).then((r) => r.ok)
+      : (phone, text) =>
+          evolutionSend!(phone, text)
+            .then((r) => r.ok)
+            .catch(() => false)
   );
   budget -= confirmations;
   if (budget <= 0) return confirmations;
@@ -138,7 +178,7 @@ export async function drainNotifications(
     .eq('status', 'pending')
     .order('created_at', { ascending: true })
     .limit(budget);
-  if (!pendings || pendings.length === 0) return 0;
+  if (!pendings || pendings.length === 0) return confirmations;
 
   let sent = 0;
   let attempted = 0;
@@ -147,7 +187,7 @@ export async function drainNotifications(
     // Prise AVANT tout envoi : un autre sync l'a peut-être déjà prise.
     if (!(await claimNotification(supabase, userId, p.id))) continue;
 
-    if (attempted > 0) await sleep(DRAIN_SPACING_MS);
+    if (attempted > 0 && !cloud) await sleep(DRAIN_SPACING_MS);
     attempted++;
 
     const base = buildMessage(
@@ -163,25 +203,35 @@ export async function drainNotifications(
     );
     // Stop desk : adresse du bureau ; puis la question (jour de livraison / avis).
     zr ??= await getZrCredentials(supabase, userId).catch(() => null);
-    const message = withPromptFooter(
-      p.delivery_status,
-      await withStopDesk(zr, p.delivery_status, p.tracking_number, base)
-    );
+    const hub =
+      zr && STOPDESK_STATUSES.has(p.delivery_status)
+        ? await findParcelHub(zr, p.tracking_number)
+        : null;
+    const message = withPromptFooter(p.delivery_status, hub ? base + stopDeskLine(hub) : base);
 
     const phone = normalizePhone(p.customer_whatsapp || '');
     let ok = false;
     let err = '';
     if (phone.length >= 11) {
-      try {
-        const r = await fetch(`${ev.url}/message/sendText/${inst.instance_name}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', apikey: ev.key },
-          body: JSON.stringify({ number: phone, text: varyMessage(message) }),
+      if (cloud) {
+        // Modèle approuvé + boutons (jour de livraison / avis)
+        const r = await sendCloudTemplate(cloud, phone, p.delivery_status as CloudTemplateKind, {
+          client: p.customer_name || '',
+          produit: p.product_name || '',
+          tracking: p.tracking_number,
+          cod: p.cod ?? 0,
+          livraison: hub ? officeText(hub) : 'للدار',
         });
         ok = r.ok;
-        if (!ok) err = `Evolution HTTP ${r.status}`;
-      } catch (e: any) {
-        err = e?.message || 'réseau';
+        if (!r.ok) err = `Meta ${r.status} : ${r.error}`;
+      } else {
+        try {
+          const r = await evolutionSend!(phone, varyMessage(message));
+          ok = r.ok;
+          if (!ok) err = `Evolution HTTP ${r.status}`;
+        } catch (e: any) {
+          err = e?.message || 'réseau';
+        }
       }
     } else {
       err = 'Numéro invalide';
